@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "context-compiler"
+version = "0.1.0"
+description = "Deterministic conversational state engine for LLM applications."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+authors = [{ name = "Robert Lippmann" }]
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "hypothesis",
+  "ruff",
+  "mypy",
+  "pre-commit",
+]
+
+[tool.uv]
+dev-dependencies = [
+  "pytest",
+  "hypothesis",
+  "ruff",
+  "mypy",
+  "pre-commit",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = false
+
+[tool.pytest.ini_options]
+addopts = "-ra"
+testpaths = ["tests"]
