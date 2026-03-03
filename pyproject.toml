@@ -51,6 +51,7 @@ no_implicit_optional = true
 warn_return_any = true
 warn_unused_ignores = true
 ignore_missing_imports = false
+mypy_path = "src"
 
 [tool.pytest.ini_options]
 addopts = "-ra"
