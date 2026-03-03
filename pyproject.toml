@@ -12,6 +12,9 @@ license = { text = "Apache-2.0" }
 authors = [{ name = "Robert Lippmann" }]
 dependencies = []
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/context_compiler"]
+
 [project.optional-dependencies]
 dev = [
   "pytest",
