@@ -11,4 +11,5 @@ repos:
     hooks:
       - id: mypy
         args: [--pretty]
-        additional_dependencies: []
+        additional_dependencies:
+          - hypothesis
