@@ -40,5 +40,18 @@ jobs:
       - name: Install Hypothesis for tests
         run: uv pip install --python .venv/bin/python hypothesis
 
+      - name: Install coverage tooling
+        run: uv pip install --python .venv/bin/python pytest-cov
+
       - name: Pytest
-        run: uv run pytest
+        run: uv run pytest --cov=context_compiler --cov-report=term --cov-report=xml:coverage.xml --cov-report=html:htmlcov
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-python-${{ matrix.python-version }}
+          path: |
+            coverage.xml
+            htmlcov/
+          if-no-files-found: ignore
