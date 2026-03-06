@@ -4,8 +4,10 @@ Guidelines for AI agents working in this repository.
 
 ## Branch rules
 - Never commit directly to `main`.
-- Always create or use a feature branch for changes.
-- If the current branch is `main`, stop and ask the user to create a branch before proceeding.
+- Never push directly to `main`.
+- Never check out or modify `main`.
+- Always work on a feature branch.
+- If the current branch is `main`, stop and ask the user to create a branch.
 
 ## Development workflow
 Before committing:
@@ -38,6 +40,13 @@ Prefer modern typing syntax:
 - `list[str]` instead of `List[str]`
 - `dict[str, int]` instead of `Dict[str, int]`
 - `str | None` instead of `Optional[str]`
+
+## Git safety
+- Do not perform history-rewriting operations unless explicitly instructed.
+- This includes `git rebase`, `git reset`, `git push --force`, and `git commit --amend`.
+- Do not push directly to `main`.
+- Do not check out or modify `main`.
+- If the current branch is `main`, stop and ask the user to create a feature branch.
 
 ## CI
 Do not modify GitHub CI workflows unless explicitly asked.
