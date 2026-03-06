@@ -97,11 +97,18 @@ Accepted patterns:
 - "do not X"
 - "never X"
 - "avoid X"
+- "refrain from X"
 - "please don't X"
 
 Produces:
 
     POLICY_ADD(normalize(X))
+
+`"refrain from X"` is treated as a hard-negative directive and adds
+`normalize(X)` to `policies.prohibit`.
+
+For hard-negative directives, `normalize(X)` is applied to each policy
+payload item before storage.
 
 #### 5.2 Hard Positive Directives
 
@@ -117,6 +124,8 @@ Produces:
     FACT_SET(key="focus.device", value=X)
 
 “Using” statements set the current discussion focus, not inventory.
+Hard-positive directives store fact values as opaque strings and do not
+apply `normalize(X)` to the stored fact value.
 
 #### 5.3 Correction Markers
 
@@ -143,6 +152,8 @@ Produces:
     POLICY_REMOVE(normalize(X))
 
 If X not present → no-op.
+For allow/removal directives, `normalize(X)` is applied to each policy
+payload item used for removal matching.
 
 #### 5.5 List Handling
 
@@ -166,6 +177,17 @@ For exclusive predicates:
 5. Normalize apostrophes (`dont` → `don't`)
 
 No stemming, synonym mapping, ontology, or semantic interpretation.
+
+Policy payloads (add/remove) use `normalize(X)` exactly as defined above.
+
+Fact values do not use `normalize(X)`. They may receive minimal input
+sanitation only:
+
+1. Unicode normalization
+2. Apostrophe normalization
+3. Whitespace collapse
+
+Fact sanitation does not include lowercasing or leading-article removal.
 
 ### 7. Ambiguity Handling
 
