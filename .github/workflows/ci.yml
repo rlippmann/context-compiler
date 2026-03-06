@@ -37,5 +37,8 @@ jobs:
       - name: Mypy
         run: uv run mypy .
 
+      - name: Install Hypothesis for tests
+        run: uv pip install --python .venv/bin/python hypothesis
+
       - name: Pytest
         run: uv run pytest
