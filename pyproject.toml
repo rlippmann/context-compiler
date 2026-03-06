@@ -12,6 +12,9 @@ license = { text = "Apache-2.0" }
 authors = [{ name = "Robert Lippmann" }]
 dependencies = []
 
+[project.scripts]
+context-compiler = "context_compiler.repl:main"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/context_compiler"]
 
