@@ -144,6 +144,7 @@ ENV/
 env.bak/
 venv.bak/
 .qodo/
+.DS_Store
 
 # Spyder project settings
 .spyderproject
