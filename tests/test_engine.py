@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from context_compiler import create_engine
 
 
@@ -138,6 +136,18 @@ def test_pending_reprompts_on_non_yes_no() -> None:
     assert engine.state == before
 
 
+def test_pending_clarification_reprompt_keeps_state_unchanged() -> None:
+    engine = create_engine()
+
+    decision1 = engine.step("no use docker")
+    assert decision1["kind"] == "clarify"
+    before = engine.state
+
+    decision2 = engine.step("proceed")
+    assert decision2["kind"] == "clarify"
+    assert engine.state == before
+
+
 def test_pending_clarification_blocks_other_mutations_until_resolved() -> None:
     engine = create_engine()
 
@@ -251,6 +261,26 @@ def test_correction_with_invalid_conjunction_clarifies() -> None:
     decision = engine.step("actually and Nord")
 
     assert decision["kind"] == "clarify"
+
+
+def test_allow_with_empty_payload_clarifies_without_mutating_state() -> None:
+    engine = create_engine()
+    before = engine.state
+
+    decision = engine.step("allow   ")
+
+    assert decision["kind"] == "clarify"
+    assert engine.state == before
+
+
+def test_use_with_unclear_payload_clarifies_without_mutating_state() -> None:
+    engine = create_engine()
+    before = engine.state
+
+    decision = engine.step("use and")
+
+    assert decision["kind"] == "clarify"
+    assert engine.state == before
 
 
 def test_pending_yes_with_whitespace_resolves() -> None:
