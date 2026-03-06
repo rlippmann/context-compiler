@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import re
 
 from hypothesis import assume, given
@@ -36,6 +34,42 @@ def test_policy_addition_is_idempotent(item: str) -> None:
     twice = list(engine.state["policies"]["prohibit"])
 
     assert twice == once
+
+
+@given(
+    st.text(min_size=1, max_size=30),
+    st.lists(
+        st.sampled_from(
+            [
+                "hello there",
+                "what do you think?",
+                "thanks for the help",
+                "this is just context",
+                "can you explain that?",
+                "yes",
+                "no",
+            ]
+        ),
+        min_size=0,
+        max_size=10,
+    ),
+)
+def test_policy_persists_across_passthrough_turns(item: str, turns: list[str]) -> None:
+    engine = create_engine()
+    normalized_item = _split_items(item)
+    assume(len(normalized_item) == 1)
+
+    decision = engine.step(f"avoid {item}")
+    expected = normalized_item[0]
+    assert decision["kind"] == "update"
+    assert engine.state["policies"]["prohibit"] == [expected]
+
+    for turn in turns:
+        intervening = engine.step(turn)
+        assert intervening["kind"] == "passthrough"
+        assert engine.state["policies"]["prohibit"] == [expected]
+
+    assert expected in engine.state["policies"]["prohibit"]
 
 
 @given(
