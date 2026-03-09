@@ -96,19 +96,18 @@ Accepted patterns:
 - "don't X"
 - "do not X"
 - "never X"
-- "avoid X"
-- "refrain from X"
 - "please don't X"
 
 Produces:
 
     POLICY_ADD(normalize(X))
 
-`"refrain from X"` is treated as a hard-negative directive and adds
-`normalize(X)` to `policies.prohibit`.
-
 For hard-negative directives, `normalize(X)` is applied to each policy
 payload item before storage.
+
+Soft preference phrases like `"avoid X"` and `"refrain from X"` are
+not hard directives in M1. They are treated as passthrough input and do
+not mutate authoritative state.
 
 #### 5.2 Hard Positive Directives
 
@@ -236,8 +235,8 @@ While pending exists, no other mutation may occur.
 
 #### Policies (additive)
 
-    avoid parallel octaves
-    avoid voice crossing
+    don't use parallel octaves
+    do not use voice crossing
 
 Adding duplicate policy is a no-op.
 Policies stored in sorted lexical order.

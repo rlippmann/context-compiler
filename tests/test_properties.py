@@ -27,10 +27,10 @@ def test_determinism_same_input_sequence_same_state(inputs: list[str]) -> None:
 def test_policy_addition_is_idempotent(item: str) -> None:
     engine = create_engine()
 
-    engine.step(f"avoid {item}")
+    engine.step(f"don't use {item}")
     once = list(engine.state["policies"]["prohibit"])
 
-    engine.step(f"avoid {item}")
+    engine.step(f"don't use {item}")
     twice = list(engine.state["policies"]["prohibit"])
 
     assert twice == once
@@ -59,7 +59,7 @@ def test_policy_persists_across_passthrough_turns(item: str, turns: list[str]) -
     normalized_item = _split_items(item)
     assume(len(normalized_item) == 1)
 
-    decision = engine.step(f"avoid {item}")
+    decision = engine.step(f"don't use {item}")
     expected = normalized_item[0]
     assert decision["kind"] == "update"
     assert engine.state["policies"]["prohibit"] == [expected]
@@ -116,10 +116,24 @@ def test_safety_near_miss_inputs_do_not_mutate_state(text: str) -> None:
 def test_hyphenated_and_token_not_split(token: str) -> None:
     engine = create_engine()
 
-    decision = engine.step(f"avoid {token}")
+    decision = engine.step(f"don't use {token}")
 
     assert decision["kind"] == "update"
     assert engine.state["policies"]["prohibit"] == [token]
+
+
+@given(st.text(min_size=1, max_size=40))
+def test_soft_negative_phrases_do_not_mutate_state(text: str) -> None:
+    engine = create_engine()
+    before = engine.state
+
+    decision_avoid = engine.step(f"avoid {text}")
+    assert decision_avoid["kind"] == "passthrough"
+    assert engine.state == before
+
+    decision_refrain = engine.step(f"refrain from {text}")
+    assert decision_refrain["kind"] == "passthrough"
+    assert engine.state == before
 
 
 @given(st.from_regex(r"[A-Za-z0-9][A-Za-z0-9 ]{0,20}", fullmatch=True))
