@@ -32,7 +32,7 @@ def test_repl_clarify_flow() -> None:
 
 
 def test_repl_state_persists_across_turns() -> None:
-    decisions = _run_session("avoid docker\nallow docker\nquit\n")
+    decisions = _run_session("don't use docker\nallow docker\nquit\n")
 
     assert len(decisions) == 2
     assert decisions[0]["kind"] == "update"

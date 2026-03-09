@@ -26,13 +26,14 @@ def test_hard_negative_dont_use_stores_item_without_use_prefix() -> None:
     assert engine.state["policies"]["prohibit"] == ["docker"]
 
 
-def test_hard_negative_avoid_use_keeps_use_token() -> None:
+def test_avoid_is_passthrough_and_does_not_mutate_state() -> None:
     engine = create_engine()
+    before = engine.state
 
     decision = engine.step("avoid use docker")
 
-    assert decision["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == ["use docker"]
+    assert decision["kind"] == "passthrough"
+    assert engine.state == before
 
 
 def test_correction_replaces_most_recent_exclusive_fact() -> None:
@@ -57,9 +58,9 @@ def test_correction_without_prior_exclusive_fact_requires_clarification() -> Non
 def test_policy_additions_are_sorted_unique_and_removal_is_noop_when_absent() -> None:
     engine = create_engine()
 
-    engine.step("avoid voice crossing")
-    engine.step("avoid the parallel octaves")
-    decision = engine.step("avoid voice crossing")
+    engine.step("don't use voice crossing")
+    engine.step("never the parallel octaves")
+    decision = engine.step("do not voice crossing")
 
     assert decision["kind"] == "update"
     assert engine.state["policies"]["prohibit"] == ["parallel octaves", "voice crossing"]
@@ -103,7 +104,7 @@ def test_correction_does_not_bypass_pending_clarification() -> None:
     assert decision1["kind"] == "clarify"
 
     # attempt correction while pending
-    decision2 = engine.step("actually avoid docker")
+    decision2 = engine.step("actually don't use docker")
 
     assert decision2["kind"] == "clarify"
     assert engine.state == {
@@ -169,7 +170,7 @@ def test_reset_commands() -> None:
     engine = create_engine()
 
     engine.step("use Nord Stage 4")
-    engine.step("avoid parallel octaves")
+    engine.step("don't use parallel octaves")
 
     decision1 = engine.step("reset policies")
     assert decision1["kind"] == "update"
@@ -180,7 +181,7 @@ def test_reset_commands() -> None:
     }
 
     engine.step("use Nord Stage 4")
-    engine.step("avoid parallel octaves")
+    engine.step("don't use parallel octaves")
 
     decision_constraints = engine.step("clear constraints")
     assert decision_constraints["kind"] == "update"
@@ -191,7 +192,7 @@ def test_reset_commands() -> None:
     }
 
     engine.step("use Nord Stage 4")
-    engine.step("avoid parallel octaves")
+    engine.step("don't use parallel octaves")
 
     decision2 = engine.step("clear state")
     assert decision2["kind"] == "update"
@@ -318,13 +319,14 @@ def test_unicode_apostrophe_negative_directive_with_please() -> None:
     assert engine.state["policies"]["prohibit"] == ["docker"]
 
 
-def test_refrain_from_does_not_strip_use_prefix() -> None:
+def test_refrain_from_is_passthrough_and_does_not_mutate_state() -> None:
     engine = create_engine()
+    before = engine.state
 
     decision = engine.step("refrain from use docker")
 
-    assert decision["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == ["use docker"]
+    assert decision["kind"] == "passthrough"
+    assert engine.state == before
 
 
 def test_hard_negative_dont_without_apostrophe_updates_policy() -> None:

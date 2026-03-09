@@ -71,8 +71,6 @@ _NEGATIVE_DIRECTIVE_RULES: tuple[NegativeDirectiveRule, ...] = (
     NegativeDirectiveRule(starter="don't ", kind="policy_add", strip_leading_use=True),
     NegativeDirectiveRule(starter="do not ", kind="policy_add", strip_leading_use=True),
     NegativeDirectiveRule(starter="never ", kind="policy_add", strip_leading_use=True),
-    NegativeDirectiveRule(starter="refrain from ", kind="policy_add", strip_leading_use=False),
-    NegativeDirectiveRule(starter="avoid ", kind="policy_add", strip_leading_use=False),
 )
 
 
