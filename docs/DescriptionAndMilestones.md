@@ -38,6 +38,12 @@ All state transitions originate from explicit user directives.
 Explicit user commitments persist reliably within a conversation.
 A correction means replacing a previously set fact, not evaluating conversational accuracy.
 
+In M1 the fact schema intentionally contains a single exclusive slot (`facts["focus.device"]`).
+This slot demonstrates deterministic fact replacement and correction semantics.
+
+Policies (`policies.prohibit`) provide the primary mechanism for persistent conversational constraints.
+Richer fact schemas may be introduced in future milestones.
+
 **Core capability:**
 
 - Recognize high-confidence user directives (facts and policies)
@@ -70,7 +76,7 @@ A correction means replacing a previously set fact, not evaluating conversationa
 
 After correcting or constraining the assistant once, the behavior remains consistent for the rest of the conversation.
 
-### M2 — Scope & Session Control
+### M2 — Scope & Session Control (optional)
 
 **Goal:**
 
@@ -106,7 +112,8 @@ New topic feels clean; old projects do not resurface unintentionally.
 
 ### M3 — Cross-Session Recall**
 
-Goal:Recall past sessions safely and intentionally.
+**Goal**
+Recall past sessions safely and intentionally.
 
 **Core capability:**
 
@@ -138,9 +145,10 @@ Goal:Recall past sessions safely and intentionally.
 
 Assistant remembers decisions across sessions without resurrecting contradictions.
 
-### M4 — MCP Integration
+### M4 — MCP Integration (optional)
 
-Goal:Expose the state engine via a standardized context interface.
+**Goal**
+Expose the state engine via a standardized context interface.
 
 **Core capability:**
 
@@ -165,7 +173,8 @@ without custom adapters.
 
 ### M5 — Branch Awareness (Optional / Advanced)
 
-Goal:Make long exploratory conversations navigable.
+**Goal**
+Make long exploratory conversations navigable.
 
 **Core capability:**
 
@@ -191,6 +200,14 @@ Goal:Make long exploratory conversations navigable.
 
 Brainstorming stays structured and resumable.
 
-## Dependency Order
+## Milestone Relationships
 
-M1 → M2 → M3 → M4M5 is optional and independent of M3/M4.
+M1 is the foundation.
+
+M3 builds directly on M1 and may be implemented without M2.
+
+M2 introduces optional scope and session isolation.
+
+M4 is an optional integration milestone.
+
+M5 is optional and independent of the other milestones.
