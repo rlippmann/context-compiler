@@ -33,7 +33,6 @@ All state transitions originate from explicit user directives.
 ### M1 — Deterministic State Engine (implemented)
 
 **Goal**
-
 Explicit user commitments persist reliably within a conversation.
 A correction means replacing a previously set fact, not evaluating conversational accuracy.
 
