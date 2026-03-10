@@ -1,4 +1,12 @@
 from context_compiler import create_engine
+from context_compiler.engine import DecisionKind
+
+
+def test_decision_kind_strenum_behavior() -> None:
+    for kind in DecisionKind:
+        assert kind == kind.value
+        assert str(kind) == kind.value
+        assert DecisionKind(kind.value) is kind
 
 
 def test_directive_parsing_positive_negative_and_allow() -> None:
