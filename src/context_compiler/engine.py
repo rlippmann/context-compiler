@@ -137,16 +137,13 @@ class Engine:
         correction = _parse_correction(user_input)
         if correction is not None:
             if self._last_exclusive_fact_key is None:
-                return _clarify(
-                    "I don't have a previous focus setting to correct. "
-                    "What should focus.primary be?"
-                )
+                return _clarify_no_prior_change(correction)
             if not correction.strip():
-                return _clarify("What should focus.primary be?")
+                return _clarify_missing_value()
             if _has_multiple_values(correction):
-                return _clarify("Corrections for focus.primary must contain one value.")
+                return _clarify_single_value()
             if _invalid_exclusive_value(correction):
-                return _clarify("Corrections for focus.primary must contain one value.")
+                return _clarify_unclear_value()
             return PendingEvent(kind="fact_set", fact_value=correction)
 
         policy_add = _parse_hard_negative(normalized_message)
@@ -164,11 +161,11 @@ class Engine:
         positive_value = _parse_hard_positive(user_input, normalized_message)
         if positive_value is not None:
             if not positive_value.strip():
-                return _clarify("What should focus.primary be?")
+                return _clarify_missing_value()
             if _has_multiple_values(positive_value):
-                return _clarify("focus.primary accepts one value. Please provide a single value.")
+                return _clarify_single_value()
             if _invalid_exclusive_value(positive_value):
-                return _clarify("focus.primary value is unclear. Please provide one value.")
+                return _clarify_unclear_value()
             return PendingEvent(kind="fact_set", fact_value=positive_value)
 
         pending = _parse_ambiguous_mutation(user_input)
@@ -256,6 +253,22 @@ def _clarify(prompt: str) -> Decision:
         "state": None,
         "prompt_to_user": prompt,
     }
+
+
+def _clarify_missing_value() -> Decision:
+    return _clarify("What should I use?")
+
+
+def _clarify_single_value() -> Decision:
+    return _clarify("Please provide a single value to use.")
+
+
+def _clarify_unclear_value() -> Decision:
+    return _clarify("The value is unclear. Please provide a single value to use.")
+
+
+def _clarify_no_prior_change(value: str) -> Decision:
+    return _clarify(f'There\'s nothing to change from yet. Did you mean to use "{value}"?')
 
 
 def _update_decision(state: State) -> Decision:
@@ -383,5 +396,5 @@ def _pending_prompt(pending: PendingEvent) -> str:
     if pending.kind == "policy_remove" and pending.values:
         return f"Did you mean to allow '{pending.values[0]}'?"
     if pending.kind == "fact_set" and pending.fact_value is not None:
-        return f"Did you mean to set focus.primary to '{pending.fact_value}'?"
+        return f'Did you mean to use "{pending.fact_value}"?'
     return "Your directive was unclear. Did you mean to change state?"
