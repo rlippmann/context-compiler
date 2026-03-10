@@ -436,18 +436,22 @@ def _parse_hard_negative(normalized_message: str) -> list[str] | None:
 
         payload = msg[len(rule.starter) :].strip()
         if rule.strip_leading_use:
-            payload = re.sub(r"^use\s+", "", payload, count=1)
+            payload = re.sub(r"^use(?:\s+|$)", "", payload, count=1)
         return _split_items(payload)
 
     return None
 
 
 def _parse_hard_positive(user_input: str, normalized_message: str) -> str | None:
+    if normalized_message == "use":
+        return ""
+
+    normalized_candidate = re.sub(r"^please\s+", "", normalized_message, count=1)
     if not (
-        normalized_message.startswith("use ")
-        or normalized_message.startswith("set ")
-        or normalized_message.startswith("i am using ")
-        or normalized_message.startswith("i'm using ")
+        normalized_candidate.startswith("use ")
+        or normalized_candidate.startswith("set ")
+        or normalized_candidate.startswith("i am using ")
+        or normalized_candidate.startswith("i'm using ")
     ):
         return None
 

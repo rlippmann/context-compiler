@@ -137,16 +137,15 @@ def test_soft_negative_phrases_do_not_mutate_state(text: str) -> None:
 
 
 @given(st.from_regex(r"[A-Za-z0-9][A-Za-z0-9 ]{0,20}", fullmatch=True))
-def test_please_use_is_not_a_supported_positive_directive(value: str) -> None:
+def test_please_use_is_a_supported_positive_directive(value: str) -> None:
     assume("," not in value)
     assume(" and " not in value.lower())
 
     engine = create_engine()
-    before = engine.state
     decision = engine.step(f"please use {value}")
 
-    assert decision["kind"] != "update"
-    assert engine.state == before
+    assert decision["kind"] == "update"
+    assert engine.state["facts"]["focus.primary"] == _clean(value)
 
 
 @given(st.text(max_size=80))
