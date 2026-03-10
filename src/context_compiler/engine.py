@@ -5,6 +5,7 @@ high-confidence directives and emits host decisions without invoking an LLM.
 Only explicit user directives can mutate authoritative state.
 """
 
+import json
 import re
 from copy import deepcopy
 from dataclasses import dataclass
@@ -107,6 +108,20 @@ class Engine:
     def state(self) -> State:
         """Return a defensive copy of the current authoritative state snapshot."""
         return deepcopy(self._state)
+
+    def export_json(self) -> str:
+        """Serialize authoritative state to canonical JSON."""
+        return json.dumps(self._state, sort_keys=True, separators=(",", ":"))
+
+    def import_json(self, payload: str) -> None:
+        """Replace authoritative state from a JSON payload."""
+        state = _load_state_json(payload)
+        self._state = state
+        self._pending = None
+        self._pending_prompt = None
+        self._last_exclusive_fact_key = (
+            FOCUS_PRIMARY if state[STATE_FACTS][FOCUS_PRIMARY] is not None else None
+        )
 
     def step(self, user_input: str) -> Decision:
         """Process one user input and return a deterministic Decision."""
@@ -243,6 +258,45 @@ def _initial_state() -> State:
     return {
         STATE_FACTS: {FOCUS_PRIMARY: None},
         STATE_POLICIES: {POLICY_PROHIBIT: []},
+        STATE_VERSION: 1,
+    }
+
+
+def _load_state_json(payload: str) -> State:
+    try:
+        raw = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Invalid JSON payload.") from exc
+
+    if not isinstance(raw, dict):
+        raise ValueError("Invalid state payload.")
+    if set(raw.keys()) != {STATE_FACTS, STATE_POLICIES, STATE_VERSION}:
+        raise ValueError("Invalid state payload.")
+
+    if raw[STATE_VERSION] != 1:
+        raise ValueError(f"Unsupported state version: {raw[STATE_VERSION]!r}")
+
+    facts = raw[STATE_FACTS]
+    policies = raw[STATE_POLICIES]
+    if not isinstance(facts, dict) or not isinstance(policies, dict):
+        raise ValueError("Invalid state payload.")
+    if set(facts.keys()) != {FOCUS_PRIMARY} or set(policies.keys()) != {POLICY_PROHIBIT}:
+        raise ValueError("Invalid state payload.")
+
+    focus_value = facts[FOCUS_PRIMARY]
+    prohibit_value = policies[POLICY_PROHIBIT]
+    if focus_value is not None and not isinstance(focus_value, str):
+        raise ValueError("Invalid state payload.")
+    if not isinstance(prohibit_value, list) or any(
+        not isinstance(item, str) for item in prohibit_value
+    ):
+        raise ValueError("Invalid state payload.")
+
+    return {
+        STATE_FACTS: {
+            FOCUS_PRIMARY: None if focus_value is None else _clean_fact_value(focus_value)
+        },
+        STATE_POLICIES: {POLICY_PROHIBIT: sorted(set(prohibit_value))},
         STATE_VERSION: 1,
     }
 
