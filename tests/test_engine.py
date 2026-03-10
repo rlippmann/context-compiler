@@ -339,6 +339,15 @@ def test_correction_replaces_most_recent_exclusive_fact() -> None:
     assert engine.state["facts"]["focus.primary"] == "Nord Stage 4"
 
 
+def test_please_use_directive_updates_fact() -> None:
+    engine = create_engine()
+
+    decision = engine.step("please use Nord Stage 4")
+
+    assert decision["kind"] == "update"
+    assert engine.state["facts"]["focus.primary"] == "Nord Stage 4"
+
+
 def test_correction_without_prior_exclusive_fact_requires_clarification() -> None:
     engine = create_engine()
 
@@ -428,6 +437,15 @@ def test_pending_reprompts_on_non_yes_no() -> None:
     d = engine.step("maybe")
     assert d["kind"] == "clarify"
     assert engine.state == before
+
+
+def test_ambiguous_policy_add_clarification_uses_expected_prompt_text() -> None:
+    engine = create_engine()
+
+    decision = engine.step("no use docker")
+
+    assert decision["kind"] == "clarify"
+    assert decision["prompt_to_user"] == "Did you mean to prohibit 'docker'?"
 
 
 def test_pending_clarification_reprompt_keeps_state_unchanged() -> None:
@@ -672,3 +690,93 @@ def test_hard_negative_dont_without_use_still_adds_policy() -> None:
 
     assert decision["kind"] == "update"
     assert engine.state["policies"]["prohibit"] == ["docker"]
+
+
+def test_correction_with_multiple_values_clarifies_and_keeps_state() -> None:
+    engine = create_engine()
+    engine.step("use Nord Stage 4")
+    before = engine.state
+
+    decision = engine.step("actually macbook and linux")
+
+    assert decision["kind"] == "clarify"
+    assert engine.state == before
+
+
+def test_empty_hard_negative_clarifies_with_prohibit_prompt() -> None:
+    engine = create_engine()
+    before = engine.state
+
+    decision = engine.step("don't use")
+
+    assert decision["kind"] == "clarify"
+    assert decision["prompt_to_user"] == "What should I prohibit?"
+    assert engine.state == before
+
+
+def test_hard_positive_empty_payload_clarifies_with_use_prompt() -> None:
+    engine = create_engine()
+    before = engine.state
+
+    decision = engine.step("use")
+
+    assert decision["kind"] == "clarify"
+    assert decision["prompt_to_user"] == "What should I use?"
+    assert engine.state == before
+
+
+def test_hard_positive_multi_value_payload_clarifies_with_single_value_prompt() -> None:
+    engine = create_engine()
+    before = engine.state
+
+    decision = engine.step("use macbook and linux")
+
+    assert decision["kind"] == "clarify"
+    assert decision["prompt_to_user"] == "Please provide a single value to use."
+    assert engine.state == before
+
+
+def test_pending_clarification_rejected_by_explicit_no_is_passthrough() -> None:
+    engine = create_engine()
+    before = engine.state
+
+    first = engine.step("no use docker")
+    assert first["kind"] == "clarify"
+
+    second = engine.step("no")
+    assert second["kind"] == "passthrough"
+    assert engine.state == before
+
+
+@pytest.mark.parametrize(
+    ("path", "bad_state"),
+    [
+        ("constructor", []),
+        ("setter", "not-a-dict"),
+        ("constructor", {"facts": [], "policies": {"prohibit": []}, "version": 1}),
+        ("setter", {"facts": {"focus.primary": None}, "policies": [], "version": 1}),
+        (
+            "constructor",
+            {"facts": {"focus.primary": 123}, "policies": {"prohibit": []}, "version": 1},
+        ),
+    ],
+)
+def test_object_state_paths_reject_malformed_state_inputs(path: str, bad_state: object) -> None:
+    if path == "constructor":
+        with pytest.raises(ValueError):
+            Engine(state=bad_state)
+        return
+
+    engine = create_engine()
+    with pytest.raises(ValueError):
+        engine.state = bad_state
+
+
+def test_allow_suffix_removes_existing_prohibition() -> None:
+    engine = create_engine()
+    engine.step("don't use docker")
+
+    decision = engine.step("docker is fine")
+
+    assert decision["kind"] == "update"
+    assert engine.state["policies"]["prohibit"] == []
