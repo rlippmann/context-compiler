@@ -27,7 +27,7 @@ State becomes:
 ```json
 {
   "facts": {
-    "focus.device": null
+    "focus.primary": null
   },
   "policies": {
     "prohibit": ["docker"]
@@ -131,7 +131,7 @@ The compiler maintains an authoritative state snapshot:
 ```json
 {
   "facts": {
-    "focus.device": null
+    "focus.primary": null
   },
   "policies": {
     "prohibit": []
@@ -141,7 +141,7 @@ The compiler maintains an authoritative state snapshot:
 ```
 
 **Note**
-In M1, the fact schema contains a single exclusive slot: `facts["focus.device"]`.
+In M1, the fact schema contains a single exclusive slot: `facts["focus.primary"]`.
 
 This slot exists to demonstrate deterministic fact replacement and correction semantics.
 Richer fact schemas may be introduced in future milestones.
@@ -184,7 +184,7 @@ User: I'm using MacBook M3
 State update:
 
 ```text
-facts.focus.device = "MacBook M3"
+facts.focus.primary = "MacBook M3"
 ```
 
 Correction:
@@ -196,7 +196,7 @@ User: actually MacBook M2
 Result:
 
 ```text
-facts.focus.device = "MacBook M2"
+facts.focus.primary = "MacBook M2"
 ```
 
 Ambiguous mutation:

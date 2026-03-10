@@ -85,7 +85,7 @@ def test_exclusive_fact_replacement_last_write_wins(first: str, second: str) -> 
     engine.step(f"use {first}")
     engine.step(f"use {second}")
 
-    assert engine.state["facts"]["focus.device"] == _clean(second)
+    assert engine.state["facts"]["focus.primary"] == _clean(second)
 
 
 @given(

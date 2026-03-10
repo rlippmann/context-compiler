@@ -68,7 +68,7 @@ State is a deterministic snapshot:
 `json
     {
       "facts": {
-        "focus.device": null
+        "focus.primary": null
       },
       "policies": {
         "prohibit": []
@@ -120,7 +120,7 @@ Accepted patterns:
 
 Produces:
 
-    FACT_SET(key="focus.device", value=X)
+    FACT_SET(key="focus.primary", value=X)
 
 “Using” statements set the current discussion focus, not inventory.
 Hard-positive directives store fact values as opaque strings and do not
@@ -228,8 +228,8 @@ While pending exists, no other mutation may occur.
 
 #### Facts (exclusive)
 
-    focus.device = "nord stage 3"
-    focus.device = "nord stage 4"
+    focus.primary = "nord stage 3"
+    focus.primary = "nord stage 4"
 
 →` only stage 4 active`
 
@@ -249,7 +249,7 @@ Example:
 
 `json
     {
-      "facts": {"focus.device": "nord stage 4"},
+      "facts": {"focus.primary": "nord stage 4"},
       "policies": {"prohibit": ["parallel octaves"]}
     }
 `

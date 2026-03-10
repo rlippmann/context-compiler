@@ -6,7 +6,7 @@ def test_directive_parsing_positive_negative_and_allow() -> None:
 
     decision1 = engine.step("use Nord Stage 4")
     assert decision1["kind"] == "update"
-    assert engine.state["facts"]["focus.device"] == "Nord Stage 4"
+    assert engine.state["facts"]["focus.primary"] == "Nord Stage 4"
 
     decision2 = engine.step("please don't use the parallel octaves and a voice crossing")
     assert decision2["kind"] == "update"
@@ -43,7 +43,7 @@ def test_correction_replaces_most_recent_exclusive_fact() -> None:
     decision = engine.step("actually Nord Stage 4")
 
     assert decision["kind"] == "update"
-    assert engine.state["facts"]["focus.device"] == "Nord Stage 4"
+    assert engine.state["facts"]["focus.primary"] == "Nord Stage 4"
 
 
 def test_correction_without_prior_exclusive_fact_requires_clarification() -> None:
@@ -52,7 +52,7 @@ def test_correction_without_prior_exclusive_fact_requires_clarification() -> Non
     decision = engine.step("correction: Nord Stage 4")
 
     assert decision["kind"] == "clarify"
-    assert engine.state["facts"]["focus.device"] is None
+    assert engine.state["facts"]["focus.primary"] is None
 
 
 def test_policy_additions_are_sorted_unique_and_removal_is_noop_when_absent() -> None:
@@ -77,7 +77,7 @@ def test_ambiguity_returns_clarify_and_does_not_mutate() -> None:
 
     assert decision["kind"] == "clarify"
     assert engine.state == {
-        "facts": {"focus.device": None},
+        "facts": {"focus.primary": None},
         "policies": {"prohibit": []},
         "version": 1,
     }
@@ -90,7 +90,7 @@ def test_ambiguous_multi_item_directive_requires_clarification() -> None:
 
     assert decision["kind"] == "clarify"
     assert engine.state == {
-        "facts": {"focus.device": None},
+        "facts": {"focus.primary": None},
         "policies": {"prohibit": []},
         "version": 1,
     }
@@ -108,7 +108,7 @@ def test_correction_does_not_bypass_pending_clarification() -> None:
 
     assert decision2["kind"] == "clarify"
     assert engine.state == {
-        "facts": {"focus.device": None},
+        "facts": {"focus.primary": None},
         "policies": {"prohibit": []},
         "version": 1,
     }
@@ -157,13 +157,13 @@ def test_pending_clarification_blocks_other_mutations_until_resolved() -> None:
 
     decision2 = engine.step("use Nord Stage 4")
     assert decision2["kind"] == "clarify"
-    assert engine.state["facts"]["focus.device"] is None
+    assert engine.state["facts"]["focus.primary"] is None
     assert engine.state["policies"]["prohibit"] == []
 
     decision3 = engine.step("yes")
     assert decision3["kind"] == "update"
     assert engine.state["policies"]["prohibit"] == ["docker"]
-    assert engine.state["facts"]["focus.device"] is None
+    assert engine.state["facts"]["focus.primary"] is None
 
 
 def test_reset_commands() -> None:
@@ -175,7 +175,7 @@ def test_reset_commands() -> None:
     decision1 = engine.step("reset policies")
     assert decision1["kind"] == "update"
     assert engine.state == {
-        "facts": {"focus.device": None},
+        "facts": {"focus.primary": None},
         "policies": {"prohibit": []},
         "version": 1,
     }
@@ -186,7 +186,7 @@ def test_reset_commands() -> None:
     decision_constraints = engine.step("clear constraints")
     assert decision_constraints["kind"] == "update"
     assert engine.state == {
-        "facts": {"focus.device": None},
+        "facts": {"focus.primary": None},
         "policies": {"prohibit": []},
         "version": 1,
     }
@@ -197,7 +197,7 @@ def test_reset_commands() -> None:
     decision2 = engine.step("clear state")
     assert decision2["kind"] == "update"
     assert engine.state == {
-        "facts": {"focus.device": None},
+        "facts": {"focus.primary": None},
         "policies": {"prohibit": []},
         "version": 1,
     }
@@ -222,7 +222,7 @@ def test_reset_policies_when_already_empty_resets_state() -> None:
 
     assert decision["kind"] == "update"
     assert engine.state == {
-        "facts": {"focus.device": None},
+        "facts": {"focus.primary": None},
         "policies": {"prohibit": []},
         "version": 1,
     }
@@ -234,7 +234,7 @@ def test_unicode_apostrophe_positive_directive() -> None:
     decision = engine.step("i’m using Nord Stage 4")
 
     assert decision["kind"] == "update"
-    assert engine.state["facts"]["focus.device"] == "Nord Stage 4"
+    assert engine.state["facts"]["focus.primary"] == "Nord Stage 4"
 
 
 def test_unicode_apostrophe_negative_directive() -> None:
@@ -304,7 +304,7 @@ def test_yes_after_non_pending_clarify_is_passthrough() -> None:
 
     assert decision2["kind"] == "passthrough"
     assert engine.state == {
-        "facts": {"focus.device": None},
+        "facts": {"focus.primary": None},
         "policies": {"prohibit": []},
         "version": 1,
     }

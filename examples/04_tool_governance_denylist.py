@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from _util import print_json
 
 from context_compiler import create_engine
+from context_compiler.const import POLICY_PROHIBIT, STATE_POLICIES
 
 
 @dataclass
@@ -34,9 +35,10 @@ def main() -> None:
     print()
 
     print("Host-side tool denylist behavior:")
+    prohibit = state[STATE_POLICIES][POLICY_PROHIBIT]
     tools = [Tool("docker"), Tool("kubectl")]
     for tool in tools:
-        if tool.name in state["policies"]["prohibit"]:
+        if tool.name in prohibit:
             block_tool(tool)
         else:
             allow_tool(tool)

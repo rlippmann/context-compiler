@@ -17,7 +17,7 @@ def test_repl_update_flow() -> None:
     assert len(decisions) == 1
     assert decisions[0]["kind"] == "update"
     assert decisions[0]["state"] == {
-        "facts": {"focus.device": "Nord Stage 4"},
+        "facts": {"focus.primary": "Nord Stage 4"},
         "policies": {"prohibit": []},
         "version": 1,
     }
@@ -37,13 +37,13 @@ def test_repl_state_persists_across_turns() -> None:
     assert len(decisions) == 2
     assert decisions[0]["kind"] == "update"
     assert decisions[0]["state"] == {
-        "facts": {"focus.device": None},
+        "facts": {"focus.primary": None},
         "policies": {"prohibit": ["docker"]},
         "version": 1,
     }
     assert decisions[1]["kind"] == "update"
     assert decisions[1]["state"] == {
-        "facts": {"focus.device": None},
+        "facts": {"focus.primary": None},
         "policies": {"prohibit": []},
         "version": 1,
     }

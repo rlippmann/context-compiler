@@ -38,7 +38,7 @@ All state transitions originate from explicit user directives.
 Explicit user commitments persist reliably within a conversation.
 A correction means replacing a previously set fact, not evaluating conversational accuracy.
 
-In M1 the fact schema intentionally contains a single exclusive slot (`facts["focus.device"]`).
+In M1 the fact schema intentionally contains a single exclusive slot (`facts["focus.primary"]`).
 This slot demonstrates deterministic fact replacement and correction semantics.
 
 Policies (`policies.prohibit`) provide the primary mechanism for persistent conversational constraints.
