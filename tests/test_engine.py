@@ -1,3 +1,5 @@
+import json
+
 from context_compiler import create_engine
 from context_compiler.engine import DecisionKind
 
@@ -7,6 +9,164 @@ def test_decision_kind_strenum_behavior() -> None:
         assert kind == kind.value
         assert str(kind) == kind.value
         assert DecisionKind(kind.value) is kind
+
+
+def test_export_json_returns_complete_representation_of_state() -> None:
+    engine = create_engine()
+    engine.step("use Nord Stage 4")
+    engine.step("don't use docker")
+
+    payload = engine.export_json()
+    assert json.loads(payload) == {
+        "facts": {"focus.primary": "Nord Stage 4"},
+        "policies": {"prohibit": ["docker"]},
+        "version": 1,
+    }
+
+
+def test_import_json_restores_state_exactly() -> None:
+    engine = create_engine()
+    engine.step("use Nord Stage 4")
+    engine.step("don't use docker")
+    snapshot = engine.export_json()
+
+    engine.step("clear state")
+    engine.import_json(snapshot)
+
+    assert engine.state == {
+        "facts": {"focus.primary": "Nord Stage 4"},
+        "policies": {"prohibit": ["docker"]},
+        "version": 1,
+    }
+
+
+def test_export_import_round_trip_preserves_state() -> None:
+    source = create_engine()
+    source.step("use Nord Stage 4")
+    source.step("don't use docker")
+
+    target = create_engine()
+    target.import_json(source.export_json())
+
+    assert target.state == source.state
+
+
+def test_imported_state_matches_live_subsequent_behavior() -> None:
+    live = create_engine()
+    live.step("use Nord Stage 4")
+    live.step("don't use parallel octaves")
+
+    imported = create_engine()
+    imported.import_json(live.export_json())
+
+    turns = [
+        "actually Nord Stage 3",
+        "don't use voice crossing",
+        "reset policies",
+        "allow docker",
+    ]
+    for turn in turns:
+        assert imported.step(turn) == live.step(turn)
+        assert imported.state == live.state
+
+
+def test_import_json_invalid_json_and_unsupported_version_are_rejected() -> None:
+    engine = create_engine()
+
+    try:
+        engine.import_json("{")
+        raise AssertionError("expected ValueError for invalid JSON")
+    except ValueError as exc:
+        assert "Invalid JSON payload" in str(exc)
+
+    try:
+        engine.import_json(
+            json.dumps(
+                {
+                    "facts": {"focus.primary": None},
+                    "policies": {"prohibit": []},
+                    "version": 2,
+                }
+            )
+        )
+        raise AssertionError("expected ValueError for unsupported version")
+    except ValueError as exc:
+        assert "Unsupported state version" in str(exc)
+
+
+def test_import_json_canonicalizes_duplicate_unsorted_prohibit_values() -> None:
+    engine = create_engine()
+    engine.import_json(
+        json.dumps(
+            {
+                "facts": {"focus.primary": None},
+                "policies": {"prohibit": ["kubernetes", "docker", "docker"]},
+                "version": 1,
+            }
+        )
+    )
+
+    assert engine.state == {
+        "facts": {"focus.primary": None},
+        "policies": {"prohibit": ["docker", "kubernetes"]},
+        "version": 1,
+    }
+
+
+def test_import_json_sanitizes_fact_value_like_live_fact_write() -> None:
+    engine = create_engine()
+    engine.import_json(
+        json.dumps(
+            {
+                "facts": {"focus.primary": "  MacBook   M3`  "},
+                "policies": {"prohibit": []},
+                "version": 1,
+            }
+        )
+    )
+
+    assert engine.state["facts"]["focus.primary"] == "MacBook M3'"
+
+
+def test_import_json_clears_pending_clarification_state() -> None:
+    engine = create_engine()
+    decision = engine.step("no use docker")
+    assert decision["kind"] == "clarify"
+
+    engine.import_json(
+        json.dumps(
+            {
+                "facts": {"focus.primary": "Nord Stage 4"},
+                "policies": {"prohibit": ["kubernetes"]},
+                "version": 1,
+            }
+        )
+    )
+
+    decision_after_import = engine.step("yes")
+    assert decision_after_import["kind"] == "passthrough"
+    assert engine.state == {
+        "facts": {"focus.primary": "Nord Stage 4"},
+        "policies": {"prohibit": ["kubernetes"]},
+        "version": 1,
+    }
+
+
+def test_imported_fact_state_restores_correction_behavior() -> None:
+    engine = create_engine()
+    engine.import_json(
+        json.dumps(
+            {
+                "facts": {"focus.primary": "Nord Stage 4"},
+                "policies": {"prohibit": []},
+                "version": 1,
+            }
+        )
+    )
+
+    decision = engine.step("actually Nord Stage 3")
+    assert decision["kind"] == "update"
+    assert engine.state["facts"]["focus.primary"] == "Nord Stage 3"
 
 
 def test_directive_parsing_positive_negative_and_allow() -> None:
