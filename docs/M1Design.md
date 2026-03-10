@@ -33,6 +33,8 @@ The compiler:
 4. Returns a deterministic `Decision`
 
 The compiler never calls the LLM.
+Mutations are expressed through directive input to `step()`, including reset/clear operations.
+Imperative convenience methods such as `reset_policies()` and `clear_state()` are not part of the public API.
 
 ### 3. Host Responsibilities
 
@@ -241,6 +243,12 @@ While pending exists, no other mutation may occur.
 Adding duplicate policy is a no-op.
 Policies stored in sorted lexical order.
 
+Administrative state replacement is also supported through public host APIs:
+- `engine.state = ...` (object replacement)
+- `engine.import_json(payload)` (JSON replacement)
+
+Both replacement paths clear pending clarification state and must behave like live state for subsequent `step()` calls.
+
 ### 10. Context Serialization Contract
 
 The compiler outputs structured state only. The host formats prompts.
@@ -253,6 +261,10 @@ Example:
       "policies": {"prohibit": ["parallel octaves"]}
     }
 `
+
+JSON persistence boundary:
+- `engine.export_json()` serializes authoritative state for transport/storage.
+- `engine.import_json(payload)` validates/canonicalizes payload and fully replaces active state.
 
 ### 11. Reset Commands
 

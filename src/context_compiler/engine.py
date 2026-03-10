@@ -93,14 +93,32 @@ _NEGATIVE_DIRECTIVE_RULES: tuple[NegativeDirectiveRule, ...] = (
 
 
 def create_engine(state: State | None = None) -> "Engine":
-    """Create a new deterministic Engine instance with initial M1 state."""
+    """Create an Engine with initial state or validated replacement state.
+
+    When ``state`` is provided, it is validated and canonicalized before use.
+    """
     return Engine(state=state)
 
 
 class Engine:
-    """Deterministic state engine implementing M1 directive semantics."""
+    """Deterministic state engine implementing M1 directive semantics.
+
+    Design note:
+    - ``step()`` is the mutation interface for directive-driven updates.
+    - Operations like "reset policies" and "clear state" are expressed as
+      directive input to ``step()``.
+    - Host code should not rely on imperative helpers such as
+      ``reset_policies()`` or ``clear_state()``.
+    - State may be administratively replaced via ``engine.state = ...`` and
+      ``engine.import_json(...)``.
+    """
 
     def __init__(self, state: State | None = None) -> None:
+        """Initialize engine state from defaults or a supplied state object.
+
+        Supplied state is validated and canonicalized. Initialization performs
+        full state replacement and clears pending clarification state.
+        """
         self._state: State
         self._pending: PendingEvent | None = None
         self._pending_prompt: str | None = None
@@ -109,19 +127,28 @@ class Engine:
 
     @property
     def state(self) -> State:
-        """Return a defensive copy of the current authoritative state snapshot."""
+        """Return a defensive copy of the current authoritative in-memory state."""
         return deepcopy(self._state)
 
     @state.setter
     def state(self, value: State) -> None:
+        """Replace authoritative in-memory state from a supplied object.
+
+        The supplied value is validated and canonicalized. Replacement is full,
+        and pending clarification state is cleared.
+        """
         self._replace_state(_load_state_obj(value))
 
     def export_json(self) -> str:
-        """Serialize authoritative state to canonical JSON."""
+        """Serialize authoritative state for persistence or transport."""
         return json.dumps(self._state, sort_keys=True, separators=(",", ":"))
 
     def import_json(self, payload: str) -> None:
-        """Replace authoritative state from a JSON payload."""
+        """Load and replace authoritative state from a JSON payload.
+
+        Payload state is validated and canonicalized. Replacement is full, and
+        pending clarification state is cleared.
+        """
         self._replace_state(_load_state_json(payload))
 
     def step(self, user_input: str) -> Decision:
