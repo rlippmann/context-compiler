@@ -42,7 +42,7 @@ Later in the conversation:
 User: how should I deploy my service?
 ```
 
-The host supplies the compiled state to the model so the constraint persists across turns.
+The host supplies the authoritative state to the model so the constraint persists across turns.
 
 ---
 
@@ -140,19 +140,40 @@ The compiler maintains an authoritative state:
 }
 ```
 
-## State Export / Import
+## State Access and Persistence
 
-The compiler exposes its authoritative state so host applications can
-persist or restore it across sessions.
+The compiler exposes authoritative state through in-memory replacement APIs
+and JSON persistence/transport APIs.
 
-Example lifecycle:
+Supported host interaction model:
 
 ```python
-state = engine.export_state()
-save_to_storage(state)
+engine = create_engine()
+engine = create_engine(state=initial_state_obj)
+decision = engine.step(user_input)
+state = engine.state
+engine.state = replacement_state_obj
+payload = engine.export_json()
+engine.import_json(payload)
+```
 
-restored = load_from_storage()
-engine = create_engine(state=restored)
+API boundaries:
+
+- `step()` performs directive-driven mutation.
+- `engine.state` / `engine.state = ...` are in-memory inspection/replacement APIs.
+- `export_json()` / `import_json()` are persistence/transport APIs.
+- No imperative convenience mutation methods are provided; operations such as
+  `reset policies` and `clear state` are handled through directive input to `step()`.
+
+Example persistence lifecycle:
+
+```python
+payload = engine.export_json()
+save_to_storage(payload)
+
+restored_payload = load_from_storage()
+engine = create_engine()
+engine.import_json(restored_payload)
 ```
 
 The compiler does not manage storage or snapshots. Persistence policies
@@ -323,6 +344,7 @@ The compiler enforces several invariants:
 - The same input sequence always produces the same state
 - LLM output never affects state
 - No mutation occurs during clarification
+- Administrative state replacement clears pending clarification state
 - Facts are exclusive
 - Policies are additive
 - Pending clarification blocks mutation
@@ -343,8 +365,6 @@ This project intentionally focuses on the deterministic directive compiler itsel
 Higher-level systems such as session scope management, memory layers, agent tooling,
 or context routing belong in host applications or separate projects built on top of
 the compiler.
-
-One possible future extension is cross-session persistence using exported state.
 
 ---
 

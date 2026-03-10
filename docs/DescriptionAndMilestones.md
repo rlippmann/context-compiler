@@ -56,7 +56,7 @@ Richer fact schemas may be introduced in future milestones.
 - State data model (facts + policies)
 - Deterministic update rules (exclusive vs additive slots)
 - Clarification mechanism for ambiguous mutations
-- Context serialization interface (state → host application)
+- Context serialization interface (`export_json` / `import_json`, state → host application)
 - Reference integration harness (example host)
 - Tests: persistence and non-regression of corrections
 
@@ -67,7 +67,7 @@ After correcting or constraining the assistant once, the behavior remains consis
 ### M3 — Cross-Session Recall
 
 **Goal**
-Allow host applications to restore previously exported state safely and intentionally.
+Extend host-level workflows around persisted exported state safely and intentionally.
 
 **Core capability:**
 
@@ -77,7 +77,7 @@ Allow host applications to restore previously exported state safely and intentio
 
 **Deliverables:**
 
-- Import/Export API
+- Host-side storage/recovery patterns built on the existing import/export API
 
 **User-visible outcome:**
 

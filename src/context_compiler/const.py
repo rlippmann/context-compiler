@@ -12,3 +12,7 @@ FOCUS_PRIMARY: Final = "focus.primary"
 
 # Policy keys
 POLICY_PROHIBIT: Final = "prohibit"
+
+# Event kinds
+EVENT_RESET_POLICIES: Final = "reset_policies"
+EVENT_CLEAR_STATE: Final = "clear_state"

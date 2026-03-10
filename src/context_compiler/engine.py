@@ -14,6 +14,8 @@ from typing import Literal, TypedDict
 from unicodedata import normalize as unicode_normalize
 
 from .const import (
+    EVENT_CLEAR_STATE,
+    EVENT_RESET_POLICIES,
     FOCUS_PRIMARY,
     POLICY_PROHIBIT,
     STATE_FACTS,
@@ -90,38 +92,64 @@ _NEGATIVE_DIRECTIVE_RULES: tuple[NegativeDirectiveRule, ...] = (
 )
 
 
-def create_engine() -> "Engine":
-    """Create a new deterministic Engine instance with initial M1 state."""
-    return Engine()
+def create_engine(state: State | None = None) -> "Engine":
+    """Create an Engine with initial state or validated replacement state.
+
+    When ``state`` is provided, it is validated and canonicalized before use.
+    """
+    return Engine(state=state)
 
 
 class Engine:
-    """Deterministic state engine implementing M1 directive semantics."""
+    """Deterministic state engine implementing M1 directive semantics.
 
-    def __init__(self) -> None:
-        self._state: State = _initial_state()
+    Design note:
+    - ``step()`` is the mutation interface for directive-driven updates.
+    - Operations like "reset policies" and "clear state" are expressed as
+      directive input to ``step()``.
+    - Host code should not rely on imperative helpers such as
+      ``reset_policies()`` or ``clear_state()``.
+    - State may be administratively replaced via ``engine.state = ...`` and
+      ``engine.import_json(...)``.
+    """
+
+    def __init__(self, state: State | None = None) -> None:
+        """Initialize engine state from defaults or a supplied state object.
+
+        Supplied state is validated and canonicalized. Initialization performs
+        full state replacement and clears pending clarification state.
+        """
+        self._state: State
         self._pending: PendingEvent | None = None
         self._pending_prompt: str | None = None
         self._last_exclusive_fact_key: str | None = None
+        self._replace_state(_initial_state() if state is None else _load_state_obj(state))
 
     @property
     def state(self) -> State:
-        """Return a defensive copy of the current authoritative state snapshot."""
+        """Return a defensive copy of the current authoritative in-memory state."""
         return deepcopy(self._state)
 
+    @state.setter
+    def state(self, value: State) -> None:
+        """Replace authoritative in-memory state from a supplied object.
+
+        The supplied value is validated and canonicalized. Replacement is full,
+        and pending clarification state is cleared.
+        """
+        self._replace_state(_load_state_obj(value))
+
     def export_json(self) -> str:
-        """Serialize authoritative state to canonical JSON."""
+        """Serialize authoritative state for persistence or transport."""
         return json.dumps(self._state, sort_keys=True, separators=(",", ":"))
 
     def import_json(self, payload: str) -> None:
-        """Replace authoritative state from a JSON payload."""
-        state = _load_state_json(payload)
-        self._state = state
-        self._pending = None
-        self._pending_prompt = None
-        self._last_exclusive_fact_key = (
-            FOCUS_PRIMARY if state[STATE_FACTS][FOCUS_PRIMARY] is not None else None
-        )
+        """Load and replace authoritative state from a JSON payload.
+
+        Payload state is validated and canonicalized. Replacement is full, and
+        pending clarification state is cleared.
+        """
+        self._replace_state(_load_state_json(payload))
 
     def step(self, user_input: str) -> Decision:
         """Process one user input and return a deterministic Decision."""
@@ -144,10 +172,10 @@ class Engine:
         normalized_message = _normalize_message(user_input)
 
         if normalized_message in _RESET_POLICY:
-            return PendingEvent(kind="reset_policies")
+            return PendingEvent(kind=EVENT_RESET_POLICIES)
 
         if normalized_message in _CLEAR_STATE:
-            return PendingEvent(kind="clear_state")
+            return PendingEvent(kind=EVENT_CLEAR_STATE)
 
         correction = _parse_correction(user_input)
         if correction is not None:
@@ -226,13 +254,21 @@ class Engine:
         if event.kind == "fact_set":
             assert event.fact_value is not None
             return self._set_focus_primary(event.fact_value)
-        if event.kind == "reset_policies":
+        if event.kind == EVENT_RESET_POLICIES:
             self._state[STATE_POLICIES][POLICY_PROHIBIT] = []
             return _update_decision(self._state)
 
         self._state = _initial_state()
         self._last_exclusive_fact_key = None
         return _update_decision(self._state)
+
+    def _replace_state(self, state: State) -> None:
+        self._state = state
+        self._pending = None
+        self._pending_prompt = None
+        self._last_exclusive_fact_key = (
+            FOCUS_PRIMARY if state[STATE_FACTS][FOCUS_PRIMARY] is not None else None
+        )
 
     def _set_focus_primary(self, value: str) -> Decision:
         self._state[STATE_FACTS][FOCUS_PRIMARY] = _clean_fact_value(value)
@@ -268,8 +304,13 @@ def _load_state_json(payload: str) -> State:
     except json.JSONDecodeError as exc:
         raise ValueError("Invalid JSON payload.") from exc
 
+    return _load_state_obj(raw)
+
+
+def _load_state_obj(raw: object) -> State:
     if not isinstance(raw, dict):
         raise ValueError("Invalid state payload.")
+
     if set(raw.keys()) != {STATE_FACTS, STATE_POLICIES, STATE_VERSION}:
         raise ValueError("Invalid state payload.")
 
