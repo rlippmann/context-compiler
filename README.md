@@ -50,7 +50,7 @@ The host supplies the compiled state to the model so the constraint persists acr
 
 Prompt instructions are soft and easy to lose across long interactions.
 
-The Context Compiler gives the host an **authoritative state snapshot** that is independent of transcript drift.
+The Context Compiler gives the host an **authoritative state representation** that is independent of transcript drift.
 
 Only **explicit user directives** can modify state.
 
@@ -126,7 +126,7 @@ Meaning:
 
 ## State Model
 
-The compiler maintains an authoritative state snapshot:
+The compiler maintains an authoritative state:
 
 ```json
 {
@@ -140,11 +140,29 @@ The compiler maintains an authoritative state snapshot:
 }
 ```
 
+## State Export / Import
+
+The compiler exposes its authoritative state so host applications can
+persist or restore it across sessions.
+
+Example lifecycle:
+
+```python
+state = engine.export_state()
+save_to_storage(state)
+
+restored = load_from_storage()
+engine = create_engine(state=restored)
+```
+
+The compiler does not manage storage or snapshots. Persistence policies
+belong to the host application.
+
 **Note**
-In M1, the fact schema contains a single exclusive slot: `facts["focus.primary"]`.
+The fact schema currently contains a single exclusive slot: `facts["focus.primary"]`.
 
 This slot exists to demonstrate deterministic fact replacement and correction semantics.
-Richer fact schemas may be introduced in future milestones.
+Richer fact schemas may be introduced in future releases.
 
 ### State Properties
 
@@ -311,39 +329,22 @@ The compiler enforces several invariants:
 
 ---
 
-## Current Milestone
+## Implementation Status
 
-The current implementation corresponds to:
-
-### M1 — Deterministic State Engine
-
-Goal:
-
-Ensure explicit user corrections and constraints persist reliably within a single conversation.
+The current implementation provides the deterministic directive compiler
+defined in [this document](/docs/M1Design.md).
 
 ---
 
-## Future Milestones
+## Future Work
 
-Only **M1** is currently implemented.
+This project intentionally focuses on the deterministic directive compiler itself.
 
-Possible future work:
+Higher-level systems such as session scope management, memory layers, agent tooling,
+or context routing belong in host applications or separate projects built on top of
+the compiler.
 
-### M2 — Scope & Session Control (optional)
-
-Introduce isolation boundaries so state applies only within the intended conversational context.
-
-### M3 — Cross-Session Recall
-
-Allow explicit recall of prior authoritative state across sessions.
-
-### M4 — MCP Integration (optional)
-
-Expose the state engine through a standardized context interface.
-
-### M5 — Branch Awareness (optional / experimental)
-
-Provide tools for managing multiple conversation branches during exploratory discussions.
+One possible future extension is cross-session persistence using exported state.
 
 ---
 
