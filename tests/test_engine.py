@@ -183,7 +183,7 @@ def test_reset_commands() -> None:
     decision1 = engine.step("reset policies")
     assert decision1["kind"] == "update"
     assert engine.state == {
-        "facts": {"focus.primary": None},
+        "facts": {"focus.primary": "Nord Stage 4"},
         "policies": {"prohibit": []},
         "version": 1,
     }
@@ -192,10 +192,10 @@ def test_reset_commands() -> None:
     engine.step("don't use parallel octaves")
 
     decision_constraints = engine.step("clear constraints")
-    assert decision_constraints["kind"] == "update"
+    assert decision_constraints["kind"] == "passthrough"
     assert engine.state == {
-        "facts": {"focus.primary": None},
-        "policies": {"prohibit": []},
+        "facts": {"focus.primary": "Nord Stage 4"},
+        "policies": {"prohibit": ["parallel octaves"]},
         "version": 1,
     }
 
@@ -221,10 +221,35 @@ def test_passthrough_input_does_not_mutate_state() -> None:
     assert engine.state == before
 
 
-def test_reset_policies_when_already_empty_resets_state() -> None:
+def test_reset_policies_when_already_empty_preserves_existing_fact() -> None:
     engine = create_engine()
 
     engine.step("use Nord Stage 4")
+
+    decision = engine.step("reset policies")
+
+    assert decision["kind"] == "update"
+    assert engine.state == {
+        "facts": {"focus.primary": "Nord Stage 4"},
+        "policies": {"prohibit": []},
+        "version": 1,
+    }
+
+
+def test_reset_policies_keeps_last_exclusive_fact_correctable() -> None:
+    engine = create_engine()
+
+    engine.step("use Nord Stage 4")
+    engine.step("don't use docker")
+    engine.step("reset policies")
+
+    decision = engine.step("actually Nord Stage 3")
+    assert decision["kind"] == "update"
+    assert engine.state["facts"]["focus.primary"] == "Nord Stage 3"
+
+
+def test_reset_policies_on_initial_state_is_update_and_noop() -> None:
+    engine = create_engine()
 
     decision = engine.step("reset policies")
 

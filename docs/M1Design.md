@@ -259,12 +259,14 @@ Example:
 Explicit only:
 
 - "reset policies"
-- "clear constraints"
 - "clear state"
 
 Produces:
 
-    state = initial_state
+    if command == "reset policies":
+        state.policies.prohibit = []
+    elif command == "clear state":
+        state = initial_state
     Decision.kind = "update"
 
 ### 12. Non-Goals (M1)

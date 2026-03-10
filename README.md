@@ -213,6 +213,45 @@ Decision.kind = "clarify"
 
 No state mutation occurs until confirmation.
 
+## Reset Commands
+
+Two explicit reset commands are supported:
+
+- `reset policies` clears `policies.prohibit` but preserves the current fact (`facts["focus.primary"]`)
+- `clear state` resets the full state to initial values
+
+Example:
+
+Before:
+
+```json
+{
+  "facts": {"focus.primary": "oracle"},
+  "policies": {"prohibit": ["stored procedures"]},
+  "version": 1
+}
+```
+
+After `reset policies`:
+
+```json
+{
+  "facts": {"focus.primary": "oracle"},
+  "policies": {"prohibit": []},
+  "version": 1
+}
+```
+
+After `clear state`:
+
+```json
+{
+  "facts": {"focus.primary": null},
+  "policies": {"prohibit": []},
+  "version": 1
+}
+```
+
 ---
 
 ## Examples

@@ -62,7 +62,7 @@ class NegativeDirectiveRule:
     strip_leading_use: bool
 
 
-_RESET_POLICY = {"reset policies", "clear constraints"}
+_RESET_POLICY = {"reset policies"}
 _CLEAR_STATE = {"clear state"}
 
 _CORRECTION_RE = re.compile(r"^\s*(actually|i meant|correction:|no,)\s*(.*?)\s*$", re.IGNORECASE)
@@ -215,8 +215,7 @@ class Engine:
             assert event.fact_value is not None
             return self._set_focus_primary(event.fact_value)
         if event.kind == "reset_policies":
-            self._state = _initial_state()
-            self._last_exclusive_fact_key = None
+            self._state[STATE_POLICIES][POLICY_PROHIBIT] = []
             return _update_decision(self._state)
 
         self._state = _initial_state()
