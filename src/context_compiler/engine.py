@@ -8,10 +8,19 @@ Only explicit user directives can mutate authoritative state.
 import re
 from copy import deepcopy
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Literal, TypedDict
 from unicodedata import normalize as unicode_normalize
 
-FactsState = TypedDict("FactsState", {"focus.device": str | None})
+from .const import (
+    FOCUS_PRIMARY,
+    POLICY_PROHIBIT,
+    STATE_FACTS,
+    STATE_POLICIES,
+    STATE_VERSION,
+)
+
+FactsState = TypedDict("FactsState", {"focus.primary": str | None})
 
 
 class PoliciesState(TypedDict):
@@ -26,8 +35,14 @@ class State(TypedDict):
     version: Literal[1]
 
 
+class DecisionKind(StrEnum):
+    UPDATE = "update"
+    PASSTHROUGH = "passthrough"
+    CLARIFY = "clarify"
+
+
 class Decision(TypedDict):
-    kind: Literal["passthrough", "update", "clarify"]
+    kind: DecisionKind
     state: State | None
     prompt_to_user: str | None
 
@@ -61,7 +76,7 @@ _AMBIGUOUS_NEGATIVE_RE = re.compile(r"^\s*(?:don\s+use|no\s+use)\s+(.+?)\s*$", r
 _SPLIT_RE = re.compile(r",|\s+and\s+", re.IGNORECASE)
 
 _PASSTHROUGH: Decision = {
-    "kind": "passthrough",
+    "kind": DecisionKind.PASSTHROUGH,
     "state": None,
     "prompt_to_user": None,
 }
@@ -123,14 +138,15 @@ class Engine:
         if correction is not None:
             if self._last_exclusive_fact_key is None:
                 return _clarify(
-                    "I don't have a previous focus setting to correct. What should focus.device be?"
+                    "I don't have a previous focus setting to correct. "
+                    "What should focus.primary be?"
                 )
             if not correction.strip():
-                return _clarify("What should focus.device be?")
+                return _clarify("What should focus.primary be?")
             if _has_multiple_values(correction):
-                return _clarify("Corrections for focus.device must contain one value.")
+                return _clarify("Corrections for focus.primary must contain one value.")
             if _invalid_exclusive_value(correction):
-                return _clarify("Corrections for focus.device must contain one value.")
+                return _clarify("Corrections for focus.primary must contain one value.")
             return PendingEvent(kind="fact_set", fact_value=correction)
 
         policy_add = _parse_hard_negative(normalized_message)
@@ -148,11 +164,11 @@ class Engine:
         positive_value = _parse_hard_positive(user_input, normalized_message)
         if positive_value is not None:
             if not positive_value.strip():
-                return _clarify("What should focus.device be?")
+                return _clarify("What should focus.primary be?")
             if _has_multiple_values(positive_value):
-                return _clarify("focus.device accepts one value. Please provide a single value.")
+                return _clarify("focus.primary accepts one value. Please provide a single value.")
             if _invalid_exclusive_value(positive_value):
-                return _clarify("focus.device value is unclear. Please provide one value.")
+                return _clarify("focus.primary value is unclear. Please provide one value.")
             return PendingEvent(kind="fact_set", fact_value=positive_value)
 
         pending = _parse_ambiguous_mutation(user_input)
@@ -197,7 +213,7 @@ class Engine:
             return self._remove_policies(list(event.values))
         if event.kind == "fact_set":
             assert event.fact_value is not None
-            return self._set_focus_device(event.fact_value)
+            return self._set_focus_primary(event.fact_value)
         if event.kind == "reset_policies":
             self._state = _initial_state()
             self._last_exclusive_fact_key = None
@@ -207,37 +223,37 @@ class Engine:
         self._last_exclusive_fact_key = None
         return _update_decision(self._state)
 
-    def _set_focus_device(self, value: str) -> Decision:
-        self._state["facts"]["focus.device"] = _clean_fact_value(value)
-        self._last_exclusive_fact_key = "focus.device"
+    def _set_focus_primary(self, value: str) -> Decision:
+        self._state[STATE_FACTS][FOCUS_PRIMARY] = _clean_fact_value(value)
+        self._last_exclusive_fact_key = FOCUS_PRIMARY
         return _update_decision(self._state)
 
     def _add_policies(self, values: list[str]) -> Decision:
-        existing = set(self._state["policies"]["prohibit"])
+        existing = set(self._state[STATE_POLICIES][POLICY_PROHIBIT])
         for value in values:
             existing.add(value)
-        self._state["policies"]["prohibit"] = sorted(existing)
+        self._state[STATE_POLICIES][POLICY_PROHIBIT] = sorted(existing)
         return _update_decision(self._state)
 
     def _remove_policies(self, values: list[str]) -> Decision:
-        existing = set(self._state["policies"]["prohibit"])
+        existing = set(self._state[STATE_POLICIES][POLICY_PROHIBIT])
         for value in values:
             existing.discard(value)
-        self._state["policies"]["prohibit"] = sorted(existing)
+        self._state[STATE_POLICIES][POLICY_PROHIBIT] = sorted(existing)
         return _update_decision(self._state)
 
 
 def _initial_state() -> State:
     return {
-        "facts": {"focus.device": None},
-        "policies": {"prohibit": []},
-        "version": 1,
+        STATE_FACTS: {FOCUS_PRIMARY: None},
+        STATE_POLICIES: {POLICY_PROHIBIT: []},
+        STATE_VERSION: 1,
     }
 
 
 def _clarify(prompt: str) -> Decision:
     return {
-        "kind": "clarify",
+        "kind": DecisionKind.CLARIFY,
         "state": None,
         "prompt_to_user": prompt,
     }
@@ -245,7 +261,7 @@ def _clarify(prompt: str) -> Decision:
 
 def _update_decision(state: State) -> Decision:
     return {
-        "kind": "update",
+        "kind": DecisionKind.UPDATE,
         "state": deepcopy(state),
         "prompt_to_user": None,
     }
@@ -368,5 +384,5 @@ def _pending_prompt(pending: PendingEvent) -> str:
     if pending.kind == "policy_remove" and pending.values:
         return f"Did you mean to allow '{pending.values[0]}'?"
     if pending.kind == "fact_set" and pending.fact_value is not None:
-        return f"Did you mean to set focus.device to '{pending.fact_value}'?"
+        return f"Did you mean to set focus.primary to '{pending.fact_value}'?"
     return "Your directive was unclear. Did you mean to change state?"

@@ -33,7 +33,7 @@ def test_persistent_guardrails_example_output() -> None:
                 "kind": "update",
                 "prompt_to_user": None,
                 "state": {
-                    "facts": {"focus.device": None},
+                    "facts": {"focus.primary": None},
                     "policies": {"prohibit": ["docker"]},
                     "version": 1,
                 },
@@ -45,7 +45,7 @@ def test_persistent_guardrails_example_output() -> None:
     assert (
         _canonical_json(
             {
-                "facts": {"focus.device": None},
+                "facts": {"focus.primary": None},
                 "policies": {"prohibit": ["docker"]},
                 "version": 1,
             }
@@ -67,7 +67,7 @@ def test_configuration_and_correction_example_output() -> None:
                 "kind": "update",
                 "prompt_to_user": None,
                 "state": {
-                    "facts": {"focus.device": "MacBook M3"},
+                    "facts": {"focus.primary": "MacBook M3"},
                     "policies": {"prohibit": []},
                     "version": 1,
                 },
@@ -78,7 +78,7 @@ def test_configuration_and_correction_example_output() -> None:
     assert (
         _canonical_json(
             {
-                "facts": {"focus.device": "MacBook M3"},
+                "facts": {"focus.primary": "MacBook M3"},
                 "policies": {"prohibit": []},
                 "version": 1,
             }
@@ -92,7 +92,7 @@ def test_configuration_and_correction_example_output() -> None:
                 "kind": "update",
                 "prompt_to_user": None,
                 "state": {
-                    "facts": {"focus.device": "MacBook M2"},
+                    "facts": {"focus.primary": "MacBook M2"},
                     "policies": {"prohibit": []},
                     "version": 1,
                 },
@@ -103,7 +103,7 @@ def test_configuration_and_correction_example_output() -> None:
     assert (
         _canonical_json(
             {
-                "facts": {"focus.device": "MacBook M2"},
+                "facts": {"focus.primary": "MacBook M2"},
                 "policies": {"prohibit": []},
                 "version": 1,
             }
@@ -136,7 +136,7 @@ def test_ambiguity_with_clarification_example_output() -> None:
                 "kind": "update",
                 "prompt_to_user": None,
                 "state": {
-                    "facts": {"focus.device": None},
+                    "facts": {"focus.primary": None},
                     "policies": {"prohibit": ["docker"]},
                     "version": 1,
                 },
@@ -147,7 +147,7 @@ def test_ambiguity_with_clarification_example_output() -> None:
     assert (
         _canonical_json(
             {
-                "facts": {"focus.device": None},
+                "facts": {"focus.primary": None},
                 "policies": {"prohibit": ["docker"]},
                 "version": 1,
             }
@@ -167,7 +167,7 @@ def test_tool_governance_denylist_example_output() -> None:
                 "kind": "update",
                 "prompt_to_user": None,
                 "state": {
-                    "facts": {"focus.device": None},
+                    "facts": {"focus.primary": None},
                     "policies": {"prohibit": ["docker"]},
                     "version": 1,
                 },
@@ -179,7 +179,7 @@ def test_tool_governance_denylist_example_output() -> None:
     assert (
         _canonical_json(
             {
-                "facts": {"focus.device": None},
+                "facts": {"focus.primary": None},
                 "policies": {"prohibit": ["docker"]},
                 "version": 1,
             }
@@ -194,12 +194,12 @@ def test_tool_governance_denylist_example_output() -> None:
 def test_llm_integration_pattern_example_output() -> None:
     output = _run_example("05_llm_integration_pattern.py")
     docker_state = {
-        "facts": {"focus.device": None},
+        "facts": {"focus.primary": None},
         "policies": {"prohibit": ["docker"]},
         "version": 1,
     }
     docker_kubernetes_state = {
-        "facts": {"focus.device": None},
+        "facts": {"focus.primary": None},
         "policies": {"prohibit": ["docker", "kubernetes"]},
         "version": 1,
     }
