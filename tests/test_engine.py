@@ -1,7 +1,9 @@
 import json
 
+import pytest
+
 from context_compiler import create_engine
-from context_compiler.engine import DecisionKind
+from context_compiler.engine import DecisionKind, Engine
 
 
 def test_decision_kind_strenum_behavior() -> None:
@@ -9,6 +11,13 @@ def test_decision_kind_strenum_behavior() -> None:
         assert kind == kind.value
         assert str(kind) == kind.value
         assert DecisionKind(kind.value) is kind
+
+
+def test_state_getter_returns_defensive_copy() -> None:
+    engine = create_engine()
+    snapshot = engine.state
+    snapshot["facts"]["focus.primary"] = "mutated"
+    assert engine.state["facts"]["focus.primary"] is None
 
 
 def test_export_json_returns_complete_representation_of_state() -> None:
@@ -94,6 +103,20 @@ def test_import_json_invalid_json_and_unsupported_version_are_rejected() -> None
         assert "Unsupported state version" in str(exc)
 
 
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"facts": {}, "policies": {"prohibit": []}, "version": 1},
+        {"facts": {"focus.primary": None}, "policies": {"prohibit": "docker"}, "version": 1},
+        {"facts": {"focus.primary": 123}, "policies": {"prohibit": []}, "version": 1},
+    ],
+)
+def test_import_json_rejects_structurally_invalid_payload(payload: dict[str, object]) -> None:
+    engine = create_engine()
+    with pytest.raises(ValueError):
+        engine.import_json(json.dumps(payload))
+
+
 def test_import_json_canonicalizes_duplicate_unsorted_prohibit_values() -> None:
     engine = create_engine()
     engine.import_json(
@@ -126,6 +149,108 @@ def test_import_json_sanitizes_fact_value_like_live_fact_write() -> None:
     )
 
     assert engine.state["facts"]["focus.primary"] == "MacBook M3'"
+
+
+def test_constructor_with_state_initializes_from_normalized_state() -> None:
+    raw_state = {
+        "facts": {"focus.primary": "  MacBook   M3`  "},
+        "policies": {"prohibit": ["kubernetes", "docker", "docker"]},
+        "version": 1,
+    }
+    loaded_state = json.loads(json.dumps(raw_state))
+
+    constructed = Engine(state=loaded_state)
+
+    assert constructed.state == {
+        "facts": {"focus.primary": "MacBook M3'"},
+        "policies": {"prohibit": ["docker", "kubernetes"]},
+        "version": 1,
+    }
+
+
+def test_create_engine_with_state_initializes_from_normalized_state() -> None:
+    created = create_engine(
+        state={
+            "facts": {"focus.primary": "  MacBook   M3`  "},
+            "policies": {"prohibit": ["kubernetes", "docker", "docker"]},
+            "version": 1,
+        }
+    )
+
+    assert created.state == {
+        "facts": {"focus.primary": "MacBook M3'"},
+        "policies": {"prohibit": ["docker", "kubernetes"]},
+        "version": 1,
+    }
+
+
+@pytest.mark.parametrize(
+    ("path", "bad_state"),
+    [
+        (
+            "constructor",
+            {
+                "facts": {"focus.primary": None},
+                "policies": {"prohibit": []},
+            },
+        ),
+        (
+            "setter",
+            {
+                "facts": {"focus.primary": None},
+                "policies": {"prohibit": "docker"},
+                "version": 1,
+            },
+        ),
+    ],
+)
+def test_object_state_replacement_paths_reject_invalid_state(path: str, bad_state: object) -> None:
+    if path == "constructor":
+        with pytest.raises(ValueError):
+            Engine(state=bad_state)
+        return
+
+    engine = create_engine()
+    with pytest.raises(ValueError):
+        engine.state = bad_state
+
+
+def test_state_setter_replaces_state_and_clears_pending_clarification() -> None:
+    engine = create_engine()
+    decision = engine.step("no use docker")
+    assert decision["kind"] == "clarify"
+
+    engine.state = {
+        "facts": {"focus.primary": "Nord Stage 4"},
+        "policies": {"prohibit": ["kubernetes", "docker", "docker"]},
+        "version": 1,
+    }
+
+    decision_after_setter = engine.step("yes")
+    assert decision_after_setter["kind"] == "passthrough"
+    assert engine.state == {
+        "facts": {"focus.primary": "Nord Stage 4"},
+        "policies": {"prohibit": ["docker", "kubernetes"]},
+        "version": 1,
+    }
+
+
+def test_constructor_setter_and_import_json_share_normalization_behavior() -> None:
+    raw_state = {
+        "facts": {"focus.primary": "  MacBook   M3`  "},
+        "policies": {"prohibit": ["kubernetes", "docker", "docker"]},
+        "version": 1,
+    }
+
+    from_ctor = Engine(state=json.loads(json.dumps(raw_state)))
+
+    from_setter = create_engine()
+    from_setter.state = json.loads(json.dumps(raw_state))
+
+    from_import = create_engine()
+    from_import.import_json(json.dumps(raw_state))
+
+    assert from_ctor.state == from_setter.state == from_import.state
 
 
 def test_import_json_clears_pending_clarification_state() -> None:

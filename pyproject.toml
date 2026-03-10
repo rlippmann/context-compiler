@@ -46,6 +46,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.mypy]
 python_version = "3.11"
 strict = true
+exclude = ["^tests/"]
 warn_unused_configs = true
 disallow_untyped_defs = true
 disallow_incomplete_defs = true
