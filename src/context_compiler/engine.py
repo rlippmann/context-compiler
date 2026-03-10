@@ -8,6 +8,7 @@ Only explicit user directives can mutate authoritative state.
 import re
 from copy import deepcopy
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Literal, TypedDict
 from unicodedata import normalize as unicode_normalize
 
@@ -34,8 +35,14 @@ class State(TypedDict):
     version: Literal[1]
 
 
+class DecisionKind(StrEnum):
+    UPDATE = "update"
+    PASSTHROUGH = "passthrough"
+    CLARIFY = "clarify"
+
+
 class Decision(TypedDict):
-    kind: Literal["passthrough", "update", "clarify"]
+    kind: DecisionKind
     state: State | None
     prompt_to_user: str | None
 
@@ -69,7 +76,7 @@ _AMBIGUOUS_NEGATIVE_RE = re.compile(r"^\s*(?:don\s+use|no\s+use)\s+(.+?)\s*$", r
 _SPLIT_RE = re.compile(r",|\s+and\s+", re.IGNORECASE)
 
 _PASSTHROUGH: Decision = {
-    "kind": "passthrough",
+    "kind": DecisionKind.PASSTHROUGH,
     "state": None,
     "prompt_to_user": None,
 }
@@ -246,7 +253,7 @@ def _initial_state() -> State:
 
 def _clarify(prompt: str) -> Decision:
     return {
-        "kind": "clarify",
+        "kind": DecisionKind.CLARIFY,
         "state": None,
         "prompt_to_user": prompt,
     }
@@ -254,7 +261,7 @@ def _clarify(prompt: str) -> Decision:
 
 def _update_decision(state: State) -> Decision:
     return {
-        "kind": "update",
+        "kind": DecisionKind.UPDATE,
         "state": deepcopy(state),
         "prompt_to_user": None,
     }
