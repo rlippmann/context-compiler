@@ -411,12 +411,13 @@ def _has_multiple_values(text: str) -> bool:
 
 
 def _invalid_exclusive_value(text: str) -> bool:
-    lowered = _normalize_message(text)
+    cleaned = _clean_fact_value(text)
+    lowered = cleaned.lower()
     return (
         lowered.startswith("and ")
         or lowered.startswith("or ")
-        or lowered == "and"
-        or lowered == "or"
+        or re.search(r"\s(?:and|or)\s", cleaned, flags=re.IGNORECASE) is not None
+        or cleaned == "and"
     )
 
 
