@@ -3,14 +3,25 @@
 import json
 import os
 import re
-from typing import Any
+from typing import Any, TypedDict
 
 from context_compiler import Decision, State
 from context_compiler.const import FOCUS_PRIMARY, POLICY_PROHIBIT, STATE_FACTS, STATE_POLICIES
 from demos.llm_client import Message
 
 VERBOSE_ENV_VAR = "CONTEXT_COMPILER_DEMO_VERBOSE"
-LAST_REPORT_PASSED: bool | None = None
+
+
+class DemoReport(TypedDict):
+    name: str
+    expected: str
+    actual: str
+    baseline_pass: bool
+    compiler_pass: bool
+    demo_pass: bool
+
+
+LAST_REPORT: DemoReport | None = None
 
 
 def canonical_json(obj: Any) -> str:
@@ -90,21 +101,40 @@ def print_host_check(name: str, value: str, *, context: str) -> None:
     print(f"HOST_CHECK {name}: {value} ({context})")
 
 
-def print_spec_report(*, test_name: str, expected: str, actual: str, passed: bool) -> None:
-    global LAST_REPORT_PASSED
-    LAST_REPORT_PASSED = passed
+def print_spec_report(
+    *,
+    test_name: str,
+    baseline_pass: bool,
+    compiler_pass: bool,
+    expected: str,
+    actual: str,
+    passed: bool,
+    result_pass: str,
+    result_fail: str,
+) -> None:
+    global LAST_REPORT
+    LAST_REPORT = {
+        "name": test_name,
+        "expected": expected,
+        "actual": actual,
+        "baseline_pass": baseline_pass,
+        "compiler_pass": compiler_pass,
+        "demo_pass": passed,
+    }
     print(test_name)
+    print(f"baseline: {'PASS' if baseline_pass else 'FAIL'}")
+    print(f"compiler: {'PASS' if compiler_pass else 'FAIL'}")
     print(f"expected: {expected}")
     print(f"actual: {actual}")
-    print("*** PASS" if passed else "*** FAIL")
+    print(f"result: {result_pass if passed else result_fail}")
     if is_verbose():
         print()
 
 
-def consume_last_report_passed() -> bool | None:
-    global LAST_REPORT_PASSED
-    value = LAST_REPORT_PASSED
-    LAST_REPORT_PASSED = None
+def consume_last_report() -> DemoReport | None:
+    global LAST_REPORT
+    value = LAST_REPORT
+    LAST_REPORT = None
     return value
 
 

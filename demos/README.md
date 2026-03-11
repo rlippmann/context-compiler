@@ -55,11 +55,17 @@ uv run python -m demos.run_demo all --verbose
 
 Output modes:
 
-- default (concise): each demo prints only four lines
+- default (concise): each demo prints the following:
   - scenario name + short description
+  - `baseline: PASS|FAIL`
+  - `compiler: PASS|FAIL`
   - expected behavior
   - actual outcome (plain English)
-  - `PASS` or `FAIL`
+  - `result: ...` (short deterministic description)
+  - a blank line between demos when running `all`
+  - final summary:
+    - `Baseline results: X passed, Y failed`
+    - `Compiler results: X passed, Y failed`
 - `--verbose`: prints detailed traces
   - user inputs
   - compiler decisions and state
