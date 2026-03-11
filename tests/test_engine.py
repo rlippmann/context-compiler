@@ -736,6 +736,16 @@ def test_hard_positive_multi_value_payload_clarifies_with_single_value_prompt() 
     assert engine.state == before
 
 
+def test_hard_positive_or_ambiguity_clarifies_with_single_value_prompt() -> None:
+    engine = create_engine()
+    before = engine.state
+
+    decision = engine.step("use macbook or linux")
+
+    assert decision["kind"] == "clarify"
+    assert engine.state == before
+
+
 def test_pending_clarification_rejected_by_explicit_no_is_passthrough() -> None:
     engine = create_engine()
     before = engine.state
