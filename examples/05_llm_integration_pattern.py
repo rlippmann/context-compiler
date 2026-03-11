@@ -34,8 +34,8 @@ def main() -> None:
     engine = create_engine()
 
     handle_turn("hello there", engine)
-    handle_turn("don't use docker", engine)
-    handle_turn("no use kubernetes", engine)
+    handle_turn("don't use peanuts", engine)
+    handle_turn("no use shellfish", engine)
     handle_turn("yes", engine)
 
 

@@ -26,7 +26,7 @@ def _canonical_json(obj: object) -> str:
 def test_persistent_guardrails_example_output() -> None:
     output = _run_example("01_persistent_guardrails.py")
 
-    assert "User: don't use docker" in output
+    assert "User: don't use peanuts" in output
     assert (
         _canonical_json(
             {
@@ -34,7 +34,7 @@ def test_persistent_guardrails_example_output() -> None:
                 "prompt_to_user": None,
                 "state": {
                     "facts": {"focus.primary": None},
-                    "policies": {"prohibit": ["docker"]},
+                    "policies": {"prohibit": ["peanuts"]},
                     "version": 1,
                 },
             }
@@ -46,28 +46,28 @@ def test_persistent_guardrails_example_output() -> None:
         _canonical_json(
             {
                 "facts": {"focus.primary": None},
-                "policies": {"prohibit": ["docker"]},
+                "policies": {"prohibit": ["peanuts"]},
                 "version": 1,
             }
         )
         in output
     )
     assert "Compiled context:" in output
-    assert "- policies.prohibit: docker" in output
-    assert "User: how should I deploy my service?" in output
+    assert "- policies.prohibit: peanuts" in output
+    assert "User: how should I make this curry?" in output
 
 
 def test_configuration_and_correction_example_output() -> None:
     output = _run_example("02_configuration_and_correction.py")
 
-    assert "User: I'm using MacBook M3" in output
+    assert "User: use vegetarian curry" in output
     assert (
         _canonical_json(
             {
                 "kind": "update",
                 "prompt_to_user": None,
                 "state": {
-                    "facts": {"focus.primary": "MacBook M3"},
+                    "facts": {"focus.primary": "vegetarian curry"},
                     "policies": {"prohibit": []},
                     "version": 1,
                 },
@@ -78,21 +78,21 @@ def test_configuration_and_correction_example_output() -> None:
     assert (
         _canonical_json(
             {
-                "facts": {"focus.primary": "MacBook M3"},
+                "facts": {"focus.primary": "vegetarian curry"},
                 "policies": {"prohibit": []},
                 "version": 1,
             }
         )
         in output
     )
-    assert "User: actually MacBook M2" in output
+    assert "User: actually vegan curry" in output
     assert (
         _canonical_json(
             {
                 "kind": "update",
                 "prompt_to_user": None,
                 "state": {
-                    "facts": {"focus.primary": "MacBook M2"},
+                    "facts": {"focus.primary": "vegan curry"},
                     "policies": {"prohibit": []},
                     "version": 1,
                 },
@@ -103,7 +103,7 @@ def test_configuration_and_correction_example_output() -> None:
     assert (
         _canonical_json(
             {
-                "facts": {"focus.primary": "MacBook M2"},
+                "facts": {"focus.primary": "vegan curry"},
                 "policies": {"prohibit": []},
                 "version": 1,
             }
@@ -116,19 +116,19 @@ def test_configuration_and_correction_example_output() -> None:
 def test_ambiguity_with_clarification_example_output() -> None:
     output = _run_example("03_ambiguity_with_clarification.py")
 
-    assert "User: no use docker" in output
+    assert "User: no use peanuts" in output
     assert (
         _canonical_json(
             {
                 "kind": "clarify",
-                "prompt_to_user": "Did you mean to prohibit 'docker'?",
+                "prompt_to_user": "Did you mean to prohibit 'peanuts'?",
                 "state": None,
             }
         )
         in output
     )
     assert "do NOT call LLM" in output
-    assert "Prompt to user: Did you mean to prohibit 'docker'?" in output
+    assert "Prompt to user: Did you mean to prohibit 'peanuts'?" in output
     assert "User: yes" in output
     assert (
         _canonical_json(
@@ -137,7 +137,7 @@ def test_ambiguity_with_clarification_example_output() -> None:
                 "prompt_to_user": None,
                 "state": {
                     "facts": {"focus.primary": None},
-                    "policies": {"prohibit": ["docker"]},
+                    "policies": {"prohibit": ["peanuts"]},
                     "version": 1,
                 },
             }
@@ -148,7 +148,7 @@ def test_ambiguity_with_clarification_example_output() -> None:
         _canonical_json(
             {
                 "facts": {"focus.primary": None},
-                "policies": {"prohibit": ["docker"]},
+                "policies": {"prohibit": ["peanuts"]},
                 "version": 1,
             }
         )
@@ -193,14 +193,14 @@ def test_tool_governance_denylist_example_output() -> None:
 
 def test_llm_integration_pattern_example_output() -> None:
     output = _run_example("05_llm_integration_pattern.py")
-    docker_state = {
+    peanuts_state = {
         "facts": {"focus.primary": None},
-        "policies": {"prohibit": ["docker"]},
+        "policies": {"prohibit": ["peanuts"]},
         "version": 1,
     }
-    docker_kubernetes_state = {
+    peanuts_shellfish_state = {
         "facts": {"focus.primary": None},
-        "policies": {"prohibit": ["docker", "kubernetes"]},
+        "policies": {"prohibit": ["peanuts", "shellfish"]},
         "version": 1,
     }
 
@@ -208,25 +208,25 @@ def test_llm_integration_pattern_example_output() -> None:
     assert _canonical_json({"kind": "passthrough", "prompt_to_user": None, "state": None}) in output
     assert "Host action: passthrough -> call fake_llm() without state" in output
     assert "state: null" in output
-    assert "User: don't use docker" in output
+    assert "User: don't use peanuts" in output
     assert (
         _canonical_json(
             {
                 "kind": "update",
                 "prompt_to_user": None,
-                "state": docker_state,
+                "state": peanuts_state,
             }
         )
         in output
     )
     assert "Host action: update -> call fake_llm() with compiled state" in output
-    assert f"state: {_canonical_json(docker_state)}" in output
-    assert "User: no use kubernetes" in output
+    assert f"state: {_canonical_json(peanuts_state)}" in output
+    assert "User: no use shellfish" in output
     assert (
         _canonical_json(
             {
                 "kind": "clarify",
-                "prompt_to_user": "Did you mean to prohibit 'kubernetes'?",
+                "prompt_to_user": "Did you mean to prohibit 'shellfish'?",
                 "state": None,
             }
         )
@@ -234,15 +234,15 @@ def test_llm_integration_pattern_example_output() -> None:
     )
     assert "Host action: clarify -> show prompt, DO NOT call LLM" in output
     assert "User: yes" in output
-    assert "prompt_to_user: Did you mean to prohibit 'kubernetes'?" in output
+    assert "prompt_to_user: Did you mean to prohibit 'shellfish'?" in output
     assert (
         _canonical_json(
             {
                 "kind": "update",
                 "prompt_to_user": None,
-                "state": docker_kubernetes_state,
+                "state": peanuts_shellfish_state,
             }
         )
         in output
     )
-    assert f"state: {_canonical_json(docker_kubernetes_state)}" in output
+    assert f"state: {_canonical_json(peanuts_shellfish_state)}" in output
