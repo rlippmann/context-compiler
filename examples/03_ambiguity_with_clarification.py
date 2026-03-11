@@ -13,8 +13,8 @@ def fake_llm(user_input: str) -> str:
 def main() -> None:
     engine = create_engine()
 
-    print("User: no use docker")
-    decision1 = engine.step("no use docker")
+    print("User: no use peanuts")
+    decision1 = engine.step("no use peanuts")
     print("Decision:")
     print_json(decision1)
     print()
@@ -23,7 +23,7 @@ def main() -> None:
         print("Host behavior: clarification pending, do NOT call LLM.")
         print(f"Prompt to user: {decision1['prompt_to_user']}")
     else:
-        fake_llm("no use docker")
+        fake_llm("no use peanuts")
     print()
 
     print("User: yes")

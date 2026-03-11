@@ -19,7 +19,7 @@ Once a directive is accepted, it becomes authoritative for the remainder of the 
 User sets a constraint once:
 
 ```text
-User: don't use docker
+User: don't use peanuts
 ```
 
 State becomes:
@@ -30,7 +30,7 @@ State becomes:
     "focus.primary": null
   },
   "policies": {
-    "prohibit": ["docker"]
+    "prohibit": ["peanuts"]
   },
   "version": 1
 }
@@ -39,7 +39,7 @@ State becomes:
 Later in the conversation:
 
 ```text
-User: how should I deploy my service?
+User: how should I make this curry?
 ```
 
 The host supplies the authoritative state to the model so the constraint persists across turns.
@@ -201,7 +201,7 @@ The same input sequence always produces the same state.
 Hard negative directive:
 
 ```text
-User: don't use docker
+User: don't use peanuts
 ```
 
 Result:
@@ -209,7 +209,7 @@ Result:
 ```json
 {
   "policies": {
-    "prohibit": ["docker"]
+    "prohibit": ["peanuts"]
   }
 }
 ```
@@ -217,31 +217,31 @@ Result:
 Fact configuration:
 
 ```text
-User: I'm using MacBook M3
+User: use vegetarian curry
 ```
 
 State update:
 
 ```text
-facts.focus.primary = "MacBook M3"
+facts.focus.primary = "vegetarian curry"
 ```
 
 Correction:
 
 ```text
-User: actually MacBook M2
+User: actually vegan curry
 ```
 
 Result:
 
 ```text
-facts.focus.primary = "MacBook M2"
+facts.focus.primary = "vegan curry"
 ```
 
 Ambiguous mutation:
 
 ```text
-User: no use docker
+User: no use peanuts
 ```
 
 Compiler response:
@@ -265,8 +265,8 @@ Before:
 
 ```json
 {
-  "facts": {"focus.primary": "oracle"},
-  "policies": {"prohibit": ["stored procedures"]},
+  "facts": {"focus.primary": "vegetarian curry"},
+  "policies": {"prohibit": ["peanuts"]},
   "version": 1
 }
 ```
@@ -275,7 +275,7 @@ After `reset policies`:
 
 ```json
 {
-  "facts": {"focus.primary": "oracle"},
+  "facts": {"focus.primary": "vegetarian curry"},
   "policies": {"prohibit": []},
   "version": 1
 }
