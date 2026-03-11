@@ -19,6 +19,9 @@ context-compiler = "context_compiler.repl:main"
 packages = ["src/context_compiler"]
 
 [project.optional-dependencies]
+demos = [
+  "openai>=1.0.0",
+]
 dev = [
   "pytest",
   "hypothesis",
