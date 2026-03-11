@@ -1,9 +1,12 @@
 """Run one or all LLM demos."""
 
 import argparse
+import os
 import runpy
 import sys
 from pathlib import Path
+
+from demos.common import VERBOSE_ENV_VAR, consume_last_report_passed
 
 DEMO_FILES: dict[str, str] = {
     "1": "01_llm_constraint_drift.py",
@@ -14,9 +17,19 @@ DEMO_FILES: dict[str, str] = {
 }
 
 
-def _run(path: Path) -> None:
-    print(f"===== Running {path.name} =====")
-    runpy.run_path(str(path), run_name="__main__")
+def _run(path: Path, *, verbose: bool) -> bool | None:
+    if verbose:
+        print(f"===== Running {path.name} =====")
+    old_value = os.getenv(VERBOSE_ENV_VAR)
+    os.environ[VERBOSE_ENV_VAR] = "1" if verbose else "0"
+    try:
+        runpy.run_path(str(path), run_name="__main__")
+        return consume_last_report_passed()
+    finally:
+        if old_value is None:
+            os.environ.pop(VERBOSE_ENV_VAR, None)
+        else:
+            os.environ[VERBOSE_ENV_VAR] = old_value
 
 
 def main() -> None:
@@ -33,14 +46,27 @@ def main() -> None:
         choices=["all", *DEMO_FILES.keys()],
         help="Demo number (1-5) or all",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Show detailed prompts, compiler decisions, and model output excerpts.",
+    )
     args = parser.parse_args()
 
     if args.demo == "all":
+        passed = 0
+        failed = 0
         for key in sorted(DEMO_FILES.keys()):
-            _run(root / DEMO_FILES[key])
+            result = _run(root / DEMO_FILES[key], verbose=args.verbose)
+            if result is True:
+                passed += 1
+            else:
+                failed += 1
+        print("=" * 60)
+        print(f"Context Compiler demos complete: {passed} passed, {failed} failed")
         return
 
-    _run(root / DEMO_FILES[args.demo])
+    _run(root / DEMO_FILES[args.demo], verbose=args.verbose)
 
 
 if __name__ == "__main__":

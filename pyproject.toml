@@ -24,6 +24,7 @@ demos = [
 ]
 dev = [
   "pytest",
+  "coverage",
   "hypothesis",
   "ruff>=0.12,<1.0",
   "mypy>=1.12,<2.0",
@@ -33,6 +34,7 @@ dev = [
 [dependency-groups]
 dev = [
   "pytest",
+  "coverage",
   "hypothesis",
   "ruff>=0.12,<1.0",
   "mypy>=1.12,<2.0",
@@ -66,3 +68,4 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 source = ["context_compiler"]
+omit = ["demos/*", "tests/*"]

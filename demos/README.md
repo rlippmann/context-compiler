@@ -47,12 +47,22 @@ Run all demos:
 uv run python -m demos.run_demo all
 ```
 
-Each demo prints:
+Verbose mode:
 
-- user inputs
-- compiler decisions
-- compiled state
-- prompt/messages sent to the LLM
-- baseline model output
-- compiler-mediated model output
-- a machine-checkable `TAG_CHECK ...` comparison line
+```bash
+uv run python -m demos.run_demo all --verbose
+```
+
+Output modes:
+
+- default (concise): each demo prints only four lines
+  - scenario name + short description
+  - expected behavior
+  - actual outcome (plain English)
+  - `PASS` or `FAIL`
+- `--verbose`: prints detailed traces
+  - user inputs
+  - compiler decisions and state
+  - prompts/messages sent to the LLM
+  - output excerpts
+  - host checks and final verdict

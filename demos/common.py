@@ -1,6 +1,7 @@
 """Shared helpers for LLM-backed context compiler demos."""
 
 import json
+import os
 import re
 from typing import Any
 
@@ -8,12 +9,17 @@ from context_compiler import Decision, State
 from context_compiler.const import FOCUS_PRIMARY, POLICY_PROHIBIT, STATE_FACTS, STATE_POLICIES
 from demos.llm_client import Message
 
+VERBOSE_ENV_VAR = "CONTEXT_COMPILER_DEMO_VERBOSE"
+LAST_REPORT_PASSED: bool | None = None
+
 
 def canonical_json(obj: Any) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"))
 
 
 def print_user_inputs(inputs: list[str]) -> None:
+    if not is_verbose():
+        return
     print("User inputs:")
     for index, text in enumerate(inputs, start=1):
         print(f"  {index}. {text}")
@@ -21,6 +27,8 @@ def print_user_inputs(inputs: list[str]) -> None:
 
 
 def print_decision(title: str, decision: Decision, state: State) -> None:
+    if not is_verbose():
+        return
     print(f"Compiler decision ({title}):")
     print(canonical_json(decision))
     print("Compiled state:")
@@ -29,14 +37,18 @@ def print_decision(title: str, decision: Decision, state: State) -> None:
 
 
 def print_messages(label: str, messages: list[Message]) -> None:
+    if not is_verbose():
+        return
     print(f"Prompt/messages sent to LLM ({label}):")
     print(canonical_json(messages))
     print()
 
 
 def print_model_output(label: str, output: str) -> None:
-    print(f"{label} model output:")
-    print(output)
+    if not is_verbose():
+        return
+    print(f"{label} output excerpt:")
+    print(excerpt_lines(output))
     print()
 
 
@@ -49,10 +61,51 @@ def extract_tag_value(output: str, tag: str) -> str | None:
 
 
 def print_tag_comparison(tag: str, baseline_output: str, mediated_output: str) -> None:
+    if not is_verbose():
+        return
     baseline_value = extract_tag_value(baseline_output, tag) or "MISSING"
     mediated_value = extract_tag_value(mediated_output, tag) or "MISSING"
     print(f"TAG_CHECK {tag} baseline={baseline_value} mediated={mediated_value}")
     print()
+
+
+def excerpt_lines(text: str, *, max_lines: int = 3) -> str:
+    lines = text.splitlines()
+    if len(lines) <= max_lines:
+        return text
+    return "\n".join(lines[:max_lines]) + "\n[...]"
+
+
+def yes_no(value: bool) -> str:
+    return "yes" if value else "no"
+
+
+def is_verbose() -> bool:
+    return os.getenv(VERBOSE_ENV_VAR, "").lower() in {"1", "true", "yes", "on"}
+
+
+def print_host_check(name: str, value: str, *, context: str) -> None:
+    if not is_verbose():
+        return
+    print(f"HOST_CHECK {name}: {value} ({context})")
+
+
+def print_spec_report(*, test_name: str, expected: str, actual: str, passed: bool) -> None:
+    global LAST_REPORT_PASSED
+    LAST_REPORT_PASSED = passed
+    print(test_name)
+    print(f"expected: {expected}")
+    print(f"actual: {actual}")
+    print("*** PASS" if passed else "*** FAIL")
+    if is_verbose():
+        print()
+
+
+def consume_last_report_passed() -> bool | None:
+    global LAST_REPORT_PASSED
+    value = LAST_REPORT_PASSED
+    LAST_REPORT_PASSED = None
+    return value
 
 
 def build_compiled_system_prompt(state: State) -> str:
