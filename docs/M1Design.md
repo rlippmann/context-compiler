@@ -120,6 +120,9 @@ Accepted patterns:
 - "I am using X"
 - "I'm using X"
 
+Polite prefixes such as `"please"` may be tolerated and ignored by the parser.
+For example, `please use X` is treated the same as `use X`.
+
 Produces:
 
     FACT_SET(key="focus.primary", value=X)
