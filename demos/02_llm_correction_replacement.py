@@ -131,6 +131,8 @@ def main() -> None:
     )
     print_spec_report(
         test_name="02_correction_replacement — latest value wins",
+        baseline_pass=baseline_respects,
+        compiler_pass=mediated_respects,
         expected="the corrected vegan preference should determine the final plan",
         actual=(
             "baseline still used the stale vegetarian value; "
@@ -147,6 +149,8 @@ def main() -> None:
             )
         ),
         passed=mediated_respects,
+        result_pass="corrected value determined the final plan",
+        result_fail="corrected value did not determine the final plan",
     )
 
 

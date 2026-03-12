@@ -64,6 +64,8 @@ def main() -> None:
     )
     print_spec_report(
         test_name="03_ambiguity_block — host clarification gate",
+        baseline_pass=baseline_respects,
+        compiler_pass=mediated_respects,
         expected="host should block LLM call on ambiguous directive until clarification",
         actual=(
             "baseline answered instead of clarifying; compiler-mediated blocked the LLM call"
@@ -75,6 +77,8 @@ def main() -> None:
             )
         ),
         passed=mediated_respects,
+        result_pass="ambiguous directive blocked until clarification",
+        result_fail="ambiguous directive not blocked until clarification",
     )
 
 

@@ -95,6 +95,7 @@ def main() -> None:
     mediated_style = extract_tag_value(mediated_output, "DINNER_STYLE")
     baseline_non_veg = plan_includes_non_vegetarian_item(baseline_output)
     mediated_non_veg = plan_includes_non_vegetarian_item(mediated_output)
+    baseline_respects = not baseline_non_veg
     mediated_respects = not mediated_non_veg
     print_host_check(
         "PLAN_INCLUDES_NON_VEGETARIAN",
@@ -108,6 +109,8 @@ def main() -> None:
     )
     print_spec_report(
         test_name="05_prompt_drift — preserve key dietary constraint",
+        baseline_pass=baseline_respects,
+        compiler_pass=mediated_respects,
         expected=(
             "compiler-mediated should preserve the vegetarian constraint in the final dinner plan"
         ),
@@ -128,6 +131,8 @@ def main() -> None:
             )
         ),
         passed=mediated_respects,
+        result_pass="vegetarian constraint preserved",
+        result_fail="vegetarian constraint not preserved",
     )
 
 
