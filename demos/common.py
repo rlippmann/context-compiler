@@ -21,7 +21,18 @@ class DemoReport(TypedDict):
     demo_pass: bool
 
 
+class InfoReport(TypedDict):
+    name: str
+    baseline_context_length: int
+    compiled_context_length: int
+    context_reduction_percent: int
+    baseline_prompt_length: int
+    compiled_prompt_length: int
+    prompt_reduction_percent: int
+
+
 LAST_REPORT: DemoReport | None = None
+LAST_INFO_REPORT: InfoReport | None = None
 
 
 def canonical_json(obj: Any) -> str:
@@ -135,6 +146,35 @@ def consume_last_report() -> DemoReport | None:
     global LAST_REPORT
     value = LAST_REPORT
     LAST_REPORT = None
+    return value
+
+
+def print_info_report(
+    *,
+    name: str,
+    baseline_context_length: int,
+    compiled_context_length: int,
+    context_reduction_percent: int,
+    baseline_prompt_length: int,
+    compiled_prompt_length: int,
+    prompt_reduction_percent: int,
+) -> None:
+    global LAST_INFO_REPORT
+    LAST_INFO_REPORT = {
+        "name": name,
+        "baseline_context_length": baseline_context_length,
+        "compiled_context_length": compiled_context_length,
+        "context_reduction_percent": context_reduction_percent,
+        "baseline_prompt_length": baseline_prompt_length,
+        "compiled_prompt_length": compiled_prompt_length,
+        "prompt_reduction_percent": prompt_reduction_percent,
+    }
+
+
+def consume_last_info_report() -> InfoReport | None:
+    global LAST_INFO_REPORT
+    value = LAST_INFO_REPORT
+    LAST_INFO_REPORT = None
     return value
 
 
