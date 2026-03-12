@@ -31,6 +31,16 @@ def _verbose_demo_label(path: Path) -> str:
     return path.stem.replace("_llm", "")
 
 
+def _is_compiler_regression(result: DemoReport) -> bool:
+    return bool(result["baseline_pass"]) and not bool(result["compiler_pass"])
+
+
+def _print_compiler_regression_warning() -> None:
+    print()
+    print("⚠️ COMPILER REGRESSION")
+    print("baseline succeeded but compiler-mediated version failed")
+
+
 def _run(path: Path, *, verbose: bool) -> tuple[DemoReport | None, InfoReport | None]:
     if verbose:
         print(f"===== Running {_verbose_demo_label(path)} =====")
@@ -87,6 +97,7 @@ def main() -> None:
         baseline_fail_count = 0
         compiler_pass_count = 0
         compiler_fail_count = 0
+        compiler_regressions = 0
         informational_reports: list[InfoReport] = []
         for index, key in enumerate(sorted(DEMO_FILES.keys())):
             if index > 0 and not args.verbose:
@@ -117,12 +128,22 @@ def main() -> None:
                 compiler_pass_count += 1
             else:
                 compiler_fail_count += 1
+
+            if _is_compiler_regression(result):
+                compiler_regressions += 1
+                _print_compiler_regression_warning()
         print()
         print("Summary:")
         print()
         print("Evaluative demos:")
         print(f"Baseline results: {baseline_pass_count} passed, {baseline_fail_count} failed")
         print(f"Compiler results: {compiler_pass_count} passed, {compiler_fail_count} failed")
+        if compiler_regressions > 0:
+            print()
+            if compiler_regressions == 1:
+                print("*** 1 COMPILER REGRESSION DETECTED ***")
+            else:
+                print(f"*** {compiler_regressions} COMPILER REGRESSIONS DETECTED ***")
         if informational_reports:
             print()
             print("Informational demo:")
@@ -139,10 +160,12 @@ def main() -> None:
         return
 
     try:
-        _run(root / DEMO_FILES[args.demo], verbose=args.verbose)
+        result, _ = _run(root / DEMO_FILES[args.demo], verbose=args.verbose)
     except MissingDemoConfigError as exc:
         _print_config_error(exc)
         raise SystemExit(2) from exc
+    if args.demo in SCORED_DEMOS and result is not None and _is_compiler_regression(result):
+        _print_compiler_regression_warning()
 
 
 if __name__ == "__main__":
