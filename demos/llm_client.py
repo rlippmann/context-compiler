@@ -18,15 +18,29 @@ class LLMConfig:
     model: str
 
 
+@dataclass(frozen=True)
+class MissingDemoConfigError(RuntimeError):
+    missing: list[str]
+    base_url: str | None
+
+    def __str__(self) -> str:
+        missing_text = ", ".join(self.missing)
+        return f"Missing demo configuration: {missing_text}"
+
+
 def load_config() -> LLMConfig:
     """Load OpenAI-compatible configuration from environment variables."""
     base_url = os.getenv("OPENAI_BASE_URL")
-    api_key = os.getenv("OPENAI_API_KEY") or ("ollama" if base_url else "")
+    api_key = os.getenv("OPENAI_API_KEY")
     model = os.getenv("MODEL", "gpt-4.1-mini")
 
+    missing: list[str] = []
     if not api_key:
-        raise RuntimeError("Set OPENAI_API_KEY (or OPENAI_BASE_URL for local Ollama).")
+        missing.append("OPENAI_API_KEY")
+    if missing:
+        raise MissingDemoConfigError(missing=missing, base_url=base_url)
 
+    assert api_key is not None
     return LLMConfig(base_url=base_url, api_key=api_key, model=model)
 
 

@@ -14,8 +14,8 @@ pip install -e .[demos]
 
 Environment variables:
 
-- `MODEL` (required): model name
-- `OPENAI_API_KEY` (required for OpenAI API)
+- `MODEL` (optional; default: `gpt-4.1-mini`)
+- `OPENAI_API_KEY` (required)
 - `OPENAI_BASE_URL` (optional; use for OpenAI-compatible local servers)
 
 Ollama example:
@@ -23,7 +23,7 @@ Ollama example:
 ```bash
 export OPENAI_BASE_URL=http://localhost:11434/v1
 export OPENAI_API_KEY=ollama
-export MODEL=llama3.1
+export MODEL=llama3.1:8b
 ```
 
 OpenAI example:
