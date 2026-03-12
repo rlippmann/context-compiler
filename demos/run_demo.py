@@ -6,7 +6,13 @@ import runpy
 import sys
 from pathlib import Path
 
-from demos.common import VERBOSE_ENV_VAR, DemoReport, consume_last_report
+from demos.common import (
+    VERBOSE_ENV_VAR,
+    DemoReport,
+    InfoReport,
+    consume_last_info_report,
+    consume_last_report,
+)
 from demos.llm_client import MissingDemoConfigError
 
 DEMO_FILES: dict[str, str] = {
@@ -15,17 +21,24 @@ DEMO_FILES: dict[str, str] = {
     "3": "03_llm_ambiguity_block.py",
     "4": "04_llm_tool_governance.py",
     "5": "05_llm_prompt_drift.py",
+    "6": "06_context_compaction.py",
 }
 
+SCORED_DEMOS = {"1", "2", "3", "4", "5"}
 
-def _run(path: Path, *, verbose: bool) -> DemoReport | None:
+
+def _verbose_demo_label(path: Path) -> str:
+    return path.stem.replace("_llm", "")
+
+
+def _run(path: Path, *, verbose: bool) -> tuple[DemoReport | None, InfoReport | None]:
     if verbose:
-        print(f"===== Running {path.name} =====")
+        print(f"===== Running {_verbose_demo_label(path)} =====")
     old_value = os.getenv(VERBOSE_ENV_VAR)
     os.environ[VERBOSE_ENV_VAR] = "1" if verbose else "0"
     try:
         runpy.run_path(str(path), run_name="__main__")
-        return consume_last_report()
+        return consume_last_report(), consume_last_info_report()
     finally:
         if old_value is None:
             os.environ.pop(VERBOSE_ENV_VAR, None)
@@ -60,7 +73,7 @@ def main() -> None:
         nargs="?",
         default="all",
         choices=["all", *DEMO_FILES.keys()],
-        help="Demo number (1-5) or all",
+        help="Demo number (1-6) or all",
     )
     parser.add_argument(
         "--verbose",
@@ -74,14 +87,22 @@ def main() -> None:
         baseline_fail_count = 0
         compiler_pass_count = 0
         compiler_fail_count = 0
+        informational_reports: list[InfoReport] = []
         for index, key in enumerate(sorted(DEMO_FILES.keys())):
-            if index > 0:
+            if index > 0 and not args.verbose:
                 print()
             try:
-                result = _run(root / DEMO_FILES[key], verbose=args.verbose)
+                result, info_report = _run(root / DEMO_FILES[key], verbose=args.verbose)
             except MissingDemoConfigError as exc:
                 _print_config_error(exc)
                 raise SystemExit(2) from exc
+
+            if info_report is not None:
+                informational_reports.append(info_report)
+
+            if key not in SCORED_DEMOS:
+                continue
+
             if result is None:
                 baseline_fail_count += 1
                 compiler_fail_count += 1
@@ -96,9 +117,25 @@ def main() -> None:
                 compiler_pass_count += 1
             else:
                 compiler_fail_count += 1
-        print("=" * 60)
+        print()
+        print("Summary:")
+        print()
+        print("Evaluative demos:")
         print(f"Baseline results: {baseline_pass_count} passed, {baseline_fail_count} failed")
         print(f"Compiler results: {compiler_pass_count} passed, {compiler_fail_count} failed")
+        if informational_reports:
+            print()
+            print("Informational demo:")
+            for report in informational_reports:
+                demo_id = report["name"].split(" — ", maxsplit=1)[0]
+                print(
+                    f"{demo_id} — context {report['baseline_context_length']} "
+                    f"→ {report['compiled_context_length']} chars "
+                    f"({report['context_reduction_percent']}% reduction); "
+                    f"prompt {report['baseline_prompt_length']} "
+                    f"→ {report['compiled_prompt_length']} chars "
+                    f"({report['prompt_reduction_percent']}% reduction)"
+                )
         return
 
     try:
