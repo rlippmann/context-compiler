@@ -10,6 +10,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from demos import run_demo  # noqa: E402
 from demos.common import consume_last_info_report  # noqa: E402
+from demos.llm_client import DemoLLMError  # noqa: E402
 
 
 def _demo_report(*, baseline_pass: bool, compiler_pass: bool) -> run_demo.DemoReport:
@@ -59,10 +60,10 @@ def test_runner_prints_per_demo_compiler_regression_warning(
     output = capsys.readouterr().out
 
     assert "result:" in output
-    assert "⚠️ COMPILER REGRESSION" in output
+    assert "⚠️ MEDIATED REGRESSION" in output
     assert "baseline succeeded but compiler-mediated version failed" in output
     result_index = output.index("result:")
-    warning_index = output.index("⚠️ COMPILER REGRESSION")
+    warning_index = output.index("⚠️ MEDIATED REGRESSION")
     detail_index = output.index("baseline succeeded but compiler-mediated version failed")
     assert result_index < warning_index < detail_index
 
@@ -99,7 +100,7 @@ def test_runner_prints_summary_regression_banner_in_all_mode(
 
     assert "Baseline results: 1 passed, 0 failed" in output
     assert "Compiler results: 0 passed, 1 failed" in output
-    assert "*** 1 COMPILER REGRESSION DETECTED ***" in output
+    assert "*** 1 MEDIATED REGRESSION DETECTED ***" in output
 
 
 def test_runner_prints_plural_summary_regression_banner_in_all_mode(
@@ -138,7 +139,7 @@ def test_runner_prints_plural_summary_regression_banner_in_all_mode(
 
     assert "Baseline results: 2 passed, 0 failed" in output
     assert "Compiler results: 0 passed, 2 failed" in output
-    assert "*** 2 COMPILER REGRESSIONS DETECTED ***" in output
+    assert "*** 2 MEDIATED REGRESSIONS DETECTED ***" in output
 
 
 def test_informational_demo_is_non_scored_in_all_mode(
@@ -177,7 +178,34 @@ def test_informational_demo_is_non_scored_in_all_mode(
         "06_context_compaction — context 137 → 37 chars (73% reduction); "
         "prompt 247 → 160 chars (35% reduction)"
     ) in output
-    assert "*** 1 COMPILER REGRESSION DETECTED ***" not in output
+    assert "*** 1 MEDIATED REGRESSION DETECTED ***" not in output
+
+
+def test_runner_prints_friendly_demo_llm_error_in_single_mode(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def fake_run(
+        path: Path, *, verbose: bool
+    ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        raise DemoLLMError(
+            "Model 'bad-model' was not found at the configured endpoint. "
+            "Check MODEL or OPENAI_BASE_URL."
+        )
+
+    monkeypatch.setattr(run_demo, "DEMO_FILES", {"1": "fake_01.py"})
+    monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1"})
+    monkeypatch.setattr(run_demo, "_run", fake_run)
+    monkeypatch.setattr("sys.argv", ["run_demo", "1"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        run_demo.main()
+    output = capsys.readouterr().out
+
+    assert exc_info.value.code == 2
+    assert (
+        "Model 'bad-model' was not found at the configured endpoint. "
+        "Check MODEL or OPENAI_BASE_URL."
+    ) in output
 
 
 def test_all_mode_scored_none_result_counts_as_failures(

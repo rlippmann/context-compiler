@@ -5,6 +5,7 @@ Context Compiler decision/state API.
 They are illustrative manual demos, not benchmarks or CI tests.
 They demonstrate common LLM failure modes and how authoritative compiled state
 can improve reliability.
+All demos force deterministic decoding so results are reproducible.
 
 ## Requirements
 

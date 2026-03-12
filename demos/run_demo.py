@@ -13,7 +13,7 @@ from demos.common import (
     consume_last_info_report,
     consume_last_report,
 )
-from demos.llm_client import MissingDemoConfigError
+from demos.llm_client import DemoLLMError, MissingDemoConfigError
 
 DEMO_FILES: dict[str, str] = {
     "1": "01_llm_constraint_drift.py",
@@ -37,7 +37,7 @@ def _is_compiler_regression(result: DemoReport) -> bool:
 
 def _print_compiler_regression_warning() -> None:
     print()
-    print("⚠️ COMPILER REGRESSION")
+    print("⚠️ MEDIATED REGRESSION")
     print("baseline succeeded but compiler-mediated version failed")
 
 
@@ -107,6 +107,9 @@ def main() -> None:
             except MissingDemoConfigError as exc:
                 _print_config_error(exc)
                 raise SystemExit(2) from exc
+            except DemoLLMError as exc:
+                print(str(exc))
+                raise SystemExit(2) from exc
 
             if info_report is not None:
                 informational_reports.append(info_report)
@@ -141,9 +144,9 @@ def main() -> None:
         if compiler_regressions > 0:
             print()
             if compiler_regressions == 1:
-                print("*** 1 COMPILER REGRESSION DETECTED ***")
+                print("*** 1 MEDIATED REGRESSION DETECTED ***")
             else:
-                print(f"*** {compiler_regressions} COMPILER REGRESSIONS DETECTED ***")
+                print(f"*** {compiler_regressions} MEDIATED REGRESSIONS DETECTED ***")
         if informational_reports:
             print()
             print("Informational demo:")
@@ -163,6 +166,9 @@ def main() -> None:
         result, _ = _run(root / DEMO_FILES[args.demo], verbose=args.verbose)
     except MissingDemoConfigError as exc:
         _print_config_error(exc)
+        raise SystemExit(2) from exc
+    except DemoLLMError as exc:
+        print(str(exc))
         raise SystemExit(2) from exc
     if args.demo in SCORED_DEMOS and result is not None and _is_compiler_regression(result):
         _print_compiler_regression_warning()
