@@ -1,16 +1,30 @@
 
 # Context Compiler
 
-Deterministic conversational state for LLM systems.
+[![PyPI version](https://img.shields.io/pypi/v/context-compiler)](https://pypi.org/project/context-compiler/)
+[![Python versions](https://img.shields.io/pypi/pyversions/context-compiler)](https://pypi.org/project/context-compiler/)
+[![License](https://img.shields.io/pypi/l/context-compiler)](https://pypi.org/project/context-compiler/)
 
-Modern language models are strong at reasoning but unreliable at maintaining consistent state across interactions. Corrections compete with earlier statements, constraints disappear, and long conversations accumulate contradictions.
+A deterministic directive engine that converts explicit user instructions
+into structured conversational state for LLM applications.
+
+Modern language models reason well but are unreliable at maintaining
+consistent state across interactions.
+
+Corrections compete with earlier statements, constraints disappear,
+and long conversations accumulate contradictions.
 
 The **Context Compiler** introduces a deterministic state layer that governs authoritative conversational state independently of the model.
 
-The model performs reasoning and generation.  
-The compiler manages facts and constraints.
+The model performs reasoning and generation while the compiler manages facts and constraints. Once accepted, directives remain authoritative until explicitly corrected or reset.
 
-Once a directive is accepted, it becomes authoritative for the remainder of the session.
+## Installation
+
+- Python 3.11+
+- `pip install context-compiler`
+- Dev/test: `uv sync --group dev` and `uv run pytest`
+- Examples: see [examples/README.md](examples/README.md)
+- Demonstrations: see [demos/README.md](demos/README.md)
 
 ---
 
@@ -46,22 +60,6 @@ The host supplies the authoritative state to the model so the constraint persist
 
 ---
 
-## Why Not Just Prompt Engineering?
-
-Prompt instructions are soft and easy to lose across long interactions.
-
-The Context Compiler gives the host an **authoritative state representation** that is independent of transcript drift.
-
-Only **explicit user directives** can modify state.
-
-In other words:
-
-- the model reasons
-- the compiler decides whether state changes
-- the host controls when the LLM runs
-
----
-
 ## Architecture
 
 ```text
@@ -76,30 +74,8 @@ Host Application
 LLM
 ```
 
-The compiler governs conversational state.  It never calls the LLM.
-
-The LLM performs reasoning and generation but cannot modify authoritative state.
-
-The host application decides whether the model runs based on the compiler’s `Decision`.
-
-### Compiler responsibilities
-
-The compiler:
-
-1. Parses user input
-2. Detects explicit directives
-3. Ensures mutations are unambiguous
-4. Returns a deterministic `Decision`
-
-The compiler **never calls the LLM**.
-
-### Host responsibilities
-
-The host:
-
-- displays clarification prompts
-- calls the LLM when allowed
-- formats prompts using compiled state
+The compiler governs authoritative conversational state and never calls the LLM.
+The host decides whether to call the model based on the returned `Decision`.
 
 ---
 
@@ -122,6 +98,30 @@ Meaning:
 | update      | forward input with updated state              |
 | clarify     | show `prompt_to_user` and do not call the LLM |
 
+### Host Integration Example
+
+```python
+engine = create_engine()
+decision = engine.step(user_input)
+
+if decision["kind"] == "clarify":
+    show_to_user(decision["prompt_to_user"])
+else:
+    state = decision["state"] or engine.state
+    messages = build_messages(state, user_input)
+    render(call_llm(messages))
+```
+
+### API Reference
+
+| API | Description |
+|---|---|
+| `create_engine(...)` | Create a new compiler engine, optionally with replacement initial state. |
+| `step(user_input)` | Parse one user turn and return a deterministic `Decision`. |
+| `engine.state` | Read or replace full in-memory authoritative state. |
+| `export_json()` | Export current state as JSON for persistence/transport. |
+| `import_json(payload)` | Load state from exported JSON payload. |
+
 ---
 
 ## State Model
@@ -142,57 +142,22 @@ The compiler maintains an authoritative state:
 
 ## State Access and Persistence
 
-The compiler exposes authoritative state through in-memory replacement APIs
-and JSON persistence/transport APIs.
+Hosts may inspect or replace in-memory state (`engine.state`) or persist it using `export_json()` and `import_json()`. State changes occur only through directives processed by `step()`. Storage is managed by the host application.
 
-Supported host interaction model:
+### Fact Schema
 
-```python
-engine = create_engine()
-engine = create_engine(state=initial_state_obj)
-decision = engine.step(user_input)
-state = engine.state
-engine.state = replacement_state_obj
-payload = engine.export_json()
-engine.import_json(payload)
-```
-
-API boundaries:
-
-- `step()` performs directive-driven mutation.
-- `engine.state` / `engine.state = ...` are in-memory inspection/replacement APIs.
-- `export_json()` / `import_json()` are persistence/transport APIs.
-- No imperative convenience mutation methods are provided; operations such as
-  `reset policies` and `clear state` are handled through directive input to `step()`.
-
-Example persistence lifecycle:
-
-```python
-payload = engine.export_json()
-save_to_storage(payload)
-
-restored_payload = load_from_storage()
-engine = create_engine()
-engine.import_json(restored_payload)
-```
-
-The compiler does not manage storage or snapshots. Persistence policies
-belong to the host application.
-
-**Note**
-The fact schema currently contains a single exclusive slot: `facts["focus.primary"]`.
-
-This slot exists to demonstrate deterministic fact replacement and correction semantics.
-Richer fact schemas may be introduced in future releases.
+The current schema contains a single exclusive slot: `facts["focus.primary"]`.
+This demonstrates deterministic fact replacement and correction behavior.
+Richer schemas may be introduced in future releases.
 
 ### State Properties
 
-- **Facts are exclusive** (last write wins)
-- **Policies are additive**
-- **No inference or semantic reasoning**
-- **State is deterministic**
+- Facts are exclusive (last write wins)
+- Policies are additive
+- No inference or semantic reasoning
 
-The same input sequence always produces the same state.
+Identical input sequences always produce identical compiler state.
+LLM responses may still vary unless deterministic decoding is used by the host.
 
 ---
 
@@ -295,22 +260,9 @@ After `clear state`:
 
 ## Examples
 
-The `examples/` directory contains small integration demonstrations.
+Integration examples are available in the [examples/](examples/) directory.
 
-- [Persistent guardrails](examples/01_persistent_guardrails.py)  
-  Demonstrates constraints persisting across turns.
-
-- [Configuration with correction](examples/02_configuration_and_correction.py)  
-  Shows deterministic fact replacement.
-
-- [Ambiguity detection with clarification](examples/03_ambiguity_with_clarification.py)  
-  Demonstrates clarification before state mutation.
-
-- [Tool governance for agents](examples/04_tool_governance_denylist.py)  
-  Shows how host applications can block tools using compiler policies.
-
-- [LLM integration pattern](examples/05_llm_integration_pattern.py)  
-  Demonstrates the host control flow around the `Decision` API.
+See [examples/README.md](examples/README.md) for walkthroughs.
 
 ---
 
@@ -331,66 +283,28 @@ python examples/01_persistent_guardrails.py
 Run tests:
 
 ```bash
-pytest
+uv run pytest
 ```
 
 ---
 
 ## Guarantees
 
-The compiler enforces several invariants:
+- State changes only through explicit user directives or confirmation.
+- Identical input sequences produce identical compiler state.
+- Model responses never modify compiler state.
+- Ambiguous directives trigger clarification instead of changing state.
 
-- State never changes without explicit directive or confirmation
-- The same input sequence always produces the same state
-- LLM output never affects state
-- No mutation occurs during clarification
-- Administrative state replacement clears pending clarification state
-- Facts are exclusive
-- Policies are additive
-- Pending clarification blocks mutation
+These invariants are verified through behavioral tests and Hypothesis-based property tests.
 
 ---
 
-## Implementation Status
+## Design Notes
 
-The current implementation provides the deterministic directive compiler
-defined in [this document](/docs/M1Design.md).
+More detailed design and milestone documents are available in:
 
----
-
-## Future Work
-
-This project intentionally focuses on the deterministic directive compiler itself.
-
-Higher-level systems such as session scope management, memory layers, agent tooling,
-or context routing belong in host applications or separate projects built on top of
-the compiler.
-
----
-
-## Design Philosophy
-
-The Context Compiler deliberately avoids:
-
-- semantic reasoning
-- ontology inference
-- machine-learning parsing
-- transcript reconstruction
-- passive memory
-
-Authoritative state must originate only from **explicit user directives**.
-
----
-
-## Specification
-
-The authoritative behavioral specification is:
-
-```text
-M1Design.md
-```
-
-Future milestone documents describe potential extensions but are not normative for current behavior.
+- [Project overview](docs/DescriptionAndMilestones.md)
+- [M1 design document](docs/M1Design.md)
 
 ---
 

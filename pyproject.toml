@@ -4,13 +4,32 @@ build-backend = "hatchling.build"
 
 [project]
 name = "context-compiler"
-version = "0.1.0"
+version = "0.2.0"
 description = "Deterministic conversational state engine for LLM applications."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "Apache-2.0" }
 authors = [{ name = "Robert Lippmann" }]
 dependencies = []
+keywords = [
+  "llm",
+  "conversation-state",
+  "state-machine",
+  "ai-infrastructure",
+]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.urls]
+Homepage = "https://github.com/rlippmann/context-compiler"
+Repository = "https://github.com/rlippmann/context-compiler"
+Issues = "https://github.com/rlippmann/context-compiler/issues"
 
 [project.scripts]
 context-compiler = "context_compiler.repl:main"
