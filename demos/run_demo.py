@@ -6,6 +6,7 @@ import runpy
 import sys
 from pathlib import Path
 
+import demos.llm_client as llm_client
 from demos.common import (
     VERBOSE_ENV_VAR,
     DemoReport,
@@ -13,7 +14,10 @@ from demos.common import (
     consume_last_info_report,
     consume_last_report,
 )
-from demos.llm_client import DemoLLMError, MissingDemoConfigError
+from demos.llm_client import (
+    DemoLLMError,
+    MissingDemoConfigError,
+)
 
 DEMO_FILES: dict[str, str] = {
     "1": "01_llm_constraint_drift.py",
@@ -41,19 +45,24 @@ def _print_compiler_regression_warning() -> None:
     print("baseline succeeded but compiler-mediated version failed")
 
 
-def _run(path: Path, *, verbose: bool) -> tuple[DemoReport | None, InfoReport | None]:
+def _run(
+    path: Path, *, verbose: bool, llm_delay: float
+) -> tuple[DemoReport | None, InfoReport | None]:
     if verbose:
         print(f"===== Running {_verbose_demo_label(path)} =====")
-    old_value = os.getenv(VERBOSE_ENV_VAR)
+    old_verbose = os.getenv(VERBOSE_ENV_VAR)
+    old_delay = llm_client.DEFAULT_LLM_DELAY_SECONDS
     os.environ[VERBOSE_ENV_VAR] = "1" if verbose else "0"
+    llm_client.DEFAULT_LLM_DELAY_SECONDS = llm_delay if llm_delay > 0 else 0.0
     try:
         runpy.run_path(str(path), run_name="__main__")
         return consume_last_report(), consume_last_info_report()
     finally:
-        if old_value is None:
+        if old_verbose is None:
             os.environ.pop(VERBOSE_ENV_VAR, None)
         else:
-            os.environ[VERBOSE_ENV_VAR] = old_value
+            os.environ[VERBOSE_ENV_VAR] = old_verbose
+        llm_client.DEFAULT_LLM_DELAY_SECONDS = old_delay
 
 
 def _print_config_error(exc: MissingDemoConfigError) -> None:
@@ -90,6 +99,12 @@ def main() -> None:
         action="store_true",
         help="Show detailed prompts, compiler decisions, and model output excerpts.",
     )
+    parser.add_argument(
+        "--llm-delay",
+        type=float,
+        default=0,
+        help="Delay between LLM calls in seconds (useful for low-quota providers).",
+    )
     args = parser.parse_args()
 
     if args.demo == "all":
@@ -103,7 +118,9 @@ def main() -> None:
             if index > 0 and not args.verbose:
                 print()
             try:
-                result, info_report = _run(root / DEMO_FILES[key], verbose=args.verbose)
+                result, info_report = _run(
+                    root / DEMO_FILES[key], verbose=args.verbose, llm_delay=args.llm_delay
+                )
             except MissingDemoConfigError as exc:
                 _print_config_error(exc)
                 raise SystemExit(2) from exc
@@ -163,7 +180,9 @@ def main() -> None:
         return
 
     try:
-        result, _ = _run(root / DEMO_FILES[args.demo], verbose=args.verbose)
+        result, _ = _run(
+            root / DEMO_FILES[args.demo], verbose=args.verbose, llm_delay=args.llm_delay
+        )
     except MissingDemoConfigError as exc:
         _print_config_error(exc)
         raise SystemExit(2) from exc

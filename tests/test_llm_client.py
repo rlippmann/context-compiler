@@ -225,3 +225,21 @@ def test_complete_messages_uses_gemini_retry_delay_field(
     assert result == "ok"
     assert delays == [1]
     assert "[retry] LLM rate limit hit — retrying in 1s..." in stderr
+
+
+def test_complete_messages_applies_delay_seconds_before_call(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    monkeypatch.setattr(
+        llm_client,
+        "_build_openai_client",
+        lambda _config: _FakeClient([_FakeResponse("ok")]),
+    )
+    delays: list[float] = []
+    monkeypatch.setattr(llm_client.time, "sleep", lambda seconds: delays.append(seconds))
+
+    result = complete_messages([{"role": "user", "content": "hello"}], delay_seconds=1.5)
+
+    assert result == "ok"
+    assert delays == [1.5]

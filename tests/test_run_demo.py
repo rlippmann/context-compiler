@@ -40,9 +40,10 @@ def test_runner_prints_per_demo_compiler_regression_warning(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     def fake_run(
-        path: Path, *, verbose: bool
+        path: Path, *, verbose: bool, llm_delay: float
     ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
         assert not verbose
+        assert llm_delay == 0
         print("01_fake — regression fixture")
         print("baseline: PASS")
         print("compiler: FAIL")
@@ -72,9 +73,10 @@ def test_runner_prints_summary_regression_banner_in_all_mode(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     def fake_run(
-        path: Path, *, verbose: bool
+        path: Path, *, verbose: bool, llm_delay: float
     ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
         assert not verbose
+        assert llm_delay == 0
         if path.name == "fake_01.py":
             print("01_fake — regression fixture")
             print("baseline: PASS")
@@ -107,9 +109,10 @@ def test_runner_prints_plural_summary_regression_banner_in_all_mode(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     def fake_run(
-        path: Path, *, verbose: bool
+        path: Path, *, verbose: bool, llm_delay: float
     ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
         assert not verbose
+        assert llm_delay == 0
         if path.name in {"fake_01.py", "fake_02.py"}:
             print(f"{path.stem} — regression fixture")
             print("baseline: PASS")
@@ -146,9 +149,10 @@ def test_informational_demo_is_non_scored_in_all_mode(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     def fake_run(
-        path: Path, *, verbose: bool
+        path: Path, *, verbose: bool, llm_delay: float
     ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
         assert not verbose
+        assert llm_delay == 0
         if path.name == "fake_01.py":
             print("01_fake — pass fixture")
             print("baseline: PASS")
@@ -185,8 +189,9 @@ def test_runner_prints_friendly_demo_llm_error_in_single_mode(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     def fake_run(
-        path: Path, *, verbose: bool
+        path: Path, *, verbose: bool, llm_delay: float
     ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        assert llm_delay == 0
         raise DemoLLMError(
             "Model 'bad-model' was not found at the configured endpoint. "
             "Check MODEL or OPENAI_BASE_URL."
@@ -212,9 +217,10 @@ def test_all_mode_scored_none_result_counts_as_failures(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     def fake_run(
-        path: Path, *, verbose: bool
+        path: Path, *, verbose: bool, llm_delay: float
     ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
         assert not verbose
+        assert llm_delay == 0
         if path.name == "fake_01.py":
             return None, None
         print("06_context_compaction — superseded directives eliminated")
@@ -240,9 +246,10 @@ def test_all_mode_counts_baseline_fail_and_compiler_pass(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     def fake_run(
-        path: Path, *, verbose: bool
+        path: Path, *, verbose: bool, llm_delay: float
     ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
         assert not verbose
+        assert llm_delay == 0
         if path.name == "fake_01.py":
             print("01_fake — mixed fixture")
             print("baseline: FAIL")
@@ -283,3 +290,24 @@ def test_compaction_demo_reports_sane_metrics() -> None:
     assert report["baseline_prompt_length"] > report["compiled_prompt_length"]
     assert report["context_reduction_percent"] > 0
     assert report["prompt_reduction_percent"] > 0
+
+
+def test_runner_passes_llm_delay_from_cli(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, float] = {}
+
+    def fake_run(
+        path: Path, *, verbose: bool, llm_delay: float
+    ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        assert path.name == "fake_06.py"
+        assert not verbose
+        captured["llm_delay"] = llm_delay
+        return None, None
+
+    monkeypatch.setattr(run_demo, "DEMO_FILES", {"6": "fake_06.py"})
+    monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1", "2", "3", "4", "5"})
+    monkeypatch.setattr(run_demo, "_run", fake_run)
+    monkeypatch.setattr("sys.argv", ["run_demo", "6", "--llm-delay", "1.25"])
+
+    run_demo.main()
+
+    assert captured["llm_delay"] == 1.25

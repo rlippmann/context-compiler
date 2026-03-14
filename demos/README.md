@@ -15,13 +15,15 @@ Install demo dependencies:
 pip install -e .[demos]
 ```
 
-Environment variables:
+Environment variables (OpenAI-compatible API):
 
 - `MODEL` (optional; default: `gpt-4.1-mini`)
 - `OPENAI_API_KEY` (required)
-- `OPENAI_BASE_URL` (optional; use for OpenAI-compatible local servers)
+- `OPENAI_BASE_URL` (optional; use for local or alternative endpoints)
 
-Ollama example:
+Example: locally hosted OpenAI-compatible endpoint (Ollama)
+
+Any locally hosted OpenAI-compatible endpoint will work (for example Ollama, LM Studio, or a llama.cpp server).
 
 ```bash
 export OPENAI_BASE_URL=http://localhost:11434/v1
@@ -55,6 +57,24 @@ Run all demos with detailed traces:
 ```bash
 uv run python -m demos.run_demo all --verbose
 ```
+
+Run demos with pacing for low-quota providers:
+
+```bash
+uv run python -m demos.run_demo all --llm-delay 1.5
+```
+
+### Provider throttling
+
+The demos make multiple LLM requests and may trigger rate limits on very low-quota hosted providers (especially free tiers).
+
+If you encounter throttling, you can slow requests using:
+
+```bash
+uv run python -m demos.run_demo all --llm-delay 1.5
+```
+
+Running against a local OpenAI-compatible endpoint avoids provider rate limits.
 
 ## Output modes
 

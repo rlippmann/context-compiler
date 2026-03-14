@@ -39,6 +39,7 @@ class DemoLLMError(RuntimeError):
 
 _RETRY_DELAYS_SECONDS = (1, 2, 4)
 MAX_DEMO_RETRY_AFTER_SECONDS = 5
+DEFAULT_LLM_DELAY_SECONDS = 0.0
 
 
 def _is_model_not_found(exc_text: str, exc_name: str) -> bool:
@@ -136,6 +137,12 @@ def _retry_after_seconds_from_text(exc_text: str) -> int | None:
     return None
 
 
+def _configured_delay_seconds(delay_seconds: float) -> float:
+    if delay_seconds > 0:
+        return delay_seconds
+    return DEFAULT_LLM_DELAY_SECONDS
+
+
 def load_config() -> LLMConfig:
     """Load OpenAI-compatible configuration from environment variables."""
     base_url = os.getenv("OPENAI_BASE_URL")
@@ -173,19 +180,26 @@ def _build_openai_client(config: LLMConfig) -> Any:
 
 
 def complete_messages(
-    messages: list[Message], *, model: str | None = None, temperature: float = 0.0
+    messages: list[Message],
+    *,
+    model: str | None = None,
+    delay_seconds: float = 0,
 ) -> str:
     """Send exact message list to chat completions and return the text output."""
     config = load_config()
     client = _build_openai_client(config)
     target_model = model or config.model
+    configured_delay = _configured_delay_seconds(delay_seconds)
 
     for attempt in range(len(_RETRY_DELAYS_SECONDS) + 1):
         try:
+            if configured_delay > 0:
+                time.sleep(configured_delay)
             # Demos require deterministic decoding so PASS/FAIL results are reproducible.
             response = client.chat.completions.create(
                 model=target_model,
                 messages=messages,
+                # Intentionally hard-coded for deterministic demo behavior.
                 temperature=0,
                 top_p=1,
             )
