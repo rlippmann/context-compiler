@@ -291,6 +291,8 @@ uv run pytest
 - Model responses never modify compiler state.
 - Ambiguous directives trigger clarification instead of changing state.
 
+These invariants are verified through behavioral tests and Hypothesis-based property tests.
+
 ---
 
 ## Design Notes
