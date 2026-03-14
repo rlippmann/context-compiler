@@ -1,6 +1,10 @@
 
 # Context Compiler
 
+[![PyPI version](https://img.shields.io/pypi/v/context-compiler)](https://pypi.org/project/context-compiler/)
+[![Python versions](https://img.shields.io/pypi/pyversions/context-compiler)](https://pypi.org/project/context-compiler/)
+[![License](https://img.shields.io/pypi/l/context-compiler)](https://pypi.org/project/context-compiler/)
+
 A deterministic directive engine that converts explicit user instructions
 into structured conversational state for LLM applications.
 
