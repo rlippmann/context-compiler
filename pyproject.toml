@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "context-compiler"
-version = "0.2.0"
+version = "0.2.1"
 description = "Deterministic conversational state engine for LLM applications."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -41,16 +41,6 @@ packages = ["src/context_compiler"]
 demos = [
   "openai>=1.0.0",
 ]
-dev = [
-  "pytest",
-  "coverage",
-  "hypothesis",
-  "ruff>=0.12,<1.0",
-  "mypy>=1.12,<2.0",
-  "pre-commit",
-]
-
-[dependency-groups]
 dev = [
   "pytest",
   "coverage",
