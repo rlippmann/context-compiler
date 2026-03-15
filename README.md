@@ -126,6 +126,8 @@ else:
 |---|---|
 | `create_engine(...)` | Create a new compiler engine, optionally with replacement initial state. |
 | `step(user_input)` | Parse one user turn and return a deterministic `Decision`. |
+| `compile_transcript(messages)` | Replay a transcript from a fresh engine and return either final state or a confirmation prompt. |
+| `engine.apply_transcript(messages)` | Replay a transcript onto the current engine state and return either final state or a confirmation prompt. |
 | `engine.state` | Read or replace full in-memory authoritative state. |
 | `export_json()` | Export current state as JSON for persistence/transport. |
 | `import_json(payload)` | Load state from exported JSON payload. |
@@ -151,6 +153,17 @@ The compiler maintains an authoritative state:
 ## State Access and Persistence
 
 Hosts may inspect or replace in-memory state (`engine.state`) or persist it using `export_json()` and `import_json()`. State changes occur only through directives processed by `step()`. Storage is managed by the host application.
+
+### Transcript Replay
+
+Transcript replay compiles conversational history by reusing the same deterministic directive path:
+
+- Only messages with `role == "user"` are processed.
+- Assistant/system/non-user messages are ignored.
+- Replay calls `step()` for each user message in order.
+- Replay stops on the first clarification and returns a confirmation prompt.
+- `compile_transcript(messages)` starts from a fresh engine.
+- `engine.apply_transcript(messages)` applies replay onto the current engine state.
 
 ### Fact Schema
 

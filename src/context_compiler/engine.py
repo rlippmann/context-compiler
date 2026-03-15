@@ -50,6 +50,19 @@ class Decision(TypedDict):
     prompt_to_user: str | None
 
 
+class ApplyResultState(TypedDict):
+    kind: Literal["state"]
+    state: State
+
+
+class ApplyResultConfirm(TypedDict):
+    kind: Literal["confirm"]
+    prompt_to_user: str
+
+
+ApplyResult = ApplyResultState | ApplyResultConfirm
+
+
 @dataclass(frozen=True)
 class PendingEvent:
     kind: Literal["policy_add", "policy_remove", "fact_set", "reset_policies", "clear_state"]
@@ -98,6 +111,12 @@ def create_engine(state: State | None = None) -> "Engine":
     When ``state`` is provided, it is validated and canonicalized before use.
     """
     return Engine(state=state)
+
+
+def compile_transcript(messages: list[dict[str, object]]) -> ApplyResult:
+    """Compile a transcript by replaying user messages through a fresh engine."""
+    engine = create_engine()
+    return engine.apply_transcript(messages)
 
 
 class Engine:
@@ -167,6 +186,17 @@ class Engine:
         self._pending = classified
         self._pending_prompt = _pending_prompt(classified)
         return _clarify(self._pending_prompt)
+
+    def apply_transcript(self, messages: list[dict[str, object]]) -> ApplyResult:
+        """Replay user messages in-order and return state or confirmation prompt."""
+        for content in _iter_user_contents(messages):
+            decision = self.step(content)
+            if decision["kind"] == DecisionKind.CLARIFY:
+                prompt = decision["prompt_to_user"]
+                assert prompt is not None
+                return {"kind": "confirm", "prompt_to_user": prompt}
+
+        return {"kind": "state", "state": self.state}
 
     def _classify(self, user_input: str) -> PendingEvent | Decision:
         normalized_message = _normalize_message(user_input)
@@ -305,6 +335,16 @@ def _load_state_json(payload: str) -> State:
         raise ValueError("Invalid JSON payload.") from exc
 
     return _load_state_obj(raw)
+
+
+def _iter_user_contents(messages: list[dict[str, object]]) -> list[str]:
+    user_contents: list[str] = []
+    for message in messages:
+        role = message.get("role")
+        content = message.get("content")
+        if role == "user" and isinstance(content, str):
+            user_contents.append(content)
+    return user_contents
 
 
 def _load_state_obj(raw: object) -> State:
