@@ -18,6 +18,14 @@ The **Context Compiler** introduces a deterministic state layer that governs aut
 
 The model performs reasoning and generation while the compiler manages facts and constraints. Once accepted, directives remain authoritative until explicitly corrected or reset.
 
+## Why “Compiler”?
+
+Context Compiler treats explicit user directives as inputs to a deterministic process.
+
+Instead of relying on the LLM to remember constraints across a conversation, user instructions are compiled into structured state before the model runs.
+
+The idea is similar to a traditional compiler: user directives are translated into a structured representation that the rest of the system can rely on.
+
 ## Installation
 
 - Python 3.11+
