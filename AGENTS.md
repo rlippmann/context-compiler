@@ -48,6 +48,13 @@ Prefer modern typing syntax:
 - Do not check out or modify `main`.
 - If the current branch is `main`, stop and ask the user to create a feature branch.
 
+## Commit messages
+- Commit messages must use this format: `<type>: <summary>`.
+- The `<type>` token must be lowercase letters only.
+- The `<summary>` must be short and written in imperative mood.
+- Allowed `<type>` values: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`.
+- If a proposed commit message does not match this format or type list, stop and ask for a corrected message before committing.
+
 ## CI
 Do not modify GitHub CI workflows unless explicitly asked.
 
