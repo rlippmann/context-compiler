@@ -142,6 +142,17 @@ Accepted markers:
 
 Corrections apply only to the most recently updated exclusive
 fact. If no such fact exists → clarification required.
+Correction payloads must represent a fact replacement value. If a
+correction payload appears to invoke another directive family (for
+example hard-negative directives, allow/removal directives, or
+reset/clear commands) → clarification required and no state mutation.
+
+Example:
+
+    use Nord Stage 4
+    actually don't use docker
+
+→ `Decision.kind = "clarify"` and state remains unchanged.
 
 #### 5.4 Allow / Removal Directives
 
@@ -200,6 +211,9 @@ If a message might mutate state but is unclear:
     Decision.kind = "clarify"
     Decision.prompt_to_user = clarification question
 
+This includes correction payloads that appear to invoke another
+directive family.
+
 Examples:
 
 - "don use parallel octaves"
@@ -223,11 +237,42 @@ Resolution:
 |              |               |
 |--------------|---------------|
 | **Response** | Action        |
-| yes          | apply event   |
-| no           | discard event |
+| affirmative confirmation token | apply event   |
+| negative confirmation token    | discard event |
 
-If no pending exists → yes/no is passthrough.
-While pending exists, no other mutation may occur.
+Confirmation parsing takes precedence over all other directive parsing
+while pending clarification exists.
+
+A pending clarification resolves only when normalized user input exactly
+matches one of the confirmation tokens.
+
+Normalization for pending confirmation matching:
+
+1. Trim surrounding whitespace
+2. Lowercase
+3. Collapse internal whitespace to single spaces
+4. Remove trailing punctuation: `. , ! ?`
+
+Accepted affirmative confirmation tokens:
+
+- `yes`
+- `yes please`
+- `yep`
+- `yeah`
+- `sure`
+- `ok`
+- `okay`
+
+Accepted negative confirmation tokens:
+
+- `no`
+- `nope`
+- `no thanks`
+
+If no pending exists → confirmation tokens are passthrough.
+If normalized input does not match a confirmation token while pending
+exists, the compiler remains in clarify, does not trigger other
+directive parsing, and does not mutate state.
 
 ### 9. State Update Semantics
 
