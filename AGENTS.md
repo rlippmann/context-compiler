@@ -55,6 +55,15 @@ Prefer modern typing syntax:
 - Allowed `<type>` values: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`.
 - If a proposed commit message does not match this format or type list, stop and ask for a corrected message before committing.
 
+## PR guidance
+- Never open or merge a PR targeting `main` from `main`; always use a feature branch.
+- PR titles must use the same format as commits: `<type>: <summary>`.
+- PR descriptions should include:
+  - what changed
+  - why the change was needed
+  - how it was validated (for example, `pre-commit` and `pytest`)
+- Keep PR scope aligned to the requested task; if scope grows, ask for guidance before expanding.
+
 ## CI
 Do not modify GitHub CI workflows unless explicitly asked.
 
