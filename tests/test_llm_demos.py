@@ -54,53 +54,8 @@ def _run_demo_with_mocked_llm(
     return report, calls
 
 
-def test_demo_01_constraint_drift(monkeypatch: pytest.MonkeyPatch) -> None:
-    module = _load_demo_module("01_llm_constraint_drift.py")
-    report, calls = _run_demo_with_mocked_llm(
-        module,
-        monkeypatch,
-        outputs=[
-            "Ingredients:\n- peanuts\n- coconut milk\nSteps:\n1. Cook.",
-            (
-                "I cannot comply with a peanut recipe because it is prohibited.\n"
-                "Ingredients:\n- chickpeas\n- coconut milk\nSteps:\n1. Cook."
-            ),
-        ],
-    )
-
-    assert report["baseline_pass"] is False
-    assert report["compiler_pass"] is True
-    assert len(calls) == 2
-    assert "policies.prohibit: peanuts" in calls[1][0]["content"]
-
-
-def test_demo_02_correction_replacement(monkeypatch: pytest.MonkeyPatch) -> None:
-    module = _load_demo_module("02_llm_correction_replacement.py")
-    report, calls = _run_demo_with_mocked_llm(
-        module,
-        monkeypatch,
-        outputs=[
-            (
-                "FOCUS_PRIMARY: vegan curry\n"
-                "Shopping list:\n- vegan curry paste\n- tofu\n"
-                "Steps:\n1. Make vegan curry."
-            ),
-            (
-                "FOCUS_PRIMARY: vegan curry\n"
-                "Shopping list:\n- vegan curry paste\n- tofu\n"
-                "Steps:\n1. Make vegan curry."
-            ),
-        ],
-    )
-
-    assert report["baseline_pass"] is True
-    assert report["compiler_pass"] is True
-    assert len(calls) == 2
-    assert "facts.focus.primary: vegan curry" in calls[1][0]["content"]
-
-
-def test_demo_03_ambiguity_block(monkeypatch: pytest.MonkeyPatch) -> None:
-    module = _load_demo_module("03_llm_ambiguity_block.py")
+def test_demo_01_ambiguity_block(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _load_demo_module("01_llm_ambiguity_block.py")
     report, calls = _run_demo_with_mocked_llm(
         module,
         monkeypatch,
@@ -113,8 +68,10 @@ def test_demo_03_ambiguity_block(monkeypatch: pytest.MonkeyPatch) -> None:
     assert report["compiler_pass"] is True
 
 
-def test_demo_03_non_clarify_path_calls_llm_for_mediated(monkeypatch: pytest.MonkeyPatch) -> None:
-    module = _load_demo_module("03_llm_ambiguity_block.py")
+def test_demo_01_non_clarify_path_calls_llm_for_mediated(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_demo_module("01_llm_ambiguity_block.py")
 
     class _EngineStub:
         def __init__(self) -> None:
@@ -137,6 +94,51 @@ def test_demo_03_non_clarify_path_calls_llm_for_mediated(monkeypatch: pytest.Mon
     assert len(calls) == 2
     assert report["baseline_pass"] is True
     assert report["compiler_pass"] is False
+
+
+def test_demo_02_constraint_drift(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _load_demo_module("02_llm_constraint_drift.py")
+    report, calls = _run_demo_with_mocked_llm(
+        module,
+        monkeypatch,
+        outputs=[
+            "Ingredients:\n- peanuts\n- coconut milk\nSteps:\n1. Cook.",
+            (
+                "I cannot comply with a peanut recipe because it is prohibited.\n"
+                "Ingredients:\n- chickpeas\n- coconut milk\nSteps:\n1. Cook."
+            ),
+        ],
+    )
+
+    assert report["baseline_pass"] is False
+    assert report["compiler_pass"] is True
+    assert len(calls) == 2
+    assert "policies.prohibit: peanuts" in calls[1][0]["content"]
+
+
+def test_demo_03_correction_replacement(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _load_demo_module("03_llm_correction_replacement.py")
+    report, calls = _run_demo_with_mocked_llm(
+        module,
+        monkeypatch,
+        outputs=[
+            (
+                "FOCUS_PRIMARY: vegan curry\n"
+                "Shopping list:\n- vegan curry paste\n- tofu\n"
+                "Steps:\n1. Make vegan curry."
+            ),
+            (
+                "FOCUS_PRIMARY: vegan curry\n"
+                "Shopping list:\n- vegan curry paste\n- tofu\n"
+                "Steps:\n1. Make vegan curry."
+            ),
+        ],
+    )
+
+    assert report["baseline_pass"] is True
+    assert report["compiler_pass"] is True
+    assert len(calls) == 2
+    assert "facts.focus.primary: vegan curry" in calls[1][0]["content"]
 
 
 def test_demo_04_tool_governance(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -174,8 +176,8 @@ def test_demo_05_prompt_drift(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "facts.focus.primary: vegetarian curry" in calls[1][0]["content"]
 
 
-def test_demo_01_negation_and_refusal_lines_do_not_count_as_violations() -> None:
-    module = _load_demo_module("01_llm_constraint_drift.py")
+def test_demo_02_negation_and_refusal_lines_do_not_count_as_violations() -> None:
+    module = _load_demo_module("02_llm_constraint_drift.py")
     negated_recipe = "Ingredients:\n- no peanuts\n- coconut milk"
     refusal_with_prohibited_token = "I cannot comply with peanuts because that is prohibited."
 

@@ -20,9 +20,9 @@ from demos.llm_client import (
 )
 
 DEMO_FILES: dict[str, str] = {
-    "1": "01_llm_constraint_drift.py",
-    "2": "02_llm_correction_replacement.py",
-    "3": "03_llm_ambiguity_block.py",
+    "1": "01_llm_ambiguity_block.py",
+    "2": "02_llm_constraint_drift.py",
+    "3": "03_llm_correction_replacement.py",
     "4": "04_llm_tool_governance.py",
     "5": "05_llm_prompt_drift.py",
     "6": "06_context_compaction.py",

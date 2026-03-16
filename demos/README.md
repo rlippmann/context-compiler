@@ -5,7 +5,19 @@ Context Compiler decision/state API.
 They are illustrative manual demos, not benchmarks or CI tests.
 They demonstrate common LLM failure modes and how authoritative compiled state
 can improve reliability.
+They also illustrate how a host application interprets compiler `Decision` outputs to control when the LLM is called.
 All demos force deterministic decoding so results are reproducible.
+
+## Demo overview
+
+| Demo | Demonstrates | Concept |
+| --- | --- | --- |
+| [01](./01_llm_ambiguity_block.py) | Ambiguous directive blocking | clarification gate |
+| [02](./02_llm_constraint_drift.py) | Constraint drift | persistent policy enforcement |
+| [03](./03_llm_correction_replacement.py) | Correction replacement | exclusive fact semantics |
+| [04](./04_llm_tool_governance.py) | Tool governance | host-side denylist |
+| [05](./05_llm_prompt_drift.py) | Prompt drift | long transcript failure |
+| [06](./06_context_compaction.py) | Context compaction | compiled state replacing transcript |
 
 ## Requirements
 

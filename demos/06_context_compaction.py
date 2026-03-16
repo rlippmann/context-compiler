@@ -1,6 +1,6 @@
 """Demo 6: host-side prompt replacement from authoritative compiled state."""
 
-from context_compiler import create_engine
+from context_compiler import compile_transcript
 from context_compiler.const import FOCUS_PRIMARY, STATE_FACTS
 from demos.common import is_verbose, print_info_report
 
@@ -41,10 +41,10 @@ def _build_turns(turn_count: int) -> list[str]:
 
 
 def _compile_focus(turns: list[str]) -> str:
-    engine = create_engine()
-    for turn in turns:
-        engine.step(turn)
-    compiled_focus = engine.state[STATE_FACTS][FOCUS_PRIMARY]
+    messages: list[dict[str, object]] = [{"role": "user", "content": turn} for turn in turns]
+    result = compile_transcript(messages)
+    assert result["kind"] == "state"
+    compiled_focus = result["state"][STATE_FACTS][FOCUS_PRIMARY]
     assert compiled_focus is not None
     return compiled_focus
 

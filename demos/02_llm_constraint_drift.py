@@ -1,4 +1,4 @@
-"""Demo 1: baseline prompt can drift from persistent constraints."""
+"""Demo 2: baseline prompt can drift from persistent constraints."""
 
 import re
 
@@ -143,7 +143,7 @@ def main() -> None:
     compiler_pass = mediated_refusal and not mediated_violation
     passed = baseline_violation and mediated_refusal and not mediated_violation
     print_spec_report(
-        test_name="01_constraint_drift — persistent prohibition",
+        test_name="02_constraint_drift — persistent prohibition",
         baseline_pass=baseline_pass,
         compiler_pass=compiler_pass,
         expected=(
