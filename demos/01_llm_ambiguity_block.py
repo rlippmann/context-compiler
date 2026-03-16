@@ -1,4 +1,4 @@
-"""Demo 3: compiler blocks ambiguous directives before model call."""
+"""Demo 1: compiler blocks ambiguous directives before model call."""
 
 from context_compiler import create_engine
 from demos.common import (
@@ -63,7 +63,7 @@ def main() -> None:
         context="compiler-mediated",
     )
     print_spec_report(
-        test_name="03_ambiguity_block — host clarification gate",
+        test_name="01_ambiguity_block — host clarification gate",
         baseline_pass=baseline_respects,
         compiler_pass=mediated_respects,
         expected="host should block LLM call on ambiguous directive until clarification",

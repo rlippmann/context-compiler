@@ -1,4 +1,4 @@
-"""Demo 2: baseline output can mix stale facts after correction."""
+"""Demo 3: baseline output can mix stale facts after correction."""
 
 import re
 
@@ -130,7 +130,7 @@ def main() -> None:
         context="compiler-mediated",
     )
     print_spec_report(
-        test_name="02_correction_replacement — latest value wins",
+        test_name="03_correction_replacement — latest value wins",
         baseline_pass=baseline_respects,
         compiler_pass=mediated_respects,
         expected="the corrected vegan preference should determine the final plan",
