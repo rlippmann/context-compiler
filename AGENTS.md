@@ -61,7 +61,6 @@ Prefer modern typing syntax:
 - PR descriptions should include:
   - what changed
   - why the change was needed
-  - how it was validated (for example, `pre-commit` and `pytest`)
 - Keep PR scope aligned to the requested task; if scope grows, ask for guidance before expanding.
 
 ## CI
