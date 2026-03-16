@@ -72,14 +72,18 @@ The host supplies the authoritative state to the model so the constraint persist
 
 ```text
 User Input
-   ↓
+     │
+     ▼
 Context Compiler
-   ↓
-Decision (passthrough | update | clarify)
-   ↓
+     │
+     ▼
+Decision
+     │
+     ▼
 Host Application
-   ↓
-LLM
+ ├─ clarify → ask user
+ ├─ passthrough → call LLM
+ └─ update → call LLM with compiled state
 ```
 
 The compiler governs authoritative conversational state and never calls the LLM.
