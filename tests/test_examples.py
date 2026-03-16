@@ -246,3 +246,23 @@ def test_llm_integration_pattern_example_output() -> None:
         in output
     )
     assert f"state: {_canonical_json(peanuts_shellfish_state)}" in output
+
+
+def test_transcript_replay_example_output() -> None:
+    output = _run_example("06_transcript_replay.py")
+
+    fresh_state = {
+        "facts": {"focus.primary": "vegan curry"},
+        "policies": {"prohibit": ["peanuts"]},
+        "version": 1,
+    }
+    replayed_state = {
+        "facts": {"focus.primary": "vegan curry"},
+        "policies": {"prohibit": ["peanuts", "shellfish"]},
+        "version": 1,
+    }
+
+    assert "Replay from fresh engine (compile_transcript):" in output
+    assert _canonical_json({"kind": "state", "state": fresh_state}) in output
+    assert "Replay onto current engine (engine.apply_transcript):" in output
+    assert _canonical_json({"kind": "state", "state": replayed_state}) in output
