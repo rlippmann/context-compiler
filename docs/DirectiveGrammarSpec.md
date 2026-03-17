@@ -1,10 +1,10 @@
-# Context Compiler — Milestone 1 Design Specification
+# Context Compiler — Directive Grammar Specification
 
 ## Goal
 
 Ensure explicit user corrections and constraints persist reliably within
 a single conversation.
-M1 provides authoritative conversational state.It does **not** perform
+This specification provides authoritative conversational state. It does **not** perform
 reasoning, inference, entity resolution, cross-session memory, or
 planning.
 
@@ -329,7 +329,7 @@ Produces:
         state = initial_state
     Decision.kind = "update"
 
-### 12. Non-Goals (M1)
+### 12. Non-Goals
 
 Not implemented:
 
@@ -360,7 +360,7 @@ Examples:
 **Persistence** Policies persist across turns
 **Idempotency** Duplicate policy adds do nothing
 
-## End of M1
+## End
 
 This milestone establishes the authoritative truth layer.All later
 milestones build on this deterministic contract.
