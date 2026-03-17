@@ -90,6 +90,10 @@ _ALLOW_SUFFIX_RE = re.compile(r"^\s*(.+?)\s+is\s+fine\s*$", re.IGNORECASE)
 
 _AMBIGUOUS_NEGATIVE_RE = re.compile(r"^\s*(?:don\s+use|no\s+use)\s+(.+?)\s*$", re.IGNORECASE)
 _SPLIT_RE = re.compile(r",|\s+and\s+", re.IGNORECASE)
+_TRAILING_CONFIRM_PUNCT_RE = re.compile(r"[.,!?]+$")
+
+_AFFIRMATIVE_CONFIRMATIONS = {"yes", "yes please", "yep", "yeah", "sure", "ok", "okay"}
+_NEGATIVE_CONFIRMATIONS = {"no", "nope", "no thanks"}
 
 _PASSTHROUGH: Decision = {
     "kind": DecisionKind.PASSTHROUGH,
@@ -201,6 +205,9 @@ class Engine:
     def _classify(self, user_input: str) -> PendingEvent | Decision:
         normalized_message = _normalize_message(user_input)
 
+        if _has_mixed_directive_families(user_input):
+            return _clarify("Your directive mixes multiple directive types. Please provide one.")
+
         if normalized_message in _RESET_POLICY:
             return PendingEvent(kind=EVENT_RESET_POLICIES)
 
@@ -211,6 +218,8 @@ class Engine:
         if correction is not None:
             if self._last_exclusive_fact_key is None:
                 return _clarify_no_prior_change(correction)
+            if _correction_payload_invokes_other_directive_family(correction):
+                return _clarify("Corrections must provide a replacement value to use.")
             if not correction.strip():
                 return _clarify_missing_value()
             if _has_multiple_values(correction):
@@ -257,14 +266,14 @@ class Engine:
     def _resolve_or_reprompt_pending(self, user_input: str) -> Decision:
         assert self._pending is not None
         pending = self._pending
-        response = _normalize_message(user_input)
+        response = _normalize_confirmation(user_input)
 
-        if response == "yes":
+        if response in _AFFIRMATIVE_CONFIRMATIONS:
             self._pending = None
             self._pending_prompt = None
             return self._apply_pending(pending)
 
-        if response == "no":
+        if response in _NEGATIVE_CONFIRMATIONS:
             self._pending = None
             self._pending_prompt = None
             return _PASSTHROUGH.copy()
@@ -422,6 +431,12 @@ def _normalize_message(text: str) -> str:
     return normalized
 
 
+def _normalize_confirmation(text: str) -> str:
+    normalized = _normalize_message(text)
+    normalized = _TRAILING_CONFIRM_PUNCT_RE.sub("", normalized).strip()
+    return re.sub(r"\s+", " ", normalized)
+
+
 def _clean_fact_value(value: str) -> str:
     normalized = unicode_normalize("NFKC", value).strip()
     normalized = normalized.replace("’", "'").replace("`", "'")
@@ -528,6 +543,64 @@ def _parse_ambiguous_mutation(user_input: str) -> PendingEvent | None:
         return PendingEvent(kind="policy_add", values=tuple(values))
 
     return None
+
+
+def _correction_payload_invokes_other_directive_family(payload: str) -> bool:
+    normalized_payload = _normalize_message(payload)
+    if not normalized_payload:
+        return False
+
+    if normalized_payload in _RESET_POLICY or normalized_payload in _CLEAR_STATE:
+        return True
+    if _parse_hard_negative(normalized_payload) is not None:
+        return True
+    if _parse_allow(payload) is not None:
+        return True
+    if _parse_hard_positive(payload, normalized_payload) is not None:
+        return True
+    return _parse_correction(payload) is not None
+
+
+def _classify_segment_family(segment: str) -> str | None:
+    normalized_segment = _normalize_message(segment)
+    if not normalized_segment:
+        return None
+
+    if normalized_segment in _RESET_POLICY:
+        return EVENT_RESET_POLICIES
+    if normalized_segment in _CLEAR_STATE:
+        return EVENT_CLEAR_STATE
+
+    if _parse_correction(segment) is not None:
+        return "correction"
+    if _parse_hard_negative(normalized_segment) is not None:
+        return "hard_negative"
+    if _parse_allow(segment) is not None:
+        return "allow_remove"
+    if _parse_hard_positive(segment, normalized_segment) is not None:
+        return "hard_positive"
+    return None
+
+
+def _has_mixed_directive_families(user_input: str) -> bool:
+    # Split by additive delimiters and detect directives independently per segment.
+    # Mixed families in one utterance are clarified to avoid partial execution.
+    segments = [piece.strip() for piece in _SPLIT_RE.split(user_input) if piece.strip()]
+    families: set[str] = set()
+    for segment in segments:
+        family = _classify_segment_family(segment)
+        if family is not None:
+            families.add(family)
+        if len(families) > 1:
+            return True
+
+    correction_payload = _parse_correction(user_input)
+    if correction_payload is not None and correction_payload.strip():
+        payload_family = _classify_segment_family(correction_payload)
+        if payload_family is not None and payload_family != "correction":
+            return True
+
+    return False
 
 
 def _pending_prompt(pending: PendingEvent) -> str:
