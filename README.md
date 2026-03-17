@@ -329,7 +329,7 @@ These invariants are verified through behavioral tests and Hypothesis-based prop
 More detailed design and milestone documents are available in:
 
 - [Project overview](docs/DescriptionAndMilestones.md)
-- [M1 design document](docs/M1Design.md)
+- [Directive grammar specification](docs/DirectiveGrammarSpec.md)
 
 ---
 

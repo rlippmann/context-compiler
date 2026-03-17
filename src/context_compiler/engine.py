@@ -1,4 +1,4 @@
-"""Deterministic M1 state engine for explicit user directive handling.
+"""Deterministic state engine for explicit user directive handling.
 
 This module provides a small, model-independent state machine that parses
 high-confidence directives and emits host decisions without invoking an LLM.
@@ -124,7 +124,7 @@ def compile_transcript(messages: list[dict[str, object]]) -> ApplyResult:
 
 
 class Engine:
-    """Deterministic state engine implementing M1 directive semantics.
+    """Deterministic state engine implementing directive semantics.
 
     Design note:
     - ``step()`` is the mutation interface for directive-driven updates.
