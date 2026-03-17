@@ -552,7 +552,9 @@ def _correction_payload_invokes_other_directive_family(payload: str) -> bool:
 
     if normalized_payload in _RESET_POLICY or normalized_payload in _CLEAR_STATE:
         return True
-    if _parse_hard_negative(normalized_payload) is not None:
+    if _parse_hard_negative(
+        normalized_payload
+    ) is not None and not _looks_like_literal_fact_payload(normalized_payload):
         return True
     if _parse_allow(payload) is not None:
         return True
@@ -595,10 +597,22 @@ def _has_mixed_directive_families(user_input: str) -> bool:
             return True
 
     correction_payload = _parse_correction(user_input)
-    if correction_payload is not None and correction_payload.strip():
-        payload_family = _classify_segment_family(correction_payload)
-        if payload_family is not None and payload_family != "correction":
-            return True
+    return bool(
+        correction_payload is not None
+        and correction_payload.strip()
+        and _correction_payload_invokes_other_directive_family(correction_payload)
+    )
+
+
+def _looks_like_literal_fact_payload(normalized_payload: str) -> bool:
+    for rule in _NEGATIVE_DIRECTIVE_RULES:
+        if not normalized_payload.startswith(rule.starter):
+            continue
+
+        tail = normalized_payload[len(rule.starter) :].strip()
+        # In correction payloads, allow quoted/name-like phrases that begin
+        # with directive words but continue as literal fact text.
+        return bool(re.search(r"\s+(?:is|as)\s+", tail))
 
     return False
 

@@ -348,6 +348,125 @@ def test_please_use_directive_updates_fact() -> None:
     assert engine.state["facts"]["focus.primary"] == "Nord Stage 4"
 
 
+def test_set_directive_updates_fact() -> None:
+    engine = create_engine()
+
+    decision = engine.step("set Nord Stage 5")
+
+    assert decision["kind"] == "update"
+    assert engine.state["facts"]["focus.primary"] == "Nord Stage 5"
+
+
+def test_you_can_directive_removes_existing_policy() -> None:
+    engine = create_engine()
+    engine.step("don't use docker")
+
+    decision = engine.step("you can docker")
+
+    assert decision["kind"] == "update"
+    assert engine.state["policies"]["prohibit"] == []
+
+
+def test_correction_colon_marker_replaces_prior_fact() -> None:
+    engine = create_engine()
+    engine.step("use Nord Stage 4")
+
+    decision = engine.step("correction: Nord Stage 5")
+
+    assert decision["kind"] == "update"
+    assert engine.state["facts"]["focus.primary"] == "Nord Stage 5"
+
+
+def test_hard_negative_comma_splitting_adds_multiple_policies() -> None:
+    engine = create_engine()
+
+    decision = engine.step("don't use peanuts, shellfish")
+
+    assert decision["kind"] == "update"
+    assert engine.state["policies"]["prohibit"] == ["peanuts", "shellfish"]
+
+
+@pytest.mark.parametrize("phrase", ["clear state now", "reset policies please"])
+def test_reset_command_near_miss_phrases_are_passthrough_and_do_not_mutate_state(
+    phrase: str,
+) -> None:
+    engine = create_engine()
+    engine.step("use Nord Stage 4")
+    engine.step("don't use docker")
+    before = engine.state
+
+    decision = engine.step(phrase)
+
+    assert decision["kind"] == "passthrough"
+    assert engine.state == before
+
+
+@pytest.mark.parametrize(
+    ("text", "expected_fact"),
+    [
+        ("use Don't Use Me as the project name", "Don't Use Me as the project name"),
+        ("use Reset Policies as the track title", "Reset Policies as the track title"),
+        ("use Clear State as the album title", "Clear State as the album title"),
+        ("use Allow Shellfish as the restaurant name", "Allow Shellfish as the restaurant name"),
+    ],
+)
+def test_hard_positive_literals_with_directive_words_do_not_trigger_side_effects(
+    text: str, expected_fact: str
+) -> None:
+    engine = create_engine()
+    engine.step("don't use voice crossing")
+
+    decision = engine.step(text)
+
+    assert decision["kind"] == "update"
+    assert decision["prompt_to_user"] is None
+    assert engine.state == {
+        "facts": {"focus.primary": expected_fact},
+        "policies": {"prohibit": ["voice crossing"]},
+        "version": 1,
+    }
+
+
+def test_correction_literal_with_directive_words_updates_fact_without_side_effects() -> None:
+    engine = create_engine()
+    engine.step("don't use voice crossing")
+    engine.step("use Nord Stage 4")
+
+    decision = engine.step("actually Don't Use Docker is the codename")
+
+    assert decision["kind"] == "update"
+    assert decision["prompt_to_user"] is None
+    assert engine.state == {
+        "facts": {"focus.primary": "Don't Use Docker is the codename"},
+        "policies": {"prohibit": ["voice crossing"]},
+        "version": 1,
+    }
+
+
+@pytest.mark.parametrize(
+    "correction",
+    [
+        "actually reset policies",
+        "actually clear state",
+        "actually allow docker",
+        "actually docker is fine",
+        "actually use Nord Stage 5",
+    ],
+)
+def test_correction_payloads_from_other_directive_families_clarify_without_mutation(
+    correction: str,
+) -> None:
+    engine = create_engine()
+    engine.step("don't use voice crossing")
+    engine.step("use Nord Stage 4")
+    before = engine.state
+
+    decision = engine.step(correction)
+
+    assert decision["kind"] == "clarify"
+    assert engine.state == before
+
+
 def test_correction_without_prior_exclusive_fact_requires_clarification() -> None:
     engine = create_engine()
 
