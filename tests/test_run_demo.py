@@ -311,3 +311,35 @@ def test_runner_passes_llm_delay_from_cli(monkeypatch: pytest.MonkeyPatch) -> No
     run_demo.main()
 
     assert captured["llm_delay"] == 1.25
+
+
+def test_runner_forwards_demo_specific_args_after_separator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run(
+        path: Path,
+        *,
+        verbose: bool,
+        llm_delay: float,
+        demo_args: list[str] | None = None,
+    ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        assert path.name == "fake_05.py"
+        assert not verbose
+        captured["llm_delay"] = llm_delay
+        captured["demo_args"] = demo_args
+        return _demo_report(baseline_pass=True, compiler_pass=True), None
+
+    monkeypatch.setattr(run_demo, "DEMO_FILES", {"5": "fake_05.py"})
+    monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"5"})
+    monkeypatch.setattr(run_demo, "_run", fake_run)
+    monkeypatch.setattr(
+        "sys.argv",
+        ["run_demo", "5", "--llm-delay", "1.25", "--", "--turns", "120"],
+    )
+
+    run_demo.main()
+
+    assert captured["llm_delay"] == 1.25
+    assert captured["demo_args"] == ["--turns", "120"]
