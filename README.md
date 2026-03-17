@@ -105,7 +105,7 @@ class Decision(TypedDict):
 Meaning:
 
 | kind        | host behavior                                 |
-|-------------|-----------------------------------------------|
+|:-----------:|-----------------------------------------------|
 | passthrough | forward user input to LLM                     |
 | update      | forward input with updated state              |
 | clarify     | show `prompt_to_user` and do not call the LLM |

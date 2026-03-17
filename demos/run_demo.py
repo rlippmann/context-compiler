@@ -46,18 +46,21 @@ def _print_compiler_regression_warning() -> None:
 
 
 def _run(
-    path: Path, *, verbose: bool, llm_delay: float
+    path: Path, *, verbose: bool, llm_delay: float, demo_args: list[str] | None = None
 ) -> tuple[DemoReport | None, InfoReport | None]:
     if verbose:
         print(f"===== Running {_verbose_demo_label(path)} =====")
     old_verbose = os.getenv(VERBOSE_ENV_VAR)
     old_delay = llm_client.DEFAULT_LLM_DELAY_SECONDS
+    old_argv = sys.argv[:]
     os.environ[VERBOSE_ENV_VAR] = "1" if verbose else "0"
     llm_client.DEFAULT_LLM_DELAY_SECONDS = llm_delay if llm_delay > 0 else 0.0
+    sys.argv = [str(path), *(demo_args or [])]
     try:
         runpy.run_path(str(path), run_name="__main__")
         return consume_last_report(), consume_last_info_report()
     finally:
+        sys.argv = old_argv
         if old_verbose is None:
             os.environ.pop(VERBOSE_ENV_VAR, None)
         else:
@@ -105,7 +108,14 @@ def main() -> None:
         default=0,
         help="Delay between LLM calls in seconds (useful for low-quota providers).",
     )
-    args = parser.parse_args()
+    argv = sys.argv[1:]
+    args, demo_args = parser.parse_known_args(argv)
+    if demo_args and demo_args[0] == "--":
+        demo_args = demo_args[1:]
+    if demo_args and "--" not in argv:
+        parser.error("demo-specific args must be passed after `--`")
+    if args.demo == "all" and demo_args:
+        parser.error("demo-specific args are only supported when running a single demo")
 
     if args.demo == "all":
         baseline_pass_count = 0
@@ -180,9 +190,13 @@ def main() -> None:
         return
 
     try:
-        result, _ = _run(
-            root / DEMO_FILES[args.demo], verbose=args.verbose, llm_delay=args.llm_delay
-        )
+        run_kwargs = {
+            "verbose": args.verbose,
+            "llm_delay": args.llm_delay,
+        }
+        if demo_args:
+            run_kwargs["demo_args"] = demo_args
+        result, _ = _run(root / DEMO_FILES[args.demo], **run_kwargs)
     except MissingDemoConfigError as exc:
         _print_config_error(exc)
         raise SystemExit(2) from exc

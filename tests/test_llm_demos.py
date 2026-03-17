@@ -176,6 +176,47 @@ def test_demo_05_prompt_drift(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "facts.focus.primary: vegetarian curry" in calls[1][0]["content"]
 
 
+def test_demo_05_turns_support_ladder_and_keep_prompt_invariants() -> None:
+    module = _load_demo_module("05_llm_prompt_drift.py")
+
+    default_inputs = module.build_user_inputs(module._DEFAULT_TURNS)
+    assert default_inputs == [
+        "use vegetarian curry",
+        "Also I like hiking and jazz.",
+        "What camera should I buy for travel?",
+        "Now give me a dinner plan. First line must be DINNER_STYLE:<vegetarian|non-vegetarian>.",
+    ]
+    assert module._MASTER_DISTRACTOR_SEQUENCE[:2] == [
+        "Also I like hiking and jazz.",
+        "What camera should I buy for travel?",
+    ]
+
+    ladder = [10, 30, 60, 120, 240]
+    for turns in ladder:
+        module._validate_turns(turns)
+        inputs = module.build_user_inputs(turns)
+        assert len(inputs) == turns + 2
+        assert inputs[-1] == module._FINAL_PROMPT
+
+    for short, long in zip(ladder, ladder[1:], strict=False):
+        short_context = module.build_context_turns(short)
+        long_context = module.build_context_turns(long)
+        assert long_context[: len(short_context)] == short_context
+        assert len(long_context) > len(short_context)
+
+    turns_120 = module.build_user_inputs(120)
+    assert turns_120[1:121] == module._MASTER_DISTRACTOR_SEQUENCE[:120]
+
+
+def test_demo_05_cli_parses_shared_llm_delay_and_turns() -> None:
+    module = _load_demo_module("05_llm_prompt_drift.py")
+
+    args = module._parse_args(["--llm-delay", "1.25", "--turns", "120"])
+
+    assert args.llm_delay == 1.25
+    assert args.turns == 120
+
+
 def test_demo_02_negation_and_refusal_lines_do_not_count_as_violations() -> None:
     module = _load_demo_module("02_llm_constraint_drift.py")
     negated_recipe = "Ingredients:\n- no peanuts\n- coconut milk"

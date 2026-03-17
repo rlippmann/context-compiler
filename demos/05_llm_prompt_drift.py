@@ -1,7 +1,9 @@
 """Demo 5: long transcript drift vs stable compiled state."""
 
+import argparse
 import re
 
+import demos.llm_client as llm_client
 from context_compiler import create_engine
 from demos.common import (
     build_baseline_messages,
@@ -28,6 +30,81 @@ _NON_VEG_RE = re.compile(
     flags=re.IGNORECASE,
 )
 _NEGATION_RE = re.compile(r"\b(no|without|avoid|exclude|instead of)\b", flags=re.IGNORECASE)
+
+_ORIGINAL_DIRECTIVE = "use vegetarian curry"
+_FINAL_PROMPT = (
+    "Now give me a dinner plan. First line must be DINNER_STYLE:<vegetarian|non-vegetarian>."
+)
+_DISTRACTOR_TOPICS = [
+    "travel photography",
+    "city walking routes",
+    "weekend train trips",
+    "mountain day hikes",
+    "pour-over coffee brewing",
+    "espresso dialing",
+    "architecture sketching",
+    "museum planning",
+    "weather map reading",
+    "atlas navigation",
+    "independent bookstores",
+    "historical nonfiction reading",
+    "film photography",
+    "macro photography",
+    "night sky viewing",
+    "rail station architecture",
+    "public transit maps",
+    "urban design tours",
+    "coastal trail planning",
+    "desert trail planning",
+    "baking crust hydration",
+    "pan sauce reduction",
+    "knife-skill practice",
+    "tea brewing",
+    "city museum circuits",
+]
+_DISTRACTOR_PROMPT_TEMPLATES = [
+    "Quick question on {topic}: which beginner book gives solid fundamentals?",
+    "For {topic}, what common pitfall surprises newcomers?",
+    "In {topic}, which metric helps compare two options fairly?",
+    "How would you plan a one-day itinerary around {topic}?",
+    "For {topic}, what gear checklist keeps things practical?",
+    "In {topic}, what weather factor changes decisions the most?",
+    "What map detail matters most when preparing for {topic}?",
+    "For {topic}, which habit improves consistency over months?",
+    "How can someone budget for {topic} without losing quality?",
+    "For {topic}, what tradeoff appears between speed and accuracy?",
+    "What museum exhibit style pairs well with interest in {topic}?",
+    "For {topic}, which train route offers the most scenic segments?",
+]
+
+
+def _build_master_distractor_sequence() -> list[str]:
+    sequence = [
+        # Keep these first two distractors byte-identical to the original demo.
+        "Also I like hiking and jazz.",
+        "What camera should I buy for travel?",
+    ]
+    for topic in _DISTRACTOR_TOPICS:
+        for template in _DISTRACTOR_PROMPT_TEMPLATES:
+            sequence.append(template.format(topic=topic))
+    return sequence
+
+
+_MASTER_DISTRACTOR_SEQUENCE = _build_master_distractor_sequence()
+if len(_MASTER_DISTRACTOR_SEQUENCE) < 240:
+    raise RuntimeError("Demo 5 distractor sequence must support at least 240 turns.")
+
+
+_LADDER_TURNS = [10, 30, 60, 120, 240]
+_DEFAULT_TURNS = 2
+
+
+_ORIGINAL_DEFAULT_TRANSCRIPT = [
+    _ORIGINAL_DIRECTIVE,
+    "Also I like hiking and jazz.",
+    "What camera should I buy for travel?",
+    _FINAL_PROMPT,
+]
 
 
 def _plan_lines(output: str) -> list[str]:
@@ -62,14 +139,56 @@ def plan_includes_non_vegetarian_item(output: str) -> bool:
     return False
 
 
-def main() -> None:
+def _validate_turns(turns: int) -> None:
+    max_turns = len(_MASTER_DISTRACTOR_SEQUENCE)
+    if turns < 0:
+        raise ValueError("turns must be at least 0.")
+    if turns > max_turns:
+        raise ValueError(f"turns must be <= {max_turns}.")
+
+
+def build_context_turns(turns: int) -> list[str]:
+    _validate_turns(turns)
+    return [_ORIGINAL_DIRECTIVE, *_MASTER_DISTRACTOR_SEQUENCE[:turns]]
+
+
+def build_user_inputs(turns: int) -> list[str]:
+    return [*build_context_turns(turns), _FINAL_PROMPT]
+
+
+def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    max_turns = len(_MASTER_DISTRACTOR_SEQUENCE)
+    parser = argparse.ArgumentParser(
+        description=(
+            "Run Demo 5 with deterministic distractor distance for prompt-drift stress testing."
+        )
+    )
+    parser.add_argument(
+        "--turns",
+        type=int,
+        default=_DEFAULT_TURNS,
+        help=(
+            "Number of distractor turns between the original directive and final prompt "
+            f"(0-{max_turns}). Supports stress-test ladder points: "
+            f"{', '.join(map(str, _LADDER_TURNS))}."
+        ),
+    )
+    parser.add_argument(
+        "--llm-delay",
+        type=float,
+        default=None,
+        help="Delay between LLM calls in seconds (overrides shared default when provided).",
+    )
+    args = parser.parse_args(argv)
+    _validate_turns(args.turns)
+    return args
+
+
+def _run_demo(turns: int = _DEFAULT_TURNS) -> None:
     engine = create_engine()
-    user_inputs = [
-        "use vegetarian curry",
-        "Also I like hiking and jazz.",
-        "What camera should I buy for travel?",
-        "Now give me a dinner plan. First line must be DINNER_STYLE:<vegetarian|non-vegetarian>.",
-    ]
+    user_inputs = build_user_inputs(turns)
+    if turns == _DEFAULT_TURNS and user_inputs != _ORIGINAL_DEFAULT_TRANSCRIPT:
+        raise RuntimeError("Demo 5 default transcript diverged from original behavior.")
     print_user_inputs(user_inputs)
 
     for index, user_input in enumerate(user_inputs, start=1):
@@ -77,7 +196,7 @@ def main() -> None:
         print_decision(f"turn {index}", decision, engine.state)
 
     baseline_messages = build_baseline_messages(
-        [user_inputs[0], user_inputs[1], user_inputs[2], user_inputs[3]],
+        user_inputs,
         baseline_system_prompt=(
             "Be a helpful assistant. Use the conversation context to provide a useful answer."
         ),
@@ -86,7 +205,7 @@ def main() -> None:
     baseline_output = complete_messages(baseline_messages)
     print_model_output("Baseline", baseline_output)
 
-    mediated_messages = build_mediated_messages(engine.state, user_inputs[3])
+    mediated_messages = build_mediated_messages(engine.state, user_inputs[-1])
     print_messages("compiler-mediated", mediated_messages)
     mediated_output = complete_messages(mediated_messages)
     print_model_output("Compiler-mediated", mediated_output)
@@ -136,5 +255,17 @@ def main() -> None:
     )
 
 
+def main(turns: int = _DEFAULT_TURNS, llm_delay: float | None = None) -> None:
+    old_delay = llm_client.DEFAULT_LLM_DELAY_SECONDS
+    if llm_delay is not None:
+        llm_client.DEFAULT_LLM_DELAY_SECONDS = llm_delay if llm_delay > 0 else 0.0
+    try:
+        _run_demo(turns=turns)
+    finally:
+        if llm_delay is not None:
+            llm_client.DEFAULT_LLM_DELAY_SECONDS = old_delay
+
+
 if __name__ == "__main__":
-    main()
+    cli_args = _parse_args()
+    main(turns=cli_args.turns, llm_delay=cli_args.llm_delay)
