@@ -184,6 +184,20 @@ Richer schemas may be introduced in future releases.
 Identical input sequences always produce identical compiler state.
 LLM responses may still vary unless deterministic decoding is used by the host.
 
+Example:
+
+```text
+User: use tofu
+User: use corn oil
+```
+
+Result:
+facts.focus.primary = "corn oil"
+
+Because `focus.primary` is an exclusive slot, later `use ...` directives replace earlier values.
+
+This may differ from human expectations, where the intent may be interpreted as additive (e.g., ingredient + cooking medium). The current schema models a single focus value. See [issue #45](https://github.com/rlippmann/context-compiler/issues/45) for discussion.
+
 ---
 
 ## Directive Examples
