@@ -188,6 +188,8 @@ def main() -> None:
                     f"→ {report['compiled_prompt_length']} chars "
                     f"({report['prompt_reduction_percent']}% reduction)"
                 )
+        if compiler_regressions > 0:
+            raise SystemExit(1)
         return
 
     try:
@@ -206,6 +208,7 @@ def main() -> None:
         raise SystemExit(2) from exc
     if args.demo in SCORED_DEMOS and result is not None and _is_compiler_regression(result):
         _print_compiler_regression_warning()
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

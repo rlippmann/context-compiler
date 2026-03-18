@@ -57,9 +57,11 @@ def test_runner_prints_per_demo_compiler_regression_warning(
     monkeypatch.setattr(run_demo, "_run", fake_run)
     monkeypatch.setattr("sys.argv", ["run_demo", "1"])
 
-    run_demo.main()
+    with pytest.raises(SystemExit) as exc_info:
+        run_demo.main()
     output = capsys.readouterr().out
 
+    assert exc_info.value.code == 1
     assert "result:" in output
     assert "⚠️ MEDIATED REGRESSION" in output
     assert "baseline succeeded but compiler-mediated version failed" in output
@@ -97,9 +99,11 @@ def test_runner_prints_summary_regression_banner_in_all_mode(
     monkeypatch.setattr(run_demo, "_run", fake_run)
     monkeypatch.setattr("sys.argv", ["run_demo", "all"])
 
-    run_demo.main()
+    with pytest.raises(SystemExit) as exc_info:
+        run_demo.main()
     output = capsys.readouterr().out
 
+    assert exc_info.value.code == 1
     assert "Baseline results: 1 passed, 0 failed" in output
     assert "Compiler results: 0 passed, 1 failed" in output
     assert "*** 1 MEDIATED REGRESSION DETECTED ***" in output
@@ -137,9 +141,11 @@ def test_runner_prints_plural_summary_regression_banner_in_all_mode(
     monkeypatch.setattr(run_demo, "_run", fake_run)
     monkeypatch.setattr("sys.argv", ["run_demo", "all"])
 
-    run_demo.main()
+    with pytest.raises(SystemExit) as exc_info:
+        run_demo.main()
     output = capsys.readouterr().out
 
+    assert exc_info.value.code == 1
     assert "Baseline results: 2 passed, 0 failed" in output
     assert "Compiler results: 0 passed, 2 failed" in output
     assert "*** 2 MEDIATED REGRESSIONS DETECTED ***" in output
@@ -275,6 +281,25 @@ def test_all_mode_counts_baseline_fail_and_compiler_pass(
 
     assert "Baseline results: 0 passed, 1 failed" in output
     assert "Compiler results: 1 passed, 0 failed" in output
+
+
+def test_single_scored_demo_without_mediated_regression_exits_zero(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_run(
+        path: Path, *, verbose: bool, llm_delay: float
+    ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        assert path.name == "fake_01.py"
+        assert not verbose
+        assert llm_delay == 0
+        return _demo_report(baseline_pass=True, compiler_pass=True), None
+
+    monkeypatch.setattr(run_demo, "DEMO_FILES", {"1": "fake_01.py"})
+    monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1"})
+    monkeypatch.setattr(run_demo, "_run", fake_run)
+    monkeypatch.setattr("sys.argv", ["run_demo", "1"])
+
+    run_demo.main()
 
 
 def test_compaction_demo_reports_sane_metrics() -> None:
