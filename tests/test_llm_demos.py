@@ -176,6 +176,40 @@ def test_demo_05_prompt_drift(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "facts.focus.primary: vegetarian curry" in calls[1][0]["content"]
 
 
+def test_demo_07_prompt_engineering_comparison(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = _load_demo_module("07_llm_prompt_engineering_comparison.py")
+    report, calls = _run_demo_with_mocked_llm(
+        module,
+        monkeypatch,
+        outputs=[
+            (
+                "FOCUS_PRIMARY: shrimp pasta\n"
+                "Shopping list:\n- shrimp\n- pasta\n- cream\n"
+                "Steps:\n1. Cook."
+            ),
+            (
+                "FOCUS_PRIMARY: vegan curry\n"
+                "Shopping list:\n- tofu\n- coconut milk\n- curry paste\n"
+                "Steps:\n1. Cook."
+            ),
+            (
+                "FOCUS_PRIMARY: vegan curry\n"
+                "Shopping list:\n- tofu\n- coconut milk\n- curry paste\n"
+                "Steps:\n1. Cook."
+            ),
+        ],
+    )
+
+    assert len(calls) == 3
+    assert report["baseline_pass"] is True
+    assert report["compiler_pass"] is True
+    assert report["demo_pass"] is True
+    assert calls[1][0]["content"] == module.STRONG_PROMPT_ENGINEERING_TEXT
+    assert calls[2][0]["content"].endswith(module.STRONG_PROMPT_ENGINEERING_TEXT)
+    assert calls[1][1:] == calls[2][1:]
+    assert "facts.focus.primary: vegan curry" in calls[2][0]["content"]
+
+
 def test_demo_05_turns_support_ladder_and_keep_prompt_invariants() -> None:
     module = _load_demo_module("05_llm_prompt_drift.py")
 

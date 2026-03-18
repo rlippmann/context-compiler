@@ -17,6 +17,7 @@ behavior is easy to see.
 | [04](./04_llm_tool_governance.py) | Tool governance | host-side denylist | general assistant models |
 | [05](./05_llm_prompt_drift.py) | Prompt drift | long transcript failure | weaker long-context models ([see Demo 5 note](#demo-5-stress-ladder-turns)) |
 | [06](./06_context_compaction.py) | Context compaction | compiled state replacing transcript | small or local models |
+| [07](./07_llm_prompt_engineering_comparison.py) | Prompt engineering comparison | prompting vs compiled state | any model with long transcript sensitivity |
 
 Stronger frontier models may show these behaviors less often, but the same
 patterns still appear in real applications.
@@ -89,7 +90,7 @@ Running against a local OpenAI-compatible endpoint avoids provider rate limits.
 
 - `Default (concise)`:
   - scenario name + description
-  - for evaluative demos (`01`–`05`):
+  - for evaluative demos (`01`–`05`, `07`):
     - `baseline: PASS|FAIL`
     - `compiler: PASS|FAIL`
   - expected behavior

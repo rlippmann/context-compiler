@@ -26,9 +26,10 @@ DEMO_FILES: dict[str, str] = {
     "4": "04_llm_tool_governance.py",
     "5": "05_llm_prompt_drift.py",
     "6": "06_context_compaction.py",
+    "7": "07_llm_prompt_engineering_comparison.py",
 }
 
-SCORED_DEMOS = {"1", "2", "3", "4", "5"}
+SCORED_DEMOS = {"1", "2", "3", "4", "5", "7"}
 
 
 def _verbose_demo_label(path: Path) -> str:
@@ -95,7 +96,7 @@ def main() -> None:
         nargs="?",
         default="all",
         choices=["all", *DEMO_FILES.keys()],
-        help="Demo number (1-6) or all",
+        help="Demo number (1-7) or all",
     )
     parser.add_argument(
         "--verbose",
