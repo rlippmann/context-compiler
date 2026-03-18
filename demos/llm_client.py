@@ -201,7 +201,6 @@ def complete_messages(
                 messages=messages,
                 # Intentionally hard-coded for deterministic demo behavior.
                 temperature=0,
-                top_p=1,
             )
             break
         except Exception as exc:
