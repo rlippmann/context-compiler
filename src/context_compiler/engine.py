@@ -132,7 +132,7 @@ class Engine:
       directive input to ``step()``.
     - Host code should not rely on imperative helpers such as
       ``reset_policies()`` or ``clear_state()``.
-    - State may be administratively replaced via ``engine.state = ...`` and
+    - State may be administratively replaced via constructor input and
       ``engine.import_json(...)``.
     """
 
@@ -152,15 +152,6 @@ class Engine:
     def state(self) -> State:
         """Return a defensive copy of the current authoritative in-memory state."""
         return deepcopy(self._state)
-
-    @state.setter
-    def state(self, value: State) -> None:
-        """Replace authoritative in-memory state from a supplied object.
-
-        The supplied value is validated and canonicalized. Replacement is full,
-        and pending clarification state is cleared.
-        """
-        self._replace_state(_load_state_obj(value))
 
     def export_json(self) -> str:
         """Serialize authoritative state for persistence or transport."""
