@@ -123,6 +123,16 @@ def compile_transcript(messages: list[dict[str, object]]) -> ApplyResult:
     return engine.apply_transcript(messages)
 
 
+def get_focus_value(state: State) -> str | None:
+    """Return the current exclusive focus value from a state snapshot."""
+    return state[STATE_FACTS][FOCUS_PRIMARY]
+
+
+def get_prohibited_items(state: State) -> list[str]:
+    """Return prohibited items from a state snapshot as a defensive list copy."""
+    return list(state[STATE_POLICIES][POLICY_PROHIBIT])
+
+
 class Engine:
     """Deterministic state engine implementing directive semantics.
 

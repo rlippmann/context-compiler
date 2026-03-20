@@ -121,6 +121,8 @@ else:
 | `compile_transcript(messages)` | Replay a transcript from a fresh engine and return either final state or a confirmation prompt. |
 | `engine.apply_transcript(messages)` | Replay a transcript onto the current engine state and return either final state or a confirmation prompt. |
 | `engine.state` | Read current authoritative in-memory state snapshot. |
+| `get_focus_value(state)` | Read the current focus value from a state snapshot. |
+| `get_prohibited_items(state)` | Read prohibited items from a state snapshot. |
 | `export_json()` | Export current state as JSON for persistence/transport. |
 | `import_json(payload)` | Load/restore state from exported JSON payload. |
 
@@ -129,8 +131,8 @@ else:
 ## State Model
 
 The compiler maintains an authoritative state snapshot.
-Hosts should treat this state as opaque application data and avoid coupling to
-internal field names or nested layout.
+Hosts should treat this state as structured application data and avoid coupling
+to internal field names or nested layout.
 
 ## State Access and Persistence
 
@@ -139,8 +141,10 @@ read current in-memory state via `engine.state`, and persist/restore via
 `export_json()` and `import_json()`. Semantic state mutations occur through
 directives processed by `step()`. Storage is managed by the host application.
 
-Use the returned state snapshot as opaque host input for prompt construction,
-policy enforcement, or replay/storage workflows.
+Use the returned state snapshot as structured host input for prompt
+construction, policy enforcement, or replay/storage workflows.
+For host code that needs typed reads without direct nested key lookups, use
+`get_focus_value(state)` and `get_prohibited_items(state)`.
 
 ### Transcript Replay
 
