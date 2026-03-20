@@ -43,6 +43,15 @@ The host:
 - Displays clarification prompts
 - Calls the LLM when allowed
 - Formats prompts using provided state
+- May read state snapshots directly, but should prefer public helper accessors where available.
+
+Current helpers:
+- `get_focus_value(state)`
+- `get_prohibited_items(state)`
+
+These helpers are read-only conveniences for state snapshots to reduce direct
+coupling to nested layout. They do not modify compiler state and are not
+semantic/compiler primitives.
 
 ### 4. Decision API Contract
 

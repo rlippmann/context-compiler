@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from context_compiler import create_engine
+from context_compiler import create_engine, get_focus_value, get_prohibited_items
 from context_compiler.engine import DecisionKind, Engine
 
 
@@ -18,6 +18,23 @@ def test_state_getter_returns_defensive_copy() -> None:
     snapshot = engine.state
     snapshot["facts"]["focus.primary"] = "mutated"
     assert engine.state["facts"]["focus.primary"] is None
+
+
+def test_get_focus_value_reads_current_focus_from_state_snapshot() -> None:
+    engine = create_engine()
+    engine.step("use Nord Stage 4")
+
+    assert get_focus_value(engine.state) == "Nord Stage 4"
+
+
+def test_get_prohibited_items_returns_defensive_list_copy() -> None:
+    engine = create_engine()
+    engine.step("don't use docker")
+
+    prohibited = get_prohibited_items(engine.state)
+    prohibited.append("kubernetes")
+
+    assert get_prohibited_items(engine.state) == ["docker"]
 
 
 def test_export_json_returns_complete_representation_of_state() -> None:
@@ -920,3 +937,20 @@ def test_allow_suffix_removes_existing_prohibition() -> None:
 
     assert decision["kind"] == "update"
     assert engine.state["policies"]["prohibit"] == []
+
+
+def test_correction_payload_that_invokes_other_directive_family_is_clarified_without_mutation() -> (
+    None
+):
+    engine = create_engine()
+    engine.step("use Nord Stage 4")
+    before = engine.state
+
+    decision = engine.step("actually don't use docker")
+
+    assert decision["kind"] == "clarify"
+    assert (
+        decision["prompt_to_user"]
+        == "Your directive mixes multiple directive types. Please provide one."
+    )
+    assert engine.state == before
