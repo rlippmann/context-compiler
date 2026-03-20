@@ -44,19 +44,7 @@ User sets a constraint once:
 User: don't use peanuts
 ```
 
-State becomes:
-
-```json
-{
-  "facts": {
-    "focus.primary": null
-  },
-  "policies": {
-    "prohibit": ["peanuts"]
-  },
-  "version": 1
-}
-```
+Outcome: prohibited items now include `"peanuts"`.
 
 Later in the conversation:
 
@@ -141,27 +129,18 @@ else:
 ## State Model
 
 The compiler maintains an authoritative state snapshot.
-
-Current serialized snapshot shape (versioned output):
-
-```json
-{
-  "facts": {
-    "focus.primary": null
-  },
-  "policies": {
-    "prohibit": []
-  },
-  "version": 1
-}
-```
-
-Treat this serialized shape as transport/persistence output, not as a
-stable field-level contract for direct host logic.
+Hosts should treat this state as opaque application data and avoid coupling to
+internal field names or nested layout.
 
 ## State Access and Persistence
 
-Hosts can provide initial state at engine creation (`create_engine(state=...)`), read current in-memory state via `engine.state`, and persist/restore via `export_json()` and `import_json()`. Semantic state mutations occur through directives processed by `step()`. Storage is managed by the host application.
+Hosts can provide initial state at engine creation (`create_engine(state=...)`),
+read current in-memory state via `engine.state`, and persist/restore via
+`export_json()` and `import_json()`. Semantic state mutations occur through
+directives processed by `step()`. Storage is managed by the host application.
+
+Use the returned state snapshot as opaque host input for prompt construction,
+policy enforcement, or replay/storage workflows.
 
 ### Transcript Replay
 
@@ -176,7 +155,7 @@ Transcript replay compiles conversational history by reusing the same determinis
 
 ### Fact Schema
 
-The current schema contains a single exclusive slot: `facts["focus.primary"]`.
+The current behavior includes one exclusive focus value.
 This demonstrates deterministic fact replacement and correction behavior.
 Richer schemas may be introduced in future releases.
 
@@ -197,9 +176,9 @@ User: use corn oil
 ```
 
 Result:
-facts.focus.primary = "corn oil"
+the current focus value becomes `"corn oil"`
 
-Because `focus.primary` is an exclusive slot, later `use ...` directives replace earlier values.
+Because the focus value is exclusive (last write wins), later `use ...` directives replace earlier values.
 
 This may differ from human expectations, where the intent may be interpreted as additive (e.g., ingredient + cooking medium). The current schema models a single focus value. See [issue #45](https://github.com/rlippmann/context-compiler/issues/45) for discussion.
 
@@ -214,14 +193,7 @@ User: don't use peanuts
 ```
 
 Result:
-
-```json
-{
-  "policies": {
-    "prohibit": ["peanuts"]
-  }
-}
-```
+prohibited items include `"peanuts"`.
 
 Fact configuration:
 
@@ -230,10 +202,7 @@ User: use vegetarian curry
 ```
 
 State update:
-
-```text
-facts.focus.primary = "vegetarian curry"
-```
+the current focus value becomes `"vegetarian curry"`
 
 Correction:
 
@@ -242,10 +211,7 @@ User: actually vegan curry
 ```
 
 Result:
-
-```text
-facts.focus.primary = "vegan curry"
-```
+the current focus value becomes `"vegan curry"`
 
 Ambiguous mutation:
 
@@ -265,40 +231,14 @@ No state mutation occurs until confirmation.
 
 Two explicit reset commands are supported:
 
-- `reset policies` clears `policies.prohibit` but preserves the current fact (`facts["focus.primary"]`)
+- `reset policies` clears prohibited items but preserves the current focus value
 - `clear state` resets the full state to initial values
 
 Example:
 
-Before:
-
-```json
-{
-  "facts": {"focus.primary": "vegetarian curry"},
-  "policies": {"prohibit": ["peanuts"]},
-  "version": 1
-}
-```
-
-After `reset policies`:
-
-```json
-{
-  "facts": {"focus.primary": "vegetarian curry"},
-  "policies": {"prohibit": []},
-  "version": 1
-}
-```
-
-After `clear state`:
-
-```json
-{
-  "facts": {"focus.primary": null},
-  "policies": {"prohibit": []},
-  "version": 1
-}
-```
+- If current focus is `"vegetarian curry"` and prohibited items include `"peanuts"`:
+- after `reset policies`, prohibited items are empty and focus remains `"vegetarian curry"`.
+- after `clear state`, both focus and prohibited items return to initial defaults.
 
 ---
 
