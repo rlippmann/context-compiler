@@ -291,11 +291,12 @@ directive parsing, and does not mutate state.
 Adding duplicate policy is a no-op.
 Policies stored in sorted lexical order.
 
-Administrative state replacement is also supported through public host APIs:
-- `engine.state = ...` (object replacement)
+Administrative state initialization/replacement is supported through:
+- constructor input (`create_engine(state=...)` / `Engine(state=...)`) for initial load
 - `engine.import_json(payload)` (JSON replacement)
 
-Both replacement paths clear pending clarification state and must behave like live state for subsequent `step()` calls.
+Import-based replacement clears pending clarification state and must behave like
+live state for subsequent `step()` calls.
 
 ### 10. Context Serialization Contract
 

@@ -128,19 +128,21 @@ else:
 
 | API | Description |
 |---|---|
-| `create_engine(...)` | Create a new compiler engine, optionally with replacement initial state. |
+| `create_engine(state=None)` | Create a new compiler engine; optional `state` provides initial authoritative state (validated/canonicalized). |
 | `step(user_input)` | Parse one user turn and return a deterministic `Decision`. |
 | `compile_transcript(messages)` | Replay a transcript from a fresh engine and return either final state or a confirmation prompt. |
 | `engine.apply_transcript(messages)` | Replay a transcript onto the current engine state and return either final state or a confirmation prompt. |
-| `engine.state` | Read or replace full in-memory authoritative state. |
+| `engine.state` | Read current authoritative in-memory state snapshot. |
 | `export_json()` | Export current state as JSON for persistence/transport. |
-| `import_json(payload)` | Load state from exported JSON payload. |
+| `import_json(payload)` | Load/restore state from exported JSON payload. |
 
 ---
 
 ## State Model
 
-The compiler maintains an authoritative state:
+The compiler maintains an authoritative state snapshot.
+
+Current serialized snapshot shape (versioned output):
 
 ```json
 {
@@ -154,9 +156,12 @@ The compiler maintains an authoritative state:
 }
 ```
 
+Treat this serialized shape as transport/persistence output, not as a
+stable field-level contract for direct host logic.
+
 ## State Access and Persistence
 
-Hosts may inspect or replace in-memory state (`engine.state`) or persist it using `export_json()` and `import_json()`. State changes occur only through directives processed by `step()`. Storage is managed by the host application.
+Hosts can provide initial state at engine creation (`create_engine(state=...)`), read current in-memory state via `engine.state`, and persist/restore via `export_json()` and `import_json()`. Semantic state mutations occur through directives processed by `step()`. Storage is managed by the host application.
 
 ### Transcript Replay
 
