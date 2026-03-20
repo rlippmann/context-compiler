@@ -61,6 +61,7 @@ Prefer modern typing syntax:
 - PR descriptions should include:
   - what changed
   - why the change was needed
+- A dedicated "Validation" section in PR text is optional and not required.
 - Keep PR scope aligned to the requested task; if scope grows, ask for guidance before expanding.
 
 ## CI
