@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from context_compiler import create_engine
+from context_compiler import create_engine, get_focus_value, get_prohibited_items
 from context_compiler.engine import DecisionKind, Engine
 
 
@@ -18,6 +18,23 @@ def test_state_getter_returns_defensive_copy() -> None:
     snapshot = engine.state
     snapshot["facts"]["focus.primary"] = "mutated"
     assert engine.state["facts"]["focus.primary"] is None
+
+
+def test_get_focus_value_reads_current_focus_from_state_snapshot() -> None:
+    engine = create_engine()
+    engine.step("use Nord Stage 4")
+
+    assert get_focus_value(engine.state) == "Nord Stage 4"
+
+
+def test_get_prohibited_items_returns_defensive_list_copy() -> None:
+    engine = create_engine()
+    engine.step("don't use docker")
+
+    prohibited = get_prohibited_items(engine.state)
+    prohibited.append("kubernetes")
+
+    assert get_prohibited_items(engine.state) == ["docker"]
 
 
 def test_export_json_returns_complete_representation_of_state() -> None:
@@ -195,7 +212,7 @@ def test_create_engine_with_state_initializes_from_normalized_state() -> None:
             },
         ),
         (
-            "setter",
+            "import_json",
             {
                 "facts": {"focus.primary": None},
                 "policies": {"prohibit": "docker"},
@@ -212,22 +229,36 @@ def test_object_state_replacement_paths_reject_invalid_state(path: str, bad_stat
 
     engine = create_engine()
     with pytest.raises(ValueError):
-        engine.state = bad_state
+        engine.import_json(json.dumps(bad_state))
 
 
-def test_state_setter_replaces_state_and_clears_pending_clarification() -> None:
+def test_state_property_is_read_only() -> None:
+    engine = create_engine()
+    with pytest.raises(AttributeError):
+        engine.state = {
+            "facts": {"focus.primary": None},
+            "policies": {"prohibit": []},
+            "version": 1,
+        }
+
+
+def test_import_json_replaces_state_and_clears_pending_clarification() -> None:
     engine = create_engine()
     decision = engine.step("no use docker")
     assert decision["kind"] == "clarify"
 
-    engine.state = {
-        "facts": {"focus.primary": "Nord Stage 4"},
-        "policies": {"prohibit": ["kubernetes", "docker", "docker"]},
-        "version": 1,
-    }
+    engine.import_json(
+        json.dumps(
+            {
+                "facts": {"focus.primary": "Nord Stage 4"},
+                "policies": {"prohibit": ["kubernetes", "docker", "docker"]},
+                "version": 1,
+            }
+        )
+    )
 
-    decision_after_setter = engine.step("yes")
-    assert decision_after_setter["kind"] == "passthrough"
+    decision_after_import = engine.step("yes")
+    assert decision_after_import["kind"] == "passthrough"
     assert engine.state == {
         "facts": {"focus.primary": "Nord Stage 4"},
         "policies": {"prohibit": ["docker", "kubernetes"]},
@@ -235,7 +266,7 @@ def test_state_setter_replaces_state_and_clears_pending_clarification() -> None:
     }
 
 
-def test_constructor_setter_and_import_json_share_normalization_behavior() -> None:
+def test_constructor_and_import_json_share_normalization_behavior() -> None:
     raw_state = {
         "facts": {"focus.primary": "  MacBook   M3`  "},
         "policies": {"prohibit": ["kubernetes", "docker", "docker"]},
@@ -244,13 +275,10 @@ def test_constructor_setter_and_import_json_share_normalization_behavior() -> No
 
     from_ctor = Engine(state=json.loads(json.dumps(raw_state)))
 
-    from_setter = create_engine()
-    from_setter.state = json.loads(json.dumps(raw_state))
-
     from_import = create_engine()
     from_import.import_json(json.dumps(raw_state))
 
-    assert from_ctor.state == from_setter.state == from_import.state
+    assert from_ctor.state == from_import.state
 
 
 def test_import_json_clears_pending_clarification_state() -> None:
@@ -881,9 +909,9 @@ def test_pending_clarification_rejected_by_explicit_no_is_passthrough() -> None:
     ("path", "bad_state"),
     [
         ("constructor", []),
-        ("setter", "not-a-dict"),
+        ("import_json", "not-a-dict"),
         ("constructor", {"facts": [], "policies": {"prohibit": []}, "version": 1}),
-        ("setter", {"facts": {"focus.primary": None}, "policies": [], "version": 1}),
+        ("import_json", {"facts": {"focus.primary": None}, "policies": [], "version": 1}),
         (
             "constructor",
             {"facts": {"focus.primary": 123}, "policies": {"prohibit": []}, "version": 1},
@@ -898,7 +926,7 @@ def test_object_state_paths_reject_malformed_state_inputs(path: str, bad_state: 
 
     engine = create_engine()
     with pytest.raises(ValueError):
-        engine.state = bad_state
+        engine.import_json(json.dumps(bad_state))
 
 
 def test_allow_suffix_removes_existing_prohibition() -> None:
@@ -909,3 +937,20 @@ def test_allow_suffix_removes_existing_prohibition() -> None:
 
     assert decision["kind"] == "update"
     assert engine.state["policies"]["prohibit"] == []
+
+
+def test_correction_payload_that_invokes_other_directive_family_is_clarified_without_mutation() -> (
+    None
+):
+    engine = create_engine()
+    engine.step("use Nord Stage 4")
+    before = engine.state
+
+    decision = engine.step("actually don't use docker")
+
+    assert decision["kind"] == "clarify"
+    assert (
+        decision["prompt_to_user"]
+        == "Your directive mixes multiple directive types. Please provide one."
+    )
+    assert engine.state == before
