@@ -30,11 +30,18 @@ Install demo dependencies:
 pip install -e .[demos]
 ```
 
-Environment variables (OpenAI-compatible API):
+Environment variables (LiteLLM/OpenAI-compatible API):
 
 - `MODEL` (optional)
 - `OPENAI_API_KEY` (required)
 - `OPENAI_BASE_URL` (optional; use for local or alternative endpoints)
+Note: Demos require models that support deterministic decoding (`temperature=0`).
+Some newer models (e.g. `gpt-5`) do not support this and may error.
+
+LiteLLM model naming with Ollama:
+
+- Ollama native endpoint (`http://127.0.0.1:11434`): use `MODEL=ollama/llama3.1:8b`
+- OpenAI-compatible endpoint (`.../v1`): use `MODEL=openai/llama3.1:8b`
 
 Example: locally hosted OpenAI-compatible endpoint
 

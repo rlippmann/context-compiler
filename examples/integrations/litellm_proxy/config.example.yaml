@@ -1,0 +1,11 @@
+model_list:
+  # `model_name` is the client-facing alias sent to the proxy.
+  # `litellm_params.model` is the upstream provider/model LiteLLM calls.
+  - model_name: gpt-4o-mini
+    litellm_params:
+      model: openai/gpt-4o-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+litellm_settings:
+  callbacks:
+    - examples.integrations.litellm_proxy.context_compiler_precall_hook.proxy_handler_instance

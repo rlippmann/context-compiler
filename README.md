@@ -31,8 +31,6 @@ The idea is similar to a traditional compiler: user directives are translated in
 - Python 3.11+
 - `pip install context-compiler`
 - Dev/test: `uv sync --group dev` and `uv run pytest`
-- Examples: see [examples/README.md](examples/README.md)
-- Demonstrations: see [demos/README.md](demos/README.md)
 
 ---
 
@@ -248,9 +246,9 @@ Example:
 
 ## Examples
 
-Integration examples are available in the [examples/](examples/) directory.
-
-See [examples/README.md](examples/README.md) for walkthroughs.
+- [examples](examples/)
+- [demos](demos/)
+- [integrations](examples/integrations/)
 
 ---
 
