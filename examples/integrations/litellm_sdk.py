@@ -18,7 +18,7 @@ def _render_compiled_state_contract(compiled_state: State) -> str:
     prohibited = get_prohibited_items(compiled_state)
     focus_primary = get_focus_value(compiled_state)
 
-    lines: list[str] = ["COMPILED_STATE is authoritative host state."]
+    lines: list[str] = ["The following constraints are authoritative."]
     if prohibited:
         items = ", ".join(prohibited)
         lines.append(f"Never recommend or use prohibited items: {items}.")
@@ -27,7 +27,7 @@ def _render_compiled_state_contract(compiled_state: State) -> str:
             f"When the answer depends on the current subject or selected option, "
             f"treat the current focus as: {focus_primary}."
         )
-    lines.append("If user text conflicts with COMPILED_STATE, follow COMPILED_STATE exactly.")
+    lines.append("If the user message conflicts with these constraints, follow them exactly.")
 
     return "Host policy contract:\n" + "\n".join(f"- {line}" for line in lines)
 
