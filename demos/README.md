@@ -30,7 +30,7 @@ Install demo dependencies:
 pip install -e .[demos]
 ```
 
-Environment variables (OpenAI-compatible API):
+Environment variables (LiteLLM/OpenAI-compatible API):
 
 - `MODEL` (optional)
 - `OPENAI_API_KEY` (required)

@@ -15,12 +15,12 @@ def _fake_config() -> LLMConfig:
     return LLMConfig(base_url="http://localhost:11434/v1", api_key="test-key", model="bad-model")
 
 
-class _FakeCompletions:
+class _FakeLiteLLMCompletion:
     def __init__(self, outcomes: list[object]) -> None:
         self._outcomes = outcomes
         self._index = 0
 
-    def create(self, **_kwargs: object) -> object:
+    def __call__(self, **_kwargs: object) -> object:
         if self._index >= len(self._outcomes):
             raise RuntimeError("No more fake outcomes configured.")
         outcome = self._outcomes[self._index]
@@ -28,16 +28,6 @@ class _FakeCompletions:
         if isinstance(outcome, Exception):
             raise outcome
         return outcome
-
-
-class _FakeChat:
-    def __init__(self, outcomes: list[object]) -> None:
-        self.completions = _FakeCompletions(outcomes)
-
-
-class _FakeClient:
-    def __init__(self, outcomes: list[object]) -> None:
-        self.chat = _FakeChat(outcomes)
 
 
 class _FakeMessage:
@@ -72,8 +62,8 @@ def test_complete_messages_maps_model_not_found_error(monkeypatch: pytest.Monkey
     monkeypatch.setattr(llm_client, "load_config", _fake_config)
     monkeypatch.setattr(
         llm_client,
-        "_build_openai_client",
-        lambda _config: _FakeClient([RuntimeError("model not found")]),
+        "_litellm_completion",
+        _FakeLiteLLMCompletion([RuntimeError("model not found")]),
     )
 
     with pytest.raises(DemoLLMError) as exc_info:
@@ -89,8 +79,8 @@ def test_complete_messages_maps_authentication_error(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(llm_client, "load_config", _fake_config)
     monkeypatch.setattr(
         llm_client,
-        "_build_openai_client",
-        lambda _config: _FakeClient([RuntimeError("invalid api key")]),
+        "_litellm_completion",
+        _FakeLiteLLMCompletion([RuntimeError("invalid api key")]),
     )
 
     with pytest.raises(DemoLLMError) as exc_info:
@@ -105,8 +95,8 @@ def test_complete_messages_retries_rate_limit_then_succeeds(
     monkeypatch.setattr(llm_client, "load_config", _fake_config)
     monkeypatch.setattr(
         llm_client,
-        "_build_openai_client",
-        lambda _config: _FakeClient(
+        "_litellm_completion",
+        _FakeLiteLLMCompletion(
             [
                 RuntimeError("rate limit exceeded"),
                 RuntimeError("rate limit exceeded"),
@@ -132,8 +122,8 @@ def test_complete_messages_rate_limit_exhausted_raises_friendly_error(
     monkeypatch.setattr(llm_client, "load_config", _fake_config)
     monkeypatch.setattr(
         llm_client,
-        "_build_openai_client",
-        lambda _config: _FakeClient(
+        "_litellm_completion",
+        _FakeLiteLLMCompletion(
             [
                 _FakeRateLimitError("rate limit exceeded"),
                 _FakeRateLimitError("rate limit exceeded"),
@@ -165,8 +155,8 @@ def test_complete_messages_long_retry_after_fails_fast(
     monkeypatch.setattr(llm_client, "load_config", _fake_config)
     monkeypatch.setattr(
         llm_client,
-        "_build_openai_client",
-        lambda _config: _FakeClient([_FakeRateLimitError("rate limit exceeded", retry_after="10")]),
+        "_litellm_completion",
+        _FakeLiteLLMCompletion([_FakeRateLimitError("rate limit exceeded", retry_after="10")]),
     )
     delays: list[int] = []
     monkeypatch.setattr(llm_client.time, "sleep", lambda seconds: delays.append(seconds))
@@ -189,8 +179,8 @@ def test_complete_messages_uses_gemini_retry_in_text_delay(
     monkeypatch.setattr(llm_client, "load_config", _fake_config)
     monkeypatch.setattr(
         llm_client,
-        "_build_openai_client",
-        lambda _config: _FakeClient(
+        "_litellm_completion",
+        _FakeLiteLLMCompletion(
             [RuntimeError("Please retry in 1.311529971s."), _FakeResponse("ok")]
         ),
     )
@@ -211,8 +201,8 @@ def test_complete_messages_uses_gemini_retry_delay_field(
     monkeypatch.setattr(llm_client, "load_config", _fake_config)
     monkeypatch.setattr(
         llm_client,
-        "_build_openai_client",
-        lambda _config: _FakeClient(
+        "_litellm_completion",
+        _FakeLiteLLMCompletion(
             [RuntimeError("rate limit exceeded, retryDelay: '1s'"), _FakeResponse("ok")]
         ),
     )
@@ -233,8 +223,8 @@ def test_complete_messages_applies_delay_seconds_before_call(
     monkeypatch.setattr(llm_client, "load_config", _fake_config)
     monkeypatch.setattr(
         llm_client,
-        "_build_openai_client",
-        lambda _config: _FakeClient([_FakeResponse("ok")]),
+        "_litellm_completion",
+        _FakeLiteLLMCompletion([_FakeResponse("ok")]),
     )
     delays: list[float] = []
     monkeypatch.setattr(llm_client.time, "sleep", lambda seconds: delays.append(seconds))
@@ -243,3 +233,18 @@ def test_complete_messages_applies_delay_seconds_before_call(
 
     assert result == "ok"
     assert delays == [1.5]
+
+
+def test_complete_messages_supports_dict_style_litellm_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    monkeypatch.setattr(
+        llm_client,
+        "_litellm_completion",
+        _FakeLiteLLMCompletion([{"choices": [{"message": {"content": "ok"}}]}]),
+    )
+
+    result = complete_messages([{"role": "user", "content": "hello"}])
+
+    assert result == "ok"

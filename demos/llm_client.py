@@ -1,4 +1,4 @@
-"""Small OpenAI-compatible chat client for demo scripts."""
+"""Small LiteLLM chat client for demo scripts."""
 
 import os
 import re
@@ -159,9 +159,14 @@ def load_config() -> LLMConfig:
     return LLMConfig(base_url=base_url, api_key=api_key, model=model)
 
 
-def _build_openai_client(config: LLMConfig) -> Any:
+def _litellm_completion(
+    *,
+    config: LLMConfig,
+    target_model: str,
+    messages: list[Message],
+) -> Any:
     try:
-        openai_module = import_module("openai")
+        litellm_module = import_module("litellm")
     except ModuleNotFoundError as exc:
         raise RuntimeError(
             "The demo scripts require the demos dependency group.\n"
@@ -169,14 +174,20 @@ def _build_openai_client(config: LLMConfig) -> Any:
             "pip install -e .[demos]"
         ) from exc
 
-    client_cls = getattr(openai_module, "OpenAI", None)
-    if client_cls is None:
-        raise RuntimeError("Unsupported openai package: `OpenAI` client class not found.")
+    completion_fn = getattr(litellm_module, "completion", None)
+    if completion_fn is None:
+        raise RuntimeError("Unsupported litellm package: `completion` function not found.")
 
-    kwargs: dict[str, Any] = {"api_key": config.api_key}
+    kwargs: dict[str, Any] = {
+        "model": target_model,
+        "messages": messages,
+        # Demos require deterministic decoding so PASS/FAIL results are reproducible.
+        "temperature": 0,
+        "api_key": config.api_key,
+    }
     if config.base_url:
-        kwargs["base_url"] = config.base_url
-    return client_cls(**kwargs)
+        kwargs["api_base"] = config.base_url
+    return completion_fn(**kwargs)
 
 
 def complete_messages(
@@ -187,7 +198,6 @@ def complete_messages(
 ) -> str:
     """Send exact message list to chat completions and return the text output."""
     config = load_config()
-    client = _build_openai_client(config)
     target_model = model or config.model
     configured_delay = _configured_delay_seconds(delay_seconds)
 
@@ -195,12 +205,10 @@ def complete_messages(
         try:
             if configured_delay > 0:
                 time.sleep(configured_delay)
-            # Demos require deterministic decoding so PASS/FAIL results are reproducible.
-            response = client.chat.completions.create(
-                model=target_model,
+            response = _litellm_completion(
+                config=config,
+                target_model=target_model,
                 messages=messages,
-                # Intentionally hard-coded for deterministic demo behavior.
-                temperature=0,
             )
             break
         except Exception as exc:
@@ -265,7 +273,26 @@ def complete_messages(
             raise DemoLLMError(
                 f"LLM provider error while calling model '{target_model}': {exc}"
             ) from exc
-    content = response.choices[0].message.content
+
+    choices = getattr(response, "choices", None)
+    if choices is None and isinstance(response, dict):
+        choices = response.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return ""
+    first_choice = choices[0]
+
+    message_obj: object | None = None
+    if isinstance(first_choice, dict):
+        message_obj = first_choice.get("message")
+    else:
+        message_obj = getattr(first_choice, "message", None)
+
+    content: object | None = None
+    if isinstance(message_obj, dict):
+        content = message_obj.get("content")
+    else:
+        content = getattr(message_obj, "content", None)
+
     if isinstance(content, str):
         return content.strip()
     if content is None:
