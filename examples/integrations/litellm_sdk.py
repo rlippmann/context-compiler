@@ -11,12 +11,12 @@ from typing import Any, cast
 
 from litellm import completion  # type: ignore[import-not-found]
 
-from context_compiler import State, create_engine, get_focus_value, get_prohibited_items
+from context_compiler import State, create_engine, get_policy_items, get_premise_value
 
 
 def _render_compiled_state_contract(compiled_state: State) -> str:
-    prohibited = get_prohibited_items(compiled_state)
-    focus_primary = get_focus_value(compiled_state)
+    prohibited = get_policy_items(compiled_state, "prohibit")
+    focus_primary = get_premise_value(compiled_state)
 
     lines: list[str] = ["The following constraints are authoritative."]
     if prohibited:

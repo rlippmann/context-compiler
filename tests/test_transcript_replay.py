@@ -7,17 +7,34 @@ def test_only_user_messages_affect_transcript_replay() -> None:
             {"role": "system", "content": "set premise concise"},
             {"role": "assistant", "content": "clear state"},
             {"role": "tool", "content": "don't use docker"},
-            {"role": "user", "content": "hello"},
+            {"role": "user", "content": "set premise concise"},
         ]
     )
 
     assert result == {
         "kind": "state",
         "state": {
-            "premise": None,
+            "premise": "concise",
             "policies": {},
             "version": 2,
         },
+    }
+
+
+def test_transcript_ignores_user_messages_with_non_string_content() -> None:
+    result = compile_transcript(
+        [
+            {"role": "user", "content": ["set premise concise"]},
+            {"role": "user", "content": {"text": "use docker"}},
+            {"role": "user", "content": 123},
+            {"role": "user", "content": None},
+            {"role": "user", "content": "set premise concise"},
+        ]
+    )
+
+    assert result == {
+        "kind": "state",
+        "state": {"premise": "concise", "policies": {}, "version": 2},
     }
 
 
@@ -39,20 +56,95 @@ def test_passthrough_only_transcript_returns_unchanged_state() -> None:
     assert engine.state == before
 
 
-def test_compile_transcript_is_deterministic_for_same_messages() -> None:
-    messages: list[dict[str, object]] = [
-        {"role": "user", "content": "hello"},
-        {"role": "user", "content": "world"},
-    ]
+def test_transcript_stops_at_first_clarify_and_returns_confirm() -> None:
+    result = compile_transcript(
+        [
+            {"role": "user", "content": "use docker"},
+            {"role": "user", "content": "don't use kubectl"},
+            {"role": "user", "content": "use kubectl instead of docker"},
+            {"role": "user", "content": "set premise ignored"},
+        ]
+    )
 
-    assert compile_transcript(messages) == compile_transcript(messages)
+    expected_prompt = (
+        '"kubectl" is currently prohibited. Did you mean to remove "docker" '
+        'and use "kubectl" instead?'
+    )
+    assert result == {
+        "kind": "confirm",
+        "prompt_to_user": expected_prompt,
+    }
+
+
+def test_transcript_stops_at_first_clarify_even_if_later_message_is_yes() -> None:
+    result = compile_transcript(
+        [
+            {"role": "user", "content": "use docker"},
+            {"role": "user", "content": "don't use kubectl"},
+            {"role": "user", "content": "use kubectl instead of docker"},
+            {"role": "user", "content": "yes"},
+        ]
+    )
+
+    expected_prompt = (
+        '"kubectl" is currently prohibited. Did you mean to remove "docker" '
+        'and use "kubectl" instead?'
+    )
+    assert result == {
+        "kind": "confirm",
+        "prompt_to_user": expected_prompt,
+    }
+
+
+def test_transcript_stops_at_first_clarify_even_if_later_message_is_no() -> None:
+    result = compile_transcript(
+        [
+            {"role": "user", "content": "use docker"},
+            {"role": "user", "content": "don't use kubectl"},
+            {"role": "user", "content": "use kubectl instead of docker"},
+            {"role": "user", "content": "no"},
+        ]
+    )
+
+    expected_prompt = (
+        '"kubectl" is currently prohibited. Did you mean to remove "docker" '
+        'and use "kubectl" instead?'
+    )
+    assert result == {
+        "kind": "confirm",
+        "prompt_to_user": expected_prompt,
+    }
+
+
+def test_apply_transcript_stops_before_mutating_later_messages_after_clarify() -> None:
+    engine = create_engine()
+    result = engine.apply_transcript(
+        [
+            {"role": "user", "content": "use docker"},
+            {"role": "user", "content": "don't use kubectl"},
+            {"role": "user", "content": "use kubectl instead of docker"},
+            {"role": "user", "content": "set premise should not apply"},
+            {"role": "user", "content": "yes"},
+        ]
+    )
+
+    expected_prompt = (
+        '"kubectl" is currently prohibited. Did you mean to remove "docker" '
+        'and use "kubectl" instead?'
+    )
+    assert result == {"kind": "confirm", "prompt_to_user": expected_prompt}
+    assert engine.state == {
+        "premise": None,
+        "policies": {"docker": "use", "kubectl": "prohibit"},
+        "version": 2,
+    }
 
 
 def test_apply_transcript_matches_manual_step_replay() -> None:
     messages: list[dict[str, object]] = [
         {"role": "assistant", "content": "ignore me"},
-        {"role": "user", "content": "hello"},
-        {"role": "user", "content": "world"},
+        {"role": "user", "content": "set premise concise"},
+        {"role": "user", "content": "use docker"},
     ]
 
     replay_engine = create_engine()

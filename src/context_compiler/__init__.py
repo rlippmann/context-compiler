@@ -7,10 +7,8 @@ from .engine import (
     State,
     compile_transcript,
     create_engine,
-    get_focus_value,
     get_policy_items,
     get_premise_value,
-    get_prohibited_items,
 )
 
 __version__ = version("context-compiler")
@@ -22,8 +20,6 @@ __all__ = [
     "State",
     "compile_transcript",
     "create_engine",
-    "get_focus_value",
     "get_premise_value",
     "get_policy_items",
-    "get_prohibited_items",
 ]

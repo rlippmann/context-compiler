@@ -5,7 +5,7 @@ import os
 import re
 from typing import Any, TypedDict
 
-from context_compiler import Decision, State, get_focus_value, get_prohibited_items
+from context_compiler import Decision, State, get_policy_items, get_premise_value
 from demos.llm_client import Message
 
 VERBOSE_ENV_VAR = "CONTEXT_COMPILER_DEMO_VERBOSE"
@@ -178,8 +178,8 @@ def consume_last_info_report() -> InfoReport | None:
 
 
 def build_compiled_system_prompt(state: State) -> str:
-    focus_value = get_focus_value(state)
-    prohibit = get_prohibited_items(state)
+    focus_value = get_premise_value(state)
+    prohibit = get_policy_items(state, "prohibit")
     prohibit_text = ", ".join(prohibit) if prohibit else "(none)"
     focus_text = focus_value if focus_value is not None else "(unset)"
     return (

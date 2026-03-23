@@ -16,15 +16,41 @@ def _run_session(text: str) -> list[dict[str, object]]:
     return [json.loads(line) for line in lines]
 
 
-def test_repl_passthrough_flow() -> None:
-    decisions = _run_session("hello\nquit\n")
+def test_repl_update_flow() -> None:
+    decisions = _run_session("set premise concise\nquit\n")
 
-    assert decisions == [{"kind": "passthrough", "prompt_to_user": None, "state": None}]
+    assert decisions == [
+        {
+            "kind": "update",
+            "prompt_to_user": None,
+            "state": {"premise": "concise", "policies": {}, "version": 2},
+        }
+    ]
+
+
+def test_repl_clarify_flow() -> None:
+    decisions = _run_session("don't use docker\nuse kubectl instead of docker\nquit\n")
+    expected_prompt = (
+        '"docker" is currently prohibited. Did you mean to remove it and use "kubectl" instead?'
+    )
+
+    assert decisions == [
+        {
+            "kind": "update",
+            "prompt_to_user": None,
+            "state": {"premise": None, "policies": {"docker": "prohibit"}, "version": 2},
+        },
+        {
+            "kind": "clarify",
+            "prompt_to_user": expected_prompt,
+            "state": None,
+        },
+    ]
 
 
 def test_repl_exit_and_quit_terminate_session() -> None:
-    decisions_exit = _run_session("exit\nhello\n")
-    decisions_quit = _run_session("quit\nhello\n")
+    decisions_exit = _run_session("exit\nset premise concise\n")
+    decisions_quit = _run_session("quit\nset premise concise\n")
 
     assert decisions_exit == []
     assert decisions_quit == []
