@@ -8,6 +8,8 @@ from .engine import (
     compile_transcript,
     create_engine,
     get_focus_value,
+    get_policy_items,
+    get_premise_value,
     get_prohibited_items,
 )
 
@@ -21,5 +23,7 @@ __all__ = [
     "compile_transcript",
     "create_engine",
     "get_focus_value",
+    "get_premise_value",
+    "get_policy_items",
     "get_prohibited_items",
 ]

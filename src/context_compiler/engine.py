@@ -1,41 +1,28 @@
-"""Deterministic state engine for explicit user directive handling.
-
-This module provides a small, model-independent state machine that parses
-high-confidence directives and emits host decisions without invoking an LLM.
-Only explicit user directives can mutate authoritative state.
-"""
+"""Deterministic state engine for explicit user directive handling."""
 
 import json
-import re
 from copy import deepcopy
-from dataclasses import dataclass
 from enum import StrEnum
 from typing import Literal, TypedDict
-from unicodedata import normalize as unicode_normalize
 
 from .const import (
-    EVENT_CLEAR_STATE,
-    EVENT_RESET_POLICIES,
-    FOCUS_PRIMARY,
     POLICY_PROHIBIT,
-    STATE_FACTS,
+    POLICY_USE,
+    SCHEMA_VERSION,
     STATE_POLICIES,
+    STATE_PREMISE,
     STATE_VERSION,
 )
 
-FactsState = TypedDict("FactsState", {"focus.primary": str | None})
-
-
-class PoliciesState(TypedDict):
-    prohibit: list[str]
+PolicyValue = Literal["use", "prohibit"]
 
 
 class State(TypedDict):
-    """Versioned authoritative state; future versions may add new fields."""
+    """Versioned authoritative state."""
 
-    facts: FactsState
-    policies: PoliciesState
-    version: Literal[1]
+    premise: str | None
+    policies: dict[str, PolicyValue]
+    version: Literal[2]
 
 
 class DecisionKind(StrEnum):
@@ -62,138 +49,61 @@ class ApplyResultConfirm(TypedDict):
 
 ApplyResult = ApplyResultState | ApplyResultConfirm
 
-
-@dataclass(frozen=True)
-class PendingEvent:
-    kind: Literal["policy_add", "policy_remove", "fact_set", "reset_policies", "clear_state"]
-    values: tuple[str, ...] = ()
-    fact_value: str | None = None
-    requires_confirmation: bool = False
-
-
-@dataclass(frozen=True)
-class NegativeDirectiveRule:
-    starter: str
-    kind: Literal["policy_add"]
-    strip_leading_use: bool
-
-
-_RESET_POLICY = {"reset policies"}
-_CLEAR_STATE = {"clear state"}
-
-_CORRECTION_RE = re.compile(r"^\s*(actually|i meant|correction:|no,)\s*(.*?)\s*$", re.IGNORECASE)
-_POSITIVE_RE = re.compile(
-    r"^\s*(?:use|set|i\s+am\s+using|i['’]m\s+using)\s+(.+?)\s*$", re.IGNORECASE
-)
-_ALLOW_PREFIX_RE = re.compile(r"^\s*(?:allow|you\s+can)\s+(.+?)\s*$", re.IGNORECASE)
-_ALLOW_SUFFIX_RE = re.compile(r"^\s*(.+?)\s+is\s+fine\s*$", re.IGNORECASE)
-
-_AMBIGUOUS_NEGATIVE_RE = re.compile(r"^\s*(?:don\s+use|no\s+use)\s+(.+?)\s*$", re.IGNORECASE)
-_SPLIT_RE = re.compile(r",|\s+and\s+", re.IGNORECASE)
-_TRAILING_CONFIRM_PUNCT_RE = re.compile(r"[.,!?]+$")
-
-_AFFIRMATIVE_CONFIRMATIONS = {"yes", "yes please", "yep", "yeah", "sure", "ok", "okay"}
-_NEGATIVE_CONFIRMATIONS = {"no", "nope", "no thanks"}
-
 _PASSTHROUGH: Decision = {
     "kind": DecisionKind.PASSTHROUGH,
     "state": None,
     "prompt_to_user": None,
 }
 
-_NEGATIVE_DIRECTIVE_RULES: tuple[NegativeDirectiveRule, ...] = (
-    NegativeDirectiveRule(starter="please don't ", kind="policy_add", strip_leading_use=True),
-    NegativeDirectiveRule(starter="don't ", kind="policy_add", strip_leading_use=True),
-    NegativeDirectiveRule(starter="do not ", kind="policy_add", strip_leading_use=True),
-    NegativeDirectiveRule(starter="never ", kind="policy_add", strip_leading_use=True),
-)
-
 
 def create_engine(state: State | None = None) -> "Engine":
-    """Create an Engine with initial state or validated replacement state.
-
-    When ``state`` is provided, it is validated and canonicalized before use.
-    """
     return Engine(state=state)
 
 
 def compile_transcript(messages: list[dict[str, object]]) -> ApplyResult:
-    """Compile a transcript by replaying user messages through a fresh engine."""
     engine = create_engine()
     return engine.apply_transcript(messages)
 
 
+def get_premise_value(state: State) -> str | None:
+    return state[STATE_PREMISE]
+
+
 def get_focus_value(state: State) -> str | None:
-    """Return the current exclusive focus value from a state snapshot."""
-    return state[STATE_FACTS][FOCUS_PRIMARY]
+    return get_premise_value(state)
+
+
+def get_policy_items(state: State, value: PolicyValue | None = None) -> list[str]:
+    if value is None:
+        return sorted(state[STATE_POLICIES].keys())
+    return sorted(k for k, v in state[STATE_POLICIES].items() if v == value)
 
 
 def get_prohibited_items(state: State) -> list[str]:
-    """Return prohibited items from a state snapshot as a defensive list copy."""
-    return list(state[STATE_POLICIES][POLICY_PROHIBIT])
+    return get_policy_items(state, POLICY_PROHIBIT)
 
 
 class Engine:
-    """Deterministic state engine implementing directive semantics.
-
-    Design note:
-    - ``step()`` is the mutation interface for directive-driven updates.
-    - Operations like "reset policies" and "clear state" are expressed as
-      directive input to ``step()``.
-    - Host code should not rely on imperative helpers such as
-      ``reset_policies()`` or ``clear_state()``.
-    - State may be administratively replaced via constructor input and
-      ``engine.import_json(...)``.
-    """
-
     def __init__(self, state: State | None = None) -> None:
-        """Initialize engine state from defaults or a supplied state object.
-
-        Supplied state is validated and canonicalized. Initialization performs
-        full state replacement and clears pending clarification state.
-        """
         self._state: State
-        self._pending: PendingEvent | None = None
         self._pending_prompt: str | None = None
-        self._last_exclusive_fact_key: str | None = None
         self._replace_state(_initial_state() if state is None else _load_state_obj(state))
 
     @property
     def state(self) -> State:
-        """Return a defensive copy of the current authoritative in-memory state."""
         return deepcopy(self._state)
 
     def export_json(self) -> str:
-        """Serialize authoritative state for persistence or transport."""
         return json.dumps(self._state, sort_keys=True, separators=(",", ":"))
 
     def import_json(self, payload: str) -> None:
-        """Load and replace authoritative state from a JSON payload.
-
-        Payload state is validated and canonicalized. Replacement is full, and
-        pending clarification state is cleared.
-        """
         self._replace_state(_load_state_json(payload))
 
     def step(self, user_input: str) -> Decision:
-        """Process one user input and return a deterministic Decision."""
-        if self._pending is not None:
-            return self._resolve_or_reprompt_pending(user_input)
-
-        classified = self._classify(user_input)
-
-        if isinstance(classified, dict):
-            return classified
-
-        if not classified.requires_confirmation:
-            return self._apply_pending(classified)
-
-        self._pending = classified
-        self._pending_prompt = _pending_prompt(classified)
-        return _clarify(self._pending_prompt)
+        del user_input
+        return _PASSTHROUGH.copy()
 
     def apply_transcript(self, messages: list[dict[str, object]]) -> ApplyResult:
-        """Replay user messages in-order and return state or confirmation prompt."""
         for content in _iter_user_contents(messages):
             decision = self.step(content)
             if decision["kind"] == DecisionKind.CLARIFY:
@@ -203,148 +113,17 @@ class Engine:
 
         return {"kind": "state", "state": self.state}
 
-    def _classify(self, user_input: str) -> PendingEvent | Decision:
-        normalized_message = _normalize_message(user_input)
-
-        if _has_mixed_directive_families(user_input):
-            return _clarify("Your directive mixes multiple directive types. Please provide one.")
-
-        if normalized_message in _RESET_POLICY:
-            return PendingEvent(kind=EVENT_RESET_POLICIES)
-
-        if normalized_message in _CLEAR_STATE:
-            return PendingEvent(kind=EVENT_CLEAR_STATE)
-
-        correction = _parse_correction(user_input)
-        if correction is not None:
-            if self._last_exclusive_fact_key is None:
-                return _clarify_no_prior_change(correction)
-            if _correction_payload_invokes_other_directive_family(correction):
-                return _clarify("Corrections must provide a replacement value to use.")
-            if not correction.strip():
-                return _clarify_missing_value()
-            if _has_multiple_values(correction):
-                return _clarify_single_value()
-            if _invalid_exclusive_value(correction):
-                return _clarify_unclear_value()
-            return PendingEvent(kind="fact_set", fact_value=correction)
-
-        policy_add = _parse_hard_negative(normalized_message)
-        if policy_add is not None:
-            if not policy_add:
-                return _clarify("What should I prohibit?")
-            return PendingEvent(kind="policy_add", values=tuple(policy_add))
-
-        policy_remove = _parse_allow(user_input)
-        if policy_remove is not None:
-            if not policy_remove:
-                return _clarify("What should I allow?")
-            return PendingEvent(kind="policy_remove", values=tuple(policy_remove))
-
-        positive_value = _parse_hard_positive(user_input, normalized_message)
-        if positive_value is not None:
-            if not positive_value.strip():
-                return _clarify_missing_value()
-            if _has_multiple_values(positive_value):
-                return _clarify_single_value()
-            if _invalid_exclusive_value(positive_value):
-                return _clarify_unclear_value()
-            return PendingEvent(kind="fact_set", fact_value=positive_value)
-
-        pending = _parse_ambiguous_mutation(user_input)
-        if pending is not None:
-            if len(pending.values) != 1:
-                return _clarify("Your directive was unclear. Please specify one item.")
-            return PendingEvent(
-                kind=pending.kind,
-                values=pending.values,
-                fact_value=pending.fact_value,
-                requires_confirmation=True,
-            )
-
-        return _PASSTHROUGH.copy()
-
-    def _resolve_or_reprompt_pending(self, user_input: str) -> Decision:
-        assert self._pending is not None
-        pending = self._pending
-        response = _normalize_confirmation(user_input)
-
-        if response in _AFFIRMATIVE_CONFIRMATIONS:
-            self._pending = None
-            self._pending_prompt = None
-            return self._apply_pending(pending)
-
-        if response in _NEGATIVE_CONFIRMATIONS:
-            self._pending = None
-            self._pending_prompt = None
-            return _PASSTHROUGH.copy()
-
-        prompt = self._pending_prompt or "Please answer yes or no."
-        return _clarify(f"{prompt} Please answer yes or no.")
-
-    def _apply_pending(self, pending: PendingEvent) -> Decision:
-        return self._apply_event(pending)
-
-    def _apply_event(self, event: PendingEvent) -> Decision:
-        """Apply a PendingEvent to authoritative state."""
-        if event.kind == "policy_add":
-            return self._add_policies(list(event.values))
-        if event.kind == "policy_remove":
-            return self._remove_policies(list(event.values))
-        if event.kind == "fact_set":
-            assert event.fact_value is not None
-            return self._set_focus_primary(event.fact_value)
-        if event.kind == EVENT_RESET_POLICIES:
-            self._state[STATE_POLICIES][POLICY_PROHIBIT] = []
-            return _update_decision(self._state)
-
-        self._state = _initial_state()
-        self._last_exclusive_fact_key = None
-        return _update_decision(self._state)
-
     def _replace_state(self, state: State) -> None:
         self._state = state
-        self._pending = None
         self._pending_prompt = None
-        self._last_exclusive_fact_key = (
-            FOCUS_PRIMARY if state[STATE_FACTS][FOCUS_PRIMARY] is not None else None
-        )
-
-    def _set_focus_primary(self, value: str) -> Decision:
-        self._state[STATE_FACTS][FOCUS_PRIMARY] = _clean_fact_value(value)
-        self._last_exclusive_fact_key = FOCUS_PRIMARY
-        return _update_decision(self._state)
-
-    def _add_policies(self, values: list[str]) -> Decision:
-        existing = set(self._state[STATE_POLICIES][POLICY_PROHIBIT])
-        for value in values:
-            existing.add(value)
-        self._state[STATE_POLICIES][POLICY_PROHIBIT] = sorted(existing)
-        return _update_decision(self._state)
-
-    def _remove_policies(self, values: list[str]) -> Decision:
-        existing = set(self._state[STATE_POLICIES][POLICY_PROHIBIT])
-        for value in values:
-            existing.discard(value)
-        self._state[STATE_POLICIES][POLICY_PROHIBIT] = sorted(existing)
-        return _update_decision(self._state)
 
 
 def _initial_state() -> State:
     return {
-        STATE_FACTS: {FOCUS_PRIMARY: None},
-        STATE_POLICIES: {POLICY_PROHIBIT: []},
-        STATE_VERSION: 1,
+        STATE_PREMISE: None,
+        STATE_POLICIES: {},
+        STATE_VERSION: SCHEMA_VERSION,
     }
-
-
-def _load_state_json(payload: str) -> State:
-    try:
-        raw = json.loads(payload)
-    except json.JSONDecodeError as exc:
-        raise ValueError("Invalid JSON payload.") from exc
-
-    return _load_state_obj(raw)
 
 
 def _iter_user_contents(messages: list[dict[str, object]]) -> list[str]:
@@ -357,272 +136,43 @@ def _iter_user_contents(messages: list[dict[str, object]]) -> list[str]:
     return user_contents
 
 
+def _load_state_json(payload: str) -> State:
+    try:
+        raw = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise ValueError("Invalid JSON payload.") from exc
+
+    return _load_state_obj(raw)
+
+
 def _load_state_obj(raw: object) -> State:
     if not isinstance(raw, dict):
         raise ValueError("Invalid state payload.")
 
-    if set(raw.keys()) != {STATE_FACTS, STATE_POLICIES, STATE_VERSION}:
+    if set(raw.keys()) != {STATE_PREMISE, STATE_POLICIES, STATE_VERSION}:
         raise ValueError("Invalid state payload.")
 
-    if raw[STATE_VERSION] != 1:
+    if raw[STATE_VERSION] != SCHEMA_VERSION:
         raise ValueError(f"Unsupported state version: {raw[STATE_VERSION]!r}")
 
-    facts = raw[STATE_FACTS]
+    premise = raw[STATE_PREMISE]
     policies = raw[STATE_POLICIES]
-    if not isinstance(facts, dict) or not isinstance(policies, dict):
+
+    if premise is not None and not isinstance(premise, str):
         raise ValueError("Invalid state payload.")
-    if set(facts.keys()) != {FOCUS_PRIMARY} or set(policies.keys()) != {POLICY_PROHIBIT}:
+    if not isinstance(policies, dict):
         raise ValueError("Invalid state payload.")
 
-    focus_value = facts[FOCUS_PRIMARY]
-    prohibit_value = policies[POLICY_PROHIBIT]
-    if focus_value is not None and not isinstance(focus_value, str):
-        raise ValueError("Invalid state payload.")
-    if not isinstance(prohibit_value, list) or any(
-        not isinstance(item, str) for item in prohibit_value
-    ):
-        raise ValueError("Invalid state payload.")
+    normalized_policies: dict[str, PolicyValue] = {}
+    for key, value in policies.items():
+        if not isinstance(key, str):
+            raise ValueError("Invalid state payload.")
+        if value not in {POLICY_USE, POLICY_PROHIBIT}:
+            raise ValueError("Invalid state payload.")
+        normalized_policies[key] = value
 
     return {
-        STATE_FACTS: {
-            FOCUS_PRIMARY: None if focus_value is None else _clean_fact_value(focus_value)
-        },
-        STATE_POLICIES: {POLICY_PROHIBIT: sorted(set(prohibit_value))},
-        STATE_VERSION: 1,
+        STATE_PREMISE: premise,
+        STATE_POLICIES: dict(sorted(normalized_policies.items())),
+        STATE_VERSION: SCHEMA_VERSION,
     }
-
-
-def _clarify(prompt: str) -> Decision:
-    return {
-        "kind": DecisionKind.CLARIFY,
-        "state": None,
-        "prompt_to_user": prompt,
-    }
-
-
-def _clarify_missing_value() -> Decision:
-    return _clarify("What should I use?")
-
-
-def _clarify_single_value() -> Decision:
-    return _clarify("Please provide a single value to use.")
-
-
-def _clarify_unclear_value() -> Decision:
-    return _clarify("The value is unclear. Please provide a single value to use.")
-
-
-def _clarify_no_prior_change(value: str) -> Decision:
-    return _clarify(f'There\'s nothing to change from yet. Did you mean to use "{value}"?')
-
-
-def _update_decision(state: State) -> Decision:
-    return {
-        "kind": DecisionKind.UPDATE,
-        "state": deepcopy(state),
-        "prompt_to_user": None,
-    }
-
-
-def _normalize_message(text: str) -> str:
-    normalized = unicode_normalize("NFKC", text).lower().strip()
-    normalized = normalized.replace("’", "'").replace("`", "'")
-    normalized = re.sub(r"\s+", " ", normalized)
-    normalized = re.sub(r"\bdont\b", "don't", normalized)
-    return normalized
-
-
-def _normalize_confirmation(text: str) -> str:
-    normalized = _normalize_message(text)
-    normalized = _TRAILING_CONFIRM_PUNCT_RE.sub("", normalized).strip()
-    return re.sub(r"\s+", " ", normalized)
-
-
-def _clean_fact_value(value: str) -> str:
-    normalized = unicode_normalize("NFKC", value).strip()
-    normalized = normalized.replace("’", "'").replace("`", "'")
-    return re.sub(r"\s+", " ", normalized)
-
-
-def _normalize_item(text: str) -> str:
-    item = _normalize_message(text)
-    item = re.sub(r"^(?:a|an|the)\s+", "", item)
-    return item.strip()
-
-
-def _split_items(text: str) -> list[str]:
-    pieces = _SPLIT_RE.split(text)
-    values: list[str] = []
-    for piece in pieces:
-        normalized = _normalize_item(piece)
-        if normalized:
-            values.append(normalized)
-    return values
-
-
-def _has_multiple_values(text: str) -> bool:
-    pieces = _SPLIT_RE.split(text)
-    non_empty = [piece.strip() for piece in pieces if piece.strip()]
-    return len(non_empty) > 1
-
-
-def _invalid_exclusive_value(text: str) -> bool:
-    cleaned = _clean_fact_value(text)
-    lowered = cleaned.lower()
-    return (
-        lowered.startswith("and ")
-        or lowered.startswith("or ")
-        or re.search(r"\s(?:and|or)\s", cleaned, flags=re.IGNORECASE) is not None
-        or cleaned == "and"
-    )
-
-
-def _parse_correction(user_input: str) -> str | None:
-    match = _CORRECTION_RE.match(user_input)
-    if not match:
-        return None
-    return match.group(2)
-
-
-def _parse_hard_negative(normalized_message: str) -> list[str] | None:
-    msg = normalized_message
-
-    for rule in _NEGATIVE_DIRECTIVE_RULES:
-        if not msg.startswith(rule.starter):
-            continue
-
-        payload = msg[len(rule.starter) :].strip()
-        if rule.strip_leading_use:
-            payload = re.sub(r"^use(?:\s+|$)", "", payload, count=1)
-        return _split_items(payload)
-
-    return None
-
-
-def _parse_hard_positive(user_input: str, normalized_message: str) -> str | None:
-    if normalized_message == "use":
-        return ""
-
-    normalized_candidate = re.sub(r"^please\s+", "", normalized_message, count=1)
-    if not (
-        normalized_candidate.startswith("use ")
-        or normalized_candidate.startswith("set ")
-        or normalized_candidate.startswith("i am using ")
-        or normalized_candidate.startswith("i'm using ")
-    ):
-        return None
-
-    candidate = user_input.strip()
-    if re.match(r"(?i)^please\s+", candidate):
-        candidate = re.sub(r"(?i)^please\s+", "", candidate, count=1)
-
-    match = _POSITIVE_RE.match(candidate)
-    if not match:
-        return None
-    return match.group(1)
-
-
-def _parse_allow(user_input: str) -> list[str] | None:
-    match_prefix = _ALLOW_PREFIX_RE.match(user_input)
-    if match_prefix:
-        return _split_items(match_prefix.group(1))
-
-    match_suffix = _ALLOW_SUFFIX_RE.match(user_input)
-    if match_suffix:
-        return _split_items(match_suffix.group(1))
-
-    return None
-
-
-def _parse_ambiguous_mutation(user_input: str) -> PendingEvent | None:
-    match = _AMBIGUOUS_NEGATIVE_RE.match(user_input)
-    if not match:
-        return None
-
-    values = _split_items(match.group(1))
-    if values:
-        return PendingEvent(kind="policy_add", values=tuple(values))
-
-    return None
-
-
-def _correction_payload_invokes_other_directive_family(payload: str) -> bool:
-    normalized_payload = _normalize_message(payload)
-    if not normalized_payload:
-        return False
-
-    if normalized_payload in _RESET_POLICY or normalized_payload in _CLEAR_STATE:
-        return True
-    if _parse_hard_negative(
-        normalized_payload
-    ) is not None and not _looks_like_literal_fact_payload(normalized_payload):
-        return True
-    if _parse_allow(payload) is not None:
-        return True
-    if _parse_hard_positive(payload, normalized_payload) is not None:
-        return True
-    return _parse_correction(payload) is not None
-
-
-def _classify_segment_family(segment: str) -> str | None:
-    normalized_segment = _normalize_message(segment)
-    if not normalized_segment:
-        return None
-
-    if normalized_segment in _RESET_POLICY:
-        return EVENT_RESET_POLICIES
-    if normalized_segment in _CLEAR_STATE:
-        return EVENT_CLEAR_STATE
-
-    if _parse_correction(segment) is not None:
-        return "correction"
-    if _parse_hard_negative(normalized_segment) is not None:
-        return "hard_negative"
-    if _parse_allow(segment) is not None:
-        return "allow_remove"
-    if _parse_hard_positive(segment, normalized_segment) is not None:
-        return "hard_positive"
-    return None
-
-
-def _has_mixed_directive_families(user_input: str) -> bool:
-    # Split by additive delimiters and detect directives independently per segment.
-    # Mixed families in one utterance are clarified to avoid partial execution.
-    segments = [piece.strip() for piece in _SPLIT_RE.split(user_input) if piece.strip()]
-    families: set[str] = set()
-    for segment in segments:
-        family = _classify_segment_family(segment)
-        if family is not None:
-            families.add(family)
-        if len(families) > 1:
-            return True
-
-    correction_payload = _parse_correction(user_input)
-    return bool(
-        correction_payload is not None
-        and correction_payload.strip()
-        and _correction_payload_invokes_other_directive_family(correction_payload)
-    )
-
-
-def _looks_like_literal_fact_payload(normalized_payload: str) -> bool:
-    for rule in _NEGATIVE_DIRECTIVE_RULES:
-        if not normalized_payload.startswith(rule.starter):
-            continue
-
-        tail = normalized_payload[len(rule.starter) :].strip()
-        # In correction payloads, allow quoted/name-like phrases that begin
-        # with directive words but continue as literal fact text.
-        return bool(re.search(r"\s+(?:is|as)\s+", tail))
-
-    return False
-
-
-def _pending_prompt(pending: PendingEvent) -> str:
-    if pending.kind == "policy_add" and pending.values:
-        return f"Did you mean to prohibit '{pending.values[0]}'?"
-    if pending.kind == "policy_remove" and pending.values:
-        return f"Did you mean to allow '{pending.values[0]}'?"
-    if pending.kind == "fact_set" and pending.fact_value is not None:
-        return f'Did you mean to use "{pending.fact_value}"?'
-    return "Your directive was unclear. Did you mean to change state?"
