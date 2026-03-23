@@ -36,6 +36,53 @@ def _info_report() -> run_demo.InfoReport:
     }
 
 
+def test_demo_file_mapping_uses_current_0_5_demo_filenames() -> None:
+    assert run_demo.DEMO_FILES == {
+        "1": "01_llm_contradiction_clarify.py",
+        "2": "02_llm_constraint_guardrail.py",
+        "3": "03_llm_premise_guardrail.py",
+        "4": "04_llm_tool_denylist_guardrail.py",
+        "5": "05_llm_prompt_drift_vs_state.py",
+        "6": "06_llm_context_compaction.py",
+        "7": "07_llm_prompt_vs_state.py",
+    }
+
+    demos_dir = REPO_ROOT / "demos"
+    for filename in run_demo.DEMO_FILES.values():
+        assert (demos_dir / filename).is_file()
+
+
+def test_runner_dispatches_selected_demo_to_current_filename(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run(
+        path: Path,
+        *,
+        verbose: bool,
+        llm_delay: float,
+        demo_args: list[str] | None = None,
+    ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        captured["name"] = path.name
+        captured["verbose"] = verbose
+        captured["llm_delay"] = llm_delay
+        captured["demo_args"] = demo_args
+        return _demo_report(baseline_pass=True, compiler_pass=True), None
+
+    monkeypatch.setattr(run_demo, "_run", fake_run)
+    monkeypatch.setattr("sys.argv", ["run_demo", "3"])
+
+    run_demo.main()
+
+    assert captured == {
+        "name": "03_llm_premise_guardrail.py",
+        "verbose": False,
+        "llm_delay": 0,
+        "demo_args": None,
+    }
+
+
 def test_runner_prints_per_demo_compiler_regression_warning(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

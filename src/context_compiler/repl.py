@@ -19,12 +19,18 @@ def _is_interactive(in_stream: TextIO, out_stream: TextIO) -> bool:
 
 def _print_interactive_help(out_stream: TextIO) -> None:
     print("Commands: help/? exit/quit", file=out_stream)
-    print("Examples:", file=out_stream)
-    print("  set premise concise replies", file=out_stream)
-    print("  don't use docker", file=out_stream)
+    print("Directives (exact prefix only):", file=out_stream)
+    print("  set premise <value>", file=out_stream)
+    print("  change premise to <value>", file=out_stream)
+    print("  use <item>", file=out_stream)
+    print("  don't use <item>", file=out_stream)
+    print("  use <new item> instead of <old item>", file=out_stream)
     print("  clear premise", file=out_stream)
     print("  reset policies", file=out_stream)
     print("  clear state", file=out_stream)
+    print("Only question prompts accept yes/no confirmations", file=out_stream)
+    print("Other clarify prompts are errors and do not accept yes/no", file=out_stream)
+    print('State schema: {"premise": ..., "policies": ..., "version": 2}', file=out_stream)
 
 
 def _print_interactive_decision(decision: Decision, out_stream: TextIO) -> None:
@@ -34,7 +40,10 @@ def _print_interactive_decision(decision: Decision, out_stream: TextIO) -> None:
         return
     if kind == "clarify":
         prompt = decision["prompt_to_user"] or ""
-        print(f"clarify: {prompt}", file=out_stream)
+        if prompt.endswith("?"):
+            print(f"confirm: {prompt}", file=out_stream)
+        else:
+            print(f"error: {prompt}", file=out_stream)
         return
 
     print("updated", file=out_stream)
@@ -48,7 +57,8 @@ def run_repl(in_stream: TextIO, out_stream: TextIO) -> None:
     engine = create_engine()
 
     if _is_interactive(in_stream, out_stream):
-        print("Context Compiler REPL. Type help for commands.", file=out_stream)
+        print("Context Compiler REPL (0.5). Type help for commands.", file=out_stream)
+        print("Non-directive input is passthrough.", file=out_stream)
 
         while True:
             line = in_stream.readline()
@@ -76,7 +86,7 @@ def run_repl(in_stream: TextIO, out_stream: TextIO) -> None:
         print(format_decision(decision), file=out_stream)
 
 
-def main() -> int:
+def main() -> int:  # pragma: no cover
     run_repl(sys.stdin, sys.stdout)
     return 0
 
