@@ -11,7 +11,7 @@ def build_prompt(state: State, user_input: str) -> str:
     return (
         "System: Follow authoritative conversation state.\n"
         "Compiled context:\n"
-        f"- policies.prohibit: {prohibit_text}\n"
+        f"- prohibited policy items: {prohibit_text}\n"
         f"User: {user_input}"
     )
 

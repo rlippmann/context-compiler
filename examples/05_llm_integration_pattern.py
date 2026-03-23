@@ -34,9 +34,10 @@ def main() -> None:
     engine = create_engine()
 
     handle_turn("hello there", engine)
+    handle_turn("set premise concise replies", engine)
     handle_turn("don't use peanuts", engine)
-    handle_turn("no use shellfish", engine)
-    handle_turn("yes", engine)
+    handle_turn("use peanuts", engine)
+    handle_turn("clear state", engine)
 
 
 if __name__ == "__main__":

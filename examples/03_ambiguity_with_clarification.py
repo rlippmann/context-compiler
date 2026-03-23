@@ -1,4 +1,4 @@
-"""Example 3: ambiguous directive flow with clarification handling."""
+"""Example 3: contradiction clarify flow with host-side blocking."""
 
 from _util import print_json
 
@@ -13,24 +13,30 @@ def fake_llm(user_input: str) -> str:
 def main() -> None:
     engine = create_engine()
 
-    print("User: no use peanuts")
-    decision1 = engine.step("no use peanuts")
+    print("User: don't use peanuts")
+    decision1 = engine.step("don't use peanuts")
     print("Decision:")
     print_json(decision1)
     print()
 
-    if decision1["kind"] == "clarify":
-        print("Host behavior: clarification pending, do NOT call LLM.")
-        print(f"Prompt to user: {decision1['prompt_to_user']}")
-    else:
-        fake_llm("no use peanuts")
-    print()
-
-    print("User: yes")
-    decision2 = engine.step("yes")
+    print("User: use peanuts")
+    decision2 = engine.step("use peanuts")
     print("Decision:")
     print_json(decision2)
-    print("State after clarification acceptance:")
+    print()
+
+    if decision2["kind"] == "clarify":
+        print("Host behavior: clarification pending, do NOT call LLM.")
+        print(f"Prompt to user: {decision2['prompt_to_user']}")
+    else:
+        fake_llm("use peanuts")
+    print()
+
+    print("User: clear state")
+    decision3 = engine.step("clear state")
+    print("Decision:")
+    print_json(decision3)
+    print("State after explicit reset:")
     print_json(engine.state)
 
 

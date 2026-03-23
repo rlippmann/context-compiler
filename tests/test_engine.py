@@ -90,6 +90,22 @@ def test_import_json_invalid_json_and_unsupported_version_are_rejected() -> None
         )
 
 
+def test_import_json_rejects_non_object_payload() -> None:
+    engine = create_engine()
+    with pytest.raises(ValueError, match="Invalid state payload"):
+        engine.import_json('["not", "an", "object"]')
+
+
+def test_import_json_rejects_non_string_policy_keys() -> None:
+    payload = {
+        "premise": None,
+        "policies": {1: "use"},
+        "version": 2,
+    }
+    with pytest.raises(ValueError, match="Invalid state payload"):
+        create_engine(state=payload)  # type: ignore[arg-type]
+
+
 @pytest.mark.parametrize(
     "payload",
     [

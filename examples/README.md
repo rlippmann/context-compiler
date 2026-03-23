@@ -9,13 +9,13 @@ Shows the host using compiled state to keep constraints active.
 
 ## 02_configuration_and_correction.py
 
-Demonstrates deterministic fact replacement with explicit correction.  
-Shows last-write-wins behavior for `facts.focus.primary`.
+Demonstrates explicit premise lifecycle in 0.5.  
+Shows `set premise ...` followed by `change premise to ...`.
 
 ## 03_ambiguity_with_clarification.py
 
-Demonstrates ambiguity detection before state mutation.  
-Shows how the host handles `Decision.kind == "clarify"` and resumes after confirmation.
+Demonstrates contradiction clarify behavior before state mutation.  
+Shows how the host handles `Decision.kind == "clarify"` and blocks LLM calls.
 
 ## 04_tool_governance_denylist.py
 
