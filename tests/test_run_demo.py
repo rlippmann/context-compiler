@@ -306,7 +306,7 @@ def test_single_scored_demo_without_mediated_regression_exits_zero(
 def test_compaction_demo_reports_sane_metrics() -> None:
     consume_last_info_report()
 
-    demo_path = Path(__file__).resolve().parents[1] / "demos" / "06_context_compaction.py"
+    demo_path = Path(__file__).resolve().parents[1] / "demos" / "06_llm_context_compaction.py"
     runpy.run_path(str(demo_path), run_name="__main__")
 
     report = consume_last_info_report()

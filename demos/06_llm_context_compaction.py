@@ -4,7 +4,7 @@ from context_compiler import compile_transcript, get_premise_value
 from demos.common import is_verbose, print_info_report
 
 DEMO_NAME = "06_context_compaction — superseded directives eliminated"
-FINAL_FOCUS = "chickpea curry"
+FINAL_PREMISE = "chickpea curry"
 SCALING_TURNS = (5, 20, 50)
 
 
@@ -18,11 +18,11 @@ def _build_baseline_prompt(transcript_turns: list[str]) -> str:
     )
 
 
-def _build_compiled_prompt(compiled_focus: str) -> str:
+def _build_compiled_prompt(compiled_premise: str) -> str:
     return (
         "You are a helpful assistant.\n"
         "Host-side authoritative compiled context:\n"
-        f"- facts.focus.primary: {compiled_focus}\n"
+        f"- premise: {compiled_premise}\n"
         "Use only this compiled state as the active context."
     )
 
@@ -31,21 +31,21 @@ def _build_turns(turn_count: int) -> list[str]:
     if turn_count < 2:
         raise ValueError("turn_count must be at least 2")
     variants = ["vegan", "tofu", "lentil", "vegetarian"]
-    turns = ["use vegetarian curry"]
+    turns = ["set premise vegetarian curry"]
     for index in range(turn_count - 2):
         variant = variants[index % len(variants)]
-        turns.append(f"actually {variant} curry")
-    turns.append(f"actually {FINAL_FOCUS}")
+        turns.append(f"change premise to {variant} curry")
+    turns.append(f"change premise to {FINAL_PREMISE}")
     return turns
 
 
-def _compile_focus(turns: list[str]) -> str:
+def _compile_premise(turns: list[str]) -> str:
     messages: list[dict[str, object]] = [{"role": "user", "content": turn} for turn in turns]
     result = compile_transcript(messages)
     assert result["kind"] == "state"
-    compiled_focus = get_premise_value(result["state"])
-    assert compiled_focus is not None
-    return compiled_focus
+    compiled_premise = get_premise_value(result["state"])
+    assert compiled_premise is not None
+    return compiled_premise
 
 
 def _context_metrics(turns: list[str], compiled_context: str) -> tuple[int, int, int]:
@@ -116,12 +116,12 @@ def _print_compact_report(
 
 def main() -> None:
     transcript_turns = _build_turns(5)
-    compiled_focus = _compile_focus(transcript_turns)
-    assert compiled_focus == FINAL_FOCUS
+    compiled_premise = _compile_premise(transcript_turns)
+    assert compiled_premise == FINAL_PREMISE
     baseline_context = "\n".join(f"User: {turn}" for turn in transcript_turns)
-    compiled_context = f"- facts.focus.primary: {compiled_focus}"
+    compiled_context = f"- premise: {compiled_premise}"
     baseline_prompt = _build_baseline_prompt(transcript_turns)
-    compiled_prompt = _build_compiled_prompt(compiled_focus)
+    compiled_prompt = _build_compiled_prompt(compiled_premise)
     baseline_context_length = len(baseline_context)
     compiled_context_length = len(compiled_context)
     context_reduction = round((1 - (compiled_context_length / baseline_context_length)) * 100)
@@ -131,8 +131,8 @@ def main() -> None:
     scaling_rows: list[tuple[int, int, int, int]] = []
     for turns in SCALING_TURNS:
         scaling_turns = _build_turns(turns)
-        scaling_focus = _compile_focus(scaling_turns)
-        assert scaling_focus == FINAL_FOCUS
+        scaling_premise = _compile_premise(scaling_turns)
+        assert scaling_premise == FINAL_PREMISE
         row_baseline_length, row_compiled_length, row_reduction = _context_metrics(
             scaling_turns, compiled_context
         )

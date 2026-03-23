@@ -20,13 +20,13 @@ from demos.llm_client import (
 )
 
 DEMO_FILES: dict[str, str] = {
-    "1": "01_llm_ambiguity_block.py",
-    "2": "02_llm_constraint_drift.py",
-    "3": "03_llm_correction_replacement.py",
-    "4": "04_llm_tool_governance.py",
-    "5": "05_llm_prompt_drift.py",
-    "6": "06_context_compaction.py",
-    "7": "07_llm_prompt_engineering_comparison.py",
+    "1": "01_llm_contradiction_clarify.py",
+    "2": "02_llm_constraint_guardrail.py",
+    "3": "03_llm_premise_guardrail.py",
+    "4": "04_llm_tool_denylist_guardrail.py",
+    "5": "05_llm_prompt_drift_vs_state.py",
+    "6": "06_llm_context_compaction.py",
+    "7": "07_llm_prompt_vs_state.py",
 }
 
 SCORED_DEMOS = {"1", "2", "3", "4", "5", "7"}

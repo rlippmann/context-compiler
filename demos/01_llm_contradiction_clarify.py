@@ -1,4 +1,4 @@
-"""Demo 1: compiler blocks ambiguous directives before model call."""
+"""Demo 1: compiler blocks contradictory directives before model call."""
 
 from context_compiler import create_engine
 from demos.common import (
@@ -18,16 +18,19 @@ from demos.llm_client import Message, complete_messages
 
 def main() -> None:
     engine = create_engine()
-    user_inputs = ["no use peanuts"]
+    user_inputs = ["don't use peanuts", "use peanuts"]
     print_user_inputs(user_inputs)
 
-    decision = engine.step(user_inputs[0])
-    print_decision("turn 1", decision, engine.state)
+    first = engine.step(user_inputs[0])
+    print_decision("turn 1", first, engine.state)
+    second = engine.step(user_inputs[1])
+    print_decision("turn 2", second, engine.state)
 
     baseline_messages = build_baseline_messages(
         [
             (
-                "Interpret this directive and continue anyway: no use peanuts. "
+                "Interpret these directives and continue anyway: "
+                "don't use peanuts, then use peanuts. "
                 "First line must be ACTION:<clarify|proceed>."
             )
         ],
@@ -40,14 +43,14 @@ def main() -> None:
     baseline_output = complete_messages(baseline_messages)
     print_model_output("Baseline", baseline_output)
 
-    if decision["kind"] == "clarify":
+    if second["kind"] == "clarify":
         print_messages("compiler-mediated", [])
         mediated_output = (
-            f"[no call] clarification required: {decision['prompt_to_user']}\nACTION:clarify"
+            f"[no call] clarification required: {second['prompt_to_user']}\nACTION:clarify"
         )
         print_model_output("Compiler-mediated", mediated_output)
     else:
-        mediated_messages: list[Message] = [{"role": "user", "content": user_inputs[0]}]
+        mediated_messages: list[Message] = [{"role": "user", "content": user_inputs[1]}]
         print_messages("compiler-mediated", mediated_messages)
         mediated_output = complete_messages(mediated_messages)
         print_model_output("Compiler-mediated", mediated_output)
@@ -55,7 +58,7 @@ def main() -> None:
     print_tag_comparison("ACTION", baseline_output, mediated_output)
     baseline_action = extract_tag_value(baseline_output, "ACTION")
     baseline_respects = baseline_action is not None and baseline_action.lower() == "clarify"
-    compiler_host_blocked = decision["kind"] == "clarify"
+    compiler_host_blocked = second["kind"] == "clarify"
     mediated_respects = compiler_host_blocked
     print_host_check(
         "COMPILER_BLOCKED_LLM",
@@ -63,12 +66,12 @@ def main() -> None:
         context="compiler-mediated",
     )
     print_spec_report(
-        test_name="01_ambiguity_block — host clarification gate",
+        test_name="01_contradiction_block — host clarification gate",
         baseline_pass=baseline_respects,
         compiler_pass=mediated_respects,
-        expected="host should block LLM call on ambiguous directive until clarification",
+        expected="host should block LLM call on contradictory directive until clarification",
         actual=(
-            "baseline answered instead of clarifying; compiler-mediated blocked the LLM call"
+            "baseline proceeded instead of clarifying; compiler-mediated blocked the LLM call"
             if mediated_respects and not baseline_respects
             else (
                 "baseline also signaled clarification; compiler-mediated blocked the LLM call"
@@ -77,8 +80,8 @@ def main() -> None:
             )
         ),
         passed=mediated_respects,
-        result_pass="ambiguous directive blocked until clarification",
-        result_fail="ambiguous directive not blocked until clarification",
+        result_pass="contradictory directive blocked until clarification",
+        result_fail="contradictory directive not blocked until clarification",
     )
 
 

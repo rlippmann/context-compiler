@@ -31,9 +31,11 @@ _NON_VEG_RE = re.compile(
 )
 _NEGATION_RE = re.compile(r"\b(no|without|avoid|exclude|instead of)\b", flags=re.IGNORECASE)
 
-_ORIGINAL_DIRECTIVE = "use vegetarian curry"
+_ORIGINAL_DIRECTIVE = "set premise vegetarian curry"
+EXPECTED_PREMISE = "vegetarian curry"
 _FINAL_PROMPT = (
-    "Now give me a dinner plan. First line must be DINNER_STYLE:<vegetarian|non-vegetarian>."
+    "Now give me a dinner plan. First line must be PREMISE:<value>. "
+    "Keep the plan consistent with that premise."
 )
 _DISTRACTOR_TOPICS = [
     "travel photography",
@@ -184,6 +186,13 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return args
 
 
+def premise_matches_expected(output: str, expected: str = EXPECTED_PREMISE) -> bool:
+    premise = extract_tag_value(output, "PREMISE")
+    if premise is None:
+        return False
+    return premise.strip().lower() == expected.strip().lower()
+
+
 def _run_demo(turns: int = _DEFAULT_TURNS) -> None:
     engine = create_engine()
     user_inputs = build_user_inputs(turns)
@@ -209,49 +218,57 @@ def _run_demo(turns: int = _DEFAULT_TURNS) -> None:
     print_messages("compiler-mediated", mediated_messages)
     mediated_output = complete_messages(mediated_messages)
     print_model_output("Compiler-mediated", mediated_output)
-    print_tag_comparison("DINNER_STYLE", baseline_output, mediated_output)
-    baseline_style = extract_tag_value(baseline_output, "DINNER_STYLE")
-    mediated_style = extract_tag_value(mediated_output, "DINNER_STYLE")
+    print_tag_comparison("PREMISE", baseline_output, mediated_output)
+    baseline_premise = extract_tag_value(baseline_output, "PREMISE")
+    mediated_premise = extract_tag_value(mediated_output, "PREMISE")
+    baseline_matches = premise_matches_expected(baseline_output)
+    mediated_matches = premise_matches_expected(mediated_output)
     baseline_non_veg = plan_includes_non_vegetarian_item(baseline_output)
     mediated_non_veg = plan_includes_non_vegetarian_item(mediated_output)
-    baseline_respects = not baseline_non_veg
-    mediated_respects = not mediated_non_veg
+    baseline_respects = baseline_matches and not baseline_non_veg
+    mediated_respects = mediated_matches and not mediated_non_veg
     print_host_check(
-        "PLAN_INCLUDES_NON_VEGETARIAN",
-        f"{yes_no(baseline_non_veg)}, dinner_style_tag={baseline_style or 'MISSING'}",
+        "PREMISE_AND_PLAN",
+        (
+            f"premise_tag={baseline_premise or 'MISSING'}, "
+            f"premise_matches_expected={yes_no(baseline_matches)}, "
+            f"plan_includes_non_vegetarian={yes_no(baseline_non_veg)}"
+        ),
         context="baseline",
     )
     print_host_check(
-        "PLAN_INCLUDES_NON_VEGETARIAN",
-        f"{yes_no(mediated_non_veg)}, dinner_style_tag={mediated_style or 'MISSING'}",
+        "PREMISE_AND_PLAN",
+        (
+            f"premise_tag={mediated_premise or 'MISSING'}, "
+            f"premise_matches_expected={yes_no(mediated_matches)}, "
+            f"plan_includes_non_vegetarian={yes_no(mediated_non_veg)}"
+        ),
         context="compiler-mediated",
     )
     print_spec_report(
-        test_name="05_prompt_drift — preserve key dietary constraint",
+        test_name="05_prompt_drift — preserve premise across long transcript",
         baseline_pass=baseline_respects,
         compiler_pass=mediated_respects,
         expected=(
-            "compiler-mediated should preserve the vegetarian constraint in the final dinner plan"
+            "compiler-mediated should preserve the authoritative premise "
+            "and keep the plan consistent"
         ),
         actual=(
-            "baseline included non-vegetarian items; compiler-mediated kept the plan vegetarian"
-            if mediated_respects and baseline_non_veg
+            "baseline drifted from premise; compiler-mediated preserved premise-consistent plan"
+            if mediated_respects and not baseline_respects
             else (
-                "baseline and compiler-mediated both kept the dinner plan vegetarian"
-                if not baseline_non_veg and mediated_respects
+                "baseline and compiler-mediated both preserved premise-consistent plan"
+                if baseline_respects and mediated_respects
                 else (
-                    "baseline and compiler-mediated both included non-vegetarian items"
-                    if baseline_non_veg and not mediated_respects
-                    else (
-                        "baseline stayed vegetarian but "
-                        "compiler-mediated introduced non-vegetarian items"
-                    )
+                    "baseline and compiler-mediated both failed premise consistency"
+                    if not baseline_respects and not mediated_respects
+                    else "baseline preserved premise consistency but compiler-mediated did not"
                 )
             )
         ),
         passed=mediated_respects,
-        result_pass="vegetarian constraint preserved",
-        result_fail="vegetarian constraint not preserved",
+        result_pass="premise consistency preserved",
+        result_fail="premise consistency not preserved",
     )
 
 

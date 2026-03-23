@@ -1,4 +1,4 @@
-"""Example 4: host-side tool governance using policies.prohibit denylist."""
+"""Example 4: host-side tool governance using prohibit policy items."""
 
 from dataclasses import dataclass
 

@@ -20,28 +20,28 @@ def _load_demo_module(filename: str) -> ModuleType:
 
 
 def test_selected_tool_prefers_tool_tag() -> None:
-    module = _load_demo_module("04_llm_tool_governance.py")
+    module = _load_demo_module("04_llm_tool_denylist_guardrail.py")
     output = "TOOL:kubectl\nACTION:Use kubectl apply."
 
     assert module.selected_tool(output) == "kubectl"
 
 
 def test_selected_tool_falls_back_to_action_line() -> None:
-    module = _load_demo_module("04_llm_tool_governance.py")
+    module = _load_demo_module("04_llm_tool_denylist_guardrail.py")
     output = "- Recommended: choose docker for this deployment."
 
     assert module.selected_tool(output) == "docker"
 
 
 def test_selected_tool_uses_regex_fallback_after_unknown_tag() -> None:
-    module = _load_demo_module("04_llm_tool_governance.py")
+    module = _load_demo_module("04_llm_tool_denylist_guardrail.py")
     output = "TOOL:helm\ntool : kubectl"
 
     assert module.selected_tool(output) == "kubectl"
 
 
 def test_selected_tool_returns_none_for_unknown_or_missing_tool() -> None:
-    module = _load_demo_module("04_llm_tool_governance.py")
+    module = _load_demo_module("04_llm_tool_denylist_guardrail.py")
     unknown_tag = "TOOL:helm\nACTION:Use helm install."
     missing_tool = "ACTION:Use terraform apply."
 

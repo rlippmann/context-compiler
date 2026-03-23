@@ -10,8 +10,8 @@ def main() -> None:
         {"role": "system", "content": "System prompt"},
         {"role": "user", "content": "don't use peanuts"},
         {"role": "assistant", "content": "Understood"},
-        {"role": "user", "content": "use vegetarian curry"},
-        {"role": "user", "content": "actually vegan curry"},
+        {"role": "user", "content": "set premise vegetarian curry"},
+        {"role": "user", "content": "change premise to vegan curry"},
     ]
 
     print("Replay from fresh engine (compile_transcript):")

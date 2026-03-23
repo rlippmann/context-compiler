@@ -18,13 +18,13 @@ from demos.common import (
 from demos.llm_client import Message, complete_messages
 
 DEMO_NAME = "07_prompt_engineering_comparison — prompt engineering + authoritative state"
-EXPECTED_FOCUS = "vegan curry"
+EXPECTED_PREMISE = "vegan curry"
 FINAL_REQUEST = (
-    "Give me a dinner plan. First line must be FOCUS_PRIMARY:<value>. "
-    "Use the current selected focus and then provide a short shopping list."
+    "Give me a dinner plan. First line must be PREMISE:<value>. "
+    "Use the current premise and then provide a short shopping list."
 )
 USER_INPUTS = [
-    "use vegan curry",
+    "set premise vegan curry",
     "Side note: I am planning a train trip and need camera advice later.",
     "My coworkers mentioned chicken tikka and shrimp pasta in a brainstorm.",
     "We also discussed weather apps and museum tickets for the weekend.",
@@ -38,12 +38,12 @@ USER_INPUTS = [
 WEAK_SYSTEM_PROMPT = "Be a helpful assistant."
 STRONG_PROMPT_ENGINEERING_TEXT = (
     "You are a careful assistant.\n"
-    "Task: determine the user's current focus for this thread and answer the final request.\n"
+    "Task: determine the user's current premise for this thread and answer the final request.\n"
     "Rules:\n"
     "1) Prioritize explicit user directives over brainstorm noise and side notes.\n"
-    "2) Keep the selected focus consistent across the response.\n"
-    "3) If multiple ideas appear, use the current selected focus instead of popularity.\n"
-    "4) First line must be exactly FOCUS_PRIMARY:<value>."
+    "2) Keep the selected premise consistent across the response.\n"
+    "3) If multiple ideas appear, use the current selected premise instead of popularity.\n"
+    "4) First line must be exactly PREMISE:<value>."
 )
 _WHITESPACE_RE = re.compile(r"\s+")
 
@@ -52,11 +52,11 @@ def _normalize_text(value: str) -> str:
     return _WHITESPACE_RE.sub(" ", value.strip().lower())
 
 
-def focus_matches_expected(output: str, expected_focus: str = EXPECTED_FOCUS) -> bool:
-    focus = extract_tag_value(output, "FOCUS_PRIMARY")
-    if focus is None:
+def premise_matches_expected(output: str, expected_premise: str = EXPECTED_PREMISE) -> bool:
+    premise = extract_tag_value(output, "PREMISE")
+    if premise is None:
         return False
-    return _normalize_text(focus) == _normalize_text(expected_focus)
+    return _normalize_text(premise) == _normalize_text(expected_premise)
 
 
 def build_weak_messages(user_inputs: list[str]) -> list[Message]:
@@ -79,19 +79,19 @@ def build_compiler_messages(state: State, user_inputs: list[str]) -> list[Messag
 def _actual_summary(*, weak_pass: bool, strong_pass: bool, compiler_pass: bool) -> str:
     if not weak_pass and strong_pass and compiler_pass:
         return (
-            "basic prompting drifted, better prompting held the focus, and "
-            "prompting plus compiled state also held the focus"
+            "basic prompting drifted, better prompting held the premise, and "
+            "prompting plus compiled state also held the premise"
         )
     if weak_pass and strong_pass and compiler_pass:
-        return "all three paths held the focus in this run"
+        return "all three paths held the premise in this run"
     if not strong_pass and compiler_pass:
         return (
-            "better prompting alone drifted on focus, but prompting plus "
-            "compiled state held the authoritative focus"
+            "better prompting alone drifted on premise, but prompting plus "
+            "compiled state held the authoritative premise"
         )
     if strong_pass and not compiler_pass:
-        return "better prompting held focus, but prompting plus compiled state did not"
-    return "focus handling was inconsistent across paths"
+        return "better prompting held premise, but prompting plus compiled state did not"
+    return "premise handling was inconsistent across paths"
 
 
 def main() -> None:
@@ -117,12 +117,12 @@ def main() -> None:
     compiler_output = complete_messages(compiler_messages)
     print_model_output("Compiler-mediated", compiler_output)
 
-    weak_focus = extract_tag_value(weak_output, "FOCUS_PRIMARY")
-    strong_focus = extract_tag_value(strong_output, "FOCUS_PRIMARY")
-    compiler_focus = extract_tag_value(compiler_output, "FOCUS_PRIMARY")
-    weak_pass = focus_matches_expected(weak_output)
-    strong_pass = focus_matches_expected(strong_output)
-    compiler_pass = focus_matches_expected(compiler_output)
+    weak_premise = extract_tag_value(weak_output, "PREMISE")
+    strong_premise = extract_tag_value(strong_output, "PREMISE")
+    compiler_premise = extract_tag_value(compiler_output, "PREMISE")
+    weak_pass = premise_matches_expected(weak_output)
+    strong_pass = premise_matches_expected(strong_output)
+    compiler_pass = premise_matches_expected(compiler_output)
 
     compiled_prefix = build_compiled_system_prompt(engine.state)
     shared_prompt_text = compiler_messages[0]["content"].endswith(STRONG_PROMPT_ENGINEERING_TEXT)
@@ -132,18 +132,18 @@ def main() -> None:
         == f"{compiled_prefix}\n{STRONG_PROMPT_ENGINEERING_TEXT}"
     )
     print_host_check(
-        "WEAK_MATCHES_EXPECTED_FOCUS",
-        f"{yes_no(weak_pass)}, focus_tag={weak_focus or 'MISSING'}",
+        "WEAK_MATCHES_EXPECTED_PREMISE",
+        f"{yes_no(weak_pass)}, premise_tag={weak_premise or 'MISSING'}",
         context="weak-baseline",
     )
     print_host_check(
-        "STRONG_MATCHES_EXPECTED_FOCUS",
-        f"{yes_no(strong_pass)}, focus_tag={strong_focus or 'MISSING'}",
+        "STRONG_MATCHES_EXPECTED_PREMISE",
+        f"{yes_no(strong_pass)}, premise_tag={strong_premise or 'MISSING'}",
         context="strong-baseline",
     )
     print_host_check(
-        "COMPILER_MATCHES_EXPECTED_FOCUS",
-        f"{yes_no(compiler_pass)}, focus_tag={compiler_focus or 'MISSING'}",
+        "COMPILER_MATCHES_EXPECTED_PREMISE",
+        f"{yes_no(compiler_pass)}, premise_tag={compiler_premise or 'MISSING'}",
         context="compiler-mediated",
     )
     print_host_check(

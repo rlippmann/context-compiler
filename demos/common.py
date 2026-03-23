@@ -178,14 +178,17 @@ def consume_last_info_report() -> InfoReport | None:
 
 
 def build_compiled_system_prompt(state: State) -> str:
-    focus_value = get_premise_value(state)
+    premise_value = get_premise_value(state)
+    use_items = get_policy_items(state, "use")
     prohibit = get_policy_items(state, "prohibit")
     prohibit_text = ", ".join(prohibit) if prohibit else "(none)"
-    focus_text = focus_value if focus_value is not None else "(unset)"
+    use_text = ", ".join(use_items) if use_items else "(none)"
+    premise_text = premise_value if premise_value is not None else "(unset)"
     return (
         "Follow authoritative compiled state exactly.\n"
-        f"- facts.focus.primary: {focus_text}\n"
-        f"- policies.prohibit: {prohibit_text}\n"
+        f"- premise: {premise_text}\n"
+        f"- use policy items: {use_text}\n"
+        f"- prohibited policy items: {prohibit_text}\n"
         "Compiled state overrides transcript drift and conflicts. "
         "Do not violate prohibited items."
     )

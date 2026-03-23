@@ -11,13 +11,13 @@ behavior is easy to see.
 
 | Demo | Behavior | Concept | Most visible with |
 | :--: | --- | :--: | --- |
-| [01](./01_llm_ambiguity_block.py) | Ambiguous directive blocking | clarification gate | small instruct models |
-| [02](./02_llm_constraint_drift.py) | Constraint drift | persistent policy enforcement | small or quantized models |
-| [03](./03_llm_correction_replacement.py) | Correction replacement | exclusive fact semantics | models that summarize conversation |
-| [04](./04_llm_tool_governance.py) | Tool governance | host-side denylist | general assistant models |
-| [05](./05_llm_prompt_drift.py) | Prompt drift | long transcript failure | weaker long-context models ([see Demo 5 note](#demo-5-stress-ladder-turns)) |
-| [06](./06_context_compaction.py) | Context compaction | compiled state replacing transcript | small or local models |
-| [07](./07_llm_prompt_engineering_comparison.py) | Prompt engineering comparison | prompting vs compiled state | any model with long transcript sensitivity |
+| [01](./01_llm_contradiction_clarify.py) | Contradiction blocking | clarification gate | small instruct models |
+| [02](./02_llm_constraint_guardrail.py) | Constraint drift | persistent policy enforcement | small or quantized models |
+| [03](./03_llm_premise_guardrail.py) | Premise update drift | deterministic premise updates | models that summarize conversation |
+| [04](./04_llm_tool_denylist_guardrail.py) | Tool governance | host-side denylist | general assistant models |
+| [05](./05_llm_prompt_drift_vs_state.py) | Prompt drift | long transcript failure | weaker long-context models ([see Demo 5 note](#demo-5-stress-ladder-turns)) |
+| [06](./06_llm_context_compaction.py) | Context compaction | compiled state replacing transcript | small or local models |
+| [07](./07_llm_prompt_vs_state.py) | Prompt engineering comparison | prompting vs compiled state | any model with long transcript sensitivity |
 
 Stronger frontier models may show these behaviors less often, but the same
 patterns still appear in real applications.
@@ -103,7 +103,7 @@ Running against a local OpenAI-compatible endpoint avoids provider rate limits.
   - expected behavior
   - actual outcome
   - `result: ...` (short deterministic description)
-  - for `06_context_compaction`:
+  - for `06_llm_context_compaction`:
     - `context: <baseline> → <compiled> chars`
     - `prompt: <baseline> → <compiled> chars`
     - `reduction: context <pct>%; prompt <pct>%`
@@ -111,14 +111,14 @@ Running against a local OpenAI-compatible endpoint avoids provider rate limits.
   - when running `all`:
     - blank line between demos
     - final summary with evaluative totals
-    - informational summary line for `06_context_compaction` (non-scored)
+    - informational summary line for `06_llm_context_compaction` (non-scored)
 - `Verbose (--verbose)`:
   - user inputs
   - compiler decisions and compiled state
   - prompts/messages sent to the LLM
   - output excerpts
   - host checks and final verdict
-  - for `06_context_compaction`, also:
+  - for `06_llm_context_compaction`, also:
     - raw transcript context
     - compiled context
     - baseline and compiled prompts
@@ -133,11 +133,11 @@ Longer runs are strict prefix extensions of shorter runs.
 Direct demo invocation:
 
 ```bash
-uv run python demos/05_llm_prompt_drift.py --turns 10
-uv run python demos/05_llm_prompt_drift.py --turns 30
-uv run python demos/05_llm_prompt_drift.py --turns 60
-uv run python demos/05_llm_prompt_drift.py --turns 120
-uv run python demos/05_llm_prompt_drift.py --turns 240
+uv run python demos/05_llm_prompt_drift_vs_state.py --turns 10
+uv run python demos/05_llm_prompt_drift_vs_state.py --turns 30
+uv run python demos/05_llm_prompt_drift_vs_state.py --turns 60
+uv run python demos/05_llm_prompt_drift_vs_state.py --turns 120
+uv run python demos/05_llm_prompt_drift_vs_state.py --turns 240
 ```
 
 Add `--llm-delay 1.25` if your provider throttles requests.
