@@ -20,10 +20,9 @@ def _is_interactive(in_stream: TextIO, out_stream: TextIO) -> bool:
 def _print_interactive_help(out_stream: TextIO) -> None:
     print("Commands: help/? exit/quit", file=out_stream)
     print("Examples:", file=out_stream)
-    print("  use chamber ensemble", file=out_stream)
-    print("  don't use passive voice", file=out_stream)
-    print("  allow contractions", file=out_stream)
-    print("  actually piano reduction", file=out_stream)
+    print("  set premise concise replies", file=out_stream)
+    print("  don't use docker", file=out_stream)
+    print("  clear premise", file=out_stream)
     print("  reset policies", file=out_stream)
     print("  clear state", file=out_stream)
 
@@ -41,11 +40,8 @@ def _print_interactive_decision(decision: Decision, out_stream: TextIO) -> None:
     print("updated", file=out_stream)
     state = decision["state"]
     assert state is not None
-    focus_primary = state["facts"]["focus.primary"]
-    prohibit = state["policies"]["prohibit"]
     print("state:", file=out_stream)
-    print(f"  focus.primary: {json.dumps(focus_primary)}", file=out_stream)
-    print(f"  prohibit: {json.dumps(prohibit)}", file=out_stream)
+    print(json.dumps(state, sort_keys=True), file=out_stream)
 
 
 def run_repl(in_stream: TextIO, out_stream: TextIO) -> None:

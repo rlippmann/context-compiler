@@ -1,10 +1,8 @@
-import re
-
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from context_compiler import create_engine
-from context_compiler.engine import State, _has_multiple_values, _split_items
+from context_compiler.engine import State
 
 
 def _run_sequence(inputs: list[str]) -> State:
@@ -14,141 +12,74 @@ def _run_sequence(inputs: list[str]) -> State:
     return engine.state
 
 
-def _clean(value: str) -> str:
-    return re.sub(r"\s+", " ", value.strip())
-
-
 @given(st.lists(st.text(max_size=40), min_size=0, max_size=20))
 def test_determinism_same_input_sequence_same_state(inputs: list[str]) -> None:
     assert _run_sequence(inputs) == _run_sequence(inputs)
 
 
 @given(st.text(min_size=1, max_size=30))
-def test_policy_addition_is_idempotent(item: str) -> None:
+def test_idempotent_use_item_is_update_and_stable_state(item: str) -> None:
+    assume(" instead of " not in item)
     engine = create_engine()
+    d1 = engine.step(f"use {item}")
+    d2 = engine.step(f"use {item}")
 
-    engine.step(f"don't use {item}")
-    once = list(engine.state["policies"]["prohibit"])
-
-    engine.step(f"don't use {item}")
-    twice = list(engine.state["policies"]["prohibit"])
-
-    assert twice == once
+    assert d1["kind"] == "update"
+    assert d2["kind"] == "update"
+    assert len(engine.state["policies"]) == 1
 
 
-@given(
-    st.text(min_size=1, max_size=30),
-    st.lists(
-        st.sampled_from(
-            [
-                "hello there",
-                "what do you think?",
-                "thanks for the help",
-                "this is just context",
-                "can you explain that?",
-                "yes",
-                "no",
-            ]
-        ),
-        min_size=0,
-        max_size=10,
-    ),
-)
-def test_policy_persists_across_passthrough_turns(item: str, turns: list[str]) -> None:
+@given(st.text(min_size=1, max_size=30))
+def test_idempotent_prohibit_item_is_update_and_stable_state(item: str) -> None:
     engine = create_engine()
-    normalized_item = _split_items(item)
-    assume(len(normalized_item) == 1)
+    d1 = engine.step(f"don't use {item}")
+    d2 = engine.step(f"don't use {item}")
+
+    assert d1["kind"] == "update"
+    assert d2["kind"] == "update"
+    assert len(engine.state["policies"]) == 1
+
+
+@given(st.lists(st.text(max_size=80), min_size=0, max_size=20))
+def test_non_matching_inputs_can_remain_passthrough_only(inputs: list[str]) -> None:
+    engine = create_engine()
+    before = engine.state
+
+    for text in inputs:
+        decision = engine.step(f"please {text}")
+        assert decision["kind"] == "passthrough"
+
+    assert engine.state == before
+
+
+@given(st.lists(st.text(max_size=50), min_size=0, max_size=30))
+def test_passthrough_sequence_preserves_state_and_decision_kind(inputs: list[str]) -> None:
+    engine = create_engine()
+    before = engine.state
+
+    for text in inputs:
+        decision = engine.step(f"prefix {text}")
+        assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+        assert engine.state == before
+
+
+@given(st.text(min_size=1, max_size=30))
+def test_contradiction_use_after_prohibit_always_clarifies(item: str) -> None:
+    engine = create_engine()
+    engine.step(f"don't use {item}")
+    before = engine.state
+
+    decision = engine.step(f"use {item}")
+    assert decision["kind"] == "clarify"
+    assert engine.state == before
+
+
+@given(st.text(min_size=1, max_size=30))
+def test_contradiction_prohibit_after_use_always_clarifies(item: str) -> None:
+    engine = create_engine()
+    engine.step(f"use {item}")
+    before = engine.state
 
     decision = engine.step(f"don't use {item}")
-    expected = normalized_item[0]
-    assert decision["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == [expected]
-
-    for turn in turns:
-        intervening = engine.step(turn)
-        assert intervening["kind"] == "passthrough"
-        assert engine.state["policies"]["prohibit"] == [expected]
-
-    assert expected in engine.state["policies"]["prohibit"]
-
-
-@given(
-    st.from_regex(r"[A-Za-z0-9][A-Za-z0-9 ]{0,20}", fullmatch=True),
-    st.from_regex(r"[A-Za-z0-9][A-Za-z0-9 ]{0,20}", fullmatch=True),
-)
-def test_exclusive_fact_replacement_last_write_wins(first: str, second: str) -> None:
-    assume(" and " not in first.lower() and "," not in first)
-    assume(" and " not in second.lower() and "," not in second)
-
-    engine = create_engine()
-
-    engine.step(f"use {first}")
-    engine.step(f"use {second}")
-
-    assert engine.state["facts"]["focus.primary"] == _clean(second)
-
-
-@given(
-    st.sampled_from(
-        [
-            "don use parallel octaves",
-            "dnot use docker",
-            "i using nord",
-            "allow",
-            "set",
-            "no use docker",
-            "do n't use x",
-            "use and set",
-        ]
-    )
-)
-def test_safety_near_miss_inputs_do_not_mutate_state(text: str) -> None:
-    engine = create_engine()
-    before = engine.state
-
-    decision = engine.step(text)
-
-    assert decision["kind"] != "update"
+    assert decision["kind"] == "clarify"
     assert engine.state == before
-
-
-@given(st.from_regex(r"[a-z]{1,10}-and-[a-z]{1,10}", fullmatch=True))
-def test_hyphenated_and_token_not_split(token: str) -> None:
-    engine = create_engine()
-
-    decision = engine.step(f"don't use {token}")
-
-    assert decision["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == [token]
-
-
-@given(st.text(min_size=1, max_size=40))
-def test_soft_negative_phrases_do_not_mutate_state(text: str) -> None:
-    engine = create_engine()
-    before = engine.state
-
-    decision_avoid = engine.step(f"avoid {text}")
-    assert decision_avoid["kind"] == "passthrough"
-    assert engine.state == before
-
-    decision_refrain = engine.step(f"refrain from {text}")
-    assert decision_refrain["kind"] == "passthrough"
-    assert engine.state == before
-
-
-@given(st.from_regex(r"[A-Za-z0-9][A-Za-z0-9 ]{0,20}", fullmatch=True))
-def test_please_use_is_a_supported_positive_directive(value: str) -> None:
-    assume("," not in value)
-    assume(" and " not in value.lower())
-
-    engine = create_engine()
-    decision = engine.step(f"please use {value}")
-
-    assert decision["kind"] == "update"
-    assert engine.state["facts"]["focus.primary"] == _clean(value)
-
-
-@given(st.text(max_size=80))
-def test_split_and_has_multiple_values_are_consistent(text: str) -> None:
-    non_empty = [item for item in _split_items(text) if item]
-    assert _has_multiple_values(text) == (len(non_empty) > 1)

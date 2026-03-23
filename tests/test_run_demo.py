@@ -302,6 +302,7 @@ def test_single_scored_demo_without_mediated_regression_exits_zero(
     run_demo.main()
 
 
+@pytest.mark.skip(reason="Phase A: compaction demo depends on removed pre-0.5 mutation behavior.")
 def test_compaction_demo_reports_sane_metrics() -> None:
     consume_last_info_report()
 

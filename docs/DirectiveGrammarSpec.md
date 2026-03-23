@@ -120,7 +120,9 @@ CLEAR_STATE      := "clear state"
 
 Notes:
 
-- `VALUE` and `ITEM` are non-empty raw substrings after their prefix.
+- `ITEM` is a non-empty raw substring after its prefix.
+- Premise directive payload must contain at least one non-whitespace character after the prefix.
+  Empty and whitespace-only premise payloads are invalid and must return `clarify`.
 - `ITEM` is normalized via `normalize_item` before policy lookup/storage.
 - `VALUE` is stored using premise sanitation from Section 6.
 - No conversational aliases are directives (for example: `actually`, `I meant`, `allow`, `you can`, `set X`, `I'm using X`).
@@ -131,11 +133,13 @@ Notes:
 
 - `set premise X`:
   - valid only if `state.premise is null`
+  - if `X` is empty or whitespace-only after the prefix: `clarify` and no mutation
   - success: set `state.premise = sanitize_premise(X)`
   - if premise already exists: `clarify`
 
 - `change premise to X`:
   - valid only if `state.premise is not null`
+  - if `X` is empty or whitespace-only after the prefix: `clarify` and no mutation
   - success: replace premise with `sanitize_premise(X)`
   - if no premise exists: `clarify`
 
@@ -159,14 +163,29 @@ For `use X instead of Y`:
 
 1. Let `kx = normalize_item(X)`, `ky = normalize_item(Y)`.
 2. If `kx == ky`: no-op `update`.
-3. Otherwise, `Y` must currently exist in policy state (`ky in policies`) or return `clarify`.
-4. Replacement must not silently change polarity:
-   - if `policies[ky] != "use"`, return `clarify`.
-5. Replacement must not create contradiction at target:
-   - if `policies.get(kx) == "prohibit"`, return `clarify`.
-6. On success:
+3. Otherwise, evaluate in this exact order:
+   - if `ky not in policies`: enter replacement-intent `clarify` with prompt
+     `Did you mean to use "X" instead?`
+   - else if `policies.get(ky) == "prohibit"`: enter replacement-intent `clarify` with prompt
+     `"Y" is currently prohibited. Did you mean to remove it and use "X" instead?`
+   - else if `policies.get(kx) == "prohibit"`: enter replacement-intent `clarify` with prompt
+     `"X" is currently prohibited. Did you mean to remove "Y" and use "X" instead?`
+4. If none of the replacement-intent clarify conditions match, `Y` must currently exist in
+   policy state (`ky in policies`) or return `clarify`.
+5. Replacement requires `policies[ky] == "use"` in the literal path; otherwise return `clarify`.
+6. On literal success:
    - remove `ky` from `policies`
    - set `policies[kx] = "use"`
+7. Replacement-intent clarify confirmations are deterministic:
+   - `Did you mean to use "X" instead?`
+     - yes: set `policies[kx] = "use"` (idempotent if already `"use"`)
+     - no: no mutation
+   - `"Y" is currently prohibited. Did you mean to remove it and use "X" instead?`
+     - yes: remove `ky` from `policies`; set `policies[kx] = "use"`
+     - no: no mutation
+   - `"X" is currently prohibited. Did you mean to remove "Y" and use "X" instead?`
+     - yes: remove `ky` from `policies`; set `policies[kx] = "use"`
+     - no: no mutation
 
 This operation is authoritative replacement, not recency resolution.
 
@@ -182,12 +201,15 @@ The compiler returns `Decision.kind = "clarify"` only in these cases:
 
 1. `set premise X` when a premise already exists.
 2. `change premise to X` when no premise exists.
-3. `use ITEM` when that item is currently `"prohibit"`.
-4. `don't use ITEM` when that item is currently `"use"`.
-5. `use X instead of Y` when `Y` does not exist in policies.
-6. `use X instead of Y` when `Y` exists but is not `"use"`.
-7. `use X instead of Y` when `X` is currently `"prohibit"`.
-8. A pending clarification exists and input is not an exact confirmation token.
+3. `set premise X` when `X` is empty or whitespace-only after the prefix.
+4. `change premise to X` when `X` is empty or whitespace-only after the prefix.
+5. `use ITEM` when that item is currently `"prohibit"`.
+6. `don't use ITEM` when that item is currently `"use"`.
+7. `use X instead of Y` when `Y` does not exist in policies (`ky not in policies`).
+8. `use X instead of Y` when `Y` is currently `"prohibit"`.
+9. `use X instead of Y` when `X` is currently `"prohibit"`.
+10. `use X instead of Y` when `Y` exists but is not `"use"` and no replacement-intent clarify rule applies.
+11. A pending clarification exists and input is not an exact confirmation token.
 
 Contradictions never silently overwrite state.
 
@@ -195,12 +217,16 @@ Contradictions never silently overwrite state.
 
 When `Decision.kind = "clarify"`, prompt text is deterministic only for the cases listed below.
 
-- Replacement-intent conflicts (Section 9 cases 5-7):
-  `Did you mean to replace "Y" with "X"?`
-- Pending clarification unmatched input (Section 9 case 8):
+- `use X instead of Y` when `Y` does not exist in policies (Section 9 case 7):
+  `Did you mean to use "X" instead?`
+- `use X instead of Y` when `Y` is currently `"prohibit"` (Section 9 case 8):
+  `"Y" is currently prohibited. Did you mean to remove it and use "X" instead?`
+- `use X instead of Y` when `X` is currently `"prohibit"` (Section 9 case 9):
+  `"X" is currently prohibited. Did you mean to remove "Y" and use "X" instead?`
+- Pending clarification unmatched input (Section 9 case 11):
   reuse the existing pending prompt unchanged.
 
-Clarify cases 1-4 must return `clarify` but do not require a standardized prompt string in this specification.
+Clarify cases 1-6 and 10 must return `clarify` but do not require a standardized prompt string in this specification.
 Their exact prompt text is implementation-defined unless standardized in a later spec revision.
 
 ## 10. Pending Clarification
@@ -231,7 +257,7 @@ Confirmation token normalization:
 Resolution:
 
 - Affirmative token: apply pending event, clear pending, return `update`
-- Negative token: discard pending event, clear pending, return `passthrough`
+- Negative token: discard pending event, clear pending, apply no mutation, return `update` with unchanged state
 - Any other input: remain in `clarify`, no mutation, and keep the existing pending prompt
 
 ## 11. Context Serialization Contract

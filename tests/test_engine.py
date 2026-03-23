@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from context_compiler import create_engine, get_focus_value, get_prohibited_items
+from context_compiler import compile_transcript, create_engine, get_policy_items, get_premise_value
 from context_compiler.engine import DecisionKind, Engine
 
 
@@ -13,63 +13,58 @@ def test_decision_kind_strenum_behavior() -> None:
         assert DecisionKind(kind.value) is kind
 
 
+def test_initial_state_and_helpers() -> None:
+    engine = create_engine()
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+    assert get_premise_value(engine.state) is None
+    assert get_policy_items(engine.state) == []
+
+
 def test_state_getter_returns_defensive_copy() -> None:
     engine = create_engine()
     snapshot = engine.state
-    snapshot["facts"]["focus.primary"] = "mutated"
-    assert engine.state["facts"]["focus.primary"] is None
+    snapshot["premise"] = "mutated"
+    snapshot["policies"]["docker"] = "use"
 
-
-def test_get_focus_value_reads_current_focus_from_state_snapshot() -> None:
-    engine = create_engine()
-    engine.step("use Nord Stage 4")
-
-    assert get_focus_value(engine.state) == "Nord Stage 4"
-
-
-def test_get_prohibited_items_returns_defensive_list_copy() -> None:
-    engine = create_engine()
-    engine.step("don't use docker")
-
-    prohibited = get_prohibited_items(engine.state)
-    prohibited.append("kubernetes")
-
-    assert get_prohibited_items(engine.state) == ["docker"]
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
 def test_export_json_returns_complete_representation_of_state() -> None:
     engine = create_engine()
-    engine.step("use Nord Stage 4")
-    engine.step("don't use docker")
-
     payload = engine.export_json()
-    assert json.loads(payload) == {
-        "facts": {"focus.primary": "Nord Stage 4"},
-        "policies": {"prohibit": ["docker"]},
-        "version": 1,
-    }
+    assert json.loads(payload) == {"premise": None, "policies": {}, "version": 2}
+
+
+def test_export_json_is_canonical_sorted_and_compact() -> None:
+    engine = create_engine()
+    engine.step("use zeta")
+    engine.step("use alpha")
+    payload = engine.export_json()
+
+    assert payload == '{"policies":{"alpha":"use","zeta":"use"},"premise":null,"version":2}'
 
 
 def test_import_json_restores_state_exactly() -> None:
     engine = create_engine()
-    engine.step("use Nord Stage 4")
-    engine.step("don't use docker")
-    snapshot = engine.export_json()
-
-    engine.step("clear state")
-    engine.import_json(snapshot)
-
-    assert engine.state == {
-        "facts": {"focus.primary": "Nord Stage 4"},
-        "policies": {"prohibit": ["docker"]},
-        "version": 1,
+    expected = {
+        "premise": "Use concise output",
+        "policies": {"docker": "prohibit", "pytest": "use"},
+        "version": 2,
     }
+
+    engine.import_json(json.dumps(expected))
+
+    assert engine.state == expected
 
 
 def test_export_import_round_trip_preserves_state() -> None:
-    source = create_engine()
-    source.step("use Nord Stage 4")
-    source.step("don't use docker")
+    source = create_engine(
+        state={
+            "premise": "Use concise output",
+            "policies": {"docker": "prohibit", "pytest": "use"},
+            "version": 2,
+        }
+    )
 
     target = create_engine()
     target.import_json(source.export_json())
@@ -77,55 +72,31 @@ def test_export_import_round_trip_preserves_state() -> None:
     assert target.state == source.state
 
 
-def test_imported_state_matches_live_subsequent_behavior() -> None:
-    live = create_engine()
-    live.step("use Nord Stage 4")
-    live.step("don't use parallel octaves")
-
-    imported = create_engine()
-    imported.import_json(live.export_json())
-
-    turns = [
-        "actually Nord Stage 3",
-        "don't use voice crossing",
-        "reset policies",
-        "allow docker",
-    ]
-    for turn in turns:
-        assert imported.step(turn) == live.step(turn)
-        assert imported.state == live.state
-
-
 def test_import_json_invalid_json_and_unsupported_version_are_rejected() -> None:
     engine = create_engine()
 
-    try:
+    with pytest.raises(ValueError, match="Invalid JSON payload"):
         engine.import_json("{")
-        raise AssertionError("expected ValueError for invalid JSON")
-    except ValueError as exc:
-        assert "Invalid JSON payload" in str(exc)
 
-    try:
+    with pytest.raises(ValueError, match="Unsupported state version"):
         engine.import_json(
             json.dumps(
                 {
-                    "facts": {"focus.primary": None},
-                    "policies": {"prohibit": []},
-                    "version": 2,
+                    "premise": None,
+                    "policies": {},
+                    "version": 1,
                 }
             )
         )
-        raise AssertionError("expected ValueError for unsupported version")
-    except ValueError as exc:
-        assert "Unsupported state version" in str(exc)
 
 
 @pytest.mark.parametrize(
     "payload",
     [
-        {"facts": {}, "policies": {"prohibit": []}, "version": 1},
-        {"facts": {"focus.primary": None}, "policies": {"prohibit": "docker"}, "version": 1},
-        {"facts": {"focus.primary": 123}, "policies": {"prohibit": []}, "version": 1},
+        {"premise": None, "version": 2},
+        {"premise": [], "policies": {}, "version": 2},
+        {"premise": None, "policies": [], "version": 2},
+        {"premise": None, "policies": {"docker": "deny"}, "version": 2},
     ],
 )
 def test_import_json_rejects_structurally_invalid_payload(payload: dict[str, object]) -> None:
@@ -134,823 +105,570 @@ def test_import_json_rejects_structurally_invalid_payload(payload: dict[str, obj
         engine.import_json(json.dumps(payload))
 
 
-def test_import_json_canonicalizes_duplicate_unsorted_prohibit_values() -> None:
+def test_import_json_normalizes_policy_keys() -> None:
     engine = create_engine()
     engine.import_json(
         json.dumps(
             {
-                "facts": {"focus.primary": None},
-                "policies": {"prohibit": ["kubernetes", "docker", "docker"]},
-                "version": 1,
+                "premise": None,
+                "policies": {
+                    " The Docker ": "prohibit",
+                    "dont use": "use",
+                },
+                "version": 2,
             }
         )
     )
 
     assert engine.state == {
-        "facts": {"focus.primary": None},
-        "policies": {"prohibit": ["docker", "kubernetes"]},
-        "version": 1,
+        "premise": None,
+        "policies": {"docker": "prohibit", "don't use": "use"},
+        "version": 2,
     }
 
 
-def test_import_json_sanitizes_fact_value_like_live_fact_write() -> None:
+def test_import_json_sanitizes_premise_value() -> None:
     engine = create_engine()
     engine.import_json(
         json.dumps(
             {
-                "facts": {"focus.primary": "  MacBook   M3`  "},
-                "policies": {"prohibit": []},
-                "version": 1,
+                "premise": "  Use   concise’  output  ",
+                "policies": {},
+                "version": 2,
             }
         )
     )
 
-    assert engine.state["facts"]["focus.primary"] == "MacBook M3'"
+    assert engine.state["premise"] == "Use concise' output"
 
 
-def test_constructor_with_state_initializes_from_normalized_state() -> None:
-    raw_state = {
-        "facts": {"focus.primary": "  MacBook   M3`  "},
-        "policies": {"prohibit": ["kubernetes", "docker", "docker"]},
-        "version": 1,
-    }
-    loaded_state = json.loads(json.dumps(raw_state))
-
-    constructed = Engine(state=loaded_state)
-
-    assert constructed.state == {
-        "facts": {"focus.primary": "MacBook M3'"},
-        "policies": {"prohibit": ["docker", "kubernetes"]},
-        "version": 1,
-    }
-
-
-def test_create_engine_with_state_initializes_from_normalized_state() -> None:
-    created = create_engine(
-        state={
-            "facts": {"focus.primary": "  MacBook   M3`  "},
-            "policies": {"prohibit": ["kubernetes", "docker", "docker"]},
-            "version": 1,
-        }
+def test_import_json_canonicalizes_policies_by_normalized_key() -> None:
+    engine = create_engine()
+    engine.import_json(
+        json.dumps(
+            {
+                "premise": None,
+                "policies": {
+                    "  The Docker ": "prohibit",
+                    "docker": "use",
+                },
+                "version": 2,
+            }
+        )
     )
 
-    assert created.state == {
-        "facts": {"focus.primary": "MacBook M3'"},
-        "policies": {"prohibit": ["docker", "kubernetes"]},
-        "version": 1,
-    }
-
-
-@pytest.mark.parametrize(
-    ("path", "bad_state"),
-    [
-        (
-            "constructor",
-            {
-                "facts": {"focus.primary": None},
-                "policies": {"prohibit": []},
-            },
-        ),
-        (
-            "import_json",
-            {
-                "facts": {"focus.primary": None},
-                "policies": {"prohibit": "docker"},
-                "version": 1,
-            },
-        ),
-    ],
-)
-def test_object_state_replacement_paths_reject_invalid_state(path: str, bad_state: object) -> None:
-    if path == "constructor":
-        with pytest.raises(ValueError):
-            Engine(state=bad_state)
-        return
-
-    engine = create_engine()
-    with pytest.raises(ValueError):
-        engine.import_json(json.dumps(bad_state))
+    assert engine.state["policies"] == {"docker": "use"}
 
 
 def test_state_property_is_read_only() -> None:
     engine = create_engine()
     with pytest.raises(AttributeError):
-        engine.state = {
-            "facts": {"focus.primary": None},
-            "policies": {"prohibit": []},
-            "version": 1,
-        }
+        engine.state = {"premise": None, "policies": {}, "version": 2}
 
 
-def test_import_json_replaces_state_and_clears_pending_clarification() -> None:
-    engine = create_engine()
-    decision = engine.step("no use docker")
-    assert decision["kind"] == "clarify"
-
-    engine.import_json(
-        json.dumps(
-            {
-                "facts": {"focus.primary": "Nord Stage 4"},
-                "policies": {"prohibit": ["kubernetes", "docker", "docker"]},
-                "version": 1,
-            }
-        )
-    )
-
-    decision_after_import = engine.step("yes")
-    assert decision_after_import["kind"] == "passthrough"
-    assert engine.state == {
-        "facts": {"focus.primary": "Nord Stage 4"},
-        "policies": {"prohibit": ["docker", "kubernetes"]},
-        "version": 1,
-    }
-
-
-def test_constructor_and_import_json_share_normalization_behavior() -> None:
-    raw_state = {
-        "facts": {"focus.primary": "  MacBook   M3`  "},
-        "policies": {"prohibit": ["kubernetes", "docker", "docker"]},
-        "version": 1,
-    }
-
-    from_ctor = Engine(state=json.loads(json.dumps(raw_state)))
-
-    from_import = create_engine()
-    from_import.import_json(json.dumps(raw_state))
-
-    assert from_ctor.state == from_import.state
-
-
-def test_import_json_clears_pending_clarification_state() -> None:
-    engine = create_engine()
-    decision = engine.step("no use docker")
-    assert decision["kind"] == "clarify"
-
-    engine.import_json(
-        json.dumps(
-            {
-                "facts": {"focus.primary": "Nord Stage 4"},
-                "policies": {"prohibit": ["kubernetes"]},
-                "version": 1,
-            }
-        )
-    )
-
-    decision_after_import = engine.step("yes")
-    assert decision_after_import["kind"] == "passthrough"
-    assert engine.state == {
-        "facts": {"focus.primary": "Nord Stage 4"},
-        "policies": {"prohibit": ["kubernetes"]},
-        "version": 1,
-    }
-
-
-def test_imported_fact_state_restores_correction_behavior() -> None:
-    engine = create_engine()
-    engine.import_json(
-        json.dumps(
-            {
-                "facts": {"focus.primary": "Nord Stage 4"},
-                "policies": {"prohibit": []},
-                "version": 1,
-            }
-        )
-    )
-
-    decision = engine.step("actually Nord Stage 3")
-    assert decision["kind"] == "update"
-    assert engine.state["facts"]["focus.primary"] == "Nord Stage 3"
-
-
-def test_directive_parsing_positive_negative_and_allow() -> None:
-    engine = create_engine()
-
-    decision1 = engine.step("use Nord Stage 4")
-    assert decision1["kind"] == "update"
-    assert engine.state["facts"]["focus.primary"] == "Nord Stage 4"
-
-    decision2 = engine.step("please don't use the parallel octaves and a voice crossing")
-    assert decision2["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == ["parallel octaves", "voice crossing"]
-
-    decision3 = engine.step("allow voice crossing")
-    assert decision3["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == ["parallel octaves"]
-
-
-def test_hard_negative_dont_use_stores_item_without_use_prefix() -> None:
-    engine = create_engine()
-
-    decision = engine.step("don't use docker")
-
-    assert decision["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == ["docker"]
-
-
-def test_avoid_is_passthrough_and_does_not_mutate_state() -> None:
+def test_non_matching_input_is_passthrough() -> None:
     engine = create_engine()
     before = engine.state
 
-    decision = engine.step("avoid use docker")
+    for text in [
+        "hello there",
+        "please use docker",
+        "allow docker",
+        "I am using x",
+        "set X",
+        "no use docker",
+        " don't use docker",
+    ]:
+        decision = engine.step(text)
+        assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
 
-    assert decision["kind"] == "passthrough"
     assert engine.state == before
 
 
-def test_correction_replaces_most_recent_exclusive_fact() -> None:
+def test_admin_command_near_misses_are_passthrough() -> None:
+    engine = create_engine()
+    before = engine.state
+
+    for text in ["clear premise ", " reset policies", "clear state\t"]:
+        decision = engine.step(text)
+        assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+
+    assert engine.state == before
+
+
+def test_clear_premise_is_idempotent_update_when_already_null() -> None:
+    engine = create_engine()
+    before = engine.state
+
+    decision = engine.step("clear premise")
+    assert decision == {"kind": "update", "state": before, "prompt_to_user": None}
+    assert engine.state == before
+
+
+def test_clear_state_is_idempotent_update_when_already_empty() -> None:
+    engine = create_engine()
+    before = engine.state
+
+    decision = engine.step("clear state")
+    assert decision == {"kind": "update", "state": before, "prompt_to_user": None}
+    assert engine.state == before
+
+
+def test_set_premise_lifecycle_rules() -> None:
     engine = create_engine()
 
-    engine.step("I am using Nord Stage 3")
-    decision = engine.step("actually Nord Stage 4")
+    d1 = engine.step("set premise   concise   replies")
+    assert d1["kind"] == "update"
+    assert engine.state["premise"] == "concise replies"
 
-    assert decision["kind"] == "update"
-    assert engine.state["facts"]["focus.primary"] == "Nord Stage 4"
+    before = engine.state
+    d2 = engine.step("set premise new")
+    assert d2["kind"] == "clarify"
+    assert engine.state == before
 
 
-def test_please_use_directive_updates_fact() -> None:
+def test_set_premise_empty_payload_clarifies_without_mutation() -> None:
+    engine = create_engine()
+    before = engine.state
+    d1 = engine.step("set premise")
+    assert d1["kind"] == "clarify"
+    assert engine.state == before
+
+
+def test_set_premise_whitespace_payload_clarifies_without_mutation() -> None:
+    engine = create_engine()
+    before = engine.state
+    d1 = engine.step("set premise    ")
+    assert d1["kind"] == "clarify"
+    assert engine.state == before
+
+
+def test_change_premise_requires_existing_premise() -> None:
     engine = create_engine()
 
-    decision = engine.step("please use Nord Stage 4")
+    d1 = engine.step("change premise to concise")
+    assert d1["kind"] == "clarify"
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
-    assert decision["kind"] == "update"
-    assert engine.state["facts"]["focus.primary"] == "Nord Stage 4"
+    engine.step("set premise first")
+    d2 = engine.step("change premise to second")
+    assert d2["kind"] == "update"
+    assert engine.state["premise"] == "second"
 
 
-def test_set_directive_updates_fact() -> None:
+def test_change_premise_to_empty_payload_clarifies_without_mutation() -> None:
+    engine = create_engine()
+    engine.step("set premise baseline")
+    before = engine.state
+
+    d1 = engine.step("change premise to")
+    assert d1["kind"] == "clarify"
+    assert engine.state == before
+
+
+def test_change_premise_to_whitespace_payload_clarifies_without_mutation() -> None:
+    engine = create_engine()
+    engine.step("set premise baseline")
+    before = engine.state
+
+    d1 = engine.step("change premise to    ")
+    assert d1["kind"] == "clarify"
+    assert engine.state == before
+
+
+def test_clear_premise_and_clear_state() -> None:
+    engine = create_engine()
+    engine.step("set premise use bullets")
+    engine.step("use docker")
+
+    d1 = engine.step("clear premise")
+    assert d1["kind"] == "update"
+    assert engine.state == {"premise": None, "policies": {"docker": "use"}, "version": 2}
+
+    d2 = engine.step("clear state")
+    assert d2["kind"] == "update"
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+
+
+def test_policy_directives_and_idempotent_update() -> None:
     engine = create_engine()
 
-    decision = engine.step("set Nord Stage 5")
+    d1 = engine.step("use   The Docker")
+    assert d1["kind"] == "update"
+    assert engine.state["policies"] == {"docker": "use"}
+
+    d2 = engine.step("use docker")
+    assert d2["kind"] == "update"
+    assert engine.state["policies"] == {"docker": "use"}
+
+    d3 = engine.step("don't use docker")
+    assert d3["kind"] == "clarify"
+    assert engine.state["policies"] == {"docker": "use"}
+
+    engine2 = create_engine()
+    engine2.step("don't use docker")
+    d4 = engine2.step("don't use docker")
+    assert d4["kind"] == "update"
+    assert engine2.state["policies"] == {"docker": "prohibit"}
+
+    d5 = engine2.step("use docker")
+    assert d5["kind"] == "clarify"
+    assert engine2.state["policies"] == {"docker": "prohibit"}
+
+
+def test_reset_policies_is_update_even_when_already_empty() -> None:
+    engine = create_engine()
+    d1 = engine.step("reset policies")
+    assert d1["kind"] == "update"
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+
+    engine.step("use docker")
+    d2 = engine.step("reset policies")
+    assert d2["kind"] == "update"
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+
+
+def test_replace_use_success() -> None:
+    engine = create_engine()
+    engine.step("use docker")
+
+    decision = engine.step("use kubectl instead of docker")
 
     assert decision["kind"] == "update"
-    assert engine.state["facts"]["focus.primary"] == "Nord Stage 5"
+    assert engine.state["policies"] == {"kubectl": "use"}
 
 
-def test_you_can_directive_removes_existing_policy() -> None:
+def test_replace_use_identity_is_noop_update() -> None:
+    engine = create_engine()
+    engine.step("use docker")
+    before = engine.state
+
+    decision = engine.step("use the docker instead of docker")
+
+    assert decision["kind"] == "update"
+    assert engine.state == before
+
+
+def test_replace_use_missing_source_state_enters_replacement_intent_clarify() -> None:
+    engine = create_engine()
+
+    d1 = engine.step("use kubectl instead of docker")
+    assert d1 == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": 'Did you mean to use "kubectl" instead?',
+    }
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+
+
+def test_replace_use_missing_source_yes_confirmation_applies_use_only() -> None:
+    engine = create_engine()
+
+    first = engine.step("use kubectl instead of docker")
+    assert first == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": 'Did you mean to use "kubectl" instead?',
+    }
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+
+    second = engine.step("yes")
+    assert second["kind"] == "update"
+    assert engine.state == {
+        "premise": None,
+        "policies": {"kubectl": "use"},
+        "version": 2,
+    }
+
+
+def test_replace_use_missing_source_no_confirmation_has_no_mutation() -> None:
+    engine = create_engine()
+    engine.step("use kubectl instead of docker")
+    before = engine.state
+
+    decision = engine.step("no")
+    assert decision == {"kind": "update", "state": before, "prompt_to_user": None}
+    assert engine.state == before
+
+
+def test_replace_use_missing_source_takes_priority_over_target_prohibit_prompt() -> None:
+    engine = create_engine()
+    engine.step("don't use kubectl")
+
+    decision = engine.step("use kubectl instead of docker")
+    assert decision == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": 'Did you mean to use "kubectl" instead?',
+    }
+
+
+def test_replace_use_ky_prohibit_enters_replacement_intent_clarify() -> None:
     engine = create_engine()
     engine.step("don't use docker")
+    engine.step("use pytest")
 
-    decision = engine.step("you can docker")
+    first = engine.step("use kubectl instead of docker")
+    expected = (
+        '"docker" is currently prohibited. Did you mean to remove it and use "kubectl" instead?'
+    )
+    assert first == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": expected,
+    }
+    assert engine.state["policies"] == {"docker": "prohibit", "pytest": "use"}
 
-    assert decision["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == []
+    second = engine.step("yes")
+    assert second["kind"] == "update"
+    assert engine.state["policies"] == {"kubectl": "use", "pytest": "use"}
 
 
-def test_correction_colon_marker_replaces_prior_fact() -> None:
+def test_replace_use_ky_prohibit_no_confirmation_has_no_mutation() -> None:
     engine = create_engine()
-    engine.step("use Nord Stage 4")
-
-    decision = engine.step("correction: Nord Stage 5")
-
-    assert decision["kind"] == "update"
-    assert engine.state["facts"]["focus.primary"] == "Nord Stage 5"
-
-
-def test_hard_negative_comma_splitting_adds_multiple_policies() -> None:
-    engine = create_engine()
-
-    decision = engine.step("don't use peanuts, shellfish")
-
-    assert decision["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == ["peanuts", "shellfish"]
-
-
-@pytest.mark.parametrize("phrase", ["clear state now", "reset policies please"])
-def test_reset_command_near_miss_phrases_are_passthrough_and_do_not_mutate_state(
-    phrase: str,
-) -> None:
-    engine = create_engine()
-    engine.step("use Nord Stage 4")
     engine.step("don't use docker")
+    engine.step("use pytest")
+    engine.step("use kubectl instead of docker")
     before = engine.state
 
-    decision = engine.step(phrase)
-
-    assert decision["kind"] == "passthrough"
+    decision = engine.step("no")
+    assert decision == {"kind": "update", "state": before, "prompt_to_user": None}
     assert engine.state == before
 
 
-@pytest.mark.parametrize(
-    ("text", "expected_fact"),
-    [
-        ("use Don't Use Me as the project name", "Don't Use Me as the project name"),
-        ("use Reset Policies as the track title", "Reset Policies as the track title"),
-        ("use Clear State as the album title", "Clear State as the album title"),
-        ("use Allow Shellfish as the restaurant name", "Allow Shellfish as the restaurant name"),
-    ],
-)
-def test_hard_positive_literals_with_directive_words_do_not_trigger_side_effects(
-    text: str, expected_fact: str
-) -> None:
+def test_replace_use_kx_prohibit_enters_replacement_intent_clarify() -> None:
     engine = create_engine()
-    engine.step("don't use voice crossing")
+    engine.step("use docker")
+    engine.step("don't use kubectl")
 
-    decision = engine.step(text)
-
-    assert decision["kind"] == "update"
-    assert decision["prompt_to_user"] is None
-    assert engine.state == {
-        "facts": {"focus.primary": expected_fact},
-        "policies": {"prohibit": ["voice crossing"]},
-        "version": 1,
+    first = engine.step("use kubectl instead of docker")
+    expected = (
+        '"kubectl" is currently prohibited. Did you mean to remove "docker" '
+        'and use "kubectl" instead?'
+    )
+    assert first == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": expected,
     }
+    assert engine.state["policies"] == {"docker": "use", "kubectl": "prohibit"}
+
+    second = engine.step("yes")
+    assert second["kind"] == "update"
+    assert engine.state["policies"] == {"kubectl": "use"}
 
 
-def test_correction_literal_with_directive_words_updates_fact_without_side_effects() -> None:
+def test_replace_use_priority_prefers_source_prohibit_prompt_when_both_prohibit() -> None:
     engine = create_engine()
-    engine.step("don't use voice crossing")
-    engine.step("use Nord Stage 4")
-
-    decision = engine.step("actually Don't Use Docker is the codename")
-
-    assert decision["kind"] == "update"
-    assert decision["prompt_to_user"] is None
-    assert engine.state == {
-        "facts": {"focus.primary": "Don't Use Docker is the codename"},
-        "policies": {"prohibit": ["voice crossing"]},
-        "version": 1,
-    }
-
-
-@pytest.mark.parametrize(
-    "correction",
-    [
-        "actually reset policies",
-        "actually clear state",
-        "actually allow docker",
-        "actually docker is fine",
-        "actually use Nord Stage 5",
-    ],
-)
-def test_correction_payloads_from_other_directive_families_clarify_without_mutation(
-    correction: str,
-) -> None:
-    engine = create_engine()
-    engine.step("don't use voice crossing")
-    engine.step("use Nord Stage 4")
-    before = engine.state
-
-    decision = engine.step(correction)
-
-    assert decision["kind"] == "clarify"
-    assert engine.state == before
-
-
-def test_correction_without_prior_exclusive_fact_requires_clarification() -> None:
-    engine = create_engine()
-
-    decision = engine.step("correction: Nord Stage 4")
-
-    assert decision["kind"] == "clarify"
-    assert engine.state["facts"]["focus.primary"] is None
-
-
-def test_policy_additions_are_sorted_unique_and_removal_is_noop_when_absent() -> None:
-    engine = create_engine()
-
-    engine.step("don't use voice crossing")
-    engine.step("never the parallel octaves")
-    decision = engine.step("do not voice crossing")
-
-    assert decision["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == ["parallel octaves", "voice crossing"]
-
-    decision2 = engine.step("allow docker")
-    assert decision2["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == ["parallel octaves", "voice crossing"]
-
-
-def test_ambiguity_returns_clarify_and_does_not_mutate() -> None:
-    engine = create_engine()
-
-    decision = engine.step("don use parallel octaves")
-
-    assert decision["kind"] == "clarify"
-    assert engine.state == {
-        "facts": {"focus.primary": None},
-        "policies": {"prohibit": []},
-        "version": 1,
-    }
-
-
-def test_ambiguous_multi_item_directive_requires_clarification() -> None:
-    engine = create_engine()
-
-    decision = engine.step("no use docker and parallel octaves")
-
-    assert decision["kind"] == "clarify"
-    assert engine.state == {
-        "facts": {"focus.primary": None},
-        "policies": {"prohibit": []},
-        "version": 1,
-    }
-
-
-def test_correction_does_not_bypass_pending_clarification() -> None:
-    engine = create_engine()
-
-    # create ambiguity
-    decision1 = engine.step("no use docker")
-    assert decision1["kind"] == "clarify"
-
-    # attempt correction while pending
-    decision2 = engine.step("actually don't use docker")
-
-    assert decision2["kind"] == "clarify"
-    assert engine.state == {
-        "facts": {"focus.primary": None},
-        "policies": {"prohibit": []},
-        "version": 1,
-    }
-
-
-def test_yes_no_passthrough_without_pending_clarification() -> None:
-    engine = create_engine()
-    before = engine.state
-
-    decision_yes = engine.step("yes")
-    assert decision_yes["kind"] == "passthrough"
-    assert engine.state == before
-
-    decision_no = engine.step("no")
-    assert decision_no["kind"] == "passthrough"
-    assert engine.state == before
-
-
-def test_pending_reprompts_on_non_yes_no() -> None:
-    engine = create_engine()
-    engine.step("no use docker")
-    before = engine.state
-
-    d = engine.step("maybe")
-    assert d["kind"] == "clarify"
-    assert engine.state == before
-
-
-def test_ambiguous_policy_add_clarification_uses_expected_prompt_text() -> None:
-    engine = create_engine()
-
-    decision = engine.step("no use docker")
-
-    assert decision["kind"] == "clarify"
-    assert decision["prompt_to_user"] == "Did you mean to prohibit 'docker'?"
-
-
-def test_pending_clarification_reprompt_keeps_state_unchanged() -> None:
-    engine = create_engine()
-
-    decision1 = engine.step("no use docker")
-    assert decision1["kind"] == "clarify"
-    before = engine.state
-
-    decision2 = engine.step("proceed")
-    assert decision2["kind"] == "clarify"
-    assert engine.state == before
-
-
-def test_pending_clarification_blocks_other_mutations_until_resolved() -> None:
-    engine = create_engine()
-
-    decision1 = engine.step("no use docker")
-    assert decision1["kind"] == "clarify"
-
-    decision2 = engine.step("use Nord Stage 4")
-    assert decision2["kind"] == "clarify"
-    assert engine.state["facts"]["focus.primary"] is None
-    assert engine.state["policies"]["prohibit"] == []
-
-    decision3 = engine.step("yes")
-    assert decision3["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == ["docker"]
-    assert engine.state["facts"]["focus.primary"] is None
-
-
-def test_reset_commands() -> None:
-    engine = create_engine()
-
-    engine.step("use Nord Stage 4")
-    engine.step("don't use parallel octaves")
-
-    decision1 = engine.step("reset policies")
-    assert decision1["kind"] == "update"
-    assert engine.state == {
-        "facts": {"focus.primary": "Nord Stage 4"},
-        "policies": {"prohibit": []},
-        "version": 1,
-    }
-
-    engine.step("use Nord Stage 4")
-    engine.step("don't use parallel octaves")
-
-    decision_constraints = engine.step("clear constraints")
-    assert decision_constraints["kind"] == "passthrough"
-    assert engine.state == {
-        "facts": {"focus.primary": "Nord Stage 4"},
-        "policies": {"prohibit": ["parallel octaves"]},
-        "version": 1,
-    }
-
-    engine.step("use Nord Stage 4")
-    engine.step("don't use parallel octaves")
-
-    decision2 = engine.step("clear state")
-    assert decision2["kind"] == "update"
-    assert engine.state == {
-        "facts": {"focus.primary": None},
-        "policies": {"prohibit": []},
-        "version": 1,
-    }
-
-
-def test_passthrough_input_does_not_mutate_state() -> None:
-    engine = create_engine()
-    before = engine.state
-
-    decision = engine.step("hello there")
-
-    assert decision["kind"] == "passthrough"
-    assert engine.state == before
-
-
-def test_reset_policies_when_already_empty_preserves_existing_fact() -> None:
-    engine = create_engine()
-
-    engine.step("use Nord Stage 4")
-
-    decision = engine.step("reset policies")
-
-    assert decision["kind"] == "update"
-    assert engine.state == {
-        "facts": {"focus.primary": "Nord Stage 4"},
-        "policies": {"prohibit": []},
-        "version": 1,
-    }
-
-
-def test_reset_policies_keeps_last_exclusive_fact_correctable() -> None:
-    engine = create_engine()
-
-    engine.step("use Nord Stage 4")
     engine.step("don't use docker")
-    engine.step("reset policies")
+    engine.step("don't use kubectl")
 
-    decision = engine.step("actually Nord Stage 3")
-    assert decision["kind"] == "update"
-    assert engine.state["facts"]["focus.primary"] == "Nord Stage 3"
-
-
-def test_reset_policies_on_initial_state_is_update_and_noop() -> None:
-    engine = create_engine()
-
-    decision = engine.step("reset policies")
-
-    assert decision["kind"] == "update"
-    assert engine.state == {
-        "facts": {"focus.primary": None},
-        "policies": {"prohibit": []},
-        "version": 1,
+    first = engine.step("use kubectl instead of docker")
+    expected = (
+        '"docker" is currently prohibited. Did you mean to remove it and use "kubectl" instead?'
+    )
+    assert first == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": expected,
     }
+    assert engine.state["policies"] == {"docker": "prohibit", "kubectl": "prohibit"}
 
 
-def test_unicode_apostrophe_positive_directive() -> None:
+def test_replace_use_kx_prohibit_no_confirmation_has_no_mutation() -> None:
     engine = create_engine()
+    engine.step("use docker")
+    engine.step("don't use kubectl")
+    engine.step("use kubectl instead of docker")
+    before = engine.state
 
-    decision = engine.step("i’m using Nord Stage 4")
+    decision = engine.step("no")
+    assert decision == {"kind": "update", "state": before, "prompt_to_user": None}
+    assert engine.state == before
 
+
+def test_pending_confirmation_precedence_and_resolution() -> None:
+    engine = create_engine()
+    engine.step("use docker")
+    engine.step("don't use kubectl")
+    first = engine.step("use kubectl instead of docker")
+
+    # While pending, directive parsing is suspended.
+    second = engine.step("use docker")
+    assert second == first
+    assert engine.state["policies"] == {"docker": "use", "kubectl": "prohibit"}
+
+    third = engine.step("yes")
+    assert third["kind"] == "update"
+    assert engine.state["policies"] == {"kubectl": "use"}
+
+
+def test_pending_negative_discards_proposed_event() -> None:
+    engine = create_engine()
+    engine.step("use docker")
+    engine.step("don't use kubectl")
+    engine.step("use kubectl instead of docker")
+    before = engine.state
+
+    decision = engine.step("no")
+
+    assert decision == {"kind": "update", "state": before, "prompt_to_user": None}
+    assert engine.state["policies"] == {"docker": "use", "kubectl": "prohibit"}
+
+
+def test_pending_confirmation_token_normalization() -> None:
+    engine = create_engine()
+    engine.step("use docker")
+    engine.step("don't use kubectl")
+    engine.step("use kubectl instead of docker")
+
+    decision = engine.step("  YES!!!  ")
     assert decision["kind"] == "update"
-    assert engine.state["facts"]["focus.primary"] == "Nord Stage 4"
+    assert engine.state["policies"] == {"kubectl": "use"}
 
 
-def test_unicode_apostrophe_negative_directive() -> None:
+def test_pending_affirmative_confirmation_token_variants_are_accepted() -> None:
+    for token in ["yes please", "Yep", "yeah", "ok", "  OKAY...  ", "sure!"]:
+        engine = create_engine()
+        engine.step("use docker")
+        engine.step("don't use kubectl")
+        engine.step("use kubectl instead of docker")
+        decision = engine.step(token)
+        assert decision["kind"] == "update"
+        assert engine.state["policies"] == {"kubectl": "use"}
+
+
+def test_pending_negative_confirmation_token_normalization_no_punctuation() -> None:
     engine = create_engine()
-
-    decision = engine.step("don’t use docker")
-
-    assert decision["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == ["docker"]
-
-
-def test_correction_with_empty_payload_clarifies() -> None:
-    engine = create_engine()
-
-    engine.step("use Nord Stage 3")
-    decision = engine.step("actually   ")
-
-    assert decision["kind"] == "clarify"
-
-
-def test_correction_with_invalid_conjunction_clarifies() -> None:
-    engine = create_engine()
-
-    engine.step("use Nord Stage 3")
-    decision = engine.step("actually and Nord")
-
-    assert decision["kind"] == "clarify"
-
-
-def test_allow_with_empty_payload_clarifies_without_mutating_state() -> None:
-    engine = create_engine()
+    engine.step("use docker")
+    engine.step("don't use kubectl")
+    engine.step("use kubectl instead of docker")
     before = engine.state
 
-    decision = engine.step("allow   ")
-
-    assert decision["kind"] == "clarify"
+    decision = engine.step("  NO!!!  ")
+    assert decision == {"kind": "update", "state": before, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_use_with_unclear_payload_clarifies_without_mutating_state() -> None:
+def test_pending_negative_confirmation_token_normalization_no_thanks() -> None:
     engine = create_engine()
+    engine.step("use docker")
+    engine.step("don't use kubectl")
+    engine.step("use kubectl instead of docker")
     before = engine.state
 
-    decision = engine.step("use and")
-
-    assert decision["kind"] == "clarify"
+    decision = engine.step("no thanks.")
+    assert decision == {"kind": "update", "state": before, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_pending_yes_with_whitespace_resolves() -> None:
+def test_pending_negative_confirmation_token_variants_are_accepted() -> None:
+    for token in ["nope", "Nope??", " no ", "NO THANKS!"]:
+        engine = create_engine()
+        engine.step("use docker")
+        engine.step("don't use kubectl")
+        engine.step("use kubectl instead of docker")
+        before = engine.state
+        decision = engine.step(token)
+        assert decision == {"kind": "update", "state": before, "prompt_to_user": None}
+        assert engine.state == before
+
+
+def test_pending_unmatched_input_remains_clarify_without_mutation() -> None:
     engine = create_engine()
-
-    engine.step("no use docker")
-    decision = engine.step("   yes   ")
-
-    assert decision["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == ["docker"]
-
-
-def test_yes_after_non_pending_clarify_is_passthrough() -> None:
-    engine = create_engine()
-
-    decision1 = engine.step("no use docker and x")
-    assert decision1["kind"] == "clarify"
-
-    decision2 = engine.step("yes")
-
-    assert decision2["kind"] == "passthrough"
-    assert engine.state == {
-        "facts": {"focus.primary": None},
-        "policies": {"prohibit": []},
-        "version": 1,
-    }
-
-
-def test_unicode_apostrophe_negative_directive_with_please() -> None:
-    engine = create_engine()
-
-    decision = engine.step("please don’t use docker")
-
-    assert decision["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == ["docker"]
-
-
-def test_refrain_from_is_passthrough_and_does_not_mutate_state() -> None:
-    engine = create_engine()
+    engine.step("use docker")
+    engine.step("don't use kubectl")
+    first = engine.step("use kubectl instead of docker")
     before = engine.state
 
-    decision = engine.step("refrain from use docker")
-
-    assert decision["kind"] == "passthrough"
+    second = engine.step("maybe")
+    assert second == first
     assert engine.state == before
 
 
-def test_hard_negative_dont_without_apostrophe_updates_policy() -> None:
+def test_pending_unmatched_input_can_repeat_without_mutation() -> None:
     engine = create_engine()
-
-    decision = engine.step("dont use docker")
-
-    assert decision["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == ["docker"]
-
-
-def test_hard_negative_please_dont_without_apostrophe_updates_policy() -> None:
-    engine = create_engine()
-
-    decision = engine.step("please dont use docker")
-
-    assert decision["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == ["docker"]
-
-
-def test_hard_negative_dont_without_use_still_adds_policy() -> None:
-    engine = create_engine()
-
-    decision = engine.step("dont docker")
-
-    assert decision["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == ["docker"]
-
-
-def test_correction_with_multiple_values_clarifies_and_keeps_state() -> None:
-    engine = create_engine()
-    engine.step("use Nord Stage 4")
+    engine.step("use docker")
+    engine.step("don't use kubectl")
+    first = engine.step("use kubectl instead of docker")
     before = engine.state
 
-    decision = engine.step("actually macbook and linux")
-
-    assert decision["kind"] == "clarify"
+    assert engine.step("later") == first
+    assert engine.step("still later") == first
     assert engine.state == before
 
 
-def test_empty_hard_negative_clarifies_with_prohibit_prompt() -> None:
+def test_replacement_pending_yes_can_override_conflicting_target_polarity() -> None:
     engine = create_engine()
-    before = engine.state
+    engine.step("use docker")
+    engine.step("don't use kubectl")
 
-    decision = engine.step("don't use")
+    first = engine.step("use kubectl instead of docker")
+    assert first["kind"] == "clarify"
+    assert engine.state["policies"] == {"docker": "use", "kubectl": "prohibit"}
 
-    assert decision["kind"] == "clarify"
-    assert decision["prompt_to_user"] == "What should I prohibit?"
-    assert engine.state == before
+    second = engine.step("yes")
+    assert second["kind"] == "update"
+    assert engine.state["policies"] == {"kubectl": "use"}
 
 
-def test_hard_positive_empty_payload_clarifies_with_use_prompt() -> None:
+def test_import_json_clears_pending_clarification_yes_no_not_confirmation() -> None:
     engine = create_engine()
-    before = engine.state
-
-    decision = engine.step("use")
-
-    assert decision["kind"] == "clarify"
-    assert decision["prompt_to_user"] == "What should I use?"
-    assert engine.state == before
-
-
-def test_hard_positive_multi_value_payload_clarifies_with_single_value_prompt() -> None:
-    engine = create_engine()
-    before = engine.state
-
-    decision = engine.step("use macbook and linux")
-
-    assert decision["kind"] == "clarify"
-    assert decision["prompt_to_user"] == "Please provide a single value to use."
-    assert engine.state == before
-
-
-def test_hard_positive_or_ambiguity_clarifies_with_single_value_prompt() -> None:
-    engine = create_engine()
-    before = engine.state
-
-    decision = engine.step("use macbook or linux")
-
-    assert decision["kind"] == "clarify"
-    assert engine.state == before
-
-
-def test_pending_clarification_rejected_by_explicit_no_is_passthrough() -> None:
-    engine = create_engine()
-    before = engine.state
-
-    first = engine.step("no use docker")
+    engine.step("use docker")
+    engine.step("don't use kubectl")
+    first = engine.step("use kubectl instead of docker")
     assert first["kind"] == "clarify"
 
-    second = engine.step("no")
-    assert second["kind"] == "passthrough"
-    assert engine.state == before
+    imported = {"premise": "baseline", "policies": {"pytest": "use"}, "version": 2}
+    engine.import_json(json.dumps(imported))
+
+    yes_decision = engine.step("yes")
+    assert yes_decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert engine.state == imported
+
+    no_decision = engine.step("no")
+    assert no_decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert engine.state == imported
 
 
-@pytest.mark.parametrize(
-    ("path", "bad_state"),
-    [
-        ("constructor", []),
-        ("import_json", "not-a-dict"),
-        ("constructor", {"facts": [], "policies": {"prohibit": []}, "version": 1}),
-        ("import_json", {"facts": {"focus.primary": None}, "policies": [], "version": 1}),
-        (
-            "constructor",
-            {"facts": {"focus.primary": 123}, "policies": {"prohibit": []}, "version": 1},
-        ),
-    ],
-)
-def test_object_state_paths_reject_malformed_state_inputs(path: str, bad_state: object) -> None:
-    if path == "constructor":
-        with pytest.raises(ValueError):
-            Engine(state=bad_state)
-        return
-
-    engine = create_engine()
-    with pytest.raises(ValueError):
-        engine.import_json(json.dumps(bad_state))
-
-
-def test_allow_suffix_removes_existing_prohibition() -> None:
-    engine = create_engine()
-    engine.step("don't use docker")
-
-    decision = engine.step("docker is fine")
-
-    assert decision["kind"] == "update"
-    assert engine.state["policies"]["prohibit"] == []
-
-
-def test_correction_payload_that_invokes_other_directive_family_is_clarified_without_mutation() -> (
-    None
-):
-    engine = create_engine()
-    engine.step("use Nord Stage 4")
-    before = engine.state
-
-    decision = engine.step("actually don't use docker")
-
-    assert decision["kind"] == "clarify"
-    assert (
-        decision["prompt_to_user"]
-        == "Your directive mixes multiple directive types. Please provide one."
+def test_compile_transcript_ignores_non_user_messages() -> None:
+    result = compile_transcript(
+        [
+            {"role": "system", "content": "set premise concise"},
+            {"role": "assistant", "content": "ok"},
+            {"role": "user", "content": "set premise concise"},
+        ]
     )
-    assert engine.state == before
+
+    assert result == {
+        "kind": "state",
+        "state": {"premise": "concise", "policies": {}, "version": 2},
+    }
+
+
+def test_apply_transcript_matches_manual_step_replay() -> None:
+    messages: list[dict[str, object]] = [
+        {"role": "assistant", "content": "ignore me"},
+        {"role": "user", "content": "set premise concise"},
+        {"role": "user", "content": "use docker"},
+    ]
+
+    replay_engine = create_engine()
+    replay_result = replay_engine.apply_transcript(messages)
+
+    manual_engine = create_engine()
+    manual_result: dict[str, object] = {"kind": "state", "state": manual_engine.state}
+    for message in messages:
+        if message.get("role") != "user" or not isinstance(message.get("content"), str):
+            continue
+        manual_engine.step(message["content"])
+        manual_result = {"kind": "state", "state": manual_engine.state}
+
+    assert replay_result == manual_result
+    assert replay_engine.state == manual_engine.state
+
+
+def test_constructor_with_state_initializes_from_valid_state() -> None:
+    state = {"premise": "Prefer bullets", "policies": {"pytest": "use"}, "version": 2}
+    engine = Engine(state=state)
+    assert engine.state == state

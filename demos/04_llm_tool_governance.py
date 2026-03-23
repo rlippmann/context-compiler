@@ -2,7 +2,7 @@
 
 import re
 
-from context_compiler import create_engine, get_prohibited_items
+from context_compiler import create_engine, get_policy_items
 from demos.common import (
     build_baseline_messages,
     build_mediated_messages,
@@ -71,7 +71,7 @@ def main() -> None:
     baseline_output = complete_messages(baseline_messages)
     print_model_output("Baseline", baseline_output)
 
-    prohibited = get_prohibited_items(engine.state)
+    prohibited = get_policy_items(engine.state, "prohibit")
     candidate_tools = ["docker", "kubectl"]
     filtered_tools = [tool for tool in candidate_tools if tool not in prohibited]
     if is_verbose():
