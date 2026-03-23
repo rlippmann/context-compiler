@@ -11,7 +11,7 @@ conversations, and long-term state accumulates contradictions rather
 than resolving them.
 This project introduces a deterministic state layer that governs
 authoritative state independently of the model. The model performs
-interpretation and generation, while the state engine manages deterministic conversational state (facts and policies). By separating reasoning
+interpretation and generation, while the state engine manages deterministic authoritative state (premise and policies). By separating reasoning
 from state authority, the system improves reliability without requiring
 model retraining. The system never derives authoritative state from
 model responses; only user directives modify state.
@@ -28,24 +28,23 @@ The state engine is authoritative and model-independent.
 Model output is never interpreted to derive or modify state.
 All state transitions originate from explicit user directives.
 
+Behavioral details are authoritative in `docs/DirectiveGrammarSpec.md`.
+
 ## Project Milestones
 
 ### M1 — Deterministic State Engine (implemented)
 
 **Goal**
 Explicit user commitments persist reliably within a conversation.
-A correction means replacing a previously set fact, not evaluating conversational accuracy.
+A change directive means replacing previously set authoritative state, not evaluating conversational accuracy.
 
-In M1 the fact schema intentionally contains a single exclusive slot (`facts["focus.primary"]`).
-This slot demonstrates deterministic fact replacement and correction semantics.
-
-Policies (`policies.prohibit`) provide the primary mechanism for persistent conversational constraints.
-Richer fact schemas may be introduced in future milestones.
+M1 established deterministic state transitions and explicit clarification behavior.
+The current authoritative state shape and directive semantics are defined in `DirectiveGrammarSpec.md` (0.5 / schema version 2).
 
 **Core capability:**
 
-- Recognize high-confidence user directives (facts and policies)
-- Apply corrections as deterministic replacements
+- Recognize explicit user directives that mutate premise or policies
+- Apply explicit state changes as deterministic replacements
 - Block ambiguous updates until clarified
 - Maintain an authoritative state independent of prior messages
 - Provide structured state for host-provided model context
@@ -53,12 +52,12 @@ Richer fact schemas may be introduced in future milestones.
 **Deliverables:**
 
 - Directive grammar (conservative pattern set)
-- State data model (facts + policies)
-- Deterministic update rules (exclusive vs additive slots)
+- State data model (authoritative conversational state)
+- Deterministic update rules for explicit directives and clarification
 - Clarification mechanism for ambiguous mutations
 - Context serialization interface (`export_json` / `import_json`, state → host application)
 - Reference integration harness (example host)
-- Tests: persistence and non-regression of corrections
+- Tests: persistence and non-regression of deterministic state updates
 
 **User-visible outcome:**
 
