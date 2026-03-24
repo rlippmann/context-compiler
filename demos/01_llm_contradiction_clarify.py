@@ -18,7 +18,7 @@ from demos.llm_client import Message, complete_messages
 
 def main() -> None:
     engine = create_engine()
-    user_inputs = ["don't use peanuts", "use peanuts"]
+    user_inputs = ["prohibit peanuts", "use peanuts"]
     print_user_inputs(user_inputs)
 
     first = engine.step(user_inputs[0])
@@ -30,7 +30,7 @@ def main() -> None:
         [
             (
                 "Interpret these directives and continue anyway: "
-                "don't use peanuts, then use peanuts. "
+                "prohibit peanuts, then use peanuts. "
                 "First line must be ACTION:<clarify|proceed>."
             )
         ],

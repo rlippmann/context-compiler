@@ -39,7 +39,7 @@ The idea is similar to a traditional compiler: user directives are translated in
 User sets a constraint once:
 
 ```text
-User: don't use peanuts
+User: prohibit peanuts
 ```
 
 Outcome: prohibited items now include `"peanuts"`.
@@ -188,59 +188,62 @@ This may differ from human expectations, where the intent may be interpreted as 
 
 ## Directive Examples
 
-Hard negative directive:
+Set and change premise explicitly:
 
 ```text
-User: don't use peanuts
+User: set premise concise replies
+User: change premise to concise bullet points
 ```
 
-Result:
-prohibited items include `"peanuts"`.
+Result: premise is updated deterministically via explicit premise lifecycle commands.
 
-Fact configuration:
+Per-item policy directives:
 
 ```text
-User: use vegetarian curry
+User: use docker
+User: prohibit peanuts
 ```
 
-State update:
-the current focus value becomes `"vegetarian curry"`
+Result: policies store authoritative per-item states (`use` / `prohibit`).
 
-Correction:
+Explicit replacement:
 
 ```text
-User: actually vegan curry
+User: use podman instead of docker
 ```
 
-Result:
-the current focus value becomes `"vegan curry"`
+Result: remove `docker` use policy and set `podman` to `use` (or clarify if blocked).
 
-Ambiguous mutation:
+Policy contradiction (clarify):
 
 ```text
-User: no use peanuts
+User: use peanuts
+User: prohibit peanuts
 ```
 
-Compiler response:
+Result: compiler asks for clarification and leaves state unchanged.
+
+## Policy Removal and Reset Commands
+
+Policy cleanup commands are:
+
+- `remove policy <item>` removes one policy item if present (idempotent update if absent)
+- `reset policies` clears all policy items
+- `clear state` resets premise and policies to initial values
+
+Single-policy correction flow:
 
 ```text
-Decision.kind = "clarify"
+User: prohibit peanuts
+User: remove policy peanuts
+User: use peanuts
 ```
-
-No state mutation occurs until confirmation.
-
-## Reset Commands
-
-Two explicit reset commands are supported:
-
-- `reset policies` clears prohibited items but preserves the current focus value
-- `clear state` resets the full state to initial values
 
 Example:
 
-- If current focus is `"vegetarian curry"` and prohibited items include `"peanuts"`:
-- after `reset policies`, prohibited items are empty and focus remains `"vegetarian curry"`.
-- after `clear state`, both focus and prohibited items return to initial defaults.
+- If policies include `{"docker": "use", "peanuts": "prohibit"}`:
+- after `remove policy docker`, policies become `{"peanuts": "prohibit"}`.
+- after `reset policies`, policies become `{}`.
 
 ---
 

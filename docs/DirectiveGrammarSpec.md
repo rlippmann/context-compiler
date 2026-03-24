@@ -111,7 +111,8 @@ All other input is `passthrough` unless Section 8 says `clarify`.
 SET_PREMISE      := "set premise " VALUE
 CHANGE_PREMISE   := "change premise to " VALUE
 USE_ITEM         := "use " ITEM
-PROHIBIT_ITEM    := "don't use " ITEM
+PROHIBIT_ITEM    := "prohibit " ITEM
+REMOVE_POLICY    := "remove policy " ITEM
 REPLACE_USE      := "use " ITEM " instead of " ITEM
 CLEAR_PREMISE    := "clear premise"
 RESET_POLICIES   := "reset policies"
@@ -152,10 +153,15 @@ Let `k = normalize_item(ITEM)`.
   - if `policies[k] == "use"`: no-op `update` (idempotent assertion)
   - else set `policies[k] = "use"`
 
-- `don't use ITEM`:
+- `prohibit ITEM`:
   - if `policies[k] == "use"`: `clarify` (contradiction)
   - if `policies[k] == "prohibit"`: no-op `update` (idempotent assertion)
   - else set `policies[k] = "prohibit"`
+
+- `remove policy ITEM`:
+  - if `ITEM` payload is empty or whitespace-only after the prefix: `clarify` and no mutation
+  - remove `k = normalize_item(ITEM)` from `policies` if present
+  - always return `update` (idempotent when absent)
 
 ### 8.3 Explicit replacement
 
@@ -193,6 +199,7 @@ This operation is authoritative replacement, not recency resolution.
 
 - `clear premise`: set `premise = null` (cleared premise state)
 - `reset policies`: set `policies = {}`
+- `remove policy ITEM`: remove one normalized policy key from `policies` if present
 - `clear state`: reset all authoritative state by setting `premise = null` and `policies = {}`
 
 ## 9. Clarification Rules (Exhaustive)
@@ -204,12 +211,13 @@ The compiler returns `Decision.kind = "clarify"` only in these cases:
 3. `set premise X` when `X` is empty or whitespace-only after the prefix.
 4. `change premise to X` when `X` is empty or whitespace-only after the prefix.
 5. `use ITEM` when that item is currently `"prohibit"`.
-6. `don't use ITEM` when that item is currently `"use"`.
+6. `prohibit ITEM` when that item is currently `"use"`.
 7. `use X instead of Y` when `Y` does not exist in policies (`ky not in policies`).
 8. `use X instead of Y` when `Y` is currently `"prohibit"`.
 9. `use X instead of Y` when `X` is currently `"prohibit"`.
 10. `use X instead of Y` when `Y` exists but is not `"use"` and no replacement-intent clarify rule applies.
 11. A pending clarification exists and input is not an exact confirmation token.
+12. `remove policy ITEM` when `ITEM` is empty or whitespace-only after the prefix.
 
 Contradictions never silently overwrite state.
 
@@ -225,6 +233,9 @@ When `Decision.kind = "clarify"`, prompt text is deterministic only for the case
   `"X" is currently prohibited. Did you mean to remove "Y" and use "X" instead?`
 - Pending clarification unmatched input (Section 9 case 11):
   reuse the existing pending prompt unchanged.
+- `remove policy ITEM` with empty/whitespace-only payload (Section 9 case 12):
+  `Policy item cannot be empty.`
+  `Use 'remove policy <item>' with a non-empty value.`
 
 Clarify cases 1-6 and 10 must return `clarify` but do not require a standardized prompt string in this specification.
 Their exact prompt text is implementation-defined unless standardized in a later spec revision.

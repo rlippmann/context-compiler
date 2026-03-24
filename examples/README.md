@@ -15,7 +15,7 @@ Shows `set premise ...` followed by `change premise to ...`.
 ## 03_ambiguity_with_clarification.py
 
 Demonstrates contradiction clarify behavior before state mutation.  
-Shows how the host handles `Decision.kind == "clarify"` and blocks LLM calls.
+Shows how the host handles clarify results and blocks LLM calls.
 
 ## 04_tool_governance_denylist.py
 
@@ -24,10 +24,16 @@ Shows how hosts can prevent denied tools from being selected.
 
 ## 05_llm_integration_pattern.py
 
-Demonstrates the end-to-end host control flow around `Decision`.  
+Demonstrates end-to-end host control flow around compiler outcomes.  
 Shows when to clarify, when to call the model, and how to include compiled state in prompts.
+Includes a single-item policy removal step via `remove policy <item>`.
 
 ## 06_transcript_replay.py
 
 Demonstrates transcript replay helpers for host integration.
 Shows `compile_transcript(messages)` from a fresh engine and `engine.apply_transcript(messages)` on current engine state.
+
+## 07_single_policy_correction.py
+
+Demonstrates explicit single-policy correction without `reset policies`.  
+Shows `prohibit peanuts` -> `remove policy peanuts` -> `use peanuts`.

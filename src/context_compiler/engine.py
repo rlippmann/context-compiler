@@ -60,6 +60,7 @@ class Action:
         "change_premise",
         "use_item",
         "prohibit_item",
+        "remove_policy_item",
         "replace_use",
         "clear_premise",
         "reset_policies",
@@ -183,10 +184,31 @@ class Engine:
         if action.kind in {"set_premise", "change_premise"}:
             assert action.value is not None
             if _sanitize_premise_value(action.value) == "":
-                return _clarify("Premise value cannot be empty.")
+                if action.kind == "set_premise":
+                    return _clarify(
+                        "Premise value cannot be empty.\n"
+                        "Use 'set premise ...' with a non-empty value."
+                    )
+                return _clarify(
+                    "Premise value cannot be empty.\n"
+                    "Use 'change premise to ...' with a non-empty value."
+                )
+
+        if action.kind == "remove_policy_item":
+            assert action.item is not None
+            if _normalize_item(action.item) == "":
+                return _clarify(
+                    "Policy item cannot be empty.\n"
+                    "Use 'remove policy <item>' with a non-empty value."
+                )
 
         if action.kind == "set_premise" and self._state[STATE_PREMISE] is not None:
-            return _clarify("Premise already exists. Use 'change premise to ...' to replace it.")
+            return _clarify(
+                "Premise already exists.\n"
+                "Use 'change premise to ...' to replace it.\n"
+                "Premise is a single slot.\n"
+                "To keep multiple ideas, rewrite them as one premise value."
+            )
 
         if action.kind == "change_premise" and self._state[STATE_PREMISE] is None:
             return _clarify("No premise exists yet. Use 'set premise ...' first.")
@@ -195,13 +217,21 @@ class Engine:
             assert action.item is not None
             item_key = _normalize_item(action.item)
             if self._state[STATE_POLICIES].get(item_key) == POLICY_PROHIBIT:
-                return _clarify(f"Cannot set use for '{item_key}' while it is prohibit.")
+                return _clarify(
+                    f"'{item_key}' is already prohibited.\n"
+                    "Only one policy per item is allowed.\n"
+                    "Use 'reset policies' to change it."
+                )
 
         if action.kind == "prohibit_item":
             assert action.item is not None
             item_key = _normalize_item(action.item)
             if self._state[STATE_POLICIES].get(item_key) == POLICY_USE:
-                return _clarify(f"Cannot set prohibit for '{item_key}' while it is use.")
+                return _clarify(
+                    f"'{item_key}' is already in use.\n"
+                    "Only one policy per item is allowed.\n"
+                    "Use 'reset policies' to change it."
+                )
 
         if action.kind == "replace_use":
             assert action.new_item is not None
@@ -214,7 +244,25 @@ class Engine:
             old_state = self._state[STATE_POLICIES].get(old_key)
             new_state = self._state[STATE_POLICIES].get(new_key)
             if old_key not in self._state[STATE_POLICIES]:
-                prompt = f'Did you mean to use "{action.new_item}" instead?'
+                prompt_lines = [
+                    f'No exact policy found for "{action.old_item}".',
+                    "Replacement requires an exact policy match.",
+                ]
+                diagnostic_hints = _diagnostic_policy_contains_hints(
+                    self._state[STATE_POLICIES], action.old_item
+                )
+                if diagnostic_hints:
+                    prompt_lines.append(
+                        f"Existing policies containing that text: {diagnostic_hints}."
+                    )
+                    prompt_lines.append(
+                        f'Confirm to use "{action.new_item}" and keep {diagnostic_hints}?'
+                    )
+                else:
+                    prompt_lines.append(
+                        f'Confirm to use "{action.new_item}" and keep existing policies?'
+                    )
+                prompt = "\n".join(prompt_lines)
                 self._pending_replacement = PendingReplacement(
                     kind="use_only",
                     new_item=action.new_item,
@@ -248,7 +296,9 @@ class Engine:
                 return _clarify(prompt)
             if old_state != POLICY_USE:
                 return _clarify(
-                    f"Cannot replace '{action.old_item}' because its policy is not 'use'."
+                    f"'{action.old_item}' is not a use policy.\n"
+                    "Replacement requires an existing use policy.\n"
+                    "Use 'reset policies' to change it."
                 )
 
         return None
@@ -286,6 +336,12 @@ class Engine:
             self._apply_replacement_explicit(action.new_item, action.old_item)
             return _update_decision(self._state)
 
+        if kind == "remove_policy_item":
+            assert action.item is not None
+            item_key = _normalize_item(action.item)
+            self._state[STATE_POLICIES].pop(item_key, None)
+            return _update_decision(self._state)
+
         if kind == "clear_premise":
             self._state[STATE_PREMISE] = None
             return _update_decision(self._state)
@@ -316,6 +372,13 @@ def _parse_directive(user_input: str) -> Action | None:
     if user_input == "clear state":
         return Action(kind="clear_state")
 
+    remove_policy_base = "remove policy"
+    if user_input == remove_policy_base:
+        return Action(kind="remove_policy_item", item="")
+    remove_policy_prefix = f"{remove_policy_base} "
+    if user_input.startswith(remove_policy_prefix):
+        return Action(kind="remove_policy_item", item=user_input[len(remove_policy_prefix) :])
+
     set_base = "set premise"
     if user_input == set_base:
         return Action(kind="set_premise", value="")
@@ -344,7 +407,7 @@ def _parse_directive(user_input: str) -> Action | None:
             return Action(kind="use_item", item=payload)
         return None
 
-    prohibit_prefix = "don't use "
+    prohibit_prefix = "prohibit "
     if user_input.startswith(prohibit_prefix):
         item = user_input[len(prohibit_prefix) :]
         if item != "":
@@ -427,6 +490,16 @@ def _normalize_item(value: str) -> str:
     normalized = re.sub(r"\s+", " ", normalized).strip()
     normalized = re.sub(r"^(?:a|an|the)\b\s*", "", normalized)
     return normalized.strip()
+
+
+def _diagnostic_policy_contains_hints(policies: dict[str, PolicyValue], raw_item: str) -> str:
+    probe = _normalize_item(raw_item)
+    if probe == "":
+        return ""
+    matches = sorted(key for key in policies if probe in key)
+    if not matches:
+        return ""
+    return ", ".join(f'"{key}"' for key in matches)
 
 
 def _normalize_confirmation(text: str) -> str:

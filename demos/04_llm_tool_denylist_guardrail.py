@@ -49,7 +49,7 @@ def selected_tool(output: str) -> str | None:
 def main() -> None:
     engine = create_engine()
     user_inputs = [
-        "don't use docker",
+        "prohibit docker",
         (
             "Deploy the service. Pick one tool from docker, kubectl. "
             "First line must be TOOL:<docker|kubectl> and second line ACTION:<one-line action>."

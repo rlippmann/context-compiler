@@ -3,10 +3,11 @@ import sys
 from typing import TextIO
 
 from . import create_engine
-from .engine import Decision
+from .engine import Decision, DecisionKind, State
 
 _EXIT_TOKENS = {"exit", "quit"}
 _HELP_TOKENS = {"help", "?"}
+_MULTI_COMMAND_PROMPT = "Multiple commands detected.\nEnter one command per line."
 
 
 def format_decision(decision: Decision) -> str:
@@ -17,23 +18,53 @@ def _is_interactive(in_stream: TextIO, out_stream: TextIO) -> bool:
     return bool(in_stream.isatty() and out_stream.isatty())
 
 
+def _has_embedded_newline(raw_line: str) -> bool:
+    body = raw_line[:-1] if raw_line.endswith("\n") else raw_line
+    if body.endswith("\r"):
+        body = body[:-1]
+    return "\n" in body or "\r" in body
+
+
+def _multi_command_decision() -> Decision:
+    return {
+        "kind": DecisionKind.CLARIFY,
+        "state": None,
+        "prompt_to_user": _MULTI_COMMAND_PROMPT,
+    }
+
+
 def _print_interactive_help(out_stream: TextIO) -> None:
     print("Commands: help/? exit/quit", file=out_stream)
     print("Directives (exact prefix only):", file=out_stream)
     print("  set premise <value>", file=out_stream)
     print("  change premise to <value>", file=out_stream)
     print("  use <item>", file=out_stream)
-    print("  don't use <item>", file=out_stream)
+    print("  prohibit <item>", file=out_stream)
+    print("  remove policy <item>", file=out_stream)
     print("  use <new item> instead of <old item>", file=out_stream)
     print("  clear premise", file=out_stream)
     print("  reset policies", file=out_stream)
     print("  clear state", file=out_stream)
     print("Only question prompts accept yes/no confirmations", file=out_stream)
     print("Other clarify prompts are errors and do not accept yes/no", file=out_stream)
-    print('State schema: {"premise": ..., "policies": ..., "version": 2}', file=out_stream)
+
+
+def _render_state_lines(state: State) -> list[str]:
+    premise = state["premise"]
+    premise_line = "premise: (none)" if premise is None else f"premise: {premise}"
+
+    policy_items = sorted(state["policies"].items())
+    if not policy_items:
+        return [premise_line, "policies: (none)"]
+
+    lines = [premise_line, "policies:"]
+    for item, value in policy_items:
+        lines.append(f"- {value} {item}")
+    return lines
 
 
 def _print_interactive_decision(decision: Decision, out_stream: TextIO) -> None:
+    print("", file=out_stream)
     kind = decision["kind"]
     if kind == "passthrough":
         print("passthrough", file=out_stream)
@@ -49,8 +80,8 @@ def _print_interactive_decision(decision: Decision, out_stream: TextIO) -> None:
     print("updated", file=out_stream)
     state = decision["state"]
     assert state is not None
-    print("state:", file=out_stream)
-    print(json.dumps(state, sort_keys=True), file=out_stream)
+    for line in _render_state_lines(state):
+        print(line, file=out_stream)
 
 
 def run_repl(in_stream: TextIO, out_stream: TextIO) -> None:
@@ -64,6 +95,9 @@ def run_repl(in_stream: TextIO, out_stream: TextIO) -> None:
             line = in_stream.readline()
             if line == "":
                 return
+            if _has_embedded_newline(line):
+                _print_interactive_decision(_multi_command_decision(), out_stream)
+                continue
             user_input = line.rstrip("\n")
             token = user_input.strip().lower()
             if not token:
@@ -79,6 +113,9 @@ def run_repl(in_stream: TextIO, out_stream: TextIO) -> None:
         return
 
     for line in in_stream:
+        if _has_embedded_newline(line):
+            print(format_decision(_multi_command_decision()), file=out_stream)
+            continue
         user_input = line.rstrip("\n")
         if user_input.strip().lower() in _EXIT_TOKENS:
             return

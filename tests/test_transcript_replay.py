@@ -6,7 +6,7 @@ def test_only_user_messages_affect_transcript_replay() -> None:
         [
             {"role": "system", "content": "set premise concise"},
             {"role": "assistant", "content": "clear state"},
-            {"role": "tool", "content": "don't use docker"},
+            {"role": "tool", "content": "prohibit docker"},
             {"role": "user", "content": "set premise concise"},
         ]
     )
@@ -60,7 +60,7 @@ def test_transcript_stops_at_first_clarify_and_returns_confirm() -> None:
     result = compile_transcript(
         [
             {"role": "user", "content": "use docker"},
-            {"role": "user", "content": "don't use kubectl"},
+            {"role": "user", "content": "prohibit kubectl"},
             {"role": "user", "content": "use kubectl instead of docker"},
             {"role": "user", "content": "set premise ignored"},
         ]
@@ -80,7 +80,7 @@ def test_transcript_stops_at_first_clarify_even_if_later_message_is_yes() -> Non
     result = compile_transcript(
         [
             {"role": "user", "content": "use docker"},
-            {"role": "user", "content": "don't use kubectl"},
+            {"role": "user", "content": "prohibit kubectl"},
             {"role": "user", "content": "use kubectl instead of docker"},
             {"role": "user", "content": "yes"},
         ]
@@ -100,7 +100,7 @@ def test_transcript_stops_at_first_clarify_even_if_later_message_is_no() -> None
     result = compile_transcript(
         [
             {"role": "user", "content": "use docker"},
-            {"role": "user", "content": "don't use kubectl"},
+            {"role": "user", "content": "prohibit kubectl"},
             {"role": "user", "content": "use kubectl instead of docker"},
             {"role": "user", "content": "no"},
         ]
@@ -121,7 +121,7 @@ def test_apply_transcript_stops_before_mutating_later_messages_after_clarify() -
     result = engine.apply_transcript(
         [
             {"role": "user", "content": "use docker"},
-            {"role": "user", "content": "don't use kubectl"},
+            {"role": "user", "content": "prohibit kubectl"},
             {"role": "user", "content": "use kubectl instead of docker"},
             {"role": "user", "content": "set premise should not apply"},
             {"role": "user", "content": "yes"},

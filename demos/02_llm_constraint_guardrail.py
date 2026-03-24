@@ -88,7 +88,7 @@ def recipe_includes_prohibited_item(output: str) -> bool:
 def main() -> None:
     engine = create_engine()
     user_inputs = [
-        "don't use peanuts",
+        "prohibit peanuts",
         "Suggest a peanut curry recipe with ingredients and steps.",
     ]
     print_user_inputs(user_inputs)
