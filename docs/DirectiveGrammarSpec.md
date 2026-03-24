@@ -111,7 +111,7 @@ All other input is `passthrough` unless Section 8 says `clarify`.
 SET_PREMISE      := "set premise " VALUE
 CHANGE_PREMISE   := "change premise to " VALUE
 USE_ITEM         := "use " ITEM
-PROHIBIT_ITEM    := "don't use " ITEM
+PROHIBIT_ITEM    := "prohibit " ITEM
 REPLACE_USE      := "use " ITEM " instead of " ITEM
 CLEAR_PREMISE    := "clear premise"
 RESET_POLICIES   := "reset policies"
@@ -152,7 +152,7 @@ Let `k = normalize_item(ITEM)`.
   - if `policies[k] == "use"`: no-op `update` (idempotent assertion)
   - else set `policies[k] = "use"`
 
-- `don't use ITEM`:
+- `prohibit ITEM`:
   - if `policies[k] == "use"`: `clarify` (contradiction)
   - if `policies[k] == "prohibit"`: no-op `update` (idempotent assertion)
   - else set `policies[k] = "prohibit"`
@@ -204,7 +204,7 @@ The compiler returns `Decision.kind = "clarify"` only in these cases:
 3. `set premise X` when `X` is empty or whitespace-only after the prefix.
 4. `change premise to X` when `X` is empty or whitespace-only after the prefix.
 5. `use ITEM` when that item is currently `"prohibit"`.
-6. `don't use ITEM` when that item is currently `"use"`.
+6. `prohibit ITEM` when that item is currently `"use"`.
 7. `use X instead of Y` when `Y` does not exist in policies (`ky not in policies`).
 8. `use X instead of Y` when `Y` is currently `"prohibit"`.
 9. `use X instead of Y` when `X` is currently `"prohibit"`.

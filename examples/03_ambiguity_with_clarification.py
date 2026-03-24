@@ -13,8 +13,8 @@ def fake_llm(user_input: str) -> str:
 def main() -> None:
     engine = create_engine()
 
-    print("User: don't use peanuts")
-    decision1 = engine.step("don't use peanuts")
+    print("User: prohibit peanuts")
+    decision1 = engine.step("prohibit peanuts")
     print("Decision:")
     print_json(decision1)
     print()

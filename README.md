@@ -39,7 +39,7 @@ The idea is similar to a traditional compiler: user directives are translated in
 User sets a constraint once:
 
 ```text
-User: don't use peanuts
+User: prohibit peanuts
 ```
 
 Outcome: prohibited items now include `"peanuts"`.
@@ -191,7 +191,7 @@ This may differ from human expectations, where the intent may be interpreted as 
 Hard negative directive:
 
 ```text
-User: don't use peanuts
+User: prohibit peanuts
 ```
 
 Result:

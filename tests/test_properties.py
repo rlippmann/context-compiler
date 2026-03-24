@@ -32,8 +32,8 @@ def test_idempotent_use_item_is_update_and_stable_state(item: str) -> None:
 @given(st.text(min_size=1, max_size=30))
 def test_idempotent_prohibit_item_is_update_and_stable_state(item: str) -> None:
     engine = create_engine()
-    d1 = engine.step(f"don't use {item}")
-    d2 = engine.step(f"don't use {item}")
+    d1 = engine.step(f"prohibit {item}")
+    d2 = engine.step(f"prohibit {item}")
 
     assert d1["kind"] == "update"
     assert d2["kind"] == "update"
@@ -66,7 +66,7 @@ def test_passthrough_sequence_preserves_state_and_decision_kind(inputs: list[str
 @given(st.text(min_size=1, max_size=30))
 def test_contradiction_use_after_prohibit_always_clarifies(item: str) -> None:
     engine = create_engine()
-    engine.step(f"don't use {item}")
+    engine.step(f"prohibit {item}")
     before = engine.state
 
     decision = engine.step(f"use {item}")
@@ -80,6 +80,6 @@ def test_contradiction_prohibit_after_use_always_clarifies(item: str) -> None:
     engine.step(f"use {item}")
     before = engine.state
 
-    decision = engine.step(f"don't use {item}")
+    decision = engine.step(f"prohibit {item}")
     assert decision["kind"] == "clarify"
     assert engine.state == before

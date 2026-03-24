@@ -23,7 +23,7 @@ def allow_tool(tool: Tool) -> None:
 def main() -> None:
     engine = create_engine()
 
-    user_input = "don't use docker"
+    user_input = "prohibit docker"
     print(f"User: {user_input}")
     decision = engine.step(user_input)
     print("Decision:")

@@ -31,7 +31,7 @@ client = OpenAI(
 
 response = client.chat.completions.create(
     model="gpt-4o-mini",
-    messages=[{"role": "user", "content": "don't use peanuts"}],
+    messages=[{"role": "user", "content": "prohibit peanuts"}],
 )
 ```
 

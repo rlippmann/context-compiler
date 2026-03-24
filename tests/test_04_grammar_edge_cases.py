@@ -35,7 +35,7 @@ def test_replace_use_missing_side_is_passthrough() -> None:
     assert engine.step("use x instead of ")["kind"] == "passthrough"
     assert engine.step("use  instead of y")["kind"] == "passthrough"
     assert engine.step("use ")["kind"] == "passthrough"
-    assert engine.step("don't use ")["kind"] == "passthrough"
+    assert engine.step("prohibit ")["kind"] == "passthrough"
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
@@ -59,7 +59,7 @@ def test_exact_match_near_misses_are_passthrough() -> None:
 def test_pending_blocks_directive_parsing_until_confirmation() -> None:
     engine = create_engine()
     engine.step("use docker")
-    engine.step("don't use kubectl")
+    engine.step("prohibit kubectl")
 
     first = engine.step("use kubectl instead of docker")
     assert first["kind"] == "clarify"
@@ -77,7 +77,7 @@ def test_pending_blocks_directive_parsing_until_confirmation() -> None:
 def test_pending_rejects_non_confirmation_and_keeps_prompt() -> None:
     engine = create_engine()
     engine.step("use docker")
-    engine.step("don't use kubectl")
+    engine.step("prohibit kubectl")
 
     first = engine.step("use kubectl instead of docker")
     second = engine.step("sounds good")

@@ -388,7 +388,7 @@ def _parse_directive(user_input: str) -> Action | None:
             return Action(kind="use_item", item=payload)
         return None
 
-    prohibit_prefix = "don't use "
+    prohibit_prefix = "prohibit "
     if user_input.startswith(prohibit_prefix):
         item = user_input[len(prohibit_prefix) :]
         if item != "":

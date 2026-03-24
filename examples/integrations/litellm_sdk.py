@@ -78,7 +78,7 @@ def main() -> None:
     engine = create_engine()
     turns = [
         "set premise concise replies",
-        "don't use peanuts",
+        "prohibit peanuts",
         "use peanuts",
         "plan dinner again",
     ]

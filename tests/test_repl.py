@@ -35,7 +35,7 @@ def test_repl_update_flow() -> None:
 
 
 def test_repl_clarify_flow() -> None:
-    decisions = _run_session("don't use docker\nuse kubectl instead of docker\nquit\n")
+    decisions = _run_session("prohibit docker\nuse kubectl instead of docker\nquit\n")
     expected_prompt = (
         '"docker" is currently prohibited. Did you mean to remove it and use "kubectl" instead?'
     )
@@ -73,7 +73,7 @@ def test_repl_interactive_help_commands() -> None:
         "  set premise <value>",
         "  change premise to <value>",
         "  use <item>",
-        "  don't use <item>",
+        "  prohibit <item>",
         "  use <new item> instead of <old item>",
         "  clear premise",
         "  reset policies",
@@ -108,7 +108,7 @@ def test_repl_invalid_directive_near_misses_remain_passthrough() -> None:
 
 
 def test_repl_contradiction_clarify_is_not_pending_confirmable() -> None:
-    decisions = _run_session("use docker\ndon't use docker\nno\nquit\n")
+    decisions = _run_session("use docker\nprohibit docker\nno\nquit\n")
     conflict_prompt = (
         "'docker' already has policy use.\n"
         "Only one policy per item is allowed.\n"
@@ -166,7 +166,7 @@ def test_repl_replacement_clarify_requires_confirmation_tokens_and_persists_unti
 
 def test_repl_interactive_prints_confirm_and_error_for_clarify_types() -> None:
     error_out = _TTYStringIO()
-    run_repl(_TTYStringIO("use docker\ndon't use docker\nquit\n"), error_out)
+    run_repl(_TTYStringIO("use docker\nprohibit docker\nquit\n"), error_out)
     error_lines = error_out.getvalue().splitlines()
     assert "error: 'docker' already has policy use." in error_lines
     assert "Only one policy per item is allowed." in error_lines
@@ -185,7 +185,7 @@ def test_repl_replacement_negative_confirmation_returns_update_unchanged_and_cle
     None
 ):
     decisions = _run_session(
-        "use docker\ndon't use podman\nuse podman instead of docker\nno\nno\nquit\n"
+        "use docker\nprohibit podman\nuse podman instead of docker\nno\nno\nquit\n"
     )
 
     prompt = (
@@ -323,7 +323,7 @@ def test_repl_interactive_confirm_vs_error_alignment_for_actual_clarify_behavior
         "set premise concise\n"
         "set premise verbose\n"
         "use docker\n"
-        "don't use docker\n"
+        "prohibit docker\n"
         "use podman instead of buildx\n"
         "quit\n"
     )
