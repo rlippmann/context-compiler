@@ -1,6 +1,6 @@
 """Example 3: contradiction clarify flow with host-side blocking."""
 
-from _util import print_json
+from _util import print_decision_summary, print_state_summary
 
 from context_compiler import create_engine
 
@@ -15,29 +15,25 @@ def main() -> None:
 
     print("User: prohibit peanuts")
     decision1 = engine.step("prohibit peanuts")
-    print("Decision:")
-    print_json(decision1)
+    print_decision_summary(decision1)
     print()
 
     print("User: use peanuts")
     decision2 = engine.step("use peanuts")
-    print("Decision:")
-    print_json(decision2)
+    print_decision_summary(decision2)
     print()
 
     if decision2["kind"] == "clarify":
         print("Host behavior: clarification pending, do NOT call LLM.")
-        print(f"Prompt to user: {decision2['prompt_to_user']}")
+        print(f"Clarify prompt: {decision2['prompt_to_user']}")
     else:
         fake_llm("use peanuts")
     print()
 
     print("User: clear state")
     decision3 = engine.step("clear state")
-    print("Decision:")
-    print_json(decision3)
-    print("State after explicit reset:")
-    print_json(engine.state)
+    print_decision_summary(decision3)
+    print_state_summary(engine.state, "state after explicit reset")
 
 
 if __name__ == "__main__":

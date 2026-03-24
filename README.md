@@ -221,7 +221,7 @@ User: use peanuts
 User: prohibit peanuts
 ```
 
-Result: `Decision.kind = "clarify"` and no state mutation.
+Result: compiler asks for clarification and leaves state unchanged.
 
 ## Policy Removal and Reset Commands
 

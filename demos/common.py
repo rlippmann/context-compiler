@@ -1,9 +1,8 @@
 """Shared helpers for LLM-backed context compiler demos."""
 
-import json
 import os
 import re
-from typing import Any, TypedDict
+from typing import Literal, TypedDict
 
 from context_compiler import Decision, State, get_policy_items, get_premise_value
 from demos.llm_client import Message
@@ -34,8 +33,24 @@ LAST_REPORT: DemoReport | None = None
 LAST_INFO_REPORT: InfoReport | None = None
 
 
-def canonical_json(obj: Any) -> str:
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"))
+def _policy_values_text(state: State, value: Literal["use", "prohibit"]) -> str:
+    items = get_policy_items(state, value)
+    return ", ".join(items) if items else "(none)"
+
+
+def _print_state_summary(state: State) -> None:
+    premise_value = get_premise_value(state)
+    premise_text = premise_value if premise_value is not None else "(none)"
+    print("compiled state:")
+    print(f"- premise: {premise_text}")
+    print(f"- use policies: {_policy_values_text(state, 'use')}")
+    print(f"- prohibit policies: {_policy_values_text(state, 'prohibit')}")
+
+
+def _print_multiline_prompt(label: str, prompt: str) -> None:
+    print(f"{label}:")
+    for line in prompt.splitlines():
+        print(f"- {line}")
 
 
 def print_user_inputs(inputs: list[str]) -> None:
@@ -51,9 +66,18 @@ def print_decision(title: str, decision: Decision, state: State) -> None:
     if not is_verbose():
         return
     print(f"Compiler decision ({title}):")
-    print(canonical_json(decision))
-    print("Compiled state:")
-    print(canonical_json(state))
+    if decision["kind"] == "update":
+        print("result: updated")
+        _print_state_summary(state)
+    elif decision["kind"] == "clarify":
+        print("result: clarify")
+        prompt = decision["prompt_to_user"]
+        if prompt:
+            _print_multiline_prompt("clarify prompt", prompt)
+        _print_state_summary(state)
+    else:
+        print("result: passthrough")
+        _print_state_summary(state)
     print()
 
 
@@ -61,7 +85,18 @@ def print_messages(label: str, messages: list[Message]) -> None:
     if not is_verbose():
         return
     print(f"Prompt/messages sent to LLM ({label}):")
-    print(canonical_json(messages))
+    if not messages:
+        print("- (none)")
+    for message in messages:
+        role = message["role"]
+        content = message["content"]
+        lines = content.splitlines()
+        if not lines:
+            print(f"- {role}:")
+            continue
+        print(f"- {role}: {lines[0]}")
+        for line in lines[1:]:
+            print(f"  {line}")
     print()
 
 

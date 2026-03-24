@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from _util import print_json
+from _util import print_decision_summary, print_state_summary
 
 from context_compiler import create_engine, get_policy_items
 
@@ -26,11 +26,9 @@ def main() -> None:
     user_input = "prohibit docker"
     print(f"User: {user_input}")
     decision = engine.step(user_input)
-    print("Decision:")
-    print_json(decision)
-    print("State after turn:")
+    print_decision_summary(decision)
     state = engine.state
-    print_json(state)
+    print_state_summary(state, "state after turn")
     print()
 
     print("Host-side tool denylist behavior:")
