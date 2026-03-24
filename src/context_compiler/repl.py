@@ -3,7 +3,7 @@ import sys
 from typing import TextIO
 
 from . import create_engine
-from .engine import Decision, DecisionKind
+from .engine import Decision, DecisionKind, State
 
 _EXIT_TOKENS = {"exit", "quit"}
 _HELP_TOKENS = {"help", "?"}
@@ -46,7 +46,20 @@ def _print_interactive_help(out_stream: TextIO) -> None:
     print("  clear state", file=out_stream)
     print("Only question prompts accept yes/no confirmations", file=out_stream)
     print("Other clarify prompts are errors and do not accept yes/no", file=out_stream)
-    print('State schema: {"premise": ..., "policies": ..., "version": 2}', file=out_stream)
+
+
+def _render_state_lines(state: State) -> list[str]:
+    premise = state["premise"]
+    premise_line = "premise: (none)" if premise is None else f"premise: {premise}"
+
+    policy_items = sorted(state["policies"].items())
+    if not policy_items:
+        return [premise_line, "policies: (none)"]
+
+    lines = [premise_line, "policies:"]
+    for item, value in policy_items:
+        lines.append(f"- {value} {item}")
+    return lines
 
 
 def _print_interactive_decision(decision: Decision, out_stream: TextIO) -> None:
@@ -66,8 +79,8 @@ def _print_interactive_decision(decision: Decision, out_stream: TextIO) -> None:
     print("updated", file=out_stream)
     state = decision["state"]
     assert state is not None
-    print("state:", file=out_stream)
-    print(json.dumps(state, sort_keys=True), file=out_stream)
+    for line in _render_state_lines(state):
+        print(line, file=out_stream)
 
 
 def run_repl(in_stream: TextIO, out_stream: TextIO) -> None:
