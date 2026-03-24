@@ -58,6 +58,8 @@ class Action:
     kind: Literal[
         "set_premise",
         "change_premise",
+        "set_premise_to_variant",
+        "change_premise_missing_to_variant",
         "use_item",
         "prohibit_item",
         "remove_policy_item",
@@ -194,6 +196,14 @@ class Engine:
                     "Premise value cannot be empty.\n"
                     "Use 'change premise to ...' with a non-empty value."
                 )
+
+        if action.kind == "set_premise_to_variant":
+            assert action.value is not None
+            return _clarify(f"Did you mean 'set premise {action.value}'?")
+
+        if action.kind == "change_premise_missing_to_variant":
+            assert action.value is not None
+            return _clarify(f"Did you mean 'change premise to {action.value}'?")
 
         if action.kind == "remove_policy_item":
             assert action.item is not None
@@ -399,6 +409,22 @@ def _parse_directive(user_input: str) -> Action | None:
     remove_policy_prefix = f"{remove_policy_base} "
     if user_input.startswith(remove_policy_prefix):
         return Action(kind="remove_policy_item", item=user_input[len(remove_policy_prefix) :])
+
+    set_to_prefix = "set premise to "
+    if user_input.startswith(set_to_prefix):
+        value = user_input[len(set_to_prefix) :].strip()
+        if value != "":
+            return Action(kind="set_premise_to_variant", value=value)
+
+    change_missing_to_prefix = "change premise "
+    if (
+        user_input.startswith(change_missing_to_prefix)
+        and not user_input.startswith("change premise to ")
+        and user_input != "change premise to"
+    ):
+        value = user_input[len(change_missing_to_prefix) :].strip()
+        if value != "":
+            return Action(kind="change_premise_missing_to_variant", value=value)
 
     set_base = "set premise"
     if user_input == set_base:
