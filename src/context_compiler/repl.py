@@ -1,4 +1,3 @@
-import json
 import sys
 from typing import TextIO
 
@@ -8,10 +7,6 @@ from .engine import Decision, DecisionKind, State
 _EXIT_TOKENS = {"exit", "quit"}
 _HELP_TOKENS = {"help", "?"}
 _MULTI_COMMAND_PROMPT = "Multiple commands detected.\nEnter one command per line."
-
-
-def format_decision(decision: Decision) -> str:
-    return json.dumps(decision, sort_keys=True, separators=(",", ":"))
 
 
 def _is_interactive(in_stream: TextIO, out_stream: TextIO) -> bool:
@@ -63,24 +58,26 @@ def _render_state_lines(state: State) -> list[str]:
     return lines
 
 
-def _print_interactive_decision(decision: Decision, out_stream: TextIO) -> None:
-    print("", file=out_stream)
+def _render_decision_lines(decision: Decision) -> list[str]:
     kind = decision["kind"]
     if kind == "passthrough":
-        print("passthrough", file=out_stream)
-        return
+        return ["passthrough"]
     if kind == "clarify":
         prompt = decision["prompt_to_user"] or ""
+        prompt_lines = prompt.splitlines() if prompt else [""]
         if prompt.endswith("?"):
-            print(f"confirm: {prompt}", file=out_stream)
-        else:
-            print(f"error: {prompt}", file=out_stream)
-        return
+            return [f"confirm: {prompt_lines[0]}", *prompt_lines[1:]]
+        return [f"error: {prompt_lines[0]}", *prompt_lines[1:]]
 
-    print("updated", file=out_stream)
     state = decision["state"]
     assert state is not None
-    for line in _render_state_lines(state):
+    return ["updated", *_render_state_lines(state)]
+
+
+def _print_decision_lines(decision: Decision, out_stream: TextIO, *, leading_blank: bool) -> None:
+    if leading_blank:
+        print("", file=out_stream)
+    for line in _render_decision_lines(decision):
         print(line, file=out_stream)
 
 
@@ -96,7 +93,7 @@ def run_repl(in_stream: TextIO, out_stream: TextIO) -> None:
             if line == "":
                 return
             if _has_embedded_newline(line):
-                _print_interactive_decision(_multi_command_decision(), out_stream)
+                _print_decision_lines(_multi_command_decision(), out_stream, leading_blank=True)
                 continue
             user_input = line.rstrip("\n")
             token = user_input.strip().lower()
@@ -109,18 +106,18 @@ def run_repl(in_stream: TextIO, out_stream: TextIO) -> None:
                 continue
 
             decision = engine.step(user_input)
-            _print_interactive_decision(decision, out_stream)
+            _print_decision_lines(decision, out_stream, leading_blank=True)
         return
 
     for line in in_stream:
         if _has_embedded_newline(line):
-            print(format_decision(_multi_command_decision()), file=out_stream)
+            _print_decision_lines(_multi_command_decision(), out_stream, leading_blank=False)
             continue
         user_input = line.rstrip("\n")
         if user_input.strip().lower() in _EXIT_TOKENS:
             return
         decision = engine.step(user_input)
-        print(format_decision(decision), file=out_stream)
+        _print_decision_lines(decision, out_stream, leading_blank=False)
 
 
 def main() -> int:  # pragma: no cover
