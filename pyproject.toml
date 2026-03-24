@@ -43,6 +43,7 @@ demos = [
 ]
 dev = [
   "pytest",
+  "pytest-cov",
   "coverage",
   "hypothesis",
   "ruff>=0.12,<1.0",
