@@ -1,4 +1,3 @@
-import json
 from io import StringIO
 
 from context_compiler.repl import run_repl
@@ -44,11 +43,10 @@ def _run_interactive_lines(text: str) -> list[str]:
     return [line for line in out.getvalue().splitlines() if line.strip()]
 
 
-def _run_session(text: str) -> list[dict[str, object]]:
+def _run_non_interactive_lines(text: str) -> list[str]:
     out = StringIO()
     run_repl(StringIO(text), out)
-    lines = [line for line in out.getvalue().splitlines() if line.strip()]
-    return [json.loads(line) for line in lines]
+    return [line for line in out.getvalue().splitlines() if line.strip()]
 
 
 def _contains_subsequence(lines: list[str], expected: list[str]) -> bool:
@@ -59,43 +57,27 @@ def _contains_subsequence(lines: list[str], expected: list[str]) -> bool:
 
 
 def test_repl_update_flow() -> None:
-    decisions = _run_session("set premise concise\nquit\n")
-
-    assert decisions == [
-        {
-            "kind": "update",
-            "prompt_to_user": None,
-            "state": {"premise": "concise", "policies": {}, "version": 2},
-        }
-    ]
+    lines = _run_non_interactive_lines("set premise concise\nquit\n")
+    assert lines == ["updated", "premise: concise", "policies: (none)"]
 
 
 def test_repl_clarify_flow() -> None:
-    decisions = _run_session("prohibit docker\nuse kubectl instead of docker\nquit\n")
-    expected_prompt = (
-        '"docker" is currently prohibited. Did you mean to remove it and use "kubectl" instead?'
+    lines = _run_non_interactive_lines("prohibit docker\nuse kubectl instead of docker\nquit\n")
+    assert _contains_subsequence(
+        lines, ["updated", "premise: (none)", "policies:", "- prohibit docker"]
     )
-
-    assert decisions == [
-        {
-            "kind": "update",
-            "prompt_to_user": None,
-            "state": {"premise": None, "policies": {"docker": "prohibit"}, "version": 2},
-        },
-        {
-            "kind": "clarify",
-            "prompt_to_user": expected_prompt,
-            "state": None,
-        },
-    ]
+    assert (
+        'confirm: "docker" is currently prohibited. Did you mean to remove it and use '
+        '"kubectl" instead?' in lines
+    )
 
 
 def test_repl_exit_and_quit_terminate_session() -> None:
-    decisions_exit = _run_session("exit\nset premise concise\n")
-    decisions_quit = _run_session("quit\nset premise concise\n")
+    lines_exit = _run_non_interactive_lines("exit\nset premise concise\n")
+    lines_quit = _run_non_interactive_lines("quit\nset premise concise\n")
 
-    assert decisions_exit == []
-    assert decisions_quit == []
+    assert lines_exit == []
+    assert lines_quit == []
 
 
 def test_repl_interactive_help_commands() -> None:
@@ -124,13 +106,12 @@ def test_repl_interactive_help_commands() -> None:
     assert lines[15:28] == expected_help
 
 
-def test_repl_non_interactive_keeps_json_output() -> None:
+def test_repl_non_interactive_uses_human_readable_output() -> None:
     out = StringIO()
     run_repl(StringIO("hello\nquit\n"), out)
 
     lines = out.getvalue().splitlines()
-    expected = '{"kind":"passthrough","prompt_to_user":null,"state":null}'
-    assert lines == [expected]
+    assert lines == ["passthrough"]
 
 
 def test_repl_interactive_rejects_multi_command_chunk() -> None:
@@ -146,7 +127,7 @@ def test_repl_interactive_rejects_multi_command_chunk() -> None:
     assert "updated" not in lines
 
 
-def test_repl_non_interactive_rejects_multi_command_chunk_as_clarify_json() -> None:
+def test_repl_non_interactive_rejects_multi_command_chunk_with_human_readable_clarify() -> None:
     out = StringIO()
     run_repl(
         _ChunkedInput(["set premise concise\nprohibit peanuts\n", "quit\n"]),  # type: ignore[arg-type]
@@ -154,99 +135,45 @@ def test_repl_non_interactive_rejects_multi_command_chunk_as_clarify_json() -> N
     )
 
     lines = out.getvalue().splitlines()
-    expected = (
-        '{"kind":"clarify","prompt_to_user":"Multiple commands detected.\\n'
-        'Enter one command per line.","state":null}'
-    )
-    assert lines == [expected]
+    assert lines == ["error: Multiple commands detected.", "Enter one command per line."]
 
 
 def test_repl_invalid_directive_near_misses_remain_passthrough() -> None:
-    decisions = _run_session("actually use uv\nno use peanuts\nallow docker\nquit\n")
-
-    assert decisions == [
-        {"kind": "passthrough", "prompt_to_user": None, "state": None},
-        {"kind": "passthrough", "prompt_to_user": None, "state": None},
-        {"kind": "passthrough", "prompt_to_user": None, "state": None},
-    ]
+    lines = _run_non_interactive_lines("actually use uv\nno use peanuts\nallow docker\nquit\n")
+    assert lines == ["passthrough", "passthrough", "passthrough"]
 
 
 def test_repl_non_interactive_remove_policy_flow() -> None:
-    decisions = _run_session("use docker\nremove policy docker\nremove policy podman\nquit\n")
-
-    assert decisions == [
-        {
-            "kind": "update",
-            "prompt_to_user": None,
-            "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
-        },
-        {
-            "kind": "update",
-            "prompt_to_user": None,
-            "state": {"premise": None, "policies": {}, "version": 2},
-        },
-        {
-            "kind": "update",
-            "prompt_to_user": None,
-            "state": {"premise": None, "policies": {}, "version": 2},
-        },
-    ]
+    lines = _run_non_interactive_lines(
+        "use docker\nremove policy docker\nremove policy podman\nquit\n"
+    )
+    assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use docker"])
+    assert lines.count("updated") == 3
+    assert lines.count("policies: (none)") == 2
 
 
 def test_repl_contradiction_clarify_is_not_pending_confirmable() -> None:
-    decisions = _run_session("use docker\nprohibit docker\nno\nquit\n")
-    conflict_prompt = (
-        "'docker' is already in use.\n"
-        "Only one policy per item is allowed.\n"
-        "Use 'reset policies' to change it."
+    lines = _run_non_interactive_lines("use docker\nprohibit docker\nno\nquit\n")
+    assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use docker"])
+    assert _contains_subsequence(
+        lines,
+        [
+            "error: 'docker' is already in use.",
+            "Only one policy per item is allowed.",
+            "Use 'reset policies' to change it.",
+            "passthrough",
+        ],
     )
-
-    assert decisions == [
-        {
-            "kind": "update",
-            "prompt_to_user": None,
-            "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
-        },
-        {
-            "kind": "clarify",
-            "prompt_to_user": conflict_prompt,
-            "state": None,
-        },
-        {
-            "kind": "passthrough",
-            "prompt_to_user": None,
-            "state": None,
-        },
-    ]
 
 
 def test_repl_replacement_clarify_requires_confirmation_tokens_and_persists_until_resolved() -> (
     None
 ):
-    decisions = _run_session("use podman instead of docker\nmaybe\nyes please!!\nquit\n")
-
-    expected_prompt = (
-        'No exact policy found for "docker".\n'
-        "Replacement requires an exact policy match.\n"
-        'Confirm to use "podman" and keep existing policies?'
-    )
-    assert decisions == [
-        {
-            "kind": "clarify",
-            "prompt_to_user": expected_prompt,
-            "state": None,
-        },
-        {
-            "kind": "clarify",
-            "prompt_to_user": expected_prompt,
-            "state": None,
-        },
-        {
-            "kind": "update",
-            "prompt_to_user": None,
-            "state": {"premise": None, "policies": {"podman": "use"}, "version": 2},
-        },
-    ]
+    lines = _run_non_interactive_lines("use podman instead of docker\nmaybe\nyes please!!\nquit\n")
+    assert lines.count('confirm: No exact policy found for "docker".') == 2
+    assert lines.count("Replacement requires an exact policy match.") == 2
+    assert lines.count('Confirm to use "podman" and keep existing policies?') == 2
+    assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use podman"])
 
 
 def test_repl_interactive_prints_confirm_and_error_for_clarify_types() -> None:
@@ -268,82 +195,55 @@ def test_repl_interactive_prints_confirm_and_error_for_clarify_types() -> None:
 def test_repl_replacement_negative_confirmation_returns_update_unchanged_and_clears_pending() -> (
     None
 ):
-    decisions = _run_session(
+    lines = _run_non_interactive_lines(
         "use docker\nprohibit podman\nuse podman instead of docker\nno\nno\nquit\n"
     )
 
-    prompt = (
-        '"podman" is currently prohibited. Did you mean to remove "docker" and use '
-        '"podman" instead?'
+    assert lines.count("updated") == 3
+    assert _contains_subsequence(
+        lines,
+        [
+            "updated",
+            "premise: (none)",
+            "policies:",
+            "- use docker",
+            "updated",
+            "premise: (none)",
+            "policies:",
+            "- use docker",
+            "- prohibit podman",
+        ],
     )
-    unchanged = {"premise": None, "policies": {"docker": "use", "podman": "prohibit"}, "version": 2}
-    assert decisions == [
-        {
-            "kind": "update",
-            "prompt_to_user": None,
-            "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
-        },
-        {
-            "kind": "update",
-            "prompt_to_user": None,
-            "state": unchanged,
-        },
-        {
-            "kind": "clarify",
-            "prompt_to_user": prompt,
-            "state": None,
-        },
-        {
-            "kind": "update",
-            "prompt_to_user": None,
-            "state": unchanged,
-        },
-        {
-            "kind": "passthrough",
-            "prompt_to_user": None,
-            "state": None,
-        },
-    ]
+    assert (
+        'confirm: "podman" is currently prohibited. Did you mean to remove "docker" and use '
+        '"podman" instead?' in lines
+    )
+    assert lines[-1] == "passthrough"
 
 
 def test_repl_premise_lifecycle_outputs_expected_state_shape() -> None:
-    decisions = _run_session(
+    lines = _run_non_interactive_lines(
         "set premise Use concise answers\n"
         "set premise Use verbose answers\n"
         "change premise to Use verbose answers\n"
         "quit\n"
     )
 
-    assert decisions == [
-        {
-            "kind": "update",
-            "prompt_to_user": None,
-            "state": {
-                "premise": "Use concise answers",
-                "policies": {},
-                "version": 2,
-            },
-        },
-        {
-            "kind": "clarify",
-            "prompt_to_user": (
-                "Premise already exists.\n"
-                "Use 'change premise to ...' to replace it.\n"
-                "Premise is a single slot.\n"
-                "To keep multiple ideas, rewrite them as one premise value."
-            ),
-            "state": None,
-        },
-        {
-            "kind": "update",
-            "prompt_to_user": None,
-            "state": {
-                "premise": "Use verbose answers",
-                "policies": {},
-                "version": 2,
-            },
-        },
-    ]
+    assert _contains_subsequence(
+        lines, ["updated", "premise: Use concise answers", "policies: (none)"]
+    )
+    assert _contains_subsequence(
+        lines,
+        [
+            "error: Premise already exists.",
+            "Use 'change premise to ...' to replace it.",
+            "Premise is a single slot.",
+            "To keep multiple ideas, rewrite them as one premise value.",
+        ],
+    )
+    assert _contains_subsequence(
+        lines, ["updated", "premise: Use verbose answers", "policies: (none)"]
+    )
 
 
 def test_repl_interactive_renders_updated_state_blocks_for_multiple_operations() -> None:
