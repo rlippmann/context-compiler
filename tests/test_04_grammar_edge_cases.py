@@ -36,6 +36,7 @@ def test_replace_use_missing_side_is_passthrough() -> None:
     assert engine.step("use  instead of y")["kind"] == "passthrough"
     assert engine.step("use ")["kind"] == "passthrough"
     assert engine.step("prohibit ")["kind"] == "passthrough"
+    assert engine.step("remove policy\tdocker")["kind"] == "passthrough"
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
@@ -45,6 +46,7 @@ def test_exact_match_near_misses_are_passthrough() -> None:
         "clear premise ",
         "reset policies ",
         "clear state ",
+        "remove policy\tdocker",
         "Use docker",
         "don't Use docker",
         "use\tdocker",
@@ -54,6 +56,19 @@ def test_exact_match_near_misses_are_passthrough() -> None:
         assert engine.step(text)["kind"] == "passthrough"
 
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
+
+
+def test_remove_policy_missing_or_whitespace_payload_clarifies() -> None:
+    engine = create_engine()
+    before = engine.state
+
+    first = engine.step("remove policy")
+    second = engine.step("remove policy   ")
+
+    expected = "Policy item cannot be empty.\nUse 'remove policy <item>' with a non-empty value."
+    assert first == {"kind": "clarify", "state": None, "prompt_to_user": expected}
+    assert second == {"kind": "clarify", "state": None, "prompt_to_user": expected}
+    assert engine.state == before
 
 
 def test_pending_blocks_directive_parsing_until_confirmation() -> None:

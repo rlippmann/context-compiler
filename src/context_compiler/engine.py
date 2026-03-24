@@ -60,6 +60,7 @@ class Action:
         "change_premise",
         "use_item",
         "prohibit_item",
+        "remove_policy_item",
         "replace_use",
         "clear_premise",
         "reset_policies",
@@ -191,6 +192,14 @@ class Engine:
                 return _clarify(
                     "Premise value cannot be empty.\n"
                     "Use 'change premise to ...' with a non-empty value."
+                )
+
+        if action.kind == "remove_policy_item":
+            assert action.item is not None
+            if _normalize_item(action.item) == "":
+                return _clarify(
+                    "Policy item cannot be empty.\n"
+                    "Use 'remove policy <item>' with a non-empty value."
                 )
 
         if action.kind == "set_premise" and self._state[STATE_PREMISE] is not None:
@@ -327,6 +336,12 @@ class Engine:
             self._apply_replacement_explicit(action.new_item, action.old_item)
             return _update_decision(self._state)
 
+        if kind == "remove_policy_item":
+            assert action.item is not None
+            item_key = _normalize_item(action.item)
+            self._state[STATE_POLICIES].pop(item_key, None)
+            return _update_decision(self._state)
+
         if kind == "clear_premise":
             self._state[STATE_PREMISE] = None
             return _update_decision(self._state)
@@ -356,6 +371,13 @@ def _parse_directive(user_input: str) -> Action | None:
         return Action(kind="reset_policies")
     if user_input == "clear state":
         return Action(kind="clear_state")
+
+    remove_policy_base = "remove policy"
+    if user_input == remove_policy_base:
+        return Action(kind="remove_policy_item", item="")
+    remove_policy_prefix = f"{remove_policy_base} "
+    if user_input.startswith(remove_policy_prefix):
+        return Action(kind="remove_policy_item", item=user_input[len(remove_policy_prefix) :])
 
     set_base = "set premise"
     if user_input == set_base:

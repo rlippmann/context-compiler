@@ -40,6 +40,7 @@ def _print_interactive_help(out_stream: TextIO) -> None:
     print("  change premise to <value>", file=out_stream)
     print("  use <item>", file=out_stream)
     print("  prohibit <item>", file=out_stream)
+    print("  remove policy <item>", file=out_stream)
     print("  use <new item> instead of <old item>", file=out_stream)
     print("  clear premise", file=out_stream)
     print("  reset policies", file=out_stream)

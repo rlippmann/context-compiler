@@ -26,6 +26,7 @@ Shows how hosts can prevent denied tools from being selected.
 
 Demonstrates the end-to-end host control flow around `Decision`.  
 Shows when to clarify, when to call the model, and how to include compiled state in prompts.
+Includes a single-item policy removal step via `remove policy <item>`.
 
 ## 06_transcript_replay.py
 

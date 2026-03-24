@@ -110,6 +110,7 @@ def test_repl_interactive_help_commands() -> None:
         "  change premise to <value>",
         "  use <item>",
         "  prohibit <item>",
+        "  remove policy <item>",
         "  use <new item> instead of <old item>",
         "  clear premise",
         "  reset policies",
@@ -119,8 +120,8 @@ def test_repl_interactive_help_commands() -> None:
     ]
     assert lines[0] == "Context Compiler REPL (0.5). Type help for commands."
     assert lines[1] == "Non-directive input is passthrough."
-    assert lines[2:14] == expected_help
-    assert lines[14:26] == expected_help
+    assert lines[2:15] == expected_help
+    assert lines[15:28] == expected_help
 
 
 def test_repl_non_interactive_keeps_json_output() -> None:
@@ -167,6 +168,28 @@ def test_repl_invalid_directive_near_misses_remain_passthrough() -> None:
         {"kind": "passthrough", "prompt_to_user": None, "state": None},
         {"kind": "passthrough", "prompt_to_user": None, "state": None},
         {"kind": "passthrough", "prompt_to_user": None, "state": None},
+    ]
+
+
+def test_repl_non_interactive_remove_policy_flow() -> None:
+    decisions = _run_session("use docker\nremove policy docker\nremove policy podman\nquit\n")
+
+    assert decisions == [
+        {
+            "kind": "update",
+            "prompt_to_user": None,
+            "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
+        },
+        {
+            "kind": "update",
+            "prompt_to_user": None,
+            "state": {"premise": None, "policies": {}, "version": 2},
+        },
+        {
+            "kind": "update",
+            "prompt_to_user": None,
+            "state": {"premise": None, "policies": {}, "version": 2},
+        },
     ]
 
 

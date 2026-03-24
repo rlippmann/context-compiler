@@ -36,6 +36,7 @@ def main() -> None:
     handle_turn("hello there", engine)
     handle_turn("set premise concise replies", engine)
     handle_turn("prohibit peanuts", engine)
+    handle_turn("remove policy peanuts", engine)
     handle_turn("use peanuts", engine)
     handle_turn("clear state", engine)
 

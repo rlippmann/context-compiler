@@ -206,7 +206,7 @@ def test_admin_command_near_misses_are_passthrough() -> None:
     engine = create_engine()
     before = engine.state
 
-    for text in ["clear premise ", " reset policies", "clear state\t"]:
+    for text in ["clear premise ", " reset policies", "clear state\t", " remove policy docker"]:
         decision = engine.step(text)
         assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
 
@@ -353,6 +353,69 @@ def test_reset_policies_is_update_even_when_already_empty() -> None:
     d2 = engine.step("reset policies")
     assert d2["kind"] == "update"
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
+
+
+def test_remove_policy_removes_existing_use_policy() -> None:
+    engine = create_engine()
+    engine.step("use docker")
+
+    decision = engine.step("remove policy docker")
+
+    assert decision["kind"] == "update"
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+
+
+def test_remove_policy_removes_existing_prohibit_policy() -> None:
+    engine = create_engine()
+    engine.step("prohibit docker")
+
+    decision = engine.step("remove policy docker")
+
+    assert decision["kind"] == "update"
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+
+
+def test_remove_policy_missing_item_is_idempotent_update() -> None:
+    engine = create_engine()
+    engine.step("use docker")
+    before = engine.state
+
+    decision = engine.step("remove policy podman")
+
+    assert decision == {"kind": "update", "state": before, "prompt_to_user": None}
+    assert engine.state == before
+
+
+def test_remove_policy_empty_payload_clarifies_without_mutation() -> None:
+    engine = create_engine()
+    before = engine.state
+
+    decision = engine.step("remove policy")
+
+    assert decision == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": (
+            "Policy item cannot be empty.\nUse 'remove policy <item>' with a non-empty value."
+        ),
+    }
+    assert engine.state == before
+
+
+def test_remove_policy_whitespace_payload_clarifies_without_mutation() -> None:
+    engine = create_engine()
+    before = engine.state
+
+    decision = engine.step("remove policy    ")
+
+    assert decision == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": (
+            "Policy item cannot be empty.\nUse 'remove policy <item>' with a non-empty value."
+        ),
+    }
+    assert engine.state == before
 
 
 def test_replace_use_success() -> None:

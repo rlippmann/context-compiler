@@ -188,59 +188,54 @@ This may differ from human expectations, where the intent may be interpreted as 
 
 ## Directive Examples
 
-Hard negative directive:
+Set and change premise explicitly:
 
 ```text
+User: set premise concise replies
+User: change premise to concise bullet points
+```
+
+Result: premise is updated deterministically via explicit premise lifecycle commands.
+
+Per-item policy directives:
+
+```text
+User: use docker
 User: prohibit peanuts
 ```
 
-Result:
-prohibited items include `"peanuts"`.
+Result: policies store authoritative per-item states (`use` / `prohibit`).
 
-Fact configuration:
-
-```text
-User: use vegetarian curry
-```
-
-State update:
-the current focus value becomes `"vegetarian curry"`
-
-Correction:
+Explicit replacement:
 
 ```text
-User: actually vegan curry
+User: use podman instead of docker
 ```
 
-Result:
-the current focus value becomes `"vegan curry"`
+Result: remove `docker` use policy and set `podman` to `use` (or clarify if blocked).
 
-Ambiguous mutation:
+Policy contradiction (clarify):
 
 ```text
-User: no use peanuts
+User: use peanuts
+User: prohibit peanuts
 ```
 
-Compiler response:
+Result: `Decision.kind = "clarify"` and no state mutation.
 
-```text
-Decision.kind = "clarify"
-```
+## Policy Removal and Reset Commands
 
-No state mutation occurs until confirmation.
+Policy cleanup commands are:
 
-## Reset Commands
-
-Two explicit reset commands are supported:
-
-- `reset policies` clears prohibited items but preserves the current focus value
-- `clear state` resets the full state to initial values
+- `remove policy <item>` removes one policy item if present (idempotent update if absent)
+- `reset policies` clears all policy items
+- `clear state` resets premise and policies to initial values
 
 Example:
 
-- If current focus is `"vegetarian curry"` and prohibited items include `"peanuts"`:
-- after `reset policies`, prohibited items are empty and focus remains `"vegetarian curry"`.
-- after `clear state`, both focus and prohibited items return to initial defaults.
+- If policies include `{"docker": "use", "peanuts": "prohibit"}`:
+- after `remove policy docker`, policies become `{"peanuts": "prohibit"}`.
+- after `reset policies`, policies become `{}`.
 
 ---
 
