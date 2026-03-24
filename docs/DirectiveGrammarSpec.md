@@ -122,6 +122,7 @@ CLEAR_STATE      := "clear state"
 Notes:
 
 - `ITEM` is a non-empty raw substring after its prefix.
+- Recognized policy directives with empty or whitespace-only `ITEM` payload return `clarify`.
 - Premise directive payload must contain at least one non-whitespace character after the prefix.
   Empty and whitespace-only premise payloads are invalid and must return `clarify`.
 - `ITEM` is normalized via `normalize_item` before policy lookup/storage.
@@ -149,11 +150,13 @@ Notes:
 Let `k = normalize_item(ITEM)`.
 
 - `use ITEM`:
+  - if `ITEM` payload is empty or whitespace-only after the prefix: `clarify` and no mutation
   - if `policies[k] == "prohibit"`: `clarify` (contradiction)
   - if `policies[k] == "use"`: no-op `update` (idempotent assertion)
   - else set `policies[k] = "use"`
 
 - `prohibit ITEM`:
+  - if `ITEM` payload is empty or whitespace-only after the prefix: `clarify` and no mutation
   - if `policies[k] == "use"`: `clarify` (contradiction)
   - if `policies[k] == "prohibit"`: no-op `update` (idempotent assertion)
   - else set `policies[k] = "prohibit"`
@@ -179,10 +182,11 @@ For `use X instead of Y`:
 4. If none of the replacement-intent clarify conditions match, `Y` must currently exist in
    policy state (`ky in policies`) or return `clarify`.
 5. Replacement requires `policies[ky] == "use"` in the literal path; otherwise return `clarify`.
-6. On literal success:
+6. If replacement syntax is recognized but either side is empty/whitespace-only, return `clarify` and no mutation.
+7. On literal success:
    - remove `ky` from `policies`
    - set `policies[kx] = "use"`
-7. Replacement-intent clarify confirmations are deterministic:
+8. Replacement-intent clarify confirmations are deterministic:
    - `Did you mean to use "X" instead?`
      - yes: set `policies[kx] = "use"` (idempotent if already `"use"`)
      - no: no mutation
@@ -218,6 +222,9 @@ The compiler returns `Decision.kind = "clarify"` only in these cases:
 10. `use X instead of Y` when `Y` exists but is not `"use"` and no replacement-intent clarify rule applies.
 11. A pending clarification exists and input is not an exact confirmation token.
 12. `remove policy ITEM` when `ITEM` is empty or whitespace-only after the prefix.
+13. `use ITEM` when `ITEM` is empty or whitespace-only after the prefix.
+14. `prohibit ITEM` when `ITEM` is empty or whitespace-only after the prefix.
+15. `use X instead of Y` when replacement syntax is recognized but `X` or `Y` is empty/whitespace-only.
 
 Contradictions never silently overwrite state.
 
@@ -236,6 +243,15 @@ When `Decision.kind = "clarify"`, prompt text is deterministic only for the case
 - `remove policy ITEM` with empty/whitespace-only payload (Section 9 case 12):
   `Policy item cannot be empty.`
   `Use 'remove policy <item>' with a non-empty value.`
+- `use ITEM` with empty/whitespace-only payload (Section 9 case 13):
+  `Policy item cannot be empty.`
+  `Use 'use <item>' with a non-empty value.`
+- `prohibit ITEM` with empty/whitespace-only payload (Section 9 case 14):
+  `Policy item cannot be empty.`
+  `Use 'prohibit <item>' with a non-empty value.`
+- Incomplete replacement payload (Section 9 case 15):
+  `Replacement requires both new and old items.`
+  `Use 'use <new item> instead of <old item>' with non-empty values.`
 
 Clarify cases 1-6 and 10 must return `clarify` but do not require a standardized prompt string in this specification.
 Their exact prompt text is implementation-defined unless standardized in a later spec revision.

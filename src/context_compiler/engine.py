@@ -62,6 +62,7 @@ class Action:
         "prohibit_item",
         "remove_policy_item",
         "replace_use",
+        "replace_use_incomplete",
         "clear_premise",
         "reset_policies",
         "clear_state",
@@ -201,6 +202,26 @@ class Engine:
                     "Policy item cannot be empty.\n"
                     "Use 'remove policy <item>' with a non-empty value."
                 )
+
+        if action.kind == "use_item":
+            assert action.item is not None
+            if _normalize_item(action.item) == "":
+                return _clarify(
+                    "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value."
+                )
+
+        if action.kind == "prohibit_item":
+            assert action.item is not None
+            if _normalize_item(action.item) == "":
+                return _clarify(
+                    "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
+                )
+
+        if action.kind == "replace_use_incomplete":
+            return _clarify(
+                "Replacement requires both new and old items.\n"
+                "Use 'use <new item> instead of <old item>' with non-empty values."
+            )
 
         if action.kind == "set_premise" and self._state[STATE_PREMISE] is not None:
             return _clarify(
@@ -395,23 +416,32 @@ def _parse_directive(user_input: str) -> Action | None:
         value = user_input[len(change_prefix) :]
         return Action(kind="change_premise", value=value)
 
+    if user_input == "use":
+        return Action(kind="use_item", item="")
+
     use_prefix = "use "
     if user_input.startswith(use_prefix):
         payload = user_input[len(use_prefix) :]
         left, sep, right = payload.partition(" instead of ")
         if sep:
-            if left != "" and right != "":
+            if left.strip() != "" and right.strip() != "":
                 return Action(kind="replace_use", new_item=left, old_item=right)
-            return None
+            return Action(kind="replace_use_incomplete")
+        if payload.strip() == "":
+            return Action(kind="use_item", item="")
+        if payload.startswith("instead of ") or payload.endswith(" instead of"):
+            return Action(kind="replace_use_incomplete")
         if payload != "":
             return Action(kind="use_item", item=payload)
         return None
 
+    if user_input == "prohibit":
+        return Action(kind="prohibit_item", item="")
+
     prohibit_prefix = "prohibit "
     if user_input.startswith(prohibit_prefix):
         item = user_input[len(prohibit_prefix) :]
-        if item != "":
-            return Action(kind="prohibit_item", item=item)
+        return Action(kind="prohibit_item", item=item)
 
     return None
 

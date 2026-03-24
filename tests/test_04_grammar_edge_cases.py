@@ -29,15 +29,49 @@ def test_parser_does_not_accept_conversational_aliases() -> None:
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
-def test_replace_use_missing_side_is_passthrough() -> None:
+def test_empty_policy_payloads_and_incomplete_replacement_clarify() -> None:
     engine = create_engine()
+    before = engine.state
 
-    assert engine.step("use x instead of ")["kind"] == "passthrough"
-    assert engine.step("use  instead of y")["kind"] == "passthrough"
-    assert engine.step("use ")["kind"] == "passthrough"
-    assert engine.step("prohibit ")["kind"] == "passthrough"
+    use_empty = "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value."
+    prohibit_empty = "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
+    replacement_incomplete = (
+        "Replacement requires both new and old items.\n"
+        "Use 'use <new item> instead of <old item>' with non-empty values."
+    )
+
+    for text in ["use", "use ", "use    "]:
+        assert engine.step(text) == {
+            "kind": "clarify",
+            "state": None,
+            "prompt_to_user": use_empty,
+        }
+        assert engine.state == before
+
+    for text in ["prohibit", "prohibit ", "prohibit    "]:
+        assert engine.step(text) == {
+            "kind": "clarify",
+            "state": None,
+            "prompt_to_user": prohibit_empty,
+        }
+        assert engine.state == before
+
+    for text in [
+        "use x instead of",
+        "use x instead of ",
+        "use  instead of y",
+        "use   instead of y",
+        "use instead of y",
+    ]:
+        assert engine.step(text) == {
+            "kind": "clarify",
+            "state": None,
+            "prompt_to_user": replacement_incomplete,
+        }
+        assert engine.state == before
+
     assert engine.step("remove policy\tdocker")["kind"] == "passthrough"
-    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+    assert engine.state == before
 
 
 def test_exact_match_near_misses_are_passthrough() -> None:

@@ -116,6 +116,27 @@ def test_transcript_stops_at_first_clarify_even_if_later_message_is_no() -> None
     }
 
 
+def test_transcript_stops_at_first_confirmable_clarify_even_if_later_yes_no_messages_exist() -> (
+    None
+):
+    result = compile_transcript(
+        [
+            {"role": "user", "content": "use python and docker"},
+            {"role": "user", "content": "use kubectl instead of python"},
+            {"role": "user", "content": "yes"},
+            {"role": "user", "content": "no"},
+        ]
+    )
+
+    expected_prompt = (
+        'No exact policy found for "python".\n'
+        "Replacement requires an exact policy match.\n"
+        'Existing policies containing that text: "python and docker".\n'
+        'Confirm to use "kubectl" and keep "python and docker"?'
+    )
+    assert result == {"kind": "confirm", "prompt_to_user": expected_prompt}
+
+
 def test_apply_transcript_stops_before_mutating_later_messages_after_clarify() -> None:
     engine = create_engine()
     result = engine.apply_transcript(
