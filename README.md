@@ -196,6 +196,8 @@ User: change premise to concise bullet points
 ```
 
 Result: premise is updated deterministically via explicit premise lifecycle commands.
+Narrow near-miss premise `to` variants clarify (no mutation):
+`set premise to <value>` and `change premise <value>`.
 
 Per-item policy directives:
 

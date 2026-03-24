@@ -92,6 +92,26 @@ def test_exact_match_near_misses_are_passthrough() -> None:
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
+def test_premise_to_variant_near_misses_clarify_with_no_mutation() -> None:
+    engine = create_engine()
+    before = engine.state
+
+    set_variant = engine.step("set premise to concise")
+    change_variant = engine.step("change premise concise")
+
+    assert set_variant == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": "Did you mean 'set premise concise'?",
+    }
+    assert change_variant == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": "Did you mean 'change premise to concise'?",
+    }
+    assert engine.state == before
+
+
 def test_remove_policy_missing_or_whitespace_payload_clarifies() -> None:
     engine = create_engine()
     before = engine.state

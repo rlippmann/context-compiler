@@ -200,6 +200,16 @@ def test_repl_empty_policy_payloads_and_incomplete_replacement_render_errors() -
     assert lines.count("Use 'use <new item> instead of <old item>' with non-empty values.") == 2
 
 
+def test_repl_premise_to_variant_near_misses_render_error_suggestions() -> None:
+    lines = _run_non_interactive_lines(
+        "set premise to concise replies\nchange premise concise replies\nquit\n"
+    )
+    assert _contains_subsequence(lines, ["confirm: Did you mean 'set premise concise replies'?"])
+    assert _contains_subsequence(
+        lines, ["confirm: Did you mean 'change premise to concise replies'?"]
+    )
+
+
 def test_repl_non_interactive_remove_policy_flow() -> None:
     lines = _run_non_interactive_lines(
         "use docker\nremove policy docker\nremove policy podman\nquit\n"

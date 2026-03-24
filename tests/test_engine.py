@@ -270,6 +270,19 @@ def test_set_premise_whitespace_payload_clarifies_without_mutation() -> None:
     assert engine.state == before
 
 
+def test_set_premise_to_variant_clarifies_with_canonical_suggestion_without_mutation() -> None:
+    engine = create_engine()
+    before = engine.state
+
+    decision = engine.step("set premise to concise replies")
+    assert decision == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": "Did you mean 'set premise concise replies'?",
+    }
+    assert engine.state == before
+
+
 def test_change_premise_requires_existing_premise() -> None:
     engine = create_engine()
 
@@ -293,6 +306,30 @@ def test_change_premise_to_empty_payload_clarifies_without_mutation() -> None:
     assert engine.state == before
 
 
+def test_change_premise_to_without_space_payload_clarifies_after_near_miss() -> None:
+    engine = create_engine()
+    engine.step("set premise baseline")
+    before = engine.state
+
+    # Near-miss should not create pending; canonical empty form still clarifies.
+    near_miss = engine.step("change premise baseline")
+    assert near_miss == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": "Did you mean 'change premise to baseline'?",
+    }
+
+    decision = engine.step("change premise to")
+    assert decision == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": (
+            "Premise value cannot be empty.\nUse 'change premise to ...' with a non-empty value."
+        ),
+    }
+    assert engine.state == before
+
+
 def test_change_premise_to_whitespace_payload_clarifies_without_mutation() -> None:
     engine = create_engine()
     engine.step("set premise baseline")
@@ -301,6 +338,30 @@ def test_change_premise_to_whitespace_payload_clarifies_without_mutation() -> No
     d1 = engine.step("change premise to    ")
     assert d1["kind"] == "clarify"
     assert engine.state == before
+
+
+def test_change_premise_missing_to_variant_clarifies_without_mutation() -> None:
+    engine = create_engine()
+    before = engine.state
+
+    decision = engine.step("change premise concise replies")
+    assert decision == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": "Did you mean 'change premise to concise replies'?",
+    }
+    assert engine.state == before
+
+
+def test_canonical_premise_forms_still_update_normally() -> None:
+    engine = create_engine()
+
+    first = engine.step("set premise concise replies")
+    second = engine.step("change premise to concise bullet points")
+
+    assert first["kind"] == "update"
+    assert second["kind"] == "update"
+    assert engine.state["premise"] == "concise bullet points"
 
 
 def test_clear_premise_and_clear_state() -> None:

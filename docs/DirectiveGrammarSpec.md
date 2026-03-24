@@ -125,6 +125,10 @@ Notes:
 - Recognized policy directives with empty or whitespace-only `ITEM` payload return `clarify`.
 - Premise directive payload must contain at least one non-whitespace character after the prefix.
   Empty and whitespace-only premise payloads are invalid and must return `clarify`.
+- Narrow near-miss clarify exceptions are supported for premise `to` variants only:
+  - `set premise to X` -> `clarify` with canonical suggestion
+  - `change premise X` -> `clarify` with canonical suggestion
+  This does not broaden directive grammar acceptance.
 - `ITEM` is normalized via `normalize_item` before policy lookup/storage.
 - `VALUE` is stored using premise sanitation from Section 6.
 - No conversational aliases are directives (for example: `actually`, `I meant`, `allow`, `you can`, `set X`, `I'm using X`).
@@ -225,6 +229,8 @@ The compiler returns `Decision.kind = "clarify"` only in these cases:
 13. `use ITEM` when `ITEM` is empty or whitespace-only after the prefix.
 14. `prohibit ITEM` when `ITEM` is empty or whitespace-only after the prefix.
 15. `use X instead of Y` when replacement syntax is recognized but `X` or `Y` is empty/whitespace-only.
+16. `set premise to X` near-miss with non-empty `X`.
+17. `change premise X` near-miss with non-empty `X`.
 
 Contradictions never silently overwrite state.
 
@@ -252,6 +258,10 @@ When `Decision.kind = "clarify"`, prompt text is deterministic only for the case
 - Incomplete replacement payload (Section 9 case 15):
   `Replacement requires both new and old items.`
   `Use 'use <new item> instead of <old item>' with non-empty values.`
+- Premise near-miss `set premise to X` (Section 9 case 16):
+  `Did you mean 'set premise X'?`
+- Premise near-miss `change premise X` (Section 9 case 17):
+  `Did you mean 'change premise to X'?`
 
 Clarify cases 1-6 and 10 must return `clarify` but do not require a standardized prompt string in this specification.
 Their exact prompt text is implementation-defined unless standardized in a later spec revision.
