@@ -9,6 +9,35 @@ class _TTYStringIO(StringIO):
         return True
 
 
+class _ChunkedTTYInput:
+    def __init__(self, chunks: list[str]) -> None:
+        self._chunks = chunks
+
+    def readline(self) -> str:
+        if not self._chunks:
+            return ""
+        return self._chunks.pop(0)
+
+    def isatty(self) -> bool:
+        return True
+
+
+class _ChunkedInput:
+    def __init__(self, chunks: list[str]) -> None:
+        self._chunks = chunks
+
+    def __iter__(self) -> "_ChunkedInput":
+        return self
+
+    def __next__(self) -> str:
+        if not self._chunks:
+            raise StopIteration
+        return self._chunks.pop(0)
+
+    def isatty(self) -> bool:
+        return False
+
+
 def _run_interactive_lines(text: str) -> list[str]:
     out = _TTYStringIO()
     run_repl(_TTYStringIO(text), out)
@@ -94,6 +123,34 @@ def test_repl_non_interactive_keeps_json_output() -> None:
 
     lines = out.getvalue().splitlines()
     expected = '{"kind":"passthrough","prompt_to_user":null,"state":null}'
+    assert lines == [expected]
+
+
+def test_repl_interactive_rejects_multi_command_chunk() -> None:
+    out = _TTYStringIO()
+    run_repl(
+        _ChunkedTTYInput(["set premise concise\nprohibit peanuts\n", "quit\n"]),  # type: ignore[arg-type]
+        out,
+    )
+
+    lines = out.getvalue().splitlines()
+    assert "error: Multiple commands detected." in lines
+    assert "Enter one command per line." in lines
+    assert "updated" not in lines
+
+
+def test_repl_non_interactive_rejects_multi_command_chunk_as_clarify_json() -> None:
+    out = StringIO()
+    run_repl(
+        _ChunkedInput(["set premise concise\nprohibit peanuts\n", "quit\n"]),  # type: ignore[arg-type]
+        out,
+    )
+
+    lines = out.getvalue().splitlines()
+    expected = (
+        '{"kind":"clarify","prompt_to_user":"Multiple commands detected.\\n'
+        'Enter one command per line.","state":null}'
+    )
     assert lines == [expected]
 
 
@@ -360,3 +417,19 @@ def test_repl_interactive_eof_returns_cleanly_after_startup_banner() -> None:
         "Context Compiler REPL (0.5). Type help for commands.",
         "Non-directive input is passthrough.",
     ]
+
+
+def test_repl_interactive_prints_blank_line_before_updated_decision() -> None:
+    out = _TTYStringIO()
+    run_repl(_TTYStringIO("set premise concise\nquit\n"), out)
+    text = out.getvalue()
+
+    assert "\n\nupdated\nstate:\n" in text
+
+
+def test_repl_interactive_prints_blank_line_before_error_decision() -> None:
+    out = _TTYStringIO()
+    run_repl(_TTYStringIO("set premise concise\nset premise verbose\nquit\n"), out)
+    text = out.getvalue()
+
+    assert "\n\nerror: Premise already exists.\n" in text

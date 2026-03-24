@@ -3,10 +3,11 @@ import sys
 from typing import TextIO
 
 from . import create_engine
-from .engine import Decision
+from .engine import Decision, DecisionKind
 
 _EXIT_TOKENS = {"exit", "quit"}
 _HELP_TOKENS = {"help", "?"}
+_MULTI_COMMAND_PROMPT = "Multiple commands detected.\nEnter one command per line."
 
 
 def format_decision(decision: Decision) -> str:
@@ -15,6 +16,21 @@ def format_decision(decision: Decision) -> str:
 
 def _is_interactive(in_stream: TextIO, out_stream: TextIO) -> bool:
     return bool(in_stream.isatty() and out_stream.isatty())
+
+
+def _has_embedded_newline(raw_line: str) -> bool:
+    body = raw_line[:-1] if raw_line.endswith("\n") else raw_line
+    if body.endswith("\r"):
+        body = body[:-1]
+    return "\n" in body or "\r" in body
+
+
+def _multi_command_decision() -> Decision:
+    return {
+        "kind": DecisionKind.CLARIFY,
+        "state": None,
+        "prompt_to_user": _MULTI_COMMAND_PROMPT,
+    }
 
 
 def _print_interactive_help(out_stream: TextIO) -> None:
@@ -34,6 +50,7 @@ def _print_interactive_help(out_stream: TextIO) -> None:
 
 
 def _print_interactive_decision(decision: Decision, out_stream: TextIO) -> None:
+    print("", file=out_stream)
     kind = decision["kind"]
     if kind == "passthrough":
         print("passthrough", file=out_stream)
@@ -64,6 +81,9 @@ def run_repl(in_stream: TextIO, out_stream: TextIO) -> None:
             line = in_stream.readline()
             if line == "":
                 return
+            if _has_embedded_newline(line):
+                _print_interactive_decision(_multi_command_decision(), out_stream)
+                continue
             user_input = line.rstrip("\n")
             token = user_input.strip().lower()
             if not token:
@@ -79,6 +99,9 @@ def run_repl(in_stream: TextIO, out_stream: TextIO) -> None:
         return
 
     for line in in_stream:
+        if _has_embedded_newline(line):
+            print(format_decision(_multi_command_decision()), file=out_stream)
+            continue
         user_input = line.rstrip("\n")
         if user_input.strip().lower() in _EXIT_TOKENS:
             return
