@@ -368,8 +368,9 @@ def test_replace_use_identity_is_noop_update() -> None:
 def test_replace_use_missing_source_state_enters_replacement_intent_clarify() -> None:
     engine = create_engine()
     expected_prompt = (
-        'No exact policy was found for "docker". Replacement requires an exact policy match. '
-        'Did you mean to use "kubectl" instead?'
+        'No exact policy found for "docker".\n'
+        "Replacement requires an exact policy match.\n"
+        'Confirm to use "kubectl" and keep existing policies?'
     )
 
     d1 = engine.step("use kubectl instead of docker")
@@ -384,8 +385,9 @@ def test_replace_use_missing_source_state_enters_replacement_intent_clarify() ->
 def test_replace_use_missing_source_yes_confirmation_applies_use_only() -> None:
     engine = create_engine()
     expected_prompt = (
-        'No exact policy was found for "docker". Replacement requires an exact policy match. '
-        'Did you mean to use "kubectl" instead?'
+        'No exact policy found for "docker".\n'
+        "Replacement requires an exact policy match.\n"
+        'Confirm to use "kubectl" and keep existing policies?'
     )
 
     first = engine.step("use kubectl instead of docker")
@@ -419,8 +421,9 @@ def test_replace_use_missing_source_takes_priority_over_target_prohibit_prompt()
     engine = create_engine()
     engine.step("don't use kubectl")
     expected_prompt = (
-        'No exact policy was found for "docker". Replacement requires an exact policy match. '
-        'Did you mean to use "kubectl" instead?'
+        'No exact policy found for "docker".\n'
+        "Replacement requires an exact policy match.\n"
+        'Confirm to use "kubectl" and keep existing policies?'
     )
 
     decision = engine.step("use kubectl instead of docker")
@@ -438,10 +441,10 @@ def test_replace_use_missing_source_prompt_includes_contains_diagnostic_hints() 
     decision = engine.step("use kubectl instead of python")
     assert decision["kind"] == "clarify"
     prompt = decision["prompt_to_user"] or ""
-    assert 'No exact policy was found for "python".' in prompt
+    assert 'No exact policy found for "python".' in prompt
     assert "Replacement requires an exact policy match." in prompt
     assert 'Existing policies containing that text: "python and docker".' in prompt
-    assert prompt.endswith('Did you mean to use "kubectl" instead?')
+    assert prompt.endswith('Confirm to use "kubectl" and keep "python and docker"?')
 
 
 def test_replace_use_ky_prohibit_enters_replacement_intent_clarify() -> None:

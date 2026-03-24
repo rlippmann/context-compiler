@@ -185,19 +185,20 @@ class Engine:
             if _sanitize_premise_value(action.value) == "":
                 if action.kind == "set_premise":
                     return _clarify(
-                        "Premise value cannot be empty. "
+                        "Premise value cannot be empty.\n"
                         "Use 'set premise ...' with a non-empty value."
                     )
                 return _clarify(
-                    "Premise value cannot be empty. "
+                    "Premise value cannot be empty.\n"
                     "Use 'change premise to ...' with a non-empty value."
                 )
 
         if action.kind == "set_premise" and self._state[STATE_PREMISE] is not None:
             return _clarify(
-                "Premise already exists. Use 'change premise to ...' to replace it. "
-                "Premise is a single slot with one value. "
-                "If you want to keep multiple ideas, rewrite them as one new premise value."
+                "Premise already exists.\n"
+                "Use 'change premise to ...' to replace it.\n"
+                "Premise is a single slot.\n"
+                "To keep multiple ideas, rewrite them as one premise value."
             )
 
         if action.kind == "change_premise" and self._state[STATE_PREMISE] is None:
@@ -208,10 +209,10 @@ class Engine:
             item_key = _normalize_item(action.item)
             if self._state[STATE_POLICIES].get(item_key) == POLICY_PROHIBIT:
                 return _clarify(
-                    f"Cannot set use for '{item_key}' because it already has prohibit. "
-                    "Only one policy per item is allowed, and conflicting policies are "
-                    "not allowed. "
-                    "Rewrite policy state explicitly or use 'reset policies' to start over."
+                    f"'{item_key}' already has policy prohibit.\n"
+                    "Only one policy per item is allowed.\n"
+                    "Conflicting policies are not allowed.\n"
+                    "Rewrite policy state explicitly, or use 'reset policies'."
                 )
 
         if action.kind == "prohibit_item":
@@ -219,10 +220,10 @@ class Engine:
             item_key = _normalize_item(action.item)
             if self._state[STATE_POLICIES].get(item_key) == POLICY_USE:
                 return _clarify(
-                    f"Cannot set prohibit for '{item_key}' because it already has use. "
-                    "Only one policy per item is allowed, and conflicting policies are "
-                    "not allowed. "
-                    "Rewrite policy state explicitly or use 'reset policies' to start over."
+                    f"'{item_key}' already has policy use.\n"
+                    "Only one policy per item is allowed.\n"
+                    "Conflicting policies are not allowed.\n"
+                    "Rewrite policy state explicitly, or use 'reset policies'."
                 )
 
         if action.kind == "replace_use":
@@ -236,16 +237,25 @@ class Engine:
             old_state = self._state[STATE_POLICIES].get(old_key)
             new_state = self._state[STATE_POLICIES].get(new_key)
             if old_key not in self._state[STATE_POLICIES]:
-                prompt = (
-                    f'No exact policy was found for "{action.old_item}". '
-                    "Replacement requires an exact policy match."
-                )
+                prompt_lines = [
+                    f'No exact policy found for "{action.old_item}".',
+                    "Replacement requires an exact policy match.",
+                ]
                 diagnostic_hints = _diagnostic_policy_contains_hints(
                     self._state[STATE_POLICIES], action.old_item
                 )
                 if diagnostic_hints:
-                    prompt += f" Existing policies containing that text: {diagnostic_hints}."
-                prompt += f' Did you mean to use "{action.new_item}" instead?'
+                    prompt_lines.append(
+                        f"Existing policies containing that text: {diagnostic_hints}."
+                    )
+                    prompt_lines.append(
+                        f'Confirm to use "{action.new_item}" and keep {diagnostic_hints}?'
+                    )
+                else:
+                    prompt_lines.append(
+                        f'Confirm to use "{action.new_item}" and keep existing policies?'
+                    )
+                prompt = "\n".join(prompt_lines)
                 self._pending_replacement = PendingReplacement(
                     kind="use_only",
                     new_item=action.new_item,
@@ -279,10 +289,10 @@ class Engine:
                 return _clarify(prompt)
             if old_state != POLICY_USE:
                 return _clarify(
-                    f"Cannot replace '{action.old_item}' because 'instead of' only works when "
-                    "the source item is an existing use policy. Replacement is not valid for "
-                    "other policy states. Rewrite the full policy state explicitly or use "
-                    "'reset policies' to restate it."
+                    f"Cannot replace '{action.old_item}' with 'instead of'.\n"
+                    "'instead of' only works when the source is an existing use policy.\n"
+                    "For other policy states, rewrite full policy state or use "
+                    "'reset policies'."
                 )
 
         return None

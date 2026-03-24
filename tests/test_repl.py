@@ -110,9 +110,10 @@ def test_repl_invalid_directive_near_misses_remain_passthrough() -> None:
 def test_repl_contradiction_clarify_is_not_pending_confirmable() -> None:
     decisions = _run_session("use docker\ndon't use docker\nno\nquit\n")
     conflict_prompt = (
-        "Cannot set prohibit for 'docker' because it already has use. "
-        "Only one policy per item is allowed, and conflicting policies are not allowed. "
-        "Rewrite policy state explicitly or use 'reset policies' to start over."
+        "'docker' already has policy use.\n"
+        "Only one policy per item is allowed.\n"
+        "Conflicting policies are not allowed.\n"
+        "Rewrite policy state explicitly, or use 'reset policies'."
     )
 
     assert decisions == [
@@ -140,8 +141,9 @@ def test_repl_replacement_clarify_requires_confirmation_tokens_and_persists_unti
     decisions = _run_session("use podman instead of docker\nmaybe\nyes please!!\nquit\n")
 
     expected_prompt = (
-        'No exact policy was found for "docker". Replacement requires an exact policy match. '
-        'Did you mean to use "podman" instead?'
+        'No exact policy found for "docker".\n'
+        "Replacement requires an exact policy match.\n"
+        'Confirm to use "podman" and keep existing policies?'
     )
     assert decisions == [
         {
@@ -166,20 +168,17 @@ def test_repl_interactive_prints_confirm_and_error_for_clarify_types() -> None:
     error_out = _TTYStringIO()
     run_repl(_TTYStringIO("use docker\ndon't use docker\nquit\n"), error_out)
     error_lines = error_out.getvalue().splitlines()
-    assert (
-        "error: Cannot set prohibit for 'docker' because it already has use. "
-        "Only one policy per item is allowed, and conflicting policies are not allowed. "
-        "Rewrite policy state explicitly or use 'reset policies' to start over."
-    ) in error_lines
+    assert "error: 'docker' already has policy use." in error_lines
+    assert "Only one policy per item is allowed." in error_lines
+    assert "Conflicting policies are not allowed." in error_lines
+    assert "Rewrite policy state explicitly, or use 'reset policies'." in error_lines
 
     confirm_out = _TTYStringIO()
     run_repl(_TTYStringIO("use podman instead of docker\nquit\n"), confirm_out)
     confirm_lines = confirm_out.getvalue().splitlines()
-    assert (
-        'confirm: No exact policy was found for "docker". '
-        "Replacement requires an exact policy match. "
-        'Did you mean to use "podman" instead?'
-    ) in confirm_lines
+    assert 'confirm: No exact policy found for "docker".' in confirm_lines
+    assert "Replacement requires an exact policy match." in confirm_lines
+    assert 'Confirm to use "podman" and keep existing policies?' in confirm_lines
 
 
 def test_repl_replacement_negative_confirmation_returns_update_unchanged_and_clears_pending() -> (
@@ -244,9 +243,10 @@ def test_repl_premise_lifecycle_outputs_expected_state_shape() -> None:
         {
             "kind": "clarify",
             "prompt_to_user": (
-                "Premise already exists. Use 'change premise to ...' to replace it. "
-                "Premise is a single slot with one value. "
-                "If you want to keep multiple ideas, rewrite them as one new premise value."
+                "Premise already exists.\n"
+                "Use 'change premise to ...' to replace it.\n"
+                "Premise is a single slot.\n"
+                "To keep multiple ideas, rewrite them as one premise value."
             ),
             "state": None,
         },
@@ -279,40 +279,32 @@ def test_repl_interactive_renders_updated_state_blocks_for_multiple_operations()
 def test_repl_interactive_confirmation_token_variants_resolve_pending_clarify() -> None:
     lines_yes = _run_interactive_lines("use podman instead of docker\nyeah\nquit\n")
     state_yes = [line for line in lines_yes if line.startswith("{") and '"version": 2' in line]
-    assert (
-        'confirm: No exact policy was found for "docker". '
-        "Replacement requires an exact policy match. "
-        'Did you mean to use "podman" instead?'
-    ) in lines_yes
+    assert 'confirm: No exact policy found for "docker".' in lines_yes
+    assert "Replacement requires an exact policy match." in lines_yes
+    assert 'Confirm to use "podman" and keep existing policies?' in lines_yes
     assert state_yes[-1] == '{"policies": {"podman": "use"}, "premise": null, "version": 2}'
 
     lines_ok = _run_interactive_lines("use buildah instead of docker\nok\nquit\n")
     state_ok = [line for line in lines_ok if line.startswith("{") and '"version": 2' in line]
-    assert (
-        'confirm: No exact policy was found for "docker". '
-        "Replacement requires an exact policy match. "
-        'Did you mean to use "buildah" instead?'
-    ) in lines_ok
+    assert 'confirm: No exact policy found for "docker".' in lines_ok
+    assert "Replacement requires an exact policy match." in lines_ok
+    assert 'Confirm to use "buildah" and keep existing policies?' in lines_ok
     assert state_ok[-1] == '{"policies": {"buildah": "use"}, "premise": null, "version": 2}'
 
     lines_nope = _run_interactive_lines("use nerdctl instead of docker\nnope\nquit\n")
     state_nope = [line for line in lines_nope if line.startswith("{") and '"version": 2' in line]
-    assert (
-        'confirm: No exact policy was found for "docker". '
-        "Replacement requires an exact policy match. "
-        'Did you mean to use "nerdctl" instead?'
-    ) in lines_nope
+    assert 'confirm: No exact policy found for "docker".' in lines_nope
+    assert "Replacement requires an exact policy match." in lines_nope
+    assert 'Confirm to use "nerdctl" and keep existing policies?' in lines_nope
     assert state_nope[-1] == '{"policies": {}, "premise": null, "version": 2}'
 
     lines_no_thanks = _run_interactive_lines("use helm instead of docker\nno thanks\nquit\n")
     state_no_thanks = [
         line for line in lines_no_thanks if line.startswith("{") and '"version": 2' in line
     ]
-    assert (
-        'confirm: No exact policy was found for "docker". '
-        "Replacement requires an exact policy match. "
-        'Did you mean to use "helm" instead?'
-    ) in lines_no_thanks
+    assert 'confirm: No exact policy found for "docker".' in lines_no_thanks
+    assert "Replacement requires an exact policy match." in lines_no_thanks
+    assert 'Confirm to use "helm" and keep existing policies?' in lines_no_thanks
     assert state_no_thanks[-1] == '{"policies": {}, "premise": null, "version": 2}'
 
 
@@ -336,21 +328,17 @@ def test_repl_interactive_confirm_vs_error_alignment_for_actual_clarify_behavior
         "quit\n"
     )
 
-    assert (
-        "error: Premise already exists. Use 'change premise to ...' to replace it. "
-        "Premise is a single slot with one value. "
-        "If you want to keep multiple ideas, rewrite them as one new premise value."
-    ) in lines
-    assert (
-        "error: Cannot set prohibit for 'docker' because it already has use. "
-        "Only one policy per item is allowed, and conflicting policies are not allowed. "
-        "Rewrite policy state explicitly or use 'reset policies' to start over."
-    ) in lines
-    assert (
-        'confirm: No exact policy was found for "buildx". '
-        "Replacement requires an exact policy match. "
-        'Did you mean to use "podman" instead?'
-    ) in lines
+    assert ("error: Premise already exists.") in lines
+    assert "Use 'change premise to ...' to replace it." in lines
+    assert "Premise is a single slot." in lines
+    assert "To keep multiple ideas, rewrite them as one premise value." in lines
+    assert ("error: 'docker' already has policy use.") in lines
+    assert "Only one policy per item is allowed." in lines
+    assert "Conflicting policies are not allowed." in lines
+    assert "Rewrite policy state explicitly, or use 'reset policies'." in lines
+    assert 'confirm: No exact policy found for "buildx".' in lines
+    assert "Replacement requires an exact policy match." in lines
+    assert 'Confirm to use "podman" and keep existing policies?' in lines
 
 
 def test_repl_interactive_passthrough_prints_passthrough_label() -> None:
