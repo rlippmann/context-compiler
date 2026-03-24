@@ -320,6 +320,11 @@ def test_policy_directives_and_idempotent_update() -> None:
 
     d3 = engine.step("prohibit docker")
     assert d3["kind"] == "clarify"
+    assert d3["prompt_to_user"] == (
+        "'docker' is already in use.\n"
+        "Only one policy per item is allowed.\n"
+        "Use 'reset policies' to change it."
+    )
     assert engine.state["policies"] == {"docker": "use"}
 
     engine2 = create_engine()
@@ -330,6 +335,11 @@ def test_policy_directives_and_idempotent_update() -> None:
 
     d5 = engine2.step("use docker")
     assert d5["kind"] == "clarify"
+    assert d5["prompt_to_user"] == (
+        "'docker' is already prohibited.\n"
+        "Only one policy per item is allowed.\n"
+        "Use 'reset policies' to change it."
+    )
     assert engine2.state["policies"] == {"docker": "prohibit"}
 
 

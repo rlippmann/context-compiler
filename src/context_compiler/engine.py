@@ -209,10 +209,9 @@ class Engine:
             item_key = _normalize_item(action.item)
             if self._state[STATE_POLICIES].get(item_key) == POLICY_PROHIBIT:
                 return _clarify(
-                    f"'{item_key}' already has policy prohibit.\n"
+                    f"'{item_key}' is already prohibited.\n"
                     "Only one policy per item is allowed.\n"
-                    "Conflicting policies are not allowed.\n"
-                    "Rewrite policy state explicitly, or use 'reset policies'."
+                    "Use 'reset policies' to change it."
                 )
 
         if action.kind == "prohibit_item":
@@ -220,10 +219,9 @@ class Engine:
             item_key = _normalize_item(action.item)
             if self._state[STATE_POLICIES].get(item_key) == POLICY_USE:
                 return _clarify(
-                    f"'{item_key}' already has policy use.\n"
+                    f"'{item_key}' is already in use.\n"
                     "Only one policy per item is allowed.\n"
-                    "Conflicting policies are not allowed.\n"
-                    "Rewrite policy state explicitly, or use 'reset policies'."
+                    "Use 'reset policies' to change it."
                 )
 
         if action.kind == "replace_use":
@@ -289,10 +287,9 @@ class Engine:
                 return _clarify(prompt)
             if old_state != POLICY_USE:
                 return _clarify(
-                    f"Cannot replace '{action.old_item}' with 'instead of'.\n"
-                    "'instead of' only works when the source is an existing use policy.\n"
-                    "For other policy states, rewrite full policy state or use "
-                    "'reset policies'."
+                    f"'{action.old_item}' is not a use policy.\n"
+                    "Replacement requires an existing use policy.\n"
+                    "Use 'reset policies' to change it."
                 )
 
         return None

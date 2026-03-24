@@ -110,10 +110,9 @@ def test_repl_invalid_directive_near_misses_remain_passthrough() -> None:
 def test_repl_contradiction_clarify_is_not_pending_confirmable() -> None:
     decisions = _run_session("use docker\nprohibit docker\nno\nquit\n")
     conflict_prompt = (
-        "'docker' already has policy use.\n"
+        "'docker' is already in use.\n"
         "Only one policy per item is allowed.\n"
-        "Conflicting policies are not allowed.\n"
-        "Rewrite policy state explicitly, or use 'reset policies'."
+        "Use 'reset policies' to change it."
     )
 
     assert decisions == [
@@ -168,10 +167,9 @@ def test_repl_interactive_prints_confirm_and_error_for_clarify_types() -> None:
     error_out = _TTYStringIO()
     run_repl(_TTYStringIO("use docker\nprohibit docker\nquit\n"), error_out)
     error_lines = error_out.getvalue().splitlines()
-    assert "error: 'docker' already has policy use." in error_lines
+    assert "error: 'docker' is already in use." in error_lines
     assert "Only one policy per item is allowed." in error_lines
-    assert "Conflicting policies are not allowed." in error_lines
-    assert "Rewrite policy state explicitly, or use 'reset policies'." in error_lines
+    assert "Use 'reset policies' to change it." in error_lines
 
     confirm_out = _TTYStringIO()
     run_repl(_TTYStringIO("use podman instead of docker\nquit\n"), confirm_out)
@@ -332,10 +330,9 @@ def test_repl_interactive_confirm_vs_error_alignment_for_actual_clarify_behavior
     assert "Use 'change premise to ...' to replace it." in lines
     assert "Premise is a single slot." in lines
     assert "To keep multiple ideas, rewrite them as one premise value." in lines
-    assert ("error: 'docker' already has policy use.") in lines
+    assert ("error: 'docker' is already in use.") in lines
     assert "Only one policy per item is allowed." in lines
-    assert "Conflicting policies are not allowed." in lines
-    assert "Rewrite policy state explicitly, or use 'reset policies'." in lines
+    assert "Use 'reset policies' to change it." in lines
     assert 'confirm: No exact policy found for "buildx".' in lines
     assert "Replacement requires an exact policy match." in lines
     assert 'Confirm to use "podman" and keep existing policies?' in lines
