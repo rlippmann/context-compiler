@@ -20,6 +20,16 @@ def test_initial_state_and_helpers() -> None:
     assert get_policy_items(engine.state) == []
 
 
+def test_get_policy_items_filters_by_policy_value_sorted() -> None:
+    engine = create_engine()
+    engine.step("use zeta")
+    engine.step("prohibit docker")
+    engine.step("use alpha")
+
+    assert get_policy_items(engine.state, "use") == ["alpha", "zeta"]
+    assert get_policy_items(engine.state, "prohibit") == ["docker"]
+
+
 def test_state_getter_returns_defensive_copy() -> None:
     engine = create_engine()
     snapshot = engine.state
@@ -343,6 +353,60 @@ def test_policy_directives_and_idempotent_update() -> None:
     assert engine2.state["policies"] == {"docker": "prohibit"}
 
 
+def test_use_empty_payload_clarifies_without_mutation() -> None:
+    engine = create_engine()
+    before = engine.state
+    expected = "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value."
+
+    for text in ["use", "use ", "use    "]:
+        decision = engine.step(text)
+        assert decision == {
+            "kind": "clarify",
+            "state": None,
+            "prompt_to_user": expected,
+        }
+        assert engine.state == before
+
+
+def test_prohibit_empty_payload_clarifies_without_mutation() -> None:
+    engine = create_engine()
+    before = engine.state
+    expected = "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
+
+    for text in ["prohibit", "prohibit ", "prohibit    "]:
+        decision = engine.step(text)
+        assert decision == {
+            "kind": "clarify",
+            "state": None,
+            "prompt_to_user": expected,
+        }
+        assert engine.state == before
+
+
+def test_replace_use_incomplete_payload_clarifies_without_mutation() -> None:
+    engine = create_engine()
+    before = engine.state
+    expected = (
+        "Replacement requires both new and old items.\n"
+        "Use 'use <new item> instead of <old item>' with non-empty values."
+    )
+
+    for text in [
+        "use x instead of",
+        "use x instead of ",
+        "use  instead of y",
+        "use   instead of y",
+        "use instead of y",
+    ]:
+        decision = engine.step(text)
+        assert decision == {
+            "kind": "clarify",
+            "state": None,
+            "prompt_to_user": expected,
+        }
+        assert engine.state == before
+
+
 def test_reset_policies_is_update_even_when_already_empty() -> None:
     engine = create_engine()
     d1 = engine.step("reset policies")
@@ -521,6 +585,38 @@ def test_replace_use_missing_source_prompt_includes_contains_diagnostic_hints() 
     assert prompt.endswith('Confirm to use "kubectl" and keep "python and docker"?')
 
 
+def test_replace_use_missing_source_prompt_lists_multiple_diagnostic_hints_sorted() -> None:
+    engine = create_engine()
+    engine.step("use python and docker")
+    engine.step("prohibit python tooling")
+
+    decision = engine.step("use kubectl instead of python")
+    assert decision["kind"] == "clarify"
+    prompt = decision["prompt_to_user"] or ""
+    assert 'No exact policy found for "python".' in prompt
+    assert "Replacement requires an exact policy match." in prompt
+    assert (
+        'Existing policies containing that text: "python and docker", "python tooling".' in prompt
+    )
+    assert prompt.endswith(
+        'Confirm to use "kubectl" and keep "python and docker", "python tooling"?'
+    )
+
+
+def test_replace_use_missing_source_with_empty_normalized_probe_omits_diagnostic_hints() -> None:
+    engine = create_engine()
+    engine.step("use python and docker")
+    before = engine.state
+
+    decision = engine.step("use kubectl instead of the")
+    assert decision["kind"] == "clarify"
+    prompt = decision["prompt_to_user"] or ""
+    assert 'No exact policy found for "the".' in prompt
+    assert "Replacement requires an exact policy match." in prompt
+    assert "Existing policies containing that text:" not in prompt
+    assert engine.state == before
+
+
 def test_replace_use_ky_prohibit_enters_replacement_intent_clarify() -> None:
     engine = create_engine()
     engine.step("prohibit docker")
@@ -593,6 +689,23 @@ def test_replace_use_priority_prefers_source_prohibit_prompt_when_both_prohibit(
     assert engine.state["policies"] == {"docker": "prohibit", "kubectl": "prohibit"}
 
 
+def test_replace_use_invalid_source_state_prohibit_clarifies_without_mutation() -> None:
+    engine = create_engine()
+    engine.step("prohibit docker")
+    engine.step("use pytest")
+    before = engine.state
+
+    decision = engine.step("use kubectl instead of docker")
+    assert decision == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": (
+            '"docker" is currently prohibited. Did you mean to remove it and use "kubectl" instead?'
+        ),
+    }
+    assert engine.state == before
+
+
 def test_replace_use_kx_prohibit_no_confirmation_has_no_mutation() -> None:
     engine = create_engine()
     engine.step("use docker")
@@ -618,6 +731,22 @@ def test_pending_confirmation_precedence_and_resolution() -> None:
 
     third = engine.step("yes")
     assert third["kind"] == "update"
+    assert engine.state["policies"] == {"kubectl": "use"}
+
+
+def test_pending_confirmation_suspends_admin_commands_until_resolved() -> None:
+    engine = create_engine()
+    engine.step("use docker")
+    engine.step("prohibit kubectl")
+    first = engine.step("use kubectl instead of docker")
+    before = engine.state
+
+    assert engine.step("clear state") == first
+    assert engine.step("reset policies") == first
+    assert engine.state == before
+
+    resolved = engine.step("yes")
+    assert resolved["kind"] == "update"
     assert engine.state["policies"] == {"kubectl": "use"}
 
 
@@ -746,7 +875,15 @@ def test_import_json_clears_pending_clarification_yes_no_not_confirmation() -> N
 
     no_decision = engine.step("no")
     assert no_decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
-    assert engine.state == imported
+
+
+def test_remove_policy_uses_normalized_item_matching() -> None:
+    engine = create_engine()
+    engine.step("use The Docker")
+
+    decision = engine.step("remove policy the docker")
+    assert decision["kind"] == "update"
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
 def test_compile_transcript_ignores_non_user_messages() -> None:

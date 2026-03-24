@@ -205,6 +205,8 @@ User: prohibit peanuts
 ```
 
 Result: policies store authoritative per-item states (`use` / `prohibit`).
+Recognized empty payloads clarify without mutation:
+`use`, `use   `, `prohibit`, and `prohibit   `.
 
 Explicit replacement:
 
@@ -213,6 +215,8 @@ User: use podman instead of docker
 ```
 
 Result: remove `docker` use policy and set `podman` to `use` (or clarify if blocked).
+Incomplete replacement payloads also clarify without mutation (for example:
+`use x instead of`, `use  instead of y`, `use instead of y`).
 
 Policy contradiction (clarify):
 

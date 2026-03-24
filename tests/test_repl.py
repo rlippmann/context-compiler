@@ -138,9 +138,66 @@ def test_repl_non_interactive_rejects_multi_command_chunk_with_human_readable_cl
     assert lines == ["error: Multiple commands detected.", "Enter one command per line."]
 
 
+def test_repl_non_interactive_rejects_embedded_carriage_return_multi_command_chunk() -> None:
+    out = StringIO()
+    run_repl(
+        _ChunkedInput(["set premise concise\rprohibit peanuts\n", "quit\n"]),  # type: ignore[arg-type]
+        out,
+    )
+
+    lines = out.getvalue().splitlines()
+    assert lines == ["error: Multiple commands detected.", "Enter one command per line."]
+
+
+def test_repl_non_interactive_accepts_crlf_single_line_without_multi_command_error() -> None:
+    out = StringIO()
+    run_repl(
+        _ChunkedInput(["hello\r\n", "quit\r\n"]),  # type: ignore[arg-type]
+        out,
+    )
+
+    lines = out.getvalue().splitlines()
+    assert lines == ["passthrough"]
+
+
+def test_repl_interactive_rejects_embedded_carriage_return_multi_command_chunk() -> None:
+    out = _TTYStringIO()
+    run_repl(
+        _ChunkedTTYInput(["set premise concise\rprohibit peanuts\n", "quit\n"]),  # type: ignore[arg-type]
+        out,
+    )
+
+    lines = out.getvalue().splitlines()
+    assert "error: Multiple commands detected." in lines
+    assert "Enter one command per line." in lines
+    assert "updated" not in lines
+
+
 def test_repl_invalid_directive_near_misses_remain_passthrough() -> None:
     lines = _run_non_interactive_lines("actually use uv\nno use peanuts\nallow docker\nquit\n")
     assert lines == ["passthrough", "passthrough", "passthrough"]
+
+
+def test_repl_empty_policy_payloads_and_incomplete_replacement_render_errors() -> None:
+    lines = _run_non_interactive_lines(
+        "use\nprohibit   \nuse x instead of\nuse instead of y\nquit\n"
+    )
+    assert _contains_subsequence(
+        lines,
+        [
+            "error: Policy item cannot be empty.",
+            "Use 'use <item>' with a non-empty value.",
+        ],
+    )
+    assert _contains_subsequence(
+        lines,
+        [
+            "error: Policy item cannot be empty.",
+            "Use 'prohibit <item>' with a non-empty value.",
+        ],
+    )
+    assert lines.count("error: Replacement requires both new and old items.") == 2
+    assert lines.count("Use 'use <new item> instead of <old item>' with non-empty values.") == 2
 
 
 def test_repl_non_interactive_remove_policy_flow() -> None:
