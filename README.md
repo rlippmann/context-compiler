@@ -231,6 +231,14 @@ Policy cleanup commands are:
 - `reset policies` clears all policy items
 - `clear state` resets premise and policies to initial values
 
+Single-policy correction flow:
+
+```text
+User: prohibit peanuts
+User: remove policy peanuts
+User: use peanuts
+```
+
 Example:
 
 - If policies include `{"docker": "use", "peanuts": "prohibit"}`:

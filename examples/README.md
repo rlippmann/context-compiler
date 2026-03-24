@@ -32,3 +32,8 @@ Includes a single-item policy removal step via `remove policy <item>`.
 
 Demonstrates transcript replay helpers for host integration.
 Shows `compile_transcript(messages)` from a fresh engine and `engine.apply_transcript(messages)` on current engine state.
+
+## 07_single_policy_correction.py
+
+Demonstrates explicit single-policy correction without `reset policies`.  
+Shows `prohibit peanuts` -> `remove policy peanuts` -> `use peanuts`.
