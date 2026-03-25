@@ -40,8 +40,8 @@ Environment variables (LiteLLM/OpenAI-compatible API):
 - `MODEL` (optional)
 - `OPENAI_API_KEY` (required)
 - `OPENAI_BASE_URL` (optional; use for local or alternative endpoints)
-Note: Demos require models that support deterministic decoding (`temperature=0`).
-Some newer models (e.g. `gpt-5`) do not support this and may error.
+Note: Demos prefer deterministic decoding (`temperature=0`) for reproducible PASS/FAIL behavior.
+If a model rejects that parameter (for example, some `gpt-5` paths), the demo client retries once without it.
 
 LiteLLM model naming with Ollama:
 
@@ -55,7 +55,7 @@ Any locally hosted OpenAI-compatible endpoint will work.
 ```bash
 export OPENAI_BASE_URL=http://localhost:11434/v1
 export OPENAI_API_KEY=ollama
-export MODEL=your_local_model_id
+export MODEL=openai/your_local_model_id
 ```
 
 OpenAI-compatible hosted example:

@@ -305,8 +305,8 @@ def _run_demo(turns: int = _DEFAULT_TURNS) -> None:
                     "at least one compiler-mediated path failed premise consistency"
                     if not mediated_respects or not compact_respects
                     else (
-                        "baseline preserved premise consistency but "
-                        "compiler-mediated comparison was mixed"
+                        "baseline preserved premise consistency, but at least one "
+                        "compiler-mediated path failed"
                     )
                 )
             )

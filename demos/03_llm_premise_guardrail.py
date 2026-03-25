@@ -158,8 +158,8 @@ def main() -> None:
                     "at least one compiler-mediated path included stale vegetarian value"
                     if (not mediated_respects or not compact_respects)
                     else (
-                        "baseline used vegan value but a compiler-mediated path "
-                        "did not improve reliability"
+                        "baseline already used vegan value; a compiler-mediated path "
+                        "still included stale vegetarian content"
                     )
                 )
             )

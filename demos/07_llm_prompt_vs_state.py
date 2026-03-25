@@ -194,9 +194,8 @@ def main() -> None:
         compiler_pass=compiler_pass,
         compiler_compact_pass=compact_pass,
         expected=(
-            "prompting quality should help, and prompting plus compiled authoritative "
-            "state should be most reliable; compiler-mediated prompting should reuse "
-            "the same prompt text"
+            "stronger prompting should improve premise retention; compiled-state "
+            "paths should be at least as reliable and reuse the same prompt text"
         ),
         actual=_actual_summary(
             weak_pass=weak_pass,
@@ -205,7 +204,9 @@ def main() -> None:
         ),
         passed=demo_pass,
         result_pass="prompting helps; authoritative compiled state adds reliability",
-        result_fail=("three-way complementarity claim not established in this run"),
+        result_fail=(
+            "compiled-state paths were not clearly more reliable than prompt-only in this run"
+        ),
     )
 
 
