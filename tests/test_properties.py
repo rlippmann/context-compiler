@@ -138,6 +138,8 @@ def test_contradiction_use_after_prohibit_always_clarifies(item: str) -> None:
 @given(st.text(min_size=1, max_size=30))
 def test_contradiction_prohibit_after_use_always_clarifies(item: str) -> None:
     assume(" instead of " not in item)
+    assume(not item.startswith("instead of "))
+    assume(not item.endswith(" instead of"))
     engine = create_engine()
     engine.step(f"use {item}")
     before = engine.state

@@ -32,6 +32,18 @@ DEMO_FILES: dict[str, str] = {
 SCORED_DEMOS = {"1", "2", "3", "4", "5", "7"}
 
 
+def _preflight_all_mode() -> None:
+    llm_client.complete_messages(
+        [
+            {
+                "role": "user",
+                "content": "Reply with exactly: OK",
+            }
+        ],
+        delay_seconds=0,
+    )
+
+
 def _verbose_demo_label(path: Path) -> str:
     return path.stem.replace("_llm", "")
 
@@ -119,6 +131,15 @@ def main() -> None:
         parser.error("demo-specific args are only supported when running a single demo")
 
     if args.demo == "all":
+        try:
+            _preflight_all_mode()
+        except MissingDemoConfigError as exc:
+            _print_config_error(exc)
+            raise SystemExit(2) from exc
+        except DemoLLMError as exc:
+            print(str(exc))
+            raise SystemExit(2) from exc
+
         baseline_pass_count = 0
         baseline_fail_count = 0
         compiler_pass_count = 0

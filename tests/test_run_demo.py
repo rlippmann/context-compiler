@@ -144,6 +144,7 @@ def test_runner_prints_summary_regression_banner_in_all_mode(
 
     monkeypatch.setattr(run_demo, "DEMO_FILES", {"1": "fake_01.py", "6": "fake_06.py"})
     monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1"})
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", lambda: None)
     monkeypatch.setattr(run_demo, "_run", fake_run)
     monkeypatch.setattr("sys.argv", ["run_demo", "all"])
 
@@ -187,6 +188,7 @@ def test_runner_prints_plural_summary_regression_banner_in_all_mode(
         {"1": "fake_01.py", "2": "fake_02.py", "6": "fake_06.py"},
     )
     monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1", "2"})
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", lambda: None)
     monkeypatch.setattr(run_demo, "_run", fake_run)
     monkeypatch.setattr("sys.argv", ["run_demo", "all"])
 
@@ -226,6 +228,7 @@ def test_informational_demo_is_non_scored_in_all_mode(
 
     monkeypatch.setattr(run_demo, "DEMO_FILES", {"1": "fake_01.py", "6": "fake_06.py"})
     monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1"})
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", lambda: None)
     monkeypatch.setattr(run_demo, "_run", fake_run)
     monkeypatch.setattr("sys.argv", ["run_demo", "all"])
 
@@ -270,6 +273,42 @@ def test_runner_prints_friendly_demo_llm_error_in_single_mode(
     ) in output
 
 
+def test_all_mode_fails_fast_on_preflight_error_before_running_any_demo(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run_called = False
+
+    def fake_preflight() -> None:
+        raise DemoLLMError(
+            "Model 'bad-model' was not found at the configured endpoint. "
+            "Check MODEL or OPENAI_BASE_URL."
+        )
+
+    def fake_run(
+        path: Path, *, verbose: bool, llm_delay: float
+    ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        nonlocal run_called
+        del path, verbose, llm_delay
+        run_called = True
+        return None, None
+
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", fake_preflight)
+    monkeypatch.setattr(run_demo, "_run", fake_run)
+    monkeypatch.setattr("sys.argv", ["run_demo", "all"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        run_demo.main()
+    output = capsys.readouterr().out
+
+    assert exc_info.value.code == 2
+    assert run_called is False
+    assert (
+        "Model 'bad-model' was not found at the configured endpoint. "
+        "Check MODEL or OPENAI_BASE_URL."
+    ) in output
+    assert "Summary:" not in output
+
+
 def test_all_mode_scored_none_result_counts_as_failures(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -289,6 +328,7 @@ def test_all_mode_scored_none_result_counts_as_failures(
 
     monkeypatch.setattr(run_demo, "DEMO_FILES", {"1": "fake_01.py", "6": "fake_06.py"})
     monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1"})
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", lambda: None)
     monkeypatch.setattr(run_demo, "_run", fake_run)
     monkeypatch.setattr("sys.argv", ["run_demo", "all"])
 
@@ -325,6 +365,7 @@ def test_all_mode_counts_baseline_fail_and_compiler_pass(
 
     monkeypatch.setattr(run_demo, "DEMO_FILES", {"1": "fake_01.py", "6": "fake_06.py"})
     monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1"})
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", lambda: None)
     monkeypatch.setattr(run_demo, "_run", fake_run)
     monkeypatch.setattr("sys.argv", ["run_demo", "all"])
 
