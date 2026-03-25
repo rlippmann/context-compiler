@@ -20,6 +20,7 @@ def _demo_report(*, baseline_pass: bool, compiler_pass: bool) -> run_demo.DemoRe
         "actual": "actual behavior",
         "baseline_pass": baseline_pass,
         "compiler_pass": compiler_pass,
+        "compiler_compact_pass": compiler_pass,
         "demo_pass": compiler_pass,
     }
 
@@ -153,6 +154,7 @@ def test_runner_prints_summary_regression_banner_in_all_mode(
     assert exc_info.value.code == 1
     assert "Baseline results: 1 passed, 0 failed" in output
     assert "Compiler results: 0 passed, 1 failed" in output
+    assert "Compiler+compact results: 0 passed, 1 failed" in output
     assert "*** 1 MEDIATED REGRESSION DETECTED ***" in output
 
 
@@ -195,6 +197,7 @@ def test_runner_prints_plural_summary_regression_banner_in_all_mode(
     assert exc_info.value.code == 1
     assert "Baseline results: 2 passed, 0 failed" in output
     assert "Compiler results: 0 passed, 2 failed" in output
+    assert "Compiler+compact results: 0 passed, 2 failed" in output
     assert "*** 2 MEDIATED REGRESSIONS DETECTED ***" in output
 
 
@@ -231,6 +234,7 @@ def test_informational_demo_is_non_scored_in_all_mode(
 
     assert "Baseline results: 1 passed, 0 failed" in output
     assert "Compiler results: 1 passed, 0 failed" in output
+    assert "Compiler+compact results: 1 passed, 0 failed" in output
     assert (
         "06_context_compaction — context 137 → 37 chars (73% reduction); "
         "prompt 247 → 160 chars (35% reduction)"
@@ -293,6 +297,7 @@ def test_all_mode_scored_none_result_counts_as_failures(
 
     assert "Baseline results: 0 passed, 1 failed" in output
     assert "Compiler results: 0 passed, 1 failed" in output
+    assert "Compiler+compact results: 0 passed, 1 failed" in output
 
 
 def test_all_mode_counts_baseline_fail_and_compiler_pass(
@@ -328,6 +333,7 @@ def test_all_mode_counts_baseline_fail_and_compiler_pass(
 
     assert "Baseline results: 0 passed, 1 failed" in output
     assert "Compiler results: 1 passed, 0 failed" in output
+    assert "Compiler+compact results: 1 passed, 0 failed" in output
 
 
 def test_single_scored_demo_without_mediated_regression_exits_zero(
@@ -349,7 +355,6 @@ def test_single_scored_demo_without_mediated_regression_exits_zero(
     run_demo.main()
 
 
-@pytest.mark.skip(reason="Phase A: compaction demo depends on removed pre-0.5 mutation behavior.")
 def test_compaction_demo_reports_sane_metrics() -> None:
     consume_last_info_report()
 
@@ -363,6 +368,8 @@ def test_compaction_demo_reports_sane_metrics() -> None:
     assert report["baseline_prompt_length"] > report["compiled_prompt_length"]
     assert report["context_reduction_percent"] > 0
     assert report["prompt_reduction_percent"] > 0
+    assert report["compacted_context_length"] <= report["baseline_context_length"]
+    assert report["compacted_prompt_length"] <= report["baseline_prompt_length"]
 
 
 def test_runner_passes_llm_delay_from_cli(monkeypatch: pytest.MonkeyPatch) -> None:

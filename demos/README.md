@@ -7,6 +7,11 @@ important instructions explicitly instead of relying only on the conversation
 history. The scripts are designed to produce consistent results so the
 behavior is easy to see.
 
+Scored demos now compare three paths:
+- baseline
+- compiler-mediated (full transcript + injected state)
+- compiler-mediated + compaction (compacted transcript + injected state)
+
 ## Demo overview
 
 | Demo | Behavior | Concept | Most visible with |
@@ -100,6 +105,7 @@ Running against a local OpenAI-compatible endpoint avoids provider rate limits.
   - for evaluative demos (`01`–`05`, `07`):
     - `baseline: PASS|FAIL`
     - `compiler: PASS|FAIL`
+    - `compiler+compact: PASS|FAIL`
   - expected behavior
   - actual outcome
   - `result: ...` (short deterministic description)
@@ -107,11 +113,12 @@ Running against a local OpenAI-compatible endpoint avoids provider rate limits.
     - `context: <baseline> → <compiled> chars`
     - `prompt: <baseline> → <compiled> chars`
     - `reduction: context <pct>%; prompt <pct>%`
+    - `compacted transcript: <baseline> → <compacted> chars`
     - `result: ...`
   - when running `all`:
     - blank line between demos
     - final summary with evaluative totals
-    - informational summary line for `06_llm_context_compaction` (non-scored)
+    - informational summary lines for `06_llm_context_compaction` (non-scored)
 - `Verbose (--verbose)`:
   - user inputs
   - compiler decisions and compiled state
@@ -121,8 +128,10 @@ Running against a local OpenAI-compatible endpoint avoids provider rate limits.
   - for `06_llm_context_compaction`, also:
     - raw transcript context
     - compiled context
+    - compacted transcript context
     - baseline and compiled prompts
-    - context and prompt size comparisons
+    - compacted prompt
+    - context and prompt size comparisons (state-only and compacted variants)
 
 ### Demo 5: stress ladder (`--turns`)
 

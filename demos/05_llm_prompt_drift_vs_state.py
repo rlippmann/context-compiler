@@ -7,7 +7,8 @@ import demos.llm_client as llm_client
 from context_compiler import create_engine
 from demos.common import (
     build_baseline_messages,
-    build_mediated_messages,
+    build_mediated_messages_from_transcript,
+    compact_user_turns,
     extract_tag_value,
     print_decision,
     print_host_check,
@@ -36,6 +37,11 @@ EXPECTED_PREMISE = "vegetarian curry"
 _FINAL_PROMPT = (
     "Now give me a dinner plan. First line must be PREMISE:<value>. "
     "Keep the plan consistent with that premise."
+)
+_FORMAT_CONTRACT_SYSTEM_PROMPT = (
+    "Output contract:\n"
+    "- First line must be exactly PREMISE:<value>.\n"
+    "- Then provide a short dinner plan consistent with that premise."
 )
 _DISTRACTOR_TOPICS = [
     "travel photography",
@@ -207,26 +213,51 @@ def _run_demo(turns: int = _DEFAULT_TURNS) -> None:
     baseline_messages = build_baseline_messages(
         user_inputs,
         baseline_system_prompt=(
-            "Be a helpful assistant. Use the conversation context to provide a useful answer."
+            "Be a helpful assistant. Use the conversation context to provide a useful answer.\n"
+            + _FORMAT_CONTRACT_SYSTEM_PROMPT
         ),
     )
     print_messages("baseline", baseline_messages)
     baseline_output = complete_messages(baseline_messages)
     print_model_output("Baseline", baseline_output)
 
-    mediated_messages = build_mediated_messages(engine.state, user_inputs[-1])
-    print_messages("compiler-mediated", mediated_messages)
+    mediated_messages = build_mediated_messages_from_transcript(
+        engine.state,
+        user_inputs,
+        extra_system_prompt=_FORMAT_CONTRACT_SYSTEM_PROMPT,
+    )
+    print_messages("compiler-mediated (full)", mediated_messages)
     mediated_output = complete_messages(mediated_messages)
-    print_model_output("Compiler-mediated", mediated_output)
+    print_model_output("Compiler-mediated (full)", mediated_output)
+
+    compacted_turns, compacted_state, compacted_prompt = compact_user_turns(user_inputs)
+    if compacted_prompt is not None:
+        print_messages("compiler-mediated + compact", [])
+        compact_output = f"[no call] clarification required: {compacted_prompt}"
+        print_model_output("Compiler-mediated + compact", compact_output)
+    else:
+        compact_messages = build_mediated_messages_from_transcript(
+            compacted_state,
+            compacted_turns,
+            extra_system_prompt=_FORMAT_CONTRACT_SYSTEM_PROMPT,
+        )
+        print_messages("compiler-mediated + compact", compact_messages)
+        compact_output = complete_messages(compact_messages)
+        print_model_output("Compiler-mediated + compact", compact_output)
+
     print_tag_comparison("PREMISE", baseline_output, mediated_output)
     baseline_premise = extract_tag_value(baseline_output, "PREMISE")
     mediated_premise = extract_tag_value(mediated_output, "PREMISE")
+    compact_premise = extract_tag_value(compact_output, "PREMISE")
     baseline_matches = premise_matches_expected(baseline_output)
     mediated_matches = premise_matches_expected(mediated_output)
+    compact_matches = compacted_prompt is None and premise_matches_expected(compact_output)
     baseline_non_veg = plan_includes_non_vegetarian_item(baseline_output)
     mediated_non_veg = plan_includes_non_vegetarian_item(mediated_output)
+    compact_non_veg = plan_includes_non_vegetarian_item(compact_output)
     baseline_respects = baseline_matches and not baseline_non_veg
     mediated_respects = mediated_matches and not mediated_non_veg
+    compact_respects = compact_matches and not compact_non_veg
     print_host_check(
         "PREMISE_AND_PLAN",
         (
@@ -245,28 +276,42 @@ def _run_demo(turns: int = _DEFAULT_TURNS) -> None:
         ),
         context="compiler-mediated",
     )
+    print_host_check(
+        "PREMISE_AND_PLAN",
+        (
+            f"premise_tag={compact_premise or 'MISSING'}, "
+            f"premise_matches_expected={yes_no(compact_matches)}, "
+            f"plan_includes_non_vegetarian={yes_no(compact_non_veg)}"
+        ),
+        context="compiler-mediated + compact",
+    )
     print_spec_report(
         test_name="05_prompt_drift — preserve premise across long transcript",
         baseline_pass=baseline_respects,
         compiler_pass=mediated_respects,
+        compiler_compact_pass=compact_respects,
         expected=(
             "compiler-mediated should preserve the authoritative premise "
             "and keep the plan consistent"
         ),
         actual=(
-            "baseline drifted from premise; compiler-mediated preserved premise-consistent plan"
-            if mediated_respects and not baseline_respects
+            "baseline drifted from premise; both compiler-mediated paths "
+            "preserved premise-consistent plans"
+            if mediated_respects and compact_respects and not baseline_respects
             else (
-                "baseline and compiler-mediated both preserved premise-consistent plan"
-                if baseline_respects and mediated_respects
+                "all three paths preserved premise-consistent plan"
+                if baseline_respects and mediated_respects and compact_respects
                 else (
-                    "baseline and compiler-mediated both failed premise consistency"
-                    if not baseline_respects and not mediated_respects
-                    else "baseline preserved premise consistency but compiler-mediated did not"
+                    "at least one compiler-mediated path failed premise consistency"
+                    if not mediated_respects or not compact_respects
+                    else (
+                        "baseline preserved premise consistency but "
+                        "compiler-mediated comparison was mixed"
+                    )
                 )
             )
         ),
-        passed=mediated_respects,
+        passed=mediated_respects and compact_respects,
         result_pass="premise consistency preserved",
         result_fail="premise consistency not preserved",
     )

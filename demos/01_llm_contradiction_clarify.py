@@ -3,6 +3,8 @@
 from context_compiler import create_engine
 from demos.common import (
     build_baseline_messages,
+    build_mediated_messages_from_transcript,
+    compact_user_turns,
     extract_tag_value,
     print_decision,
     print_host_check,
@@ -13,7 +15,7 @@ from demos.common import (
     print_user_inputs,
     yes_no,
 )
-from demos.llm_client import Message, complete_messages
+from demos.llm_client import complete_messages
 
 
 def main() -> None:
@@ -44,42 +46,65 @@ def main() -> None:
     print_model_output("Baseline", baseline_output)
 
     if second["kind"] == "clarify":
-        print_messages("compiler-mediated", [])
+        print_messages("compiler-mediated (full)", [])
         mediated_output = (
             f"[no call] clarification required: {second['prompt_to_user']}\nACTION:clarify"
         )
-        print_model_output("Compiler-mediated", mediated_output)
+        print_model_output("Compiler-mediated (full)", mediated_output)
     else:
-        mediated_messages: list[Message] = [{"role": "user", "content": user_inputs[1]}]
-        print_messages("compiler-mediated", mediated_messages)
+        mediated_messages = build_mediated_messages_from_transcript(engine.state, user_inputs)
+        print_messages("compiler-mediated (full)", mediated_messages)
         mediated_output = complete_messages(mediated_messages)
-        print_model_output("Compiler-mediated", mediated_output)
+        print_model_output("Compiler-mediated (full)", mediated_output)
+
+    compacted_turns, compacted_state, compacted_prompt = compact_user_turns(user_inputs)
+    if compacted_prompt is not None:
+        print_messages("compiler-mediated + compact", [])
+        compact_output = f"[no call] clarification required: {compacted_prompt}\nACTION:clarify"
+        print_model_output("Compiler-mediated + compact", compact_output)
+    else:
+        compact_messages = build_mediated_messages_from_transcript(compacted_state, compacted_turns)
+        print_messages("compiler-mediated + compact", compact_messages)
+        compact_output = complete_messages(compact_messages)
+        print_model_output("Compiler-mediated + compact", compact_output)
 
     print_tag_comparison("ACTION", baseline_output, mediated_output)
     baseline_action = extract_tag_value(baseline_output, "ACTION")
+    compact_action = extract_tag_value(compact_output, "ACTION")
     baseline_respects = baseline_action is not None and baseline_action.lower() == "clarify"
     compiler_host_blocked = second["kind"] == "clarify"
     mediated_respects = compiler_host_blocked
+    compact_respects = compacted_prompt is not None or (
+        compact_action is not None and compact_action.lower() == "clarify"
+    )
     print_host_check(
         "COMPILER_BLOCKED_LLM",
         yes_no(compiler_host_blocked),
-        context="compiler-mediated",
+        context="compiler-mediated (full)",
+    )
+    print_host_check(
+        "COMPACT_BLOCKED_LLM",
+        yes_no(compacted_prompt is not None),
+        context="compiler-mediated + compact",
     )
     print_spec_report(
         test_name="01_contradiction_block — host clarification gate",
         baseline_pass=baseline_respects,
         compiler_pass=mediated_respects,
+        compiler_compact_pass=compact_respects,
         expected="host should block LLM call on contradictory directive until clarification",
         actual=(
-            "baseline proceeded instead of clarifying; compiler-mediated blocked the LLM call"
-            if mediated_respects and not baseline_respects
+            "baseline proceeded instead of clarifying; "
+            "both compiler-mediated paths blocked the LLM call"
+            if mediated_respects and compact_respects and not baseline_respects
             else (
-                "baseline also signaled clarification; compiler-mediated blocked the LLM call"
-                if baseline_respects and mediated_respects
-                else "compiler-mediated did not block the LLM call as expected"
+                "baseline also signaled clarification; "
+                "both compiler-mediated paths blocked the LLM call"
+                if baseline_respects and mediated_respects and compact_respects
+                else "at least one compiler-mediated path did not block the LLM call as expected"
             )
         ),
-        passed=mediated_respects,
+        passed=mediated_respects and compact_respects,
         result_pass="contradictory directive blocked until clarification",
         result_fail="contradictory directive not blocked until clarification",
     )

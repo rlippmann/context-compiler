@@ -33,6 +33,7 @@ def _render_compiled_state_contract(compiled_state: State) -> str:
 
 
 def _build_messages(user_input: str, compiled_state: State) -> list[dict[str, str]]:
+    # For long-running conversations, you can optionally compact transcripts by removing user inputs that were compiled into state. See Demo 6.  # noqa: E501
     return [
         {
             "role": "system",
