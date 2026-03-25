@@ -16,7 +16,16 @@ and long conversations accumulate contradictions.
 
 The **Context Compiler** introduces a deterministic state layer that governs authoritative conversational state independently of the model.
 
-The model performs reasoning and generation while the compiler manages facts and constraints. Once accepted, directives remain authoritative until explicitly corrected or reset.
+The model performs reasoning and generation while the compiler manages premise and policies. Once accepted, directives remain authoritative until explicitly corrected or reset.
+
+## Evidence (cross-model runs)
+
+- Models tested: `llama3.1:8b`, `gpt-4o-mini`, `gpt-4.1`, `gpt-5`, `claude-sonnet-4`, `claude-opus-4`
+- Baseline path: `2–4 / 6` pass across runs
+- `compiler` path: `6 / 6` pass across runs
+- `compiler+compact` path: `6 / 6` pass across runs (after compact-path fixes)
+- Demo 6 context reduction: up to `99%`
+- Demo 6 prompt reduction: about `50%`
 
 ## Why “Compiler”?
 
@@ -42,7 +51,7 @@ User sets a constraint once:
 User: prohibit peanuts
 ```
 
-Outcome: prohibited items now include `"peanuts"`.
+Outcome: policy state includes `"peanuts": "prohibit"`.
 
 Later in the conversation:
 
@@ -136,7 +145,7 @@ to internal field names or nested layout.
 
 Hosts can provide initial state at engine creation (`create_engine(state=...)`),
 read current in-memory state via `engine.state`, and persist/restore via
-`export_json()` and `import_json()`. Semantic state mutations occur through
+`engine.export_json()` and `engine.import_json()`. Semantic state mutations occur through
 directives processed by `step()`. Storage is managed by the host application.
 
 Use the returned state snapshot as structured host input for prompt

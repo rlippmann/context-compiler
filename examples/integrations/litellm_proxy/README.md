@@ -43,7 +43,7 @@ curl http://localhost:4000/v1/chat/completions \
   -H "Authorization: Bearer anything" \
   -d '{
     "model": "gpt-4o-mini",
-    "messages": [{"role": "user", "content": "don'\''t use peanuts"}]
+    "messages": [{"role": "user", "content": "prohibit peanuts"}]
   }'
 ```
 

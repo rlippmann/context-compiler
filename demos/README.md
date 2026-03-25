@@ -10,7 +10,7 @@ behavior is easy to see.
 Scored demos now compare three paths:
 - baseline
 - compiler-mediated (full transcript + injected state)
-- compiler-mediated + compaction (compacted transcript + injected state)
+- compiler+compact (compacted transcript + injected state)
 
 ## Demo overview
 
@@ -110,9 +110,7 @@ Running against a local OpenAI-compatible endpoint avoids provider rate limits.
   - actual outcome
   - `result: ...` (short deterministic description)
   - for `06_llm_context_compaction`:
-    - `context: <baseline> → <compiled> chars`
-    - `prompt: <baseline> → <compiled> chars`
-    - `reduction: context <pct>%; prompt <pct>%`
+    - `context scaling: ...`
     - `compacted transcript: <baseline> → <compacted> chars`
     - `result: ...`
   - when running `all`:

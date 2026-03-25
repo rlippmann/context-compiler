@@ -57,7 +57,11 @@ Semantics:
 
 The compiler always returns a `Decision`.
 
-## 5. State Model
+## 5. Engine/Host State Contract
+
+This section defines the integration contract between the deterministic engine
+and host applications. It is authoritative for engine behavior and host
+integration code, not a requirement for user-facing UX presentation.
 
 State is a deterministic snapshot:
 
@@ -75,6 +79,11 @@ Where:
 - `policies`: `dict[string, "use" | "prohibit"]`
 - `version`: integer schema version. The 0.5 design maps to schema version `2`.
 - Policy key absence means no policy for that item.
+
+UX note:
+
+- User-facing surfaces (for example REPL or demos) may render this contract in
+  human-readable form instead of exposing raw schema/JSON directly.
 
 Properties:
 
