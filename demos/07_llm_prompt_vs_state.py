@@ -6,6 +6,7 @@ from context_compiler import State, create_engine
 from demos.common import (
     build_baseline_messages,
     build_compiled_system_prompt,
+    compact_user_turns,
     extract_tag_value,
     print_decision,
     print_host_check,
@@ -76,6 +77,10 @@ def build_compiler_messages(state: State, user_inputs: list[str]) -> list[Messag
     return build_baseline_messages(user_inputs, baseline_system_prompt=compiler_system_prompt)
 
 
+def build_compact_compiler_messages(state: State, compacted_inputs: list[str]) -> list[Message]:
+    return build_compiler_messages(state, compacted_inputs)
+
+
 def _actual_summary(*, weak_pass: bool, strong_pass: bool, compiler_pass: bool) -> str:
     if not weak_pass and strong_pass and compiler_pass:
         return (
@@ -113,16 +118,29 @@ def main() -> None:
     print_model_output("Strong baseline", strong_output)
 
     compiler_messages = build_compiler_messages(engine.state, USER_INPUTS)
-    print_messages("compiler-mediated", compiler_messages)
+    print_messages("compiler-mediated (full)", compiler_messages)
     compiler_output = complete_messages(compiler_messages)
-    print_model_output("Compiler-mediated", compiler_output)
+    print_model_output("Compiler-mediated (full)", compiler_output)
+
+    compacted_inputs, compacted_state, compacted_prompt = compact_user_turns(USER_INPUTS)
+    if compacted_prompt is not None:
+        print_messages("compiler-mediated + compact", [])
+        compact_output = f"[no call] clarification required: {compacted_prompt}"
+        print_model_output("Compiler-mediated + compact", compact_output)
+    else:
+        compact_messages = build_compact_compiler_messages(compacted_state, compacted_inputs)
+        print_messages("compiler-mediated + compact", compact_messages)
+        compact_output = complete_messages(compact_messages)
+        print_model_output("Compiler-mediated + compact", compact_output)
 
     weak_premise = extract_tag_value(weak_output, "PREMISE")
     strong_premise = extract_tag_value(strong_output, "PREMISE")
     compiler_premise = extract_tag_value(compiler_output, "PREMISE")
+    compact_premise = extract_tag_value(compact_output, "PREMISE")
     weak_pass = premise_matches_expected(weak_output)
     strong_pass = premise_matches_expected(strong_output)
     compiler_pass = premise_matches_expected(compiler_output)
+    compact_pass = compacted_prompt is None and premise_matches_expected(compact_output)
 
     compiled_prefix = build_compiled_system_prompt(engine.state)
     shared_prompt_text = compiler_messages[0]["content"].endswith(STRONG_PROMPT_ENGINEERING_TEXT)
@@ -147,6 +165,11 @@ def main() -> None:
         context="compiler-mediated",
     )
     print_host_check(
+        "COMPACT_MATCHES_EXPECTED_PREMISE",
+        f"{yes_no(compact_pass)}, premise_tag={compact_premise or 'MISSING'}",
+        context="compiler-mediated + compact",
+    )
+    print_host_check(
         "COMPILER_REUSES_STRONG_PROMPT_TEXT",
         yes_no(shared_prompt_text),
         context="compiler-mediated",
@@ -161,17 +184,20 @@ def main() -> None:
         (not weak_pass)
         and strong_pass
         and compiler_pass
+        and compact_pass
         and shared_prompt_text
         and compiler_augmented_only
     )
+    assertion_outcome = "demonstrated" if demo_pass else "not demonstrated"
     print_spec_report(
         test_name=DEMO_NAME,
         baseline_pass=strong_pass,
         compiler_pass=compiler_pass,
+        compiler_compact_pass=compact_pass,
+        assertion_outcome=assertion_outcome,
         expected=(
-            "prompting quality should help, and prompting plus compiled authoritative "
-            "state should be most reliable; compiler-mediated prompting should reuse "
-            "the same prompt text"
+            "stronger prompting should improve premise retention; compiled-state "
+            "paths should be at least as reliable and reuse the same prompt text"
         ),
         actual=_actual_summary(
             weak_pass=weak_pass,
@@ -179,8 +205,10 @@ def main() -> None:
             compiler_pass=compiler_pass,
         ),
         passed=demo_pass,
-        result_pass="prompting helps; authoritative compiled state adds reliability",
-        result_fail=("three-way complementarity claim not established in this run"),
+        result_pass="compiled-state paths were clearly more reliable than prompt-only in this run",
+        result_fail=(
+            "compiled-state paths were not clearly more reliable than prompt-only in this run"
+        ),
     )
 
 

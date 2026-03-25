@@ -20,6 +20,7 @@ def _demo_report(*, baseline_pass: bool, compiler_pass: bool) -> run_demo.DemoRe
         "actual": "actual behavior",
         "baseline_pass": baseline_pass,
         "compiler_pass": compiler_pass,
+        "compiler_compact_pass": compiler_pass,
         "demo_pass": compiler_pass,
     }
 
@@ -143,6 +144,7 @@ def test_runner_prints_summary_regression_banner_in_all_mode(
 
     monkeypatch.setattr(run_demo, "DEMO_FILES", {"1": "fake_01.py", "6": "fake_06.py"})
     monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1"})
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", lambda: None)
     monkeypatch.setattr(run_demo, "_run", fake_run)
     monkeypatch.setattr("sys.argv", ["run_demo", "all"])
 
@@ -153,6 +155,7 @@ def test_runner_prints_summary_regression_banner_in_all_mode(
     assert exc_info.value.code == 1
     assert "Baseline results: 1 passed, 0 failed" in output
     assert "Compiler results: 0 passed, 1 failed" in output
+    assert "Compiler+compact results: 0 passed, 1 failed" in output
     assert "*** 1 MEDIATED REGRESSION DETECTED ***" in output
 
 
@@ -185,6 +188,7 @@ def test_runner_prints_plural_summary_regression_banner_in_all_mode(
         {"1": "fake_01.py", "2": "fake_02.py", "6": "fake_06.py"},
     )
     monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1", "2"})
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", lambda: None)
     monkeypatch.setattr(run_demo, "_run", fake_run)
     monkeypatch.setattr("sys.argv", ["run_demo", "all"])
 
@@ -195,6 +199,7 @@ def test_runner_prints_plural_summary_regression_banner_in_all_mode(
     assert exc_info.value.code == 1
     assert "Baseline results: 2 passed, 0 failed" in output
     assert "Compiler results: 0 passed, 2 failed" in output
+    assert "Compiler+compact results: 0 passed, 2 failed" in output
     assert "*** 2 MEDIATED REGRESSIONS DETECTED ***" in output
 
 
@@ -223,6 +228,7 @@ def test_informational_demo_is_non_scored_in_all_mode(
 
     monkeypatch.setattr(run_demo, "DEMO_FILES", {"1": "fake_01.py", "6": "fake_06.py"})
     monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1"})
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", lambda: None)
     monkeypatch.setattr(run_demo, "_run", fake_run)
     monkeypatch.setattr("sys.argv", ["run_demo", "all"])
 
@@ -231,6 +237,7 @@ def test_informational_demo_is_non_scored_in_all_mode(
 
     assert "Baseline results: 1 passed, 0 failed" in output
     assert "Compiler results: 1 passed, 0 failed" in output
+    assert "Compiler+compact results: 1 passed, 0 failed" in output
     assert (
         "06_context_compaction — context 137 → 37 chars (73% reduction); "
         "prompt 247 → 160 chars (35% reduction)"
@@ -266,6 +273,42 @@ def test_runner_prints_friendly_demo_llm_error_in_single_mode(
     ) in output
 
 
+def test_all_mode_fails_fast_on_preflight_error_before_running_any_demo(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    run_called = False
+
+    def fake_preflight() -> None:
+        raise DemoLLMError(
+            "Model 'bad-model' was not found at the configured endpoint. "
+            "Check MODEL or OPENAI_BASE_URL."
+        )
+
+    def fake_run(
+        path: Path, *, verbose: bool, llm_delay: float
+    ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        nonlocal run_called
+        del path, verbose, llm_delay
+        run_called = True
+        return None, None
+
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", fake_preflight)
+    monkeypatch.setattr(run_demo, "_run", fake_run)
+    monkeypatch.setattr("sys.argv", ["run_demo", "all"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        run_demo.main()
+    output = capsys.readouterr().out
+
+    assert exc_info.value.code == 2
+    assert run_called is False
+    assert (
+        "Model 'bad-model' was not found at the configured endpoint. "
+        "Check MODEL or OPENAI_BASE_URL."
+    ) in output
+    assert "Summary:" not in output
+
+
 def test_all_mode_scored_none_result_counts_as_failures(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -285,6 +328,7 @@ def test_all_mode_scored_none_result_counts_as_failures(
 
     monkeypatch.setattr(run_demo, "DEMO_FILES", {"1": "fake_01.py", "6": "fake_06.py"})
     monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1"})
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", lambda: None)
     monkeypatch.setattr(run_demo, "_run", fake_run)
     monkeypatch.setattr("sys.argv", ["run_demo", "all"])
 
@@ -293,6 +337,7 @@ def test_all_mode_scored_none_result_counts_as_failures(
 
     assert "Baseline results: 0 passed, 1 failed" in output
     assert "Compiler results: 0 passed, 1 failed" in output
+    assert "Compiler+compact results: 0 passed, 1 failed" in output
 
 
 def test_all_mode_counts_baseline_fail_and_compiler_pass(
@@ -320,6 +365,7 @@ def test_all_mode_counts_baseline_fail_and_compiler_pass(
 
     monkeypatch.setattr(run_demo, "DEMO_FILES", {"1": "fake_01.py", "6": "fake_06.py"})
     monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1"})
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", lambda: None)
     monkeypatch.setattr(run_demo, "_run", fake_run)
     monkeypatch.setattr("sys.argv", ["run_demo", "all"])
 
@@ -328,6 +374,7 @@ def test_all_mode_counts_baseline_fail_and_compiler_pass(
 
     assert "Baseline results: 0 passed, 1 failed" in output
     assert "Compiler results: 1 passed, 0 failed" in output
+    assert "Compiler+compact results: 1 passed, 0 failed" in output
 
 
 def test_single_scored_demo_without_mediated_regression_exits_zero(
@@ -349,7 +396,6 @@ def test_single_scored_demo_without_mediated_regression_exits_zero(
     run_demo.main()
 
 
-@pytest.mark.skip(reason="Phase A: compaction demo depends on removed pre-0.5 mutation behavior.")
 def test_compaction_demo_reports_sane_metrics() -> None:
     consume_last_info_report()
 
@@ -363,6 +409,8 @@ def test_compaction_demo_reports_sane_metrics() -> None:
     assert report["baseline_prompt_length"] > report["compiled_prompt_length"]
     assert report["context_reduction_percent"] > 0
     assert report["prompt_reduction_percent"] > 0
+    assert report["compacted_context_length"] <= report["baseline_context_length"]
+    assert report["compacted_prompt_length"] <= report["baseline_prompt_length"]
 
 
 def test_runner_passes_llm_delay_from_cli(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -416,3 +464,93 @@ def test_runner_forwards_demo_specific_args_after_separator(
 
     assert captured["llm_delay"] == 1.25
     assert captured["demo_args"] == ["--turns", "120"]
+
+
+def test_runner_requires_separator_for_demo_specific_args(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("sys.argv", ["run_demo", "5", "--turns", "120"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        run_demo.main()
+
+    assert exc_info.value.code == 2
+
+
+def test_runner_rejects_demo_specific_args_in_all_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("sys.argv", ["run_demo", "all", "--", "--turns", "120"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        run_demo.main()
+
+    assert exc_info.value.code == 2
+
+
+def test_all_mode_missing_config_prints_openai_compatible_example(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def fake_preflight() -> None:
+        from demos.llm_client import MissingDemoConfigError
+
+        raise MissingDemoConfigError(
+            missing=["OPENAI_API_KEY"], base_url="http://localhost:11434/v1"
+        )
+
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", fake_preflight)
+    monkeypatch.setattr("sys.argv", ["run_demo", "all"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        run_demo.main()
+    output = capsys.readouterr().out
+
+    assert exc_info.value.code == 2
+    assert "Unable to run LLM demos: missing model configuration." in output
+    assert "Assumed mode: OpenAI-compatible endpoint" in output
+    assert "export OPENAI_BASE_URL=http://localhost:11434/v1" in output
+    assert "export MODEL=llama3.1:8b" in output
+
+
+def test_all_mode_missing_config_prints_openai_example(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def fake_preflight() -> None:
+        from demos.llm_client import MissingDemoConfigError
+
+        raise MissingDemoConfigError(missing=["OPENAI_API_KEY"], base_url=None)
+
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", fake_preflight)
+    monkeypatch.setattr("sys.argv", ["run_demo", "all"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        run_demo.main()
+    output = capsys.readouterr().out
+
+    assert exc_info.value.code == 2
+    assert "Unable to run LLM demos: missing model configuration." in output
+    assert "Assumed mode: OpenAI API" in output
+    assert "export MODEL=gpt-4.1-mini" in output
+
+
+def test_all_mode_exits_when_demo_error_occurs_mid_loop(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def fake_run(
+        path: Path, *, verbose: bool, llm_delay: float
+    ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        assert not verbose
+        assert llm_delay == 0
+        if path.name == "fake_01.py":
+            return _demo_report(baseline_pass=True, compiler_pass=True), None
+        raise DemoLLMError("Could not reach the configured LLM endpoint after retries.")
+
+    monkeypatch.setattr(run_demo, "DEMO_FILES", {"1": "fake_01.py", "2": "fake_02.py"})
+    monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1", "2"})
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", lambda: None)
+    monkeypatch.setattr(run_demo, "_run", fake_run)
+    monkeypatch.setattr("sys.argv", ["run_demo", "all"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        run_demo.main()
+    output = capsys.readouterr().out
+
+    assert exc_info.value.code == 2
+    assert "Could not reach the configured LLM endpoint after retries." in output
+    assert "Summary:" not in output

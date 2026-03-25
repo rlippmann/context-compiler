@@ -5,7 +5,8 @@ import re
 from context_compiler import create_engine
 from demos.common import (
     build_baseline_messages,
-    build_mediated_messages,
+    build_mediated_messages_from_transcript,
+    compact_user_turns,
     extract_tag_value,
     print_decision,
     print_host_check,
@@ -83,20 +84,36 @@ def main() -> None:
     baseline_output = complete_messages(baseline_messages)
     print_model_output("Baseline", baseline_output)
 
-    mediated_messages = build_mediated_messages(engine.state, user_inputs[2])
-    print_messages("compiler-mediated", mediated_messages)
+    mediated_messages = build_mediated_messages_from_transcript(engine.state, user_inputs)
+    print_messages("compiler-mediated (full)", mediated_messages)
     mediated_output = complete_messages(mediated_messages)
-    print_model_output("Compiler-mediated", mediated_output)
+    print_model_output("Compiler-mediated (full)", mediated_output)
+
+    compacted_turns, compacted_state, compacted_prompt = compact_user_turns(user_inputs)
+    if compacted_prompt is not None:
+        print_messages("compiler-mediated + compact", [])
+        compact_output = f"[no call] clarification required: {compacted_prompt}"
+        print_model_output("Compiler-mediated + compact", compact_output)
+    else:
+        compact_messages = build_mediated_messages_from_transcript(compacted_state, compacted_turns)
+        print_messages("compiler-mediated + compact", compact_messages)
+        compact_output = complete_messages(compact_messages)
+        print_model_output("Compiler-mediated + compact", compact_output)
+
     print_tag_comparison("PREMISE", baseline_output, mediated_output)
 
     baseline_premise = extract_tag_value(baseline_output, "PREMISE")
     mediated_premise = extract_tag_value(mediated_output, "PREMISE")
+    compact_premise = extract_tag_value(compact_output, "PREMISE")
     baseline_uses_vegan = _plan_uses_value(baseline_output, "vegan")
     baseline_uses_vegetarian = _plan_uses_value(baseline_output, "vegetarian")
     mediated_uses_vegan = _plan_uses_value(mediated_output, "vegan")
     mediated_uses_vegetarian = _plan_uses_value(mediated_output, "vegetarian")
+    compact_uses_vegan = _plan_uses_value(compact_output, "vegan")
+    compact_uses_vegetarian = _plan_uses_value(compact_output, "vegetarian")
     baseline_respects = not baseline_uses_vegetarian
     mediated_respects = not mediated_uses_vegetarian
+    compact_respects = compacted_prompt is None and not compact_uses_vegetarian
     print_host_check(
         "PLAN_VALUES",
         (
@@ -115,25 +132,39 @@ def main() -> None:
         ),
         context="compiler-mediated",
     )
+    print_host_check(
+        "PLAN_VALUES",
+        (
+            f"vegan={yes_no(compact_uses_vegan)}, "
+            f"vegetarian={yes_no(compact_uses_vegetarian)}, "
+            f"premise_tag={compact_premise or 'MISSING'}"
+        ),
+        context="compiler-mediated + compact",
+    )
     print_spec_report(
         test_name="03_explicit_premise_change — stale value removed",
         baseline_pass=baseline_respects,
         compiler_pass=mediated_respects,
+        compiler_compact_pass=compact_respects,
         expected="explicit premise change should remove the stale vegetarian value",
         actual=(
-            "baseline still used stale vegetarian value; compiler-mediated used vegan value"
-            if mediated_respects and baseline_uses_vegetarian
+            "baseline still used stale vegetarian value; "
+            "both compiler-mediated paths used vegan value"
+            if mediated_respects and compact_respects and baseline_uses_vegetarian
             else (
-                "both baseline and compiler-mediated used vegan value"
-                if baseline_respects and mediated_respects
+                "all three paths used vegan value"
+                if baseline_respects and mediated_respects and compact_respects
                 else (
-                    "baseline and compiler-mediated both included stale vegetarian value"
-                    if (not baseline_respects and not mediated_respects)
-                    else "baseline used vegan value but compiler-mediated did not"
+                    "at least one compiler-mediated path included stale vegetarian value"
+                    if (not mediated_respects or not compact_respects)
+                    else (
+                        "baseline already used vegan value; a compiler-mediated path "
+                        "still included stale vegetarian content"
+                    )
                 )
             )
         ),
-        passed=mediated_respects,
+        passed=mediated_respects and compact_respects,
         result_pass="explicit premise change produced current authoritative value",
         result_fail="explicit premise change did not produce current authoritative value",
     )

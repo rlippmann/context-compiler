@@ -2,9 +2,9 @@
 
 import os
 import re
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
 
-from context_compiler import Decision, State, get_policy_items, get_premise_value
+from context_compiler import Decision, State, create_engine, get_policy_items, get_premise_value
 from demos.llm_client import Message
 
 VERBOSE_ENV_VAR = "CONTEXT_COMPILER_DEMO_VERBOSE"
@@ -16,6 +16,7 @@ class DemoReport(TypedDict):
     actual: str
     baseline_pass: bool
     compiler_pass: bool
+    compiler_compact_pass: NotRequired[bool]
     demo_pass: bool
 
 
@@ -27,6 +28,10 @@ class InfoReport(TypedDict):
     baseline_prompt_length: int
     compiled_prompt_length: int
     prompt_reduction_percent: int
+    compacted_context_length: NotRequired[int]
+    compacted_context_reduction_percent: NotRequired[int]
+    compacted_prompt_length: NotRequired[int]
+    compacted_prompt_reduction_percent: NotRequired[int]
 
 
 LAST_REPORT: DemoReport | None = None
@@ -151,6 +156,8 @@ def print_spec_report(
     test_name: str,
     baseline_pass: bool,
     compiler_pass: bool,
+    compiler_compact_pass: bool | None = None,
+    assertion_outcome: str | None = None,
     expected: str,
     actual: str,
     passed: bool,
@@ -158,7 +165,7 @@ def print_spec_report(
     result_fail: str,
 ) -> None:
     global LAST_REPORT
-    LAST_REPORT = {
+    report: DemoReport = {
         "name": test_name,
         "expected": expected,
         "actual": actual,
@@ -166,11 +173,18 @@ def print_spec_report(
         "compiler_pass": compiler_pass,
         "demo_pass": passed,
     }
+    if compiler_compact_pass is not None:
+        report["compiler_compact_pass"] = compiler_compact_pass
+    LAST_REPORT = report
     print(test_name)
     print(f"baseline: {'PASS' if baseline_pass else 'FAIL'}")
     print(f"compiler: {'PASS' if compiler_pass else 'FAIL'}")
+    if compiler_compact_pass is not None:
+        print(f"compiler+compact: {'PASS' if compiler_compact_pass else 'FAIL'}")
     print(f"expected: {expected}")
     print(f"actual: {actual}")
+    if assertion_outcome is not None:
+        print(f"assertion: {assertion_outcome}")
     print(f"result: {result_pass if passed else result_fail}")
     if is_verbose():
         print()
@@ -192,9 +206,13 @@ def print_info_report(
     baseline_prompt_length: int,
     compiled_prompt_length: int,
     prompt_reduction_percent: int,
+    compacted_context_length: int | None = None,
+    compacted_context_reduction_percent: int | None = None,
+    compacted_prompt_length: int | None = None,
+    compacted_prompt_reduction_percent: int | None = None,
 ) -> None:
     global LAST_INFO_REPORT
-    LAST_INFO_REPORT = {
+    report: InfoReport = {
         "name": name,
         "baseline_context_length": baseline_context_length,
         "compiled_context_length": compiled_context_length,
@@ -203,6 +221,58 @@ def print_info_report(
         "compiled_prompt_length": compiled_prompt_length,
         "prompt_reduction_percent": prompt_reduction_percent,
     }
+    if compacted_context_length is not None:
+        report["compacted_context_length"] = compacted_context_length
+    if compacted_context_reduction_percent is not None:
+        report["compacted_context_reduction_percent"] = compacted_context_reduction_percent
+    if compacted_prompt_length is not None:
+        report["compacted_prompt_length"] = compacted_prompt_length
+    if compacted_prompt_reduction_percent is not None:
+        report["compacted_prompt_reduction_percent"] = compacted_prompt_reduction_percent
+    LAST_INFO_REPORT = report
+
+
+def compact_user_turns(
+    user_turns: list[str],
+) -> tuple[list[str], State, str | None]:
+    """Compact transcript using compiler boundaries.
+
+    Rules:
+    - drop update lines
+    - keep passthrough lines
+    - keep first clarify line and stop
+    - return prompt_to_user for clarify, else None
+    - returned state is replay state at stop point
+    """
+
+    engine = create_engine()
+    compacted_turns: list[str] = []
+    prompt_to_user: str | None = None
+
+    for turn in user_turns:
+        decision = engine.step(turn)
+        if decision["kind"] == "update":
+            continue
+        compacted_turns.append(turn)
+        if decision["kind"] == "clarify":
+            prompt_to_user = decision["prompt_to_user"]
+            break
+
+    return compacted_turns, engine.state, prompt_to_user
+
+
+def build_mediated_messages_from_transcript(
+    state: State,
+    user_turns: list[str],
+    *,
+    extra_system_prompt: str | None = None,
+) -> list[Message]:
+    system_prompt = build_compiled_system_prompt(state)
+    if extra_system_prompt:
+        system_prompt += "\n" + extra_system_prompt
+    messages: list[Message] = [{"role": "system", "content": system_prompt}]
+    messages.extend({"role": "user", "content": turn} for turn in user_turns)
+    return messages
 
 
 def consume_last_info_report() -> InfoReport | None:

@@ -1,7 +1,7 @@
 """Demo 6: host-side prompt replacement from authoritative compiled state."""
 
 from context_compiler import compile_transcript, get_premise_value
-from demos.common import is_verbose, print_info_report
+from demos.common import compact_user_turns, is_verbose, print_info_report
 
 DEMO_NAME = "06_context_compaction — superseded directives eliminated"
 FINAL_PREMISE = "chickpea curry"
@@ -62,12 +62,18 @@ def _print_verbose_report(
     compiled_context: str,
     baseline_prompt: str,
     compiled_prompt: str,
+    compacted_context: str,
+    compacted_prompt: str,
     baseline_context_length: int,
     compiled_context_length: int,
+    compacted_context_length: int,
     context_reduction: int,
+    compacted_context_reduction: int,
     baseline_prompt_length: int,
     compiled_prompt_length: int,
+    compacted_prompt_length: int,
     prompt_reduction: int,
+    compacted_prompt_reduction: int,
     scaling_rows: list[tuple[int, int, int, int]],
 ) -> None:
     print(DEMO_NAME)
@@ -79,25 +85,41 @@ def _print_verbose_report(
     print("Compiled context:")
     print(compiled_context)
     print()
+    print("Compacted transcript context:")
+    print(compacted_context or "(none)")
+    print()
     print("Baseline prompt:")
     print(baseline_prompt)
     print()
     print("Compiled prompt:")
     print(compiled_prompt)
     print()
+    print("Compacted prompt:")
+    print(compacted_prompt)
+    print()
     print("Context scaling:")
     print()
     for turns, baseline_length, compiled_length, reduction in scaling_rows:
         print(f"Turns: {turns}")
-        print(f"context: {baseline_length} → {compiled_length} chars")
-        print(f"reduction: {reduction}%")
+        print(f"context (state-only): {baseline_length} → {compiled_length} chars")
+        print(f"reduction (state-only): {reduction}%")
         print()
+    print(f"context (compacted): {baseline_context_length} → {compacted_context_length} chars")
+    print(f"reduction (compacted): {compacted_context_reduction}%")
+    print(f"prompt (state-only): {baseline_prompt_length} → {compiled_prompt_length} chars")
+    print(f"reduction (state-only): {prompt_reduction}%")
+    print(f"prompt (compacted): {baseline_prompt_length} → {compacted_prompt_length} chars")
+    print(f"reduction (compacted): {compacted_prompt_reduction}%")
+    print()
     print("result: transcript grows linearly; compiled context stays constant")
 
 
 def _print_compact_report(
     *,
     scaling_rows: list[tuple[int, int, int, int]],
+    baseline_context_length: int,
+    compacted_context_length: int,
+    compacted_context_reduction: int,
 ) -> None:
     row_by_turns = {
         turns: (baseline, compiled, reduction)
@@ -111,6 +133,10 @@ def _print_compact_report(
         f"({five_reduction}% reduction); 50 turns {fifty_baseline} → {fifty_compiled} chars "
         f"({fifty_reduction}% reduction)"
     )
+    print(
+        f"compacted transcript: {baseline_context_length} → {compacted_context_length} chars "
+        f"({compacted_context_reduction}% reduction)"
+    )
     print("result: transcript grows linearly; compiled context stays constant")
 
 
@@ -120,14 +146,32 @@ def main() -> None:
     assert compiled_premise == FINAL_PREMISE
     baseline_context = "\n".join(f"User: {turn}" for turn in transcript_turns)
     compiled_context = f"- premise: {compiled_premise}"
+    compacted_turns, compacted_state, compacted_prompt = compact_user_turns(transcript_turns)
+    assert compacted_prompt is None
+    assert get_premise_value(compacted_state) == FINAL_PREMISE
+    compacted_context = "\n".join(f"User: {turn}" for turn in compacted_turns)
     baseline_prompt = _build_baseline_prompt(transcript_turns)
     compiled_prompt = _build_compiled_prompt(compiled_premise)
+    compacted_prompt_text = (
+        "You are a helpful assistant.\n"
+        "Host-side authoritative compiled context:\n"
+        f"- premise: {compiled_premise}\n"
+        "Compacted transcript context:\n" + (compacted_context if compacted_context else "(none)")
+    )
     baseline_context_length = len(baseline_context)
     compiled_context_length = len(compiled_context)
     context_reduction = round((1 - (compiled_context_length / baseline_context_length)) * 100)
+    compacted_context_length = len(compacted_context)
+    compacted_context_reduction = round(
+        (1 - (compacted_context_length / baseline_context_length)) * 100
+    )
     baseline_prompt_length = len(baseline_prompt)
     compiled_prompt_length = len(compiled_prompt)
     prompt_reduction = round((1 - (compiled_prompt_length / baseline_prompt_length)) * 100)
+    compacted_prompt_length = len(compacted_prompt_text)
+    compacted_prompt_reduction = round(
+        (1 - (compacted_prompt_length / baseline_prompt_length)) * 100
+    )
     scaling_rows: list[tuple[int, int, int, int]] = []
     for turns in SCALING_TURNS:
         scaling_turns = _build_turns(turns)
@@ -144,16 +188,27 @@ def main() -> None:
             compiled_context=compiled_context,
             baseline_prompt=baseline_prompt,
             compiled_prompt=compiled_prompt,
+            compacted_context=compacted_context,
+            compacted_prompt=compacted_prompt_text,
             baseline_context_length=baseline_context_length,
             compiled_context_length=compiled_context_length,
+            compacted_context_length=compacted_context_length,
             context_reduction=context_reduction,
+            compacted_context_reduction=compacted_context_reduction,
             baseline_prompt_length=baseline_prompt_length,
             compiled_prompt_length=compiled_prompt_length,
+            compacted_prompt_length=compacted_prompt_length,
             prompt_reduction=prompt_reduction,
+            compacted_prompt_reduction=compacted_prompt_reduction,
             scaling_rows=scaling_rows,
         )
     else:
-        _print_compact_report(scaling_rows=scaling_rows)
+        _print_compact_report(
+            scaling_rows=scaling_rows,
+            baseline_context_length=baseline_context_length,
+            compacted_context_length=compacted_context_length,
+            compacted_context_reduction=compacted_context_reduction,
+        )
 
     print_info_report(
         name=DEMO_NAME,
@@ -163,6 +218,10 @@ def main() -> None:
         baseline_prompt_length=baseline_prompt_length,
         compiled_prompt_length=compiled_prompt_length,
         prompt_reduction_percent=prompt_reduction,
+        compacted_context_length=compacted_context_length,
+        compacted_context_reduction_percent=compacted_context_reduction,
+        compacted_prompt_length=compacted_prompt_length,
+        compacted_prompt_reduction_percent=compacted_prompt_reduction,
     )
 
 

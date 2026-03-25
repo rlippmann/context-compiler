@@ -32,6 +32,18 @@ DEMO_FILES: dict[str, str] = {
 SCORED_DEMOS = {"1", "2", "3", "4", "5", "7"}
 
 
+def _preflight_all_mode() -> None:
+    llm_client.complete_messages(
+        [
+            {
+                "role": "user",
+                "content": "Reply with exactly: OK",
+            }
+        ],
+        delay_seconds=0,
+    )
+
+
 def _verbose_demo_label(path: Path) -> str:
     return path.stem.replace("_llm", "")
 
@@ -119,10 +131,21 @@ def main() -> None:
         parser.error("demo-specific args are only supported when running a single demo")
 
     if args.demo == "all":
+        try:
+            _preflight_all_mode()
+        except MissingDemoConfigError as exc:
+            _print_config_error(exc)
+            raise SystemExit(2) from exc
+        except DemoLLMError as exc:
+            print(str(exc))
+            raise SystemExit(2) from exc
+
         baseline_pass_count = 0
         baseline_fail_count = 0
         compiler_pass_count = 0
         compiler_fail_count = 0
+        compact_pass_count = 0
+        compact_fail_count = 0
         compiler_regressions = 0
         informational_reports: list[InfoReport] = []
         for index, key in enumerate(sorted(DEMO_FILES.keys())):
@@ -148,6 +171,7 @@ def main() -> None:
             if result is None:
                 baseline_fail_count += 1
                 compiler_fail_count += 1
+                compact_fail_count += 1
                 continue
 
             if bool(result["baseline_pass"]):
@@ -160,6 +184,12 @@ def main() -> None:
             else:
                 compiler_fail_count += 1
 
+            compact_pass = bool(result.get("compiler_compact_pass", result["compiler_pass"]))
+            if compact_pass:
+                compact_pass_count += 1
+            else:
+                compact_fail_count += 1
+
             if _is_compiler_regression(result):
                 compiler_regressions += 1
                 _print_compiler_regression_warning()
@@ -169,6 +199,7 @@ def main() -> None:
         print("Evaluative demos:")
         print(f"Baseline results: {baseline_pass_count} passed, {baseline_fail_count} failed")
         print(f"Compiler results: {compiler_pass_count} passed, {compiler_fail_count} failed")
+        print(f"Compiler+compact results: {compact_pass_count} passed, {compact_fail_count} failed")
         if compiler_regressions > 0:
             print()
             if compiler_regressions == 1:
@@ -188,6 +219,20 @@ def main() -> None:
                     f"→ {report['compiled_prompt_length']} chars "
                     f"({report['prompt_reduction_percent']}% reduction)"
                 )
+                if (
+                    "compacted_context_length" in report
+                    and "compacted_context_reduction_percent" in report
+                    and "compacted_prompt_length" in report
+                    and "compacted_prompt_reduction_percent" in report
+                ):
+                    print(
+                        f"{demo_id} — compacted context {report['baseline_context_length']} "
+                        f"→ {report['compacted_context_length']} chars "
+                        f"({report['compacted_context_reduction_percent']}% reduction); "
+                        f"compacted prompt {report['baseline_prompt_length']} "
+                        f"→ {report['compacted_prompt_length']} chars "
+                        f"({report['compacted_prompt_reduction_percent']}% reduction)"
+                    )
         if compiler_regressions > 0:
             raise SystemExit(1)
         return

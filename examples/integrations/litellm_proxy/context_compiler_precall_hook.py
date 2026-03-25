@@ -78,6 +78,7 @@ class ContextCompilerPreCallHook(CustomLogger):  # type: ignore[misc]
             return replay_result["prompt_to_user"] or "Confirmation required."
 
         compiled_state = replay_result["state"]
+        # For long-running conversations, you can optionally compact transcripts by removing user inputs that were compiled into state. See Demo 6.  # noqa: E501
         system_message: dict[str, object] = {
             "role": "system",
             "content": "You are a helpful assistant.\n"

@@ -1,7 +1,11 @@
 import sys
+from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+
+litellm = pytest.importorskip("litellm")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -21,6 +25,23 @@ class _FakeLiteLLMCompletion:
         self._index = 0
 
     def __call__(self, **_kwargs: object) -> object:
+        if self._index >= len(self._outcomes):
+            raise RuntimeError("No more fake outcomes configured.")
+        outcome = self._outcomes[self._index]
+        self._index += 1
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+
+class _RecordingLiteLLMCompletion:
+    def __init__(self, outcomes: list[object]) -> None:
+        self._outcomes = outcomes
+        self._index = 0
+        self.calls: list[dict[str, object]] = []
+
+    def __call__(self, **kwargs: object) -> object:
+        self.calls.append(kwargs)
         if self._index >= len(self._outcomes):
             raise RuntimeError("No more fake outcomes configured.")
         outcome = self._outcomes[self._index]
@@ -89,6 +110,22 @@ def test_complete_messages_maps_authentication_error(monkeypatch: pytest.MonkeyP
     assert str(exc_info.value) == "Authentication failed. Check OPENAI_API_KEY."
 
 
+def test_complete_messages_maps_permission_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    monkeypatch.setattr(
+        llm_client,
+        "_litellm_completion",
+        _FakeLiteLLMCompletion([RuntimeError("access denied")]),
+    )
+
+    with pytest.raises(DemoLLMError) as exc_info:
+        complete_messages([{"role": "user", "content": "hello"}])
+
+    assert str(exc_info.value) == (
+        "Access to model 'bad-model' was denied by the configured provider."
+    )
+
+
 def test_complete_messages_retries_rate_limit_then_succeeds(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -147,6 +184,55 @@ def test_complete_messages_rate_limit_exhausted_raises_friendly_error(
     assert "[retry] LLM rate limit hit — retrying in 1s..." in stderr
     assert "[retry] LLM rate limit hit — retrying in 2s..." in stderr
     assert "[retry] LLM rate limit hit — retrying in 4s..." in stderr
+
+
+def test_complete_messages_connection_exhausted_raises_friendly_error(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    monkeypatch.setattr(
+        llm_client,
+        "_litellm_completion",
+        _FakeLiteLLMCompletion(
+            [
+                RuntimeError("connection reset"),
+                RuntimeError("connection reset"),
+                RuntimeError("connection reset"),
+                RuntimeError("connection reset"),
+            ]
+        ),
+    )
+    delays: list[int] = []
+    monkeypatch.setattr(llm_client.time, "sleep", lambda seconds: delays.append(seconds))
+
+    with pytest.raises(DemoLLMError) as exc_info:
+        complete_messages([{"role": "user", "content": "hello"}])
+    stderr = capsys.readouterr().err
+
+    assert delays == [1, 2, 4]
+    assert str(exc_info.value) == (
+        "Could not reach the configured LLM endpoint after retries. "
+        "Check OPENAI_BASE_URL and network access."
+    )
+    assert "[retry] LLM connection error — retrying in 1s..." in stderr
+
+
+def test_complete_messages_generic_provider_error_surfaces_with_model_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    monkeypatch.setattr(
+        llm_client,
+        "_litellm_completion",
+        _FakeLiteLLMCompletion([RuntimeError("unexpected provider failure")]),
+    )
+
+    with pytest.raises(DemoLLMError) as exc_info:
+        complete_messages([{"role": "user", "content": "hello"}])
+
+    assert str(exc_info.value) == (
+        "LLM provider error while calling model 'bad-model': unexpected provider failure"
+    )
 
 
 def test_complete_messages_long_retry_after_fails_fast(
@@ -217,6 +303,60 @@ def test_complete_messages_uses_gemini_retry_delay_field(
     assert "[retry] LLM rate limit hit — retrying in 1s..." in stderr
 
 
+def test_complete_messages_retries_from_http_date_retry_after(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    monkeypatch.setattr(
+        llm_client,
+        "parsedate_to_datetime",
+        lambda _value: datetime.now(UTC) + timedelta(seconds=2.99),
+    )
+    monkeypatch.setattr(
+        llm_client,
+        "_litellm_completion",
+        _FakeLiteLLMCompletion(
+            [
+                _FakeRateLimitError(
+                    "rate limit exceeded", retry_after="Wed, 21 Oct 2015 07:28:00 GMT"
+                ),
+                _FakeResponse("ok"),
+            ]
+        ),
+    )
+    delays: list[int] = []
+    monkeypatch.setattr(llm_client.time, "sleep", lambda seconds: delays.append(seconds))
+
+    result = complete_messages([{"role": "user", "content": "hello"}])
+    stderr = capsys.readouterr().err
+
+    assert result == "ok"
+    assert delays == [2]
+    assert "[retry] LLM rate limit hit — retrying in 2s..." in stderr
+
+
+def test_complete_messages_returns_empty_for_missing_or_empty_choices(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    monkeypatch.setattr(
+        llm_client,
+        "_litellm_completion",
+        _FakeLiteLLMCompletion(
+            [
+                {"choices": []},
+                {"choices": [{}]},
+            ]
+        ),
+    )
+
+    first = complete_messages([{"role": "user", "content": "hello"}])
+    second = complete_messages([{"role": "user", "content": "hello"}])
+
+    assert first == ""
+    assert second == ""
+
+
 def test_complete_messages_applies_delay_seconds_before_call(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -248,3 +388,87 @@ def test_complete_messages_supports_dict_style_litellm_response(
     result = complete_messages([{"role": "user", "content": "hello"}])
 
     assert result == "ok"
+
+
+def test_complete_messages_normal_path_uses_deterministic_decoding_first(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    fake_completion = _RecordingLiteLLMCompletion([_FakeResponse("ok")])
+    monkeypatch.setattr(llm_client, "_litellm_completion", fake_completion)
+
+    result = complete_messages([{"role": "user", "content": "hello"}])
+
+    assert result == "ok"
+    assert len(fake_completion.calls) == 1
+    assert fake_completion.calls[0]["deterministic_decoding"] is True
+
+
+def test_complete_messages_retries_once_without_temperature_on_unsupported_param(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    monkeypatch.setenv("CONTEXT_COMPILER_DEMO_VERBOSE", "1")
+    drop_params_scopes: list[bool] = []
+
+    @contextmanager
+    def fake_drop_params_scope(enabled: bool):
+        drop_params_scopes.append(enabled)
+        yield
+
+    monkeypatch.setattr(llm_client, "_temporary_litellm_drop_params", fake_drop_params_scope)
+    fake_completion = _RecordingLiteLLMCompletion(
+        [
+            litellm.UnsupportedParamsError(
+                message="temperature is not supported",
+                model="bad-model",
+                llm_provider="openai",
+            ),
+            _FakeResponse("ok"),
+        ]
+    )
+    monkeypatch.setattr(llm_client, "_litellm_completion", fake_completion)
+
+    result = complete_messages([{"role": "user", "content": "hello"}])
+    stderr = capsys.readouterr().err
+
+    assert result == "ok"
+    assert len(fake_completion.calls) == 2
+    assert fake_completion.calls[0]["deterministic_decoding"] is True
+    assert fake_completion.calls[1]["deterministic_decoding"] is False
+    assert drop_params_scopes == [False, True]
+    assert "[fallback] model rejected deterministic decoding params;" in stderr
+
+
+def test_complete_messages_fallback_failure_surfaces_existing_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    drop_params_scopes: list[bool] = []
+
+    @contextmanager
+    def fake_drop_params_scope(enabled: bool):
+        drop_params_scopes.append(enabled)
+        yield
+
+    monkeypatch.setattr(llm_client, "_temporary_litellm_drop_params", fake_drop_params_scope)
+    fake_completion = _RecordingLiteLLMCompletion(
+        [
+            litellm.UnsupportedParamsError(
+                message="temperature is not supported",
+                model="bad-model",
+                llm_provider="openai",
+            ),
+            RuntimeError("provider unavailable"),
+        ]
+    )
+    monkeypatch.setattr(llm_client, "_litellm_completion", fake_completion)
+
+    with pytest.raises(DemoLLMError) as exc_info:
+        complete_messages([{"role": "user", "content": "hello"}])
+
+    assert "provider unavailable" in str(exc_info.value)
+    assert len(fake_completion.calls) == 2
+    assert fake_completion.calls[0]["deterministic_decoding"] is True
+    assert fake_completion.calls[1]["deterministic_decoding"] is False
+    assert drop_params_scopes == [False, True]

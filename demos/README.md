@@ -7,6 +7,11 @@ important instructions explicitly instead of relying only on the conversation
 history. The scripts are designed to produce consistent results so the
 behavior is easy to see.
 
+Scored demos now compare three paths:
+- baseline
+- compiler-mediated (full transcript + injected state)
+- compiler-mediated + compaction (compacted transcript + injected state)
+
 ## Demo overview
 
 | Demo | Behavior | Concept | Most visible with |
@@ -35,8 +40,8 @@ Environment variables (LiteLLM/OpenAI-compatible API):
 - `MODEL` (optional)
 - `OPENAI_API_KEY` (required)
 - `OPENAI_BASE_URL` (optional; use for local or alternative endpoints)
-Note: Demos require models that support deterministic decoding (`temperature=0`).
-Some newer models (e.g. `gpt-5`) do not support this and may error.
+Note: Demos prefer deterministic decoding (`temperature=0`) for reproducible PASS/FAIL behavior.
+If a model rejects that parameter (for example, some `gpt-5` paths), the demo client retries once without it.
 
 LiteLLM model naming with Ollama:
 
@@ -50,7 +55,7 @@ Any locally hosted OpenAI-compatible endpoint will work.
 ```bash
 export OPENAI_BASE_URL=http://localhost:11434/v1
 export OPENAI_API_KEY=ollama
-export MODEL=your_local_model_id
+export MODEL=openai/your_local_model_id
 ```
 
 OpenAI-compatible hosted example:
@@ -100,6 +105,7 @@ Running against a local OpenAI-compatible endpoint avoids provider rate limits.
   - for evaluative demos (`01`–`05`, `07`):
     - `baseline: PASS|FAIL`
     - `compiler: PASS|FAIL`
+    - `compiler+compact: PASS|FAIL`
   - expected behavior
   - actual outcome
   - `result: ...` (short deterministic description)
@@ -107,11 +113,12 @@ Running against a local OpenAI-compatible endpoint avoids provider rate limits.
     - `context: <baseline> → <compiled> chars`
     - `prompt: <baseline> → <compiled> chars`
     - `reduction: context <pct>%; prompt <pct>%`
+    - `compacted transcript: <baseline> → <compacted> chars`
     - `result: ...`
   - when running `all`:
     - blank line between demos
     - final summary with evaluative totals
-    - informational summary line for `06_llm_context_compaction` (non-scored)
+    - informational summary lines for `06_llm_context_compaction` (non-scored)
 - `Verbose (--verbose)`:
   - user inputs
   - compiler decisions and compiled state
@@ -121,8 +128,10 @@ Running against a local OpenAI-compatible endpoint avoids provider rate limits.
   - for `06_llm_context_compaction`, also:
     - raw transcript context
     - compiled context
+    - compacted transcript context
     - baseline and compiled prompts
-    - context and prompt size comparisons
+    - compacted prompt
+    - context and prompt size comparisons (state-only and compacted variants)
 
 ### Demo 5: stress ladder (`--turns`)
 

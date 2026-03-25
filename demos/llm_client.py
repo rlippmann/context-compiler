@@ -4,11 +4,12 @@ import os
 import re
 import sys
 import time
+from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from importlib import import_module
-from typing import Any, Literal, TypedDict
+from typing import Any, Literal, TypedDict, cast
 
 
 class Message(TypedDict):
@@ -85,6 +86,37 @@ def _is_connection_error(exc_text: str, exc_name: str) -> bool:
         or "unreachable" in exc_text
         or "temporary failure" in exc_text
     )
+
+
+def _is_litellm_unsupported_param_error(exc: Exception) -> bool:
+    try:
+        litellm_module = import_module("litellm")
+    except ModuleNotFoundError:
+        return False
+    unsupported_error_type = getattr(litellm_module, "UnsupportedParamsError", None)
+    if not isinstance(unsupported_error_type, type):
+        return False
+    return isinstance(exc, unsupported_error_type)
+
+
+@contextmanager
+def _temporary_litellm_drop_params(enabled: bool) -> Any:
+    if not enabled:
+        yield
+        return
+
+    litellm_module = import_module("litellm")
+    litellm_any = cast(Any, litellm_module)
+    had_attr = hasattr(litellm_module, "drop_params")
+    previous_value = getattr(litellm_module, "drop_params", None)
+    litellm_any.drop_params = True
+    try:
+        yield
+    finally:
+        if had_attr:
+            litellm_any.drop_params = previous_value
+        else:
+            delattr(litellm_module, "drop_params")
 
 
 def _retry_after_seconds(exc: Exception) -> int | None:
@@ -164,6 +196,7 @@ def _litellm_completion(
     config: LLMConfig,
     target_model: str,
     messages: list[Message],
+    deterministic_decoding: bool = True,
 ) -> Any:
     try:
         litellm_module = import_module("litellm")
@@ -181,10 +214,11 @@ def _litellm_completion(
     kwargs: dict[str, Any] = {
         "model": target_model,
         "messages": messages,
-        # Demos require deterministic decoding so PASS/FAIL results are reproducible.
-        "temperature": 0,
         "api_key": config.api_key,
     }
+    if deterministic_decoding:
+        # Demos prefer deterministic decoding so PASS/FAIL results are reproducible.
+        kwargs["temperature"] = 0
     if config.base_url:
         kwargs["api_base"] = config.base_url
     return completion_fn(**kwargs)
@@ -200,16 +234,41 @@ def complete_messages(
     config = load_config()
     target_model = model or config.model
     configured_delay = _configured_delay_seconds(delay_seconds)
+    verbose_mode = os.getenv("CONTEXT_COMPILER_DEMO_VERBOSE", "").lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
 
     for attempt in range(len(_RETRY_DELAYS_SECONDS) + 1):
         try:
             if configured_delay > 0:
                 time.sleep(configured_delay)
-            response = _litellm_completion(
-                config=config,
-                target_model=target_model,
-                messages=messages,
-            )
+            try:
+                with _temporary_litellm_drop_params(False):
+                    response = _litellm_completion(
+                        config=config,
+                        target_model=target_model,
+                        messages=messages,
+                        deterministic_decoding=True,
+                    )
+            except Exception as first_exc:
+                if not _is_litellm_unsupported_param_error(first_exc):
+                    raise
+                if verbose_mode:
+                    print(
+                        "[fallback] model rejected deterministic decoding params; "
+                        "retrying once without temperature.",
+                        file=sys.stderr,
+                    )
+                with _temporary_litellm_drop_params(True):
+                    response = _litellm_completion(
+                        config=config,
+                        target_model=target_model,
+                        messages=messages,
+                        deterministic_decoding=False,
+                    )
             break
         except Exception as exc:
             exc_text = str(exc).lower()
