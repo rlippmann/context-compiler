@@ -2,8 +2,9 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-import litellm
 import pytest
+
+litellm = pytest.importorskip("litellm")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
