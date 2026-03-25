@@ -119,10 +119,10 @@ else:
 | `compile_transcript(messages)` | Replay a transcript from a fresh engine and return either final state or a confirmation prompt. |
 | `engine.apply_transcript(messages)` | Replay a transcript onto the current engine state and return either final state or a confirmation prompt. |
 | `engine.state` | Read current authoritative in-memory state snapshot. |
-| `get_focus_value(state)` | Read the current focus value from a state snapshot. |
-| `get_prohibited_items(state)` | Read prohibited items from a state snapshot. |
-| `export_json()` | Export current state as JSON for persistence/transport. |
-| `import_json(payload)` | Load/restore state from exported JSON payload. |
+| `get_premise_value(state)` | Read the current premise value from a state snapshot. |
+| `get_policy_items(state, value=None)` | Read policy items from a state snapshot (all, `use`, or `prohibit`). |
+| `engine.export_json()` | Export current state as JSON for persistence/transport. |
+| `engine.import_json(payload)` | Load/restore state from exported JSON payload. |
 
 ---
 
@@ -142,7 +142,7 @@ directives processed by `step()`. Storage is managed by the host application.
 Use the returned state snapshot as structured host input for prompt
 construction, policy enforcement, or replay/storage workflows.
 For host code that needs typed reads without direct nested key lookups, use
-`get_focus_value(state)` and `get_prohibited_items(state)`.
+`get_premise_value(state)` and `get_policy_items(state, value=...)`.
 
 ### Transcript Replay
 
@@ -155,34 +155,18 @@ Transcript replay compiles conversational history by reusing the same determinis
 - `compile_transcript(messages)` starts from a fresh engine.
 - `engine.apply_transcript(messages)` applies replay onto the current engine state.
 
-### Fact Schema
-
-The current behavior includes one exclusive focus value.
-This demonstrates deterministic fact replacement and correction behavior.
-Richer schemas may be introduced in future releases.
-
 ### State Properties
 
-- Facts are exclusive (last write wins)
-- Policies are additive
+- Premise is a single slot (set once, then replaced via `change premise to ...`)
+- Policies are per-item and exclusive by item (`use` or `prohibit`)
 - No inference or semantic reasoning
 
 Identical input sequences always produce identical compiler state.
 LLM responses may still vary unless deterministic decoding is used by the host.
 
-Example:
-
-```text
-User: use tofu
-User: use corn oil
-```
-
-Result:
-the current focus value becomes `"corn oil"`
-
-Because the focus value is exclusive (last write wins), later `use ...` directives replace earlier values.
-
-This may differ from human expectations, where the intent may be interpreted as additive (e.g., ingredient + cooking medium). The current schema models a single focus value. See [issue #45](https://github.com/rlippmann/context-compiler/issues/45) for discussion.
+Premise replacement and policy mutation are always explicit via directives.
+The engine does not infer intent from conversational wording outside the
+documented grammar.
 
 ---
 
