@@ -188,11 +188,13 @@ def main() -> None:
         and shared_prompt_text
         and compiler_augmented_only
     )
+    assertion_outcome = "demonstrated" if demo_pass else "not demonstrated"
     print_spec_report(
         test_name=DEMO_NAME,
         baseline_pass=strong_pass,
         compiler_pass=compiler_pass,
         compiler_compact_pass=compact_pass,
+        assertion_outcome=assertion_outcome,
         expected=(
             "stronger prompting should improve premise retention; compiled-state "
             "paths should be at least as reliable and reuse the same prompt text"

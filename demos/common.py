@@ -157,6 +157,7 @@ def print_spec_report(
     baseline_pass: bool,
     compiler_pass: bool,
     compiler_compact_pass: bool | None = None,
+    assertion_outcome: str | None = None,
     expected: str,
     actual: str,
     passed: bool,
@@ -182,6 +183,8 @@ def print_spec_report(
         print(f"compiler+compact: {'PASS' if compiler_compact_pass else 'FAIL'}")
     print(f"expected: {expected}")
     print(f"actual: {actual}")
+    if assertion_outcome is not None:
+        print(f"assertion: {assertion_outcome}")
     print(f"result: {result_pass if passed else result_fail}")
     if is_verbose():
         print()
