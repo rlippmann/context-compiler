@@ -1,6 +1,8 @@
 import sys
+from contextlib import contextmanager
 from pathlib import Path
 
+import litellm
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -21,6 +23,23 @@ class _FakeLiteLLMCompletion:
         self._index = 0
 
     def __call__(self, **_kwargs: object) -> object:
+        if self._index >= len(self._outcomes):
+            raise RuntimeError("No more fake outcomes configured.")
+        outcome = self._outcomes[self._index]
+        self._index += 1
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+
+class _RecordingLiteLLMCompletion:
+    def __init__(self, outcomes: list[object]) -> None:
+        self._outcomes = outcomes
+        self._index = 0
+        self.calls: list[dict[str, object]] = []
+
+    def __call__(self, **kwargs: object) -> object:
+        self.calls.append(kwargs)
         if self._index >= len(self._outcomes):
             raise RuntimeError("No more fake outcomes configured.")
         outcome = self._outcomes[self._index]
@@ -248,3 +267,87 @@ def test_complete_messages_supports_dict_style_litellm_response(
     result = complete_messages([{"role": "user", "content": "hello"}])
 
     assert result == "ok"
+
+
+def test_complete_messages_normal_path_uses_deterministic_decoding_first(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    fake_completion = _RecordingLiteLLMCompletion([_FakeResponse("ok")])
+    monkeypatch.setattr(llm_client, "_litellm_completion", fake_completion)
+
+    result = complete_messages([{"role": "user", "content": "hello"}])
+
+    assert result == "ok"
+    assert len(fake_completion.calls) == 1
+    assert fake_completion.calls[0]["deterministic_decoding"] is True
+
+
+def test_complete_messages_retries_once_without_temperature_on_unsupported_param(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    monkeypatch.setenv("CONTEXT_COMPILER_DEMO_VERBOSE", "1")
+    drop_params_scopes: list[bool] = []
+
+    @contextmanager
+    def fake_drop_params_scope(enabled: bool):
+        drop_params_scopes.append(enabled)
+        yield
+
+    monkeypatch.setattr(llm_client, "_temporary_litellm_drop_params", fake_drop_params_scope)
+    fake_completion = _RecordingLiteLLMCompletion(
+        [
+            litellm.UnsupportedParamsError(
+                message="temperature is not supported",
+                model="bad-model",
+                llm_provider="openai",
+            ),
+            _FakeResponse("ok"),
+        ]
+    )
+    monkeypatch.setattr(llm_client, "_litellm_completion", fake_completion)
+
+    result = complete_messages([{"role": "user", "content": "hello"}])
+    stderr = capsys.readouterr().err
+
+    assert result == "ok"
+    assert len(fake_completion.calls) == 2
+    assert fake_completion.calls[0]["deterministic_decoding"] is True
+    assert fake_completion.calls[1]["deterministic_decoding"] is False
+    assert drop_params_scopes == [False, True]
+    assert "[fallback] model rejected deterministic decoding params;" in stderr
+
+
+def test_complete_messages_fallback_failure_surfaces_existing_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    drop_params_scopes: list[bool] = []
+
+    @contextmanager
+    def fake_drop_params_scope(enabled: bool):
+        drop_params_scopes.append(enabled)
+        yield
+
+    monkeypatch.setattr(llm_client, "_temporary_litellm_drop_params", fake_drop_params_scope)
+    fake_completion = _RecordingLiteLLMCompletion(
+        [
+            litellm.UnsupportedParamsError(
+                message="temperature is not supported",
+                model="bad-model",
+                llm_provider="openai",
+            ),
+            RuntimeError("provider unavailable"),
+        ]
+    )
+    monkeypatch.setattr(llm_client, "_litellm_completion", fake_completion)
+
+    with pytest.raises(DemoLLMError) as exc_info:
+        complete_messages([{"role": "user", "content": "hello"}])
+
+    assert "provider unavailable" in str(exc_info.value)
+    assert len(fake_completion.calls) == 2
+    assert fake_completion.calls[0]["deterministic_decoding"] is True
+    assert fake_completion.calls[1]["deterministic_decoding"] is False
+    assert drop_params_scopes == [False, True]
