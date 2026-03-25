@@ -109,6 +109,22 @@ def test_complete_messages_maps_authentication_error(monkeypatch: pytest.MonkeyP
     assert str(exc_info.value) == "Authentication failed. Check OPENAI_API_KEY."
 
 
+def test_complete_messages_maps_permission_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    monkeypatch.setattr(
+        llm_client,
+        "_litellm_completion",
+        _FakeLiteLLMCompletion([RuntimeError("access denied")]),
+    )
+
+    with pytest.raises(DemoLLMError) as exc_info:
+        complete_messages([{"role": "user", "content": "hello"}])
+
+    assert str(exc_info.value) == (
+        "Access to model 'bad-model' was denied by the configured provider."
+    )
+
+
 def test_complete_messages_retries_rate_limit_then_succeeds(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -167,6 +183,55 @@ def test_complete_messages_rate_limit_exhausted_raises_friendly_error(
     assert "[retry] LLM rate limit hit — retrying in 1s..." in stderr
     assert "[retry] LLM rate limit hit — retrying in 2s..." in stderr
     assert "[retry] LLM rate limit hit — retrying in 4s..." in stderr
+
+
+def test_complete_messages_connection_exhausted_raises_friendly_error(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    monkeypatch.setattr(
+        llm_client,
+        "_litellm_completion",
+        _FakeLiteLLMCompletion(
+            [
+                RuntimeError("connection reset"),
+                RuntimeError("connection reset"),
+                RuntimeError("connection reset"),
+                RuntimeError("connection reset"),
+            ]
+        ),
+    )
+    delays: list[int] = []
+    monkeypatch.setattr(llm_client.time, "sleep", lambda seconds: delays.append(seconds))
+
+    with pytest.raises(DemoLLMError) as exc_info:
+        complete_messages([{"role": "user", "content": "hello"}])
+    stderr = capsys.readouterr().err
+
+    assert delays == [1, 2, 4]
+    assert str(exc_info.value) == (
+        "Could not reach the configured LLM endpoint after retries. "
+        "Check OPENAI_BASE_URL and network access."
+    )
+    assert "[retry] LLM connection error — retrying in 1s..." in stderr
+
+
+def test_complete_messages_generic_provider_error_surfaces_with_model_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    monkeypatch.setattr(
+        llm_client,
+        "_litellm_completion",
+        _FakeLiteLLMCompletion([RuntimeError("unexpected provider failure")]),
+    )
+
+    with pytest.raises(DemoLLMError) as exc_info:
+        complete_messages([{"role": "user", "content": "hello"}])
+
+    assert str(exc_info.value) == (
+        "LLM provider error while calling model 'bad-model': unexpected provider failure"
+    )
 
 
 def test_complete_messages_long_retry_after_fails_fast(
