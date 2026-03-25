@@ -203,7 +203,7 @@ def main() -> None:
             compiler_pass=compiler_pass,
         ),
         passed=demo_pass,
-        result_pass="prompting helps; authoritative compiled state adds reliability",
+        result_pass="compiled-state paths were clearly more reliable than prompt-only in this run",
         result_fail=(
             "compiled-state paths were not clearly more reliable than prompt-only in this run"
         ),
