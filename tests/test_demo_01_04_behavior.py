@@ -60,6 +60,43 @@ def test_demo_01_reports_host_clarification_gate(
     assert "compiler+compact: PASS" in output
 
 
+def test_demo_01_calls_llm_when_second_turn_is_not_clarify(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    module = _load_demo_module("01_llm_contradiction_clarify.py")
+    call_count = 0
+
+    class _FakeEngine:
+        def __init__(self) -> None:
+            self.state = {"premise": None, "policies": {}, "version": 2}
+            self._step_count = 0
+
+        def step(self, _text: str) -> dict[str, str]:
+            self._step_count += 1
+            if self._step_count == 1:
+                return {"kind": "update"}
+            return {"kind": "passthrough"}
+
+    def fake_complete_messages(_messages: object) -> str:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return "ACTION:proceed"
+        return "ACTION:clarify"
+
+    monkeypatch.setattr(module, "create_engine", _FakeEngine)
+    monkeypatch.setattr(module, "complete_messages", fake_complete_messages)
+
+    module.main()
+    output = capsys.readouterr().out
+    report = consume_last_report()
+
+    assert report is not None
+    assert report["compiler_pass"] is False
+    assert call_count == 2
+    assert "compiler: FAIL" in output
+
+
 def test_demo_02_reports_persistent_prohibition(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -97,6 +134,35 @@ def test_demo_02_reports_persistent_prohibition(
     assert "compiler+compact: PASS" in output
 
 
+def test_demo_02_compact_clarify_branch_skips_compact_llm_call(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    module = _load_demo_module("02_llm_constraint_guardrail.py")
+    calls: list[object] = []
+
+    def fake_complete_messages(messages: object) -> str:
+        calls.append(messages)
+        if len(calls) == 1:
+            return "Ingredients:\n- peanuts\nSteps:\n1. Cook peanuts."
+        return "I cannot provide peanuts; conflicts with policy. Try chickpea curry."
+
+    monkeypatch.setattr(module, "complete_messages", fake_complete_messages)
+    monkeypatch.setattr(
+        module,
+        "compact_user_turns",
+        lambda turns: ([], {"premise": None, "policies": {}, "version": 2}, "Need clarification."),
+    )
+
+    module.main()
+    output = capsys.readouterr().out
+    report = consume_last_report()
+
+    assert report is not None
+    assert len(calls) == 2
+    assert report["compiler_compact_pass"] is True
+    assert "compiler+compact: PASS" in output
+
+
 def test_demo_03_reports_explicit_premise_change(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -128,6 +194,36 @@ def test_demo_03_reports_explicit_premise_change(
     assert "compiler+compact: PASS" in output
 
 
+def test_demo_03_compact_clarify_branch_reports_compact_fail(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    module = _load_demo_module("03_llm_premise_guardrail.py")
+    calls: list[object] = []
+
+    def fake_complete_messages(messages: object) -> str:
+        calls.append(messages)
+        if len(calls) == 1:
+            return "PREMISE: vegetarian curry\nPlan:\n- vegetarian ingredients"
+        return "PREMISE: vegan curry\nPlan:\n- vegan ingredients"
+
+    monkeypatch.setattr(module, "complete_messages", fake_complete_messages)
+    monkeypatch.setattr(
+        module,
+        "compact_user_turns",
+        lambda turns: ([], {"premise": None, "policies": {}, "version": 2}, "Need clarification."),
+    )
+
+    module.main()
+    output = capsys.readouterr().out
+    report = consume_last_report()
+
+    assert report is not None
+    assert len(calls) == 2
+    assert report["compiler_pass"] is True
+    assert report["compiler_compact_pass"] is False
+    assert "compiler+compact: FAIL" in output
+
+
 def test_demo_04_reports_denylisted_tool_avoidance(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -157,3 +253,33 @@ def test_demo_04_reports_denylisted_tool_avoidance(
     assert "baseline: FAIL" in output
     assert "compiler: PASS" in output
     assert "compiler+compact: PASS" in output
+
+
+def test_demo_04_compact_clarify_branch_skips_compact_tool_call(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    module = _load_demo_module("04_llm_tool_denylist_guardrail.py")
+    calls: list[object] = []
+
+    def fake_complete_messages(messages: object) -> str:
+        calls.append(messages)
+        if len(calls) == 1:
+            return "TOOL:docker\nACTION:use docker"
+        return "TOOL:kubectl\nACTION:use kubectl"
+
+    monkeypatch.setattr(module, "complete_messages", fake_complete_messages)
+    monkeypatch.setattr(
+        module,
+        "compact_user_turns",
+        lambda turns: ([], {"premise": None, "policies": {}, "version": 2}, "Need clarification."),
+    )
+
+    module.main()
+    output = capsys.readouterr().out
+    report = consume_last_report()
+
+    assert report is not None
+    assert len(calls) == 2
+    assert report["compiler_pass"] is True
+    assert report["compiler_compact_pass"] is False
+    assert "compiler+compact: FAIL" in output

@@ -1,5 +1,6 @@
 import sys
 from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -300,6 +301,60 @@ def test_complete_messages_uses_gemini_retry_delay_field(
     assert result == "ok"
     assert delays == [1]
     assert "[retry] LLM rate limit hit — retrying in 1s..." in stderr
+
+
+def test_complete_messages_retries_from_http_date_retry_after(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    monkeypatch.setattr(
+        llm_client,
+        "parsedate_to_datetime",
+        lambda _value: datetime.now(UTC) + timedelta(seconds=2.99),
+    )
+    monkeypatch.setattr(
+        llm_client,
+        "_litellm_completion",
+        _FakeLiteLLMCompletion(
+            [
+                _FakeRateLimitError(
+                    "rate limit exceeded", retry_after="Wed, 21 Oct 2015 07:28:00 GMT"
+                ),
+                _FakeResponse("ok"),
+            ]
+        ),
+    )
+    delays: list[int] = []
+    monkeypatch.setattr(llm_client.time, "sleep", lambda seconds: delays.append(seconds))
+
+    result = complete_messages([{"role": "user", "content": "hello"}])
+    stderr = capsys.readouterr().err
+
+    assert result == "ok"
+    assert delays == [2]
+    assert "[retry] LLM rate limit hit — retrying in 2s..." in stderr
+
+
+def test_complete_messages_returns_empty_for_missing_or_empty_choices(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+    monkeypatch.setattr(
+        llm_client,
+        "_litellm_completion",
+        _FakeLiteLLMCompletion(
+            [
+                {"choices": []},
+                {"choices": [{}]},
+            ]
+        ),
+    )
+
+    first = complete_messages([{"role": "user", "content": "hello"}])
+    second = complete_messages([{"role": "user", "content": "hello"}])
+
+    assert first == ""
+    assert second == ""
 
 
 def test_complete_messages_applies_delay_seconds_before_call(
