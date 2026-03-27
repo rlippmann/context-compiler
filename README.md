@@ -8,24 +8,55 @@
 A deterministic directive engine that converts explicit user instructions
 into structured conversational state for LLM applications.
 
-Modern language models reason well but are unreliable at maintaining
-consistent state across interactions.
-
-Corrections compete with earlier statements, constraints disappear,
-and long conversations accumulate contradictions.
+LLMs are good at reasoning but unreliable at maintaining consistent state. Constraints drift, corrections compete, and long conversations accumulate contradictions.
 
 The **Context Compiler** introduces a deterministic state layer that governs authoritative conversational state independently of the model.
 
 The model performs reasoning and generation while the compiler manages premise and policies. Once accepted, directives remain authoritative until explicitly corrected or reset.
 
-## Evidence (cross-model runs)
+## Quickstart
 
-- Models tested: `llama3.1:8b`, `gpt-4o-mini`, `gpt-4.1`, `gpt-5`, `claude-sonnet-4`, `claude-opus-4`
-- Baseline path: `2–4 / 6` pass across runs
-- `compiler` path: `6 / 6` pass across runs
-- `compiler+compact` path: `6 / 6` pass across runs (after compact-path fixes)
-- Demo 6 context reduction: up to `99%`
-- Demo 6 prompt reduction: about `50%`
+```bash
+pip install context-compiler
+context-compiler
+```
+
+Or in code:
+```python
+from context_compiler import create_engine
+
+engine = create_engine()
+
+user_input = "prohibit peanuts"
+decision = engine.step(user_input)
+
+if decision["kind"] == "clarify":
+    show_to_user(decision["prompt_to_user"])
+elif decision["kind"] == "update":
+    messages = build_messages(engine.state, user_input)
+    render(call_llm(messages))
+else:
+    render(call_llm(user_input))
+```
+
+## Installation
+
+Requirements:
+- Python 3.11+
+
+Install:
+```bash
+pip install context-compiler
+```
+
+### Development
+
+```bash
+uv sync --group dev
+uv run pytest
+```
+
+---
 
 ## Why “Compiler”?
 
@@ -34,12 +65,6 @@ Context Compiler treats explicit user directives as inputs to a deterministic pr
 Instead of relying on the LLM to remember constraints across a conversation, user instructions are compiled into structured state before the model runs.
 
 The idea is similar to a traditional compiler: user directives are translated into a structured representation that the rest of the system can rely on.
-
-## Installation
-
-- Python 3.11+
-- `pip install context-compiler`
-- Dev/test: `uv sync --group dev` and `uv run pytest`
 
 ---
 
@@ -63,6 +88,21 @@ The host supplies the authoritative state to the model so the constraint persist
 
 ---
 
+## Evidence (cross-model runs)
+
+Behavior was evaluated using a fixed set of deterministic [demo scenarios](demos/).
+
+A run is considered a "pass" if the model output satisfies the scenario’s expected behavior.
+
+- Models tested: `llama3.1:8b`, `gpt-4o-mini`, `gpt-4.1`, `gpt-5`, `claude-sonnet-4`, `claude-opus-4`
+- Baseline (LLM only): `2–4 / 6` scenarios pass
+- With compiler: `6 / 6` scenarios pass
+- With compiler + compaction: `6 / 6` scenarios pass
+- Context reduction in long conversations: up to `99%`
+- Prompt size reduction: about `50%`
+
+---
+
 ## Architecture
 
 ```text
@@ -81,7 +121,7 @@ Host Application
  └─ update → call LLM with compiled state
 ```
 
-The compiler governs authoritative conversational state and never calls the LLM.
+The compiler governs authoritative state and never calls the LLM.
 The host decides whether to call the model based on the returned `Decision`.
 
 ---
@@ -105,19 +145,7 @@ Meaning:
 | update      | forward input with updated state              |
 | clarify     | show `prompt_to_user` and do not call the LLM |
 
-### Host Integration Example
-
-```python
-engine = create_engine()
-decision = engine.step(user_input)
-
-if decision["kind"] == "clarify":
-    show_to_user(decision["prompt_to_user"])
-else:
-    state = decision["state"] or engine.state
-    messages = build_messages(state, user_input)
-    render(call_llm(messages))
-```
+---
 
 ### API Reference
 
@@ -138,111 +166,51 @@ else:
 ## State Model
 
 The compiler maintains an authoritative state snapshot.
-Hosts should treat this state as structured application data and avoid coupling
-to internal field names or nested layout.
 
-## State Access and Persistence
-
-Hosts can provide initial state at engine creation (`create_engine(state=...)`),
-read current in-memory state via `engine.state`, and persist/restore via
-`engine.export_json()` and `engine.import_json()`. Semantic state mutations occur through
-directives processed by `step()`. Storage is managed by the host application.
-
-Use the returned state snapshot as structured host input for prompt
-construction, policy enforcement, or replay/storage workflows.
-For host code that needs typed reads without direct nested key lookups, use
-`get_premise_value(state)` and `get_policy_items(state, value=...)`.
-
-### Transcript Replay
-
-Transcript replay compiles conversational history by reusing the same deterministic directive path:
-
-- Only messages with `role == "user"` are processed.
-- Assistant/system/non-user messages are ignored.
-- Replay calls `step()` for each user message in order.
-- Replay stops on the first clarification and returns a confirmation prompt.
-- `compile_transcript(messages)` starts from a fresh engine.
-- `engine.apply_transcript(messages)` applies replay onto the current engine state.
-
-### State Properties
-
-- Premise is a single slot (set once, then replaced via `change premise to ...`)
-- Policies are per-item and exclusive by item (`use` or `prohibit`)
+- Premise is a single value that can be set or replaced
+- Policies are per-item (`use` or `prohibit`)
+- State changes only through explicit directives
 - No inference or semantic reasoning
 
-Identical input sequences always produce identical compiler state.
-LLM responses may still vary unless deterministic decoding is used by the host.
+Identical input sequences always produce identical state.
 
-Premise replacement and policy mutation are always explicit via directives.
-The engine does not infer intent from conversational wording outside the
-documented grammar.
+The internal structure of the state is intentionally opaque to host applications.
 
 ---
 
 ## Directive Examples
 
-Set and change premise explicitly:
+Set and change premise:
 
 ```text
 User: set premise concise replies
 User: change premise to concise bullet points
 ```
 
-Result: premise is updated deterministically via explicit premise lifecycle commands.
-Narrow near-miss premise `to` variants clarify (no mutation):
-`set premise to <value>` and `change premise <value>`.
-
-Per-item policy directives:
+Per-item policies:
 
 ```text
 User: use docker
 User: prohibit peanuts
 ```
 
-Result: policies store authoritative per-item states (`use` / `prohibit`).
-Recognized empty payloads clarify without mutation:
-`use`, `use   `, `prohibit`, and `prohibit   `.
-
-Explicit replacement:
+Replacement:
 
 ```text
 User: use podman instead of docker
 ```
 
-Result: remove `docker` use policy and set `podman` to `use` (or clarify if blocked).
-Incomplete replacement payloads also clarify without mutation (for example:
-`use x instead of`, `use  instead of y`, `use instead of y`).
-
-Policy contradiction (clarify):
+Removal and reset:
 
 ```text
-User: use peanuts
-User: prohibit peanuts
-```
-
-Result: compiler asks for clarification and leaves state unchanged.
-
-## Policy Removal and Reset Commands
-
-Policy cleanup commands are:
-
-- `remove policy <item>` removes one policy item if present (idempotent update if absent)
-- `reset policies` clears all policy items
-- `clear state` resets premise and policies to initial values
-
-Single-policy correction flow:
-
-```text
-User: prohibit peanuts
 User: remove policy peanuts
-User: use peanuts
+User: reset policies
+User: clear state
 ```
 
-Example:
+Conflicting directives trigger clarification instead of changing state.
 
-- If policies include `{"docker": "use", "peanuts": "prohibit"}`:
-- after `remove policy docker`, policies become `{"peanuts": "prohibit"}`.
-- after `reset policies`, policies become `{}`.
+For full directive grammar and edge-case behavior, see [DirectiveGrammarSpec.md](docs/DirectiveGrammarSpec.md).
 
 ---
 
@@ -258,28 +226,6 @@ Example:
 
 - [LLM preprocessor](docs/llm-preprocessor.md)
 - [Multiple engines](docs/multi-engine.md)
-
----
-
-## Quickstart
-
-Run the interactive REPL:
-
-```bash
-context-compiler
-```
-
-Run an example:
-
-```bash
-python examples/01_persistent_guardrails.py
-```
-
-Run tests:
-
-```bash
-uv run pytest
-```
 
 ---
 
