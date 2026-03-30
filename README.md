@@ -222,6 +222,12 @@ For full directive grammar and edge-case behavior, see [DirectiveGrammarSpec.md]
 
 ---
 
+## Conformance Fixtures
+
+Cross-language conformance tests are defined in [`tests/fixtures/`](tests/fixtures/).
+
+---
+
 ## Advanced topics
 
 - [LLM preprocessor](docs/llm-preprocessor.md)

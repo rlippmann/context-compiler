@@ -1,0 +1,22 @@
+{
+  "id": "step_replace_missing_source_clarify_prompt",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "input": "use kubectl instead of docker",
+  "expected": {
+    "decision": {
+      "kind": "clarify",
+      "prompt_to_user": "No exact policy found for \"docker\".\nReplacement requires an exact policy match.\nConfirm to use \"kubectl\" and keep existing policies?",
+      "state": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    }
+  }
+}
