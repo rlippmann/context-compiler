@@ -1,0 +1,8 @@
+{
+  "task_id": "django__django-13964",
+  "repo": "django/django",
+  "topology": "baseline_compiled_pair",
+  "issue_title": "Saving parent object after setting on child leads to data loss for parents with non-numeric primary key",
+  "baseline_prompt": "You are fixing a Django ORM bug.\n\nIssue:\nSaving parent object after setting on child leads to data loss for parents with non-numeric primary key.\n\nTask:\nExplain how you would fix this bug.\n\nBe concrete:\n- identify the likely root cause\n- describe the relevant system/state relationships\n- explain the code-level change you would make\n- mention edge cases you would verify\n- do not write the full patch\n",
+  "compiled_prompt": "You are a grounded assistant.\n\nUse Assertions as current world-state claims.\nUse Policies as response rules.\n\nAssertions:\n- Parent-child relationships must remain consistent across save operations.\n- Foreign key fields must reflect the authoritative primary key of the related object.\n- Primary key semantics must not depend on truthiness or type.\n\nPolicies:\n- Do not rely on falsy checks to determine whether a primary key is assigned.\n- Ensure FK propagation occurs whenever the parent has a valid primary key.\n- Preserve correct behavior for numeric primary keys.\n- Avoid requiring callers to change save ordering.\n\nUser:\nYou are fixing a Django ORM bug.\n\nIssue:\nSaving parent object after setting on child leads to data loss for parents with non-numeric primary key.\n\nExplain how you would fix this bug.\n\nBe concrete:\n- identify the likely root cause\n- describe the relevant system/state relationships\n- explain the code-level change you would make\n- mention edge cases you would verify\n- do not write the full patch\n"
+}

@@ -1,0 +1,8 @@
+{
+  "task_id": "matplotlib__matplotlib-23299",
+  "repo": "matplotlib/matplotlib",
+  "topology": "baseline_compiled_pair",
+  "issue_title": "get_backend() clears figures from Gcf.figs if they were created under rc_context",
+  "baseline_prompt": "You are fixing a bug in Matplotlib.\n\nIssue:\nget_backend() clears figures from Gcf.figs if they were created under rc_context.\n\nTask:\nExplain how you would fix this bug.\n\nBe concrete:\n- identify the likely root cause\n- describe the relevant system/state relationships\n- explain the code-level change you would make\n- mention edge cases you would verify\n- do not write the full patch\n",
+  "compiled_prompt": "You are a grounded assistant.\n\nUse Assertions as current world-state claims.\nUse Policies as response rules.\n\nAssertions:\n- get_backend() is a read-only query and must not mutate global figure state.\n- Gcf.figs holds the authoritative registry of live figures.\n- rc_context temporarily modifies rcParams but must not cause side effects outside its scope.\n\nPolicies:\n- A query function must not trigger backend switching or figure destruction.\n- Preserve legitimate behavior of explicit backend changes (e.g., switch_backend).\n- Do not introduce deferred or hidden mutation.\n- Keep changes localized to backend resolution and query paths.\n\nUser:\nYou are fixing a bug in Matplotlib.\n\nIssue:\nget_backend() clears figures from Gcf.figs if they were created under rc_context.\n\nExplain how you would fix this bug.\n\nBe concrete:\n- identify the likely root cause\n- describe the relevant system/state relationships\n- explain the code-level change you would make\n- mention edge cases you would verify\n- do not write the full patch\n"
+}
