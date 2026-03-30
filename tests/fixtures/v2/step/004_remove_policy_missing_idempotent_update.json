@@ -1,0 +1,32 @@
+{
+  "id": "step_remove_policy_missing_idempotent_update",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {
+      "docker": "use"
+    },
+    "version": 2
+  },
+  "input": "remove policy podman",
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "prompt_to_user": null,
+      "state": {
+        "premise": null,
+        "policies": {
+          "docker": "use"
+        },
+        "version": 2
+      }
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker": "use"
+      },
+      "version": 2
+    }
+  }
+}

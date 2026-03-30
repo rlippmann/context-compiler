@@ -1,0 +1,32 @@
+{
+  "id": "transcript_user_only_replay_state",
+  "kind": "transcript",
+  "messages": [
+    {
+      "role": "system",
+      "content": "set premise concise"
+    },
+    {
+      "role": "assistant",
+      "content": "clear state"
+    },
+    {
+      "role": "tool",
+      "content": "prohibit docker"
+    },
+    {
+      "role": "user",
+      "content": "set premise concise"
+    }
+  ],
+  "expected": {
+    "state": {
+      "kind": "state",
+      "state": {
+        "premise": "concise",
+        "policies": {},
+        "version": 2
+      }
+    }
+  }
+}

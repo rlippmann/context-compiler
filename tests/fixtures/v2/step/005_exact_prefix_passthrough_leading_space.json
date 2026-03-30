@@ -1,0 +1,22 @@
+{
+  "id": "step_exact_prefix_passthrough_leading_space",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "input": " set premise concise",
+  "expected": {
+    "decision": {
+      "kind": "passthrough",
+      "prompt_to_user": null,
+      "state": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    }
+  }
+}

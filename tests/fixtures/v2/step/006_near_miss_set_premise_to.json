@@ -1,0 +1,22 @@
+{
+  "id": "step_near_miss_set_premise_to",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "input": "set premise to concise",
+  "expected": {
+    "decision": {
+      "kind": "clarify",
+      "prompt_to_user": "Did you mean 'set premise concise'?",
+      "state": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    }
+  }
+}

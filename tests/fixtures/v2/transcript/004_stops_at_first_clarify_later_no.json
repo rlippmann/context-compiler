@@ -1,0 +1,27 @@
+{
+  "id": "transcript_stops_at_first_clarify_later_no",
+  "kind": "transcript",
+  "messages": [
+    {
+      "role": "user",
+      "content": "use docker"
+    },
+    {
+      "role": "user",
+      "content": "prohibit kubectl"
+    },
+    {
+      "role": "user",
+      "content": "use kubectl instead of docker"
+    },
+    {
+      "role": "user",
+      "content": "no"
+    }
+  ],
+  "expected": {
+    "clarify": {
+      "prompt_to_user": "\"kubectl\" is currently prohibited. Did you mean to remove \"docker\" and use \"kubectl\" instead?"
+    }
+  }
+}

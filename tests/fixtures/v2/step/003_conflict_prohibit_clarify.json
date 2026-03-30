@@ -1,0 +1,26 @@
+{
+  "id": "step_conflict_prohibit_clarify",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {
+      "docker": "use"
+    },
+    "version": 2
+  },
+  "input": "prohibit docker",
+  "expected": {
+    "decision": {
+      "kind": "clarify",
+      "prompt_to_user": null,
+      "state": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker": "use"
+      },
+      "version": 2
+    }
+  }
+}

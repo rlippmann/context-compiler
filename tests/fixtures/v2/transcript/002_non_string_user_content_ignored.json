@@ -1,0 +1,40 @@
+{
+  "id": "transcript_non_string_user_content_ignored",
+  "kind": "transcript",
+  "messages": [
+    {
+      "role": "user",
+      "content": [
+        "set premise concise"
+      ]
+    },
+    {
+      "role": "user",
+      "content": {
+        "text": "use docker"
+      }
+    },
+    {
+      "role": "user",
+      "content": 123
+    },
+    {
+      "role": "user",
+      "content": null
+    },
+    {
+      "role": "user",
+      "content": "set premise concise"
+    }
+  ],
+  "expected": {
+    "state": {
+      "kind": "state",
+      "state": {
+        "premise": "concise",
+        "policies": {},
+        "version": 2
+      }
+    }
+  }
+}

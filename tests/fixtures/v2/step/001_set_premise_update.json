@@ -1,0 +1,26 @@
+{
+  "id": "step_set_premise_update",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "input": "set premise concise replies",
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "prompt_to_user": null,
+      "state": {
+        "premise": "concise replies",
+        "policies": {},
+        "version": 2
+      }
+    },
+    "state": {
+      "premise": "concise replies",
+      "policies": {},
+      "version": 2
+    }
+  }
+}

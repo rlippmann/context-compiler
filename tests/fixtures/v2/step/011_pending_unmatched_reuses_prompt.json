@@ -1,0 +1,30 @@
+{
+  "id": "step_pending_unmatched_reuses_prompt",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "use docker",
+    "prohibit kubectl",
+    "use kubectl instead of docker"
+  ],
+  "input": "sounds good",
+  "expected": {
+    "decision": {
+      "kind": "clarify",
+      "prompt_to_user": "\"kubectl\" is currently prohibited. Did you mean to remove \"docker\" and use \"kubectl\" instead?",
+      "state": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker": "use",
+        "kubectl": "prohibit"
+      },
+      "version": 2
+    }
+  }
+}
