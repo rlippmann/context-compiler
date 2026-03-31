@@ -24,6 +24,7 @@ Optional:
 import argparse
 import json
 import os
+import re
 import sys
 import time
 from contextlib import contextmanager, suppress
@@ -35,6 +36,27 @@ from typing import Any, cast
 from litellm import completion  # type: ignore[import-not-found]
 
 from context_compiler import create_engine
+
+RUBRIC_WEIGHTS: dict[str, int] = {
+    "Correct fix locus": 2,
+    "Constraint fidelity": 3,
+    "Constraint-dependent reasoning correctness": 5,
+    "Scope control": 2,
+    "Backward-compat reasoning": 2,
+    "Test specificity": 3,
+    "Risk analysis quality": 1,
+    "Internal consistency": 2,
+    "Policy traceability": 1,
+    "Anti-genericity": 3,
+}
+
+RUBRIC_CLASSIFICATIONS = {
+    "Constraint-critical",
+    "Constraint-helpful",
+    "Constraint-irrelevant",
+}
+
+RUBRIC_WIN_TYPES = {"structural", "formatting", "mixed", "noisy"}
 
 
 @dataclass(frozen=True)
@@ -508,6 +530,109 @@ def _render_compiler_prompt(compiled_state: Any, task_prompt: str) -> str:
     return "\n".join(lines)
 
 
+def _extract_json_object(text: str) -> dict[str, Any]:
+    stripped = text.strip()
+    if stripped.startswith("{") and stripped.endswith("}"):
+        parsed = json.loads(stripped)
+        if isinstance(parsed, dict):
+            return parsed
+    fenced_match = re.search(r"```(?:json)?\s*(\{.*\})\s*```", text, flags=re.DOTALL)
+    if fenced_match:
+        parsed = json.loads(fenced_match.group(1))
+        if isinstance(parsed, dict):
+            return parsed
+    start = text.find("{")
+    end = text.rfind("}")
+    if start != -1 and end > start:
+        parsed = json.loads(text[start : end + 1])
+        if isinstance(parsed, dict):
+            return parsed
+    raise ValueError("No JSON object found in scorer response")
+
+
+def _validate_criterion_scores(scores: Any, label: str) -> dict[str, int]:
+    if not isinstance(scores, dict):
+        raise ValueError(f"{label} must be a JSON object")
+    normalized: dict[str, int] = {}
+    for criterion in RUBRIC_WEIGHTS:
+        value = scores.get(criterion)
+        if not isinstance(value, int):
+            raise ValueError(f"{label} missing integer score for {criterion}")
+        if value < 1 or value > 5:
+            raise ValueError(f"{label} score out of range for {criterion}: {value}")
+        normalized[criterion] = value
+    return normalized
+
+
+def _weighted_total(scores: dict[str, int]) -> int:
+    return sum(scores[name] * weight for name, weight in RUBRIC_WEIGHTS.items())
+
+
+def _score_task_with_rubric(
+    task_id: str, baseline_output: str, compiler_result: str, rubric_text: str, cfg: RunConfig
+) -> dict[str, Any]:
+    score_prompt = (
+        "You are scoring SWE-bench prompt outputs.\n\n"
+        "Use the rubric text exactly as written.\n"
+        "Do not change criteria, weights, categories, classifications, or win types.\n"
+        "Score only what appears in the outputs.\n\n"
+        "Return JSON only with exactly these fields:\n"
+        "{\n"
+        '  "baseline_scores": {\n'
+        '    "Correct fix locus": 1-5,\n'
+        '    "Constraint fidelity": 1-5,\n'
+        '    "Constraint-dependent reasoning correctness": 1-5,\n'
+        '    "Scope control": 1-5,\n'
+        '    "Backward-compat reasoning": 1-5,\n'
+        '    "Test specificity": 1-5,\n'
+        '    "Risk analysis quality": 1-5,\n'
+        '    "Internal consistency": 1-5,\n'
+        '    "Policy traceability": 1-5,\n'
+        '    "Anti-genericity": 1-5\n'
+        "  },\n"
+        '  "compiled_scores": { same keys as baseline_scores },\n'
+        '  "classification": "Constraint-critical|Constraint-helpful|Constraint-irrelevant",\n'
+        '  "win_type": "structural|formatting|mixed|noisy",\n'
+        '  "justification": "short justification"\n'
+        "}\n\n"
+        f"Task: {task_id}\n\n"
+        "RUBRIC:\n"
+        f"{rubric_text}\n\n"
+        "BASELINE OUTPUT:\n"
+        f"{baseline_output}\n\n"
+        "COMPILED OUTPUT:\n"
+        f"{compiler_result}\n"
+    )
+    raw = call_model(score_prompt, cfg)
+    parsed = _extract_json_object(raw)
+    baseline_scores = _validate_criterion_scores(parsed.get("baseline_scores"), "baseline_scores")
+    compiled_scores = _validate_criterion_scores(parsed.get("compiled_scores"), "compiled_scores")
+
+    classification = parsed.get("classification")
+    if classification not in RUBRIC_CLASSIFICATIONS:
+        raise ValueError(f"Invalid classification: {classification}")
+    win_type = parsed.get("win_type")
+    if win_type not in RUBRIC_WIN_TYPES:
+        raise ValueError(f"Invalid win_type: {win_type}")
+    justification = parsed.get("justification")
+    if not isinstance(justification, str) or not justification.strip():
+        raise ValueError("Missing short justification")
+
+    baseline_total = _weighted_total(baseline_scores)
+    compiled_total = _weighted_total(compiled_scores)
+    delta = compiled_total - baseline_total
+    return {
+        "baseline_scores": baseline_scores,
+        "compiled_scores": compiled_scores,
+        "baseline_total": baseline_total,
+        "compiled_total": compiled_total,
+        "delta": delta,
+        "classification": classification,
+        "win_type": win_type,
+        "justification": justification.strip(),
+    }
+
+
 def main() -> None:
     cfg = parse_args()
     provider = detect_provider(cfg.model)
@@ -520,6 +645,8 @@ def main() -> None:
         if cfg.limit < 1:
             raise ValueError("--limit must be >= 1 when provided")
         tasks = tasks[: cfg.limit]
+    rubric_path = Path(__file__).resolve().parent / "RUBRIC.md"
+    rubric_text = rubric_path.read_text(encoding="utf-8")
 
     results: dict[str, Any] = {
         "meta": {
@@ -534,11 +661,13 @@ def main() -> None:
             "reasoning_effort": cfg.reasoning_effort,
             "prompt_style": "assertions_policies",
             "lanes": ["baseline", "manual_compiled", "compiler"],
+            "scoring_rubric": str(rubric_path),
             "tasks": [task.task_id for task in tasks],
             "stateless": True,
         },
         "results": {},
     }
+    scored_deltas: list[int] = []
 
     for task in tasks:
         print(f"[1/3] Baseline: {task.task_id}", file=sys.stderr)
@@ -557,6 +686,10 @@ def main() -> None:
             "compiled_state": None,
             "rendered_compiler_prompt": None,
             "compiler_result": None,
+            "rubric_score": None,
+            "baseline_total": None,
+            "compiled_total": None,
+            "score_delta": None,
         }
         if task.directives is not None:
             print(f"[3/3] Compiler: {task.task_id}", file=sys.stderr)
@@ -586,6 +719,24 @@ def main() -> None:
                 task_result["compiled_state"] = compiled_state
                 task_result["rendered_compiler_prompt"] = rendered_compiler_prompt
                 task_result["compiler_result"] = compiler_result
+        compiler_result = task_result["compiler_result"]
+        if isinstance(compiler_result, str):
+            print(f"[score] Rubric scoring: {task.task_id}", file=sys.stderr)
+            try:
+                score_result = _score_task_with_rubric(
+                    task.task_id, baseline_text, compiler_result, rubric_text, cfg
+                )
+                task_result["rubric_score"] = score_result
+                task_result["baseline_total"] = score_result["baseline_total"]
+                task_result["compiled_total"] = score_result["compiled_total"]
+                task_result["score_delta"] = score_result["delta"]
+                scored_deltas.append(int(score_result["delta"]))
+            except Exception as exc:
+                task_result["rubric_score"] = {
+                    "error": "rubric_scoring_failed",
+                    "message": str(exc),
+                }
+            time.sleep(cfg.sleep_between_calls)
 
         if task.repo is not None:
             task_result["repo"] = task.repo
@@ -601,7 +752,20 @@ def main() -> None:
         )
         print(f"Saved {task.task_id} to {cfg.output_path}", file=sys.stderr)
 
+    scored_count = len(scored_deltas)
+    positive_count = sum(1 for delta in scored_deltas if delta > 0)
+    zero_count = sum(1 for delta in scored_deltas if delta == 0)
+    negative_count = sum(1 for delta in scored_deltas if delta < 0)
+    average_delta = (sum(scored_deltas) / scored_count) if scored_count else 0.0
     print(f"Done. Results written to {cfg.output_path}")
+    print(
+        "Delta summary: "
+        f"scored={scored_count}, "
+        f"positive={positive_count}, "
+        f"zero={zero_count}, "
+        f"negative={negative_count}, "
+        f"avg_delta={average_delta:.2f}"
+    )
 
 
 if __name__ == "__main__":
