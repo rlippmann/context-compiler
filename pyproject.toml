@@ -78,4 +78,4 @@ testpaths = ["tests"]
 
 [tool.coverage.run]
 source = ["context_compiler"]
-omit = ["demos/*", "tests/*"]
+omit = ["demos/*", "evals/*", "tests/*"]
