@@ -1,5 +1,5 @@
 {
-  "note": "manual_compiled_prompt is handwritten and not produced by Context Compiler.",
+  "note": "manual_compiled_prompt is handwritten and not produced by Context Compiler. directives drive compiled_state for the compiler lane.",
   "task_files": [
     "tasks/django__django-15252.json",
     "tasks/django__django-12453.json",

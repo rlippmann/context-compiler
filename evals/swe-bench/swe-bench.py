@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """
-Run clean, stateless A/B prompts for selected SWE-bench tasks via LiteLLM.
+Run clean, stateless prompt lanes for selected SWE-bench tasks via LiteLLM.
 
 Note:
 `manual_compiled_prompt` is a handwritten, state-framed prompt used for
 comparison/task curation. It is NOT produced by Context Compiler.
+`compiled_state` is produced by Context Compiler from explicit directives.
 
 Usage:
   python swe-bench.py --model anthropic/claude-sonnet-4-20250514
@@ -33,12 +34,16 @@ from typing import Any, cast
 
 from litellm import completion  # type: ignore[import-not-found]
 
+from context_compiler import create_engine
+
 
 @dataclass(frozen=True)
 class TaskSpec:
     task_id: str
     baseline_prompt: str
     manual_compiled_prompt: str
+    directives: list[str] | None = None
+    task_prompt: str | None = None
     repo: str | None = None
     topology: str | None = None
     issue_title: str | None = None
@@ -62,7 +67,9 @@ class RunConfig:
 
 def parse_args() -> RunConfig:
     script_dir = Path(__file__).resolve().parent
-    parser = argparse.ArgumentParser(description="Run SWE-bench A/B prompt pairs via LiteLLM")
+    parser = argparse.ArgumentParser(
+        description="Run SWE-bench baseline/manual-compiled/compiler prompt lanes via LiteLLM"
+    )
     parser.add_argument(
         "--model",
         default=os.getenv("MODEL")
@@ -183,6 +190,17 @@ def _optional_str_field(data: dict[str, Any], field: str, task_path: Path) -> st
     return value
 
 
+def _optional_directives_field(data: dict[str, Any], task_path: Path) -> list[str] | None:
+    value = data.get("directives")
+    if value is None:
+        return None
+    if not isinstance(value, list):
+        raise ValueError(f"Task file {task_path} has non-list optional field: directives")
+    if not all(isinstance(item, str) for item in value):
+        raise ValueError(f"Task file {task_path} has non-string directive entries")
+    return value
+
+
 def load_tasks(manifest_path: Path, tasks_dir: Path | None) -> list[TaskSpec]:
     if not manifest_path.exists():
         raise FileNotFoundError(f"Manifest file not found: {manifest_path}")
@@ -223,6 +241,8 @@ def load_tasks(manifest_path: Path, tasks_dir: Path | None) -> list[TaskSpec]:
                 task_id=task_id,
                 baseline_prompt=baseline_prompt,
                 manual_compiled_prompt=manual_compiled_prompt,
+                directives=_optional_directives_field(raw, task_path),
+                task_prompt=_optional_str_field(raw, "task_prompt", task_path),
                 repo=_optional_str_field(raw, "repo", task_path),
                 topology=_optional_str_field(raw, "topology", task_path),
                 issue_title=_optional_str_field(raw, "issue_title", task_path),
@@ -458,6 +478,36 @@ def call_model(prompt: str, cfg: RunConfig) -> str:
     return text
 
 
+def _render_compiler_prompt(compiled_state: Any, task_prompt: str) -> str:
+    state_obj = compiled_state if isinstance(compiled_state, dict) else {}
+    premise = state_obj.get("premise")
+    policies_obj = state_obj.get("policies")
+    policies = policies_obj if isinstance(policies_obj, dict) else {}
+    use_items = sorted(key for key, value in policies.items() if value == "use")
+    prohibit_items = sorted(key for key, value in policies.items() if value == "prohibit")
+
+    lines = [
+        "You are a grounded assistant.",
+        "",
+        "Authoritative state (compiled by Context Compiler):",
+        f"Premise: {premise if premise is not None else '(none)'}",
+        "",
+        "Policies:",
+        "use:",
+    ]
+    if use_items:
+        lines.extend(f"- {item}" for item in use_items)
+    else:
+        lines.append("- (none)")
+    lines.append("prohibit:")
+    if prohibit_items:
+        lines.extend(f"- {item}" for item in prohibit_items)
+    else:
+        lines.append("- (none)")
+    lines.extend(["", "Task:", task_prompt])
+    return "\n".join(lines)
+
+
 def main() -> None:
     cfg = parse_args()
     provider = detect_provider(cfg.model)
@@ -483,6 +533,7 @@ def main() -> None:
             "temperature": cfg.temperature,
             "reasoning_effort": cfg.reasoning_effort,
             "prompt_style": "assertions_policies",
+            "lanes": ["baseline", "manual_compiled", "compiler"],
             "tasks": [task.task_id for task in tasks],
             "stateless": True,
         },
@@ -490,11 +541,11 @@ def main() -> None:
     }
 
     for task in tasks:
-        print(f"[1/2] Baseline: {task.task_id}", file=sys.stderr)
+        print(f"[1/3] Baseline: {task.task_id}", file=sys.stderr)
         baseline_text = call_model(task.baseline_prompt, cfg)
         time.sleep(cfg.sleep_between_calls)
 
-        print(f"[2/2] Manual compiled: {task.task_id}", file=sys.stderr)
+        print(f"[2/3] Manual compiled: {task.task_id}", file=sys.stderr)
         manual_compiled_text = call_model(task.manual_compiled_prompt, cfg)
         time.sleep(cfg.sleep_between_calls)
 
@@ -503,7 +554,39 @@ def main() -> None:
             "manual_compiled_prompt": task.manual_compiled_prompt,
             "baseline_output": baseline_text,
             "manual_compiled_output": manual_compiled_text,
+            "compiled_state": None,
+            "rendered_compiler_prompt": None,
+            "compiler_result": None,
         }
+        if task.directives is not None:
+            print(f"[3/3] Compiler: {task.task_id}", file=sys.stderr)
+            engine = create_engine()
+            clarify_error: dict[str, Any] | None = None
+            for index, directive in enumerate(task.directives):
+                decision = engine.step(directive)
+                if str(decision["kind"]) == "clarify":
+                    clarify_error = {
+                        "error": "compiler_lane_clarify",
+                        "directive_index": index,
+                        "directive": directive,
+                        "prompt_to_user": decision.get("prompt_to_user"),
+                    }
+                    break
+
+            if clarify_error is not None:
+                task_result["compiler_result"] = clarify_error
+            else:
+                compiled_state = engine.state
+                task_prompt = (
+                    task.task_prompt if task.task_prompt is not None else task.baseline_prompt
+                )
+                rendered_compiler_prompt = _render_compiler_prompt(compiled_state, task_prompt)
+                compiler_result = call_model(rendered_compiler_prompt, cfg)
+                time.sleep(cfg.sleep_between_calls)
+                task_result["compiled_state"] = compiled_state
+                task_result["rendered_compiler_prompt"] = rendered_compiler_prompt
+                task_result["compiler_result"] = compiler_result
+
         if task.repo is not None:
             task_result["repo"] = task.repo
         if task.topology is not None:
