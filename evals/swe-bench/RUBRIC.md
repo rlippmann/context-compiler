@@ -1,5 +1,9 @@
 EVALUATION RUBRIC (STRICT — DO NOT MODIFY)
 
+Harness note:
+`manual_compiled_prompt` is a handwritten, state-framed comparison prompt.
+It is NOT produced by Context Compiler.
+
 All tasks must be scored using this rubric exactly.
 
 Weights:
@@ -82,4 +86,3 @@ For each task:
 * classification
 * win type
 * short justification
-

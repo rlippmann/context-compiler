@@ -2,6 +2,10 @@
 """
 Run clean, stateless A/B prompts for selected SWE-bench tasks via LiteLLM.
 
+Note:
+`manual_compiled_prompt` is a handwritten, state-framed prompt used for
+comparison/task curation. It is NOT produced by Context Compiler.
+
 Usage:
   python swe-bench.py --model anthropic/claude-sonnet-4-20250514
   python swe-bench.py --model openai/gpt-4o-mini
@@ -34,7 +38,7 @@ from litellm import completion  # type: ignore[import-not-found]
 class TaskSpec:
     task_id: str
     baseline_prompt: str
-    compiled_prompt: str
+    manual_compiled_prompt: str
     repo: str | None = None
     topology: str | None = None
     issue_title: str | None = None
@@ -208,7 +212,7 @@ def load_tasks(manifest_path: Path, tasks_dir: Path | None) -> list[TaskSpec]:
 
         task_id = _required_str_field(raw, "task_id", task_path)
         baseline_prompt = _required_str_field(raw, "baseline_prompt", task_path)
-        compiled_prompt = _required_str_field(raw, "compiled_prompt", task_path)
+        manual_compiled_prompt = _required_str_field(raw, "manual_compiled_prompt", task_path)
 
         if task_id in seen_ids:
             raise ValueError(f"Duplicate task_id in manifest set: {task_id}")
@@ -218,7 +222,7 @@ def load_tasks(manifest_path: Path, tasks_dir: Path | None) -> list[TaskSpec]:
             TaskSpec(
                 task_id=task_id,
                 baseline_prompt=baseline_prompt,
-                compiled_prompt=compiled_prompt,
+                manual_compiled_prompt=manual_compiled_prompt,
                 repo=_optional_str_field(raw, "repo", task_path),
                 topology=_optional_str_field(raw, "topology", task_path),
                 issue_title=_optional_str_field(raw, "issue_title", task_path),
@@ -490,15 +494,15 @@ def main() -> None:
         baseline_text = call_model(task.baseline_prompt, cfg)
         time.sleep(cfg.sleep_between_calls)
 
-        print(f"[2/2] Compiled: {task.task_id}", file=sys.stderr)
-        compiled_text = call_model(task.compiled_prompt, cfg)
+        print(f"[2/2] Manual compiled: {task.task_id}", file=sys.stderr)
+        manual_compiled_text = call_model(task.manual_compiled_prompt, cfg)
         time.sleep(cfg.sleep_between_calls)
 
         task_result: dict[str, Any] = {
             "baseline_prompt": task.baseline_prompt,
-            "compiled_prompt": task.compiled_prompt,
+            "manual_compiled_prompt": task.manual_compiled_prompt,
             "baseline_output": baseline_text,
-            "compiled_output": compiled_text,
+            "manual_compiled_output": manual_compiled_text,
         }
         if task.repo is not None:
             task_result["repo"] = task.repo
