@@ -99,7 +99,7 @@ A run is considered a "pass" if the model output satisfies the scenario’s expe
 - Pass-rate summary: baseline (LLM only) `2–4 / 6`; with compiler `6 / 6`; with compiler + compaction `6 / 6`.
 - Context reduction in long conversations: up to `99%`
 - Prompt size reduction: about `50%`
-- [SWE curated results (compiler vs baseline)](evals/swe-bench/SUMMARY.md) — cross-model evaluation on 6 tasks showing mostly positive deltas
+- [SWE curated results (compiler vs baseline)](evals/swe-bench/README.md) — cross-model evaluation on 6 tasks showing mostly positive deltas
 
 ---
 
