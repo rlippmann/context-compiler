@@ -95,11 +95,11 @@ Behavior was evaluated using a fixed set of deterministic [demo scenarios](demos
 A run is considered a "pass" if the model output satisfies the scenario’s expected behavior.
 
 - Models tested: `llama3.1:8b`, `gpt-4o-mini`, `gpt-4.1`, `gpt-5`, `claude-sonnet-4`, `claude-opus-4`
-- Baseline (LLM only): `2–4 / 6` scenarios pass
-- With compiler: `6 / 6` scenarios pass
-- With compiler + compaction: `6 / 6` scenarios pass
+- Demo scenarios (all pass with compiler) cover ambiguity handling, constraint persistence, correction replacement, and tool governance.
+- Pass-rate summary: baseline (LLM only) `2–4 / 6`; with compiler `6 / 6`; with compiler + compaction `6 / 6`.
 - Context reduction in long conversations: up to `99%`
 - Prompt size reduction: about `50%`
+- [SWE curated results (compiler vs baseline)](evals/swe-bench/SUMMARY.md) — cross-model evaluation on 6 tasks showing mostly positive deltas
 
 ---
 
