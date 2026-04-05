@@ -1,0 +1,26 @@
+{
+  "id": "step_reset_policies_already_empty_update",
+  "kind": "step",
+  "initial_state": {
+    "premise": "concise replies",
+    "policies": {},
+    "version": 2
+  },
+  "input": "reset policies",
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "prompt_to_user": null,
+      "state": {
+        "premise": "concise replies",
+        "policies": {},
+        "version": 2
+      }
+    },
+    "state": {
+      "premise": "concise replies",
+      "policies": {},
+      "version": 2
+    }
+  }
+}

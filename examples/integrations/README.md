@@ -32,3 +32,12 @@ MODEL=openai/gpt-4o-mini python litellm_sdk.py
 Gateway-level integration using a LiteLLM pre-call hook.
 
 See: [LiteLLM Proxy README](litellm_proxy/README.md)
+
+## Open WebUI Pipe Function (Minimal Integration)
+
+Minimal Pipe Function integration that maps Context Compiler `Decision` output to Open WebUI request flow.
+
+Tested target: Open WebUI `v0.7.2`.
+
+File: [open_webui_pipe.py](open_webui_pipe.py)
+Details: [Open WebUI Pipe Integration README](open_webui_pipe.README.md)
