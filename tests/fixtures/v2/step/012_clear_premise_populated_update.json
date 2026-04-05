@@ -1,0 +1,32 @@
+{
+  "id": "step_clear_premise_populated_update",
+  "kind": "step",
+  "initial_state": {
+    "premise": "concise replies",
+    "policies": {
+      "docker": "use"
+    },
+    "version": 2
+  },
+  "input": "clear premise",
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "prompt_to_user": null,
+      "state": {
+        "premise": null,
+        "policies": {
+          "docker": "use"
+        },
+        "version": 2
+      }
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker": "use"
+      },
+      "version": 2
+    }
+  }
+}
