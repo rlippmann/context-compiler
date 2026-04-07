@@ -11,6 +11,7 @@ Core decision handling remains the same as the base integration.
 """
 
 import importlib.util
+import logging
 import os
 import re
 from pathlib import Path
@@ -23,6 +24,8 @@ from pydantic import BaseModel, Field  # type: ignore[import-not-found]
 
 from context_compiler import State, create_engine, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
+
+logger = logging.getLogger(__name__)
 
 _CC_MARKER = "[[cc_state]]"
 _ENGINES_BY_CHAT_KEY: dict[str, Engine] = {}
@@ -330,6 +333,7 @@ class Pipe:
             else []
         )
         latest_user_text = _extract_latest_user_text(messages)
+        logger.debug("preprocessor: user_input_found=%s", latest_user_text is not None)
 
         if latest_user_text is None:
             return await self._forward_passthrough(body, __user__, __request__)
@@ -346,12 +350,15 @@ class Pipe:
             prompt_profile=self.valves.PREPROCESSOR_PROMPT_PROFILE,
             model=self.valves.PREPROCESSOR_MODEL_ID,
         )
+        logger.debug("preprocessor: precompiled=%r", precompiled)
         # Preserve core behavior: if precompile yields no directive, use raw user
         # text so the compiler still decides clarify/passthrough/update.
         compile_input = precompiled if precompiled is not None else latest_user_text
 
+        logger.debug("preprocessor: engine_input=%r", compile_input)
         decision = engine.step(compile_input)
         kind = decision["kind"]
+        logger.debug("preprocessor: decision=%s", kind)
 
         if kind == "clarify":
             return decision["prompt_to_user"] or ""
