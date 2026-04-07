@@ -1,17 +1,26 @@
 # Open WebUI Pipe Integration
 
-Minimal Open WebUI Pipe Function integration for Context Compiler. It maps compiler `Decision` output into Open WebUI request flow with a deliberately small, focused implementation.
+Open WebUI Pipe Function examples for Context Compiler.
 
 Tested target: Open WebUI `v0.7.2`.
+
+## Files
+
+- `open_webui_pipe.py`: basic integration, no preprocessor layer.
+- `open_webui_pipe_with_preprocessor.py`: heuristic-first preprocessor plus LLM fallback before `engine.step(...)`.
 
 ## Setup
 
 1. Install `context-compiler` in the Open WebUI Python environment.
-2. Add `open_webui_pipe.py` as a Function in Open WebUI.
+2. Add one of the files above as a Function in Open WebUI.
 3. Set `BASE_MODEL_ID` to a valid Open WebUI model id.
 4. Select the pipe model in chat.
 
-Main behavioral documentation lives in [`open_webui_pipe.py`](open_webui_pipe.py) docstrings.
+If using `open_webui_pipe_with_preprocessor.py`:
+- Set `PREPROCESSOR_MODEL_ID` to a model available to LiteLLM.
+- Set `PREPROCESSOR_PROMPT_PROFILE` to `default` or `llama`.
+- Ensure `OPENAI_API_KEY` is set (and `OPENAI_BASE_URL` if needed).
+- Prompt files are loaded from `experimental/preprocessor/prompts/default.txt` and `experimental/preprocessor/prompts/llama.txt`.
 
 ## Limitations
 
