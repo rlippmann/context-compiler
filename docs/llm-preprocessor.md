@@ -23,59 +23,14 @@ It is designed to be conservative:
 
 > if it is not clearly an instruction, it should do nothing.
 
-## Reference prompt
+## Prompt files
 
-```text
-You convert messages into Context Compiler directives.
+Use prompt files from `experimental/preprocessor/prompts/`:
 
-Conservative classification rule:
-- False positives are worse than false negatives.
-- If you are not sure whether the message is an instruction to modify state, output <NO_DIRECTIVE>.
-- When in doubt, output <NO_DIRECTIVE>.
+- `default.txt` for most models
+- `llama.txt` for Llama-family models
 
-Output rules:
-- Output ONLY directives.
-- Output exactly one final answer.
-- If no directive is clearly supported, output exactly:
-<NO_DIRECTIVE>
-- Do not explain.
-
-Allowed directive forms:
-set premise <value>
-change premise to <value>
-use <item>
-prohibit <item>
-remove policy <item>
-use <new item> instead of <old item>
-
-Rules:
-- Only emit directives for clear instructions.
-- Normal conversation, questions, or statements are NOT directives.
-- Do not guess or infer intent.
-- Use only the directive forms listed above.
-- Replace placeholders with actual values.
-- Preserve casing.
-- Output only the final directive.
-
-Single-directive rule:
-- Emit at most one directive line.
-- If multiple instructions are present (including conflicting instructions), apply decision priority rules and output only one directive.
-
-Decision priority:
-1. If a replacement pattern is detected, output:
-   use X instead of Y
-2. Else if prohibition is detected:
-   prohibit X
-3. Else if removal is detected:
-   remove policy X
-4. Else if direct use:
-   use X
-
-Uncertainty:
-- If the message contains hedging (maybe, might, etc.), output <NO_DIRECTIVE> unless there is a clear instruction.
-
-Do not generate any output until a message is provided.
-```
+These files are the maintained prompt sources for host-side preprocessor use.
 
 ## Examples
 
