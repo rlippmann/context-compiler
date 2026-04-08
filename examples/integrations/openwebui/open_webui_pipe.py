@@ -133,9 +133,9 @@ class Pipe:
     """
 
     class Valves(BaseModel):  # type: ignore[misc]
-        BASE_MODEL_ID: str = Field(
-            default="gpt-4o-mini",
-            description="Open WebUI model id used as the base model for forwarding.",
+        BASE_MODEL_ID: str | None = Field(
+            default=None,
+            description="Optional Open WebUI model id override for forwarding.",
         )
 
     def __init__(self) -> None:
@@ -147,9 +147,10 @@ class Pipe:
         user_payload: dict[str, Any],
         request: Request,
     ) -> Any:
-        """Forward with a shallow body copy and model override only."""
+        """Forward with a shallow body copy and optional model override."""
         payload = {**body}
-        payload["model"] = self.valves.BASE_MODEL_ID
+        if self.valves.BASE_MODEL_ID:
+            payload["model"] = self.valves.BASE_MODEL_ID
         user = Users.get_user_by_id(user_payload["id"])
         return await generate_chat_completion(request, payload, user)
 
@@ -162,11 +163,12 @@ class Pipe:
     ) -> Any:
         """Forward with one compiler-owned state message based on current state.
 
-        The body is shallow-copied, ``model`` is overridden, and exactly one
-        compiler-owned message is inserted/replaced before forwarding.
+        The body is shallow-copied, optional ``model`` override is applied, and
+        exactly one compiler-owned message is inserted/replaced before forwarding.
         """
         payload = {**body}
-        payload["model"] = self.valves.BASE_MODEL_ID
+        if self.valves.BASE_MODEL_ID:
+            payload["model"] = self.valves.BASE_MODEL_ID
 
         raw_messages = body.get("messages")
         messages = (
