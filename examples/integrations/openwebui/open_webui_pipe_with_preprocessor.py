@@ -361,11 +361,12 @@ class Pipe:
             engine = create_engine()
             _ENGINES_BY_CHAT_KEY[chat_key] = engine
 
+        preprocessor_model_id = self.valves.PREPROCESSOR_MODEL_ID.strip() or base_model_id
         precompiled = _precompile_user_input(
             latest_user_text,
             engine.state,
             prompt_profile=self.valves.PREPROCESSOR_PROMPT_PROFILE,
-            model=self.valves.PREPROCESSOR_MODEL_ID,
+            model=preprocessor_model_id,
         )
         logger.debug("preprocessor: precompiled=%r", precompiled)
         # Preserve core behavior: if precompile yields no directive, use raw user
