@@ -262,9 +262,9 @@ class Pipe:
     """
 
     class Valves(BaseModel):  # type: ignore[misc]
-        BASE_MODEL_ID: str | None = Field(
-            default=None,
-            description="Optional Open WebUI model id override for forwarding.",
+        BASE_MODEL_ID: str = Field(
+            default="gpt-4o-mini",
+            description="Open WebUI model id used as the base model for forwarding.",
         )
         PREPROCESSOR_MODEL_ID: str = Field(
             default="gpt-4.1-mini",
@@ -285,8 +285,7 @@ class Pipe:
         request: Request,
     ) -> Any:
         payload = {**body}
-        if self.valves.BASE_MODEL_ID:
-            payload["model"] = self.valves.BASE_MODEL_ID
+        payload["model"] = self.valves.BASE_MODEL_ID
         user = Users.get_user_by_id(user_payload["id"])
         return await generate_chat_completion(request, payload, user)
 
@@ -298,8 +297,7 @@ class Pipe:
         state: State,
     ) -> Any:
         payload = {**body}
-        if self.valves.BASE_MODEL_ID:
-            payload["model"] = self.valves.BASE_MODEL_ID
+        payload["model"] = self.valves.BASE_MODEL_ID
 
         raw_messages = body.get("messages")
         messages = (
