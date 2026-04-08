@@ -134,7 +134,7 @@ class Pipe:
 
     class Valves(BaseModel):  # type: ignore[misc]
         BASE_MODEL_ID: str = Field(
-            default="gpt-4o-mini",
+            default="",
             description="Open WebUI model id used as the base model for forwarding.",
         )
 
@@ -205,6 +205,16 @@ class Pipe:
             if isinstance(raw_messages, list)
             else []
         )
+        base_model_id = self.valves.BASE_MODEL_ID.strip()
+        current_model_id = str(body.get("model", "")).strip()
+        if not base_model_id:
+            return "Context Compiler pipe misconfigured: BASE_MODEL_ID is required."
+        if current_model_id and base_model_id == current_model_id:
+            return (
+                "Context Compiler pipe misconfigured: BASE_MODEL_ID must not match "
+                "the selected pipe model id to avoid recursive routing."
+            )
+
         latest_user_text = _extract_latest_user_text(messages)
 
         if latest_user_text is None:

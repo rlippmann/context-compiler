@@ -13,7 +13,7 @@ Tested target: Open WebUI `v0.7.2`.
 
 1. Install `context-compiler` in the Open WebUI Python environment.
 2. Add one of the files above as a Function in Open WebUI.
-3. Set `BASE_MODEL_ID` to a valid Open WebUI model id.
+3. Set `BASE_MODEL_ID` to a valid Open WebUI model id (required).
 4. Select the pipe model in chat.
 
 If using `open_webui_pipe_with_preprocessor.py`:

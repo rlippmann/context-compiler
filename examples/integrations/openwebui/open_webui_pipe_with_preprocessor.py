@@ -263,7 +263,7 @@ class Pipe:
 
     class Valves(BaseModel):  # type: ignore[misc]
         BASE_MODEL_ID: str = Field(
-            default="gpt-4o-mini",
+            default="",
             description="Open WebUI model id used as the base model for forwarding.",
         )
         ALLOW_MISSING_BASE_MODEL_FOR_DEBUG: bool = Field(
