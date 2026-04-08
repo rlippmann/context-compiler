@@ -1,4 +1,10 @@
 """
+title: Context Compiler Preprocessor Pipe
+author: rlippmann
+author_url: https://github.com/rlippmann/context-compiler
+funding_url: https://github.com/rlippmann/context-compiler
+version: 0.1
+
 Open WebUI integration with Context Compiler preprocessor.
 
 This example extends `open_webui_pipe.py` by inserting a preprocessing step:

@@ -1,4 +1,11 @@
-"""Minimal Open WebUI Pipe integration for Context Compiler.
+"""
+title: Context Compiler Pipe
+author: rlippmann
+author_url: https://github.com/rlippmann/context-compiler
+funding_url: https://github.com/rlippmann/context-compiler
+version: 0.1
+
+Minimal Open WebUI Pipe integration for Context Compiler.
 
 This integration demonstrates mapping Context Compiler `Decision` output into
 Open WebUI request flow.
