@@ -266,6 +266,10 @@ class Pipe:
             default="gpt-4o-mini",
             description="Open WebUI model id used as the base model for forwarding.",
         )
+        ALLOW_MISSING_BASE_MODEL_FOR_DEBUG: bool = Field(
+            default=False,
+            description="Allow missing BASE_MODEL_ID for debug/testing only.",
+        )
         PREPROCESSOR_MODEL_ID: str = Field(
             default="gpt-4.1-mini",
             description="Model id used for LLM fallback precompilation.",
@@ -332,6 +336,19 @@ class Pipe:
             if isinstance(raw_messages, list)
             else []
         )
+        base_model_id = self.valves.BASE_MODEL_ID.strip()
+        current_model_id = str(body.get("model", "")).strip()
+        if not base_model_id and not self.valves.ALLOW_MISSING_BASE_MODEL_FOR_DEBUG:
+            return (
+                "Context Compiler pipe misconfigured: BASE_MODEL_ID is required "
+                "(or set ALLOW_MISSING_BASE_MODEL_FOR_DEBUG=true for testing)."
+            )
+        if base_model_id and current_model_id and base_model_id == current_model_id:
+            return (
+                "Context Compiler pipe misconfigured: BASE_MODEL_ID must not match "
+                "the selected pipe model id to avoid recursive routing."
+            )
+
         latest_user_text = _extract_latest_user_text(messages)
         logger.debug("preprocessor: user_input_found=%s", latest_user_text is not None)
 
