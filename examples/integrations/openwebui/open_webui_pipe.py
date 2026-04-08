@@ -9,6 +9,7 @@ Scope is intentionally limited:
 - No persistence, no multi-worker coordination, no external storage.
 """
 
+import logging
 from typing import Any
 
 from fastapi import Request  # type: ignore[import-not-found]
@@ -18,6 +19,8 @@ from pydantic import BaseModel, Field  # type: ignore[import-not-found]
 
 from context_compiler import State, create_engine, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
+
+logger = logging.getLogger(__name__)
 
 _CC_MARKER = "[[cc_state]]"
 _ENGINES_BY_CHAT_KEY: dict[str, Engine] = {}
@@ -216,6 +219,7 @@ class Pipe:
             )
 
         latest_user_text = _extract_latest_user_text(messages)
+        logger.debug("pipe: user_input_found=%s", latest_user_text is not None)
 
         if latest_user_text is None:
             return await self._forward_passthrough(body, __user__, __request__)
@@ -226,8 +230,10 @@ class Pipe:
             engine = create_engine()
             _ENGINES_BY_CHAT_KEY[chat_key] = engine
 
+        logger.debug("pipe: engine_input=%r", latest_user_text)
         decision = engine.step(latest_user_text)
         kind = decision["kind"]
+        logger.debug("pipe: decision=%s", kind)
 
         if kind == "clarify":
             return decision["prompt_to_user"] or ""
