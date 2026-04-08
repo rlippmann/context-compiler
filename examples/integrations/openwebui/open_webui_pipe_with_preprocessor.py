@@ -28,6 +28,7 @@ from open_webui.models.users import Users  # type: ignore[import-not-found]
 from open_webui.utils.chat import generate_chat_completion  # type: ignore[import-not-found]
 from pydantic import BaseModel, Field  # type: ignore[import-not-found]
 
+import context_compiler
 from context_compiler import State, create_engine, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
 
@@ -56,8 +57,46 @@ class PrecompileResult(TypedDict):
     rule_id: str | None
 
 
+_NOOP_PRECOMPILE_RESULT: PrecompileResult = {
+    "outcome": "no_directive",
+    "directive": None,
+    "rule_id": "unavailable",
+}
+
+
+def _noop_precompile(_message: str) -> PrecompileResult:
+    return _NOOP_PRECOMPILE_RESULT
+
+
 def _repo_root() -> Path:
-    return Path(__file__).resolve().parents[3]
+    env_root = os.getenv("CONTEXT_COMPILER_REPO_ROOT", "").strip()
+    candidates: list[Path] = []
+
+    if env_root:
+        candidates.append(Path(env_root))
+
+    cwd = Path.cwd()
+    candidates.extend([cwd, *cwd.parents])
+
+    package_root_candidates = [Path(context_compiler.__file__).resolve().parent]
+    for package_root in package_root_candidates:
+        candidates.extend([package_root, *package_root.parents])
+
+    seen: set[Path] = set()
+    for candidate in candidates:
+        resolved = candidate.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        heuristic_path = resolved / "experimental" / "preprocessor" / "heuristic_precompiler.py"
+        if heuristic_path.exists():
+            return resolved
+
+    raise RuntimeError(
+        "Unable to locate context-compiler repo root. "
+        "Set CONTEXT_COMPILER_REPO_ROOT to a checkout path that contains "
+        "experimental/preprocessor/heuristic_precompiler.py."
+    )
 
 
 def _prompt_file_path(profile: str) -> Path:
@@ -87,7 +126,11 @@ def _get_heuristic_precompile() -> Any:
     # Load once per process to keep per-message overhead low in this example.
     global _HEURISTIC_PRECOMPILE
     if _HEURISTIC_PRECOMPILE is None:
-        _HEURISTIC_PRECOMPILE = _load_heuristic_precompile()
+        try:
+            _HEURISTIC_PRECOMPILE = _load_heuristic_precompile()
+        except Exception as exc:
+            logger.debug("preprocessor: heuristic_unavailable=%s", exc)
+            _HEURISTIC_PRECOMPILE = _noop_precompile
     return _HEURISTIC_PRECOMPILE
 
 
@@ -203,7 +246,11 @@ def _llm_fallback_precompile(
 ) -> str | None:
     # Fallback is optional. If prompt files, dependencies, or credentials are
     # unavailable, we return no directive and continue normal compiler flow.
-    prompt_path = _prompt_file_path(prompt_profile)
+    try:
+        prompt_path = _prompt_file_path(prompt_profile)
+    except Exception as exc:
+        logger.debug("preprocessor: prompt_unavailable=%s", exc)
+        return None
     if not prompt_path.exists():
         return None
 
