@@ -20,7 +20,7 @@ If using `open_webui_pipe_with_preprocessor.py`:
 - Set `PREPROCESSOR_MODEL_ID` to a model available to LiteLLM.
 - Set `PREPROCESSOR_PROMPT_PROFILE` to `default` or `llama`.
 - Ensure `OPENAI_API_KEY` is set (and `OPENAI_BASE_URL` if needed).
-- Set `CONTEXT_COMPILER_REPO_ROOT` to your local checkout path if Open WebUI runs from a different working directory.
+- Set `CONTEXT_COMPILER_REPO_ROOT` to your local checkout path. Open WebUI can execute function files from a temp/copied location, so `__file__`-relative repo paths are not reliable.
 - Prompt files are loaded from `experimental/preprocessor/prompts/default.txt` and `experimental/preprocessor/prompts/llama.txt`.
 
 ## Limitations
