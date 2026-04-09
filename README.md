@@ -238,12 +238,6 @@ For full directive grammar and edge-case behavior, see [DirectiveGrammarSpec.md]
 
 ---
 
-## Conformance Fixtures
-
-Cross-language conformance tests are defined in [`tests/fixtures/`](tests/fixtures/).
-
----
-
 ## Guarantees
 
 - State changes only through explicit user directives or confirmation.
@@ -288,6 +282,8 @@ These demonstrate deterministic clarification, state enforcement, and conflict h
 - [LLM preprocessor](docs/llm-preprocessor.md)
 - [Multiple engines](docs/multi-engine.md)
 
+For a full documentation map, see [docs/README.md](docs/README.md).
+
 ---
 
 ## Design Notes
@@ -296,6 +292,12 @@ More detailed design and milestone documents are available in:
 
 - [Project overview](docs/DescriptionAndMilestones.md)
 - [Directive grammar specification](docs/DirectiveGrammarSpec.md)
+
+---
+
+## Conformance Fixtures
+
+Cross-language conformance tests are defined in [`tests/fixtures/`](tests/fixtures/).
 
 ---
 
