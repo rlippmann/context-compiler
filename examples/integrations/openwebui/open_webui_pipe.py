@@ -1,4 +1,11 @@
-"""Minimal Open WebUI Pipe integration for Context Compiler.
+"""
+title: Context Compiler Pipe
+author: rlippmann
+author_url: https://github.com/rlippmann/context-compiler
+funding_url: https://github.com/rlippmann/context-compiler
+version: 0.1
+
+Minimal Open WebUI Pipe integration for Context Compiler.
 
 This integration demonstrates mapping Context Compiler `Decision` output into
 Open WebUI request flow.
@@ -9,6 +16,7 @@ Scope is intentionally limited:
 - No persistence, no multi-worker coordination, no external storage.
 """
 
+import logging
 from typing import Any
 
 from fastapi import Request  # type: ignore[import-not-found]
@@ -18,6 +26,8 @@ from pydantic import BaseModel, Field  # type: ignore[import-not-found]
 
 from context_compiler import State, create_engine, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
+
+logger = logging.getLogger(__name__)
 
 _CC_MARKER = "[[cc_state]]"
 _ENGINES_BY_CHAT_KEY: dict[str, Engine] = {}
@@ -134,12 +144,43 @@ class Pipe:
 
     class Valves(BaseModel):  # type: ignore[misc]
         BASE_MODEL_ID: str = Field(
-            default="gpt-4o-mini",
+            default="",
             description="Open WebUI model id used as the base model for forwarding.",
         )
 
     def __init__(self) -> None:
         self.valves = self.Valves()
+
+    def _is_model_not_found_text(self, value: object) -> bool:
+        if not isinstance(value, str):
+            return False
+        return "model not found" in value.lower()
+
+    def _contains_model_not_found(self, value: object) -> bool:
+        if self._is_model_not_found_text(value):
+            return True
+        if isinstance(value, dict):
+            return any(self._contains_model_not_found(v) for v in value.values())
+        if isinstance(value, list):
+            return any(self._contains_model_not_found(v) for v in value)
+        return False
+
+    def _normalize_forward_error(self, response: Any) -> str | None:
+        if self._contains_model_not_found(response):
+            return (
+                "Context Compiler pipe misconfigured: BASE_MODEL_ID was not found "
+                "in Open WebUI models."
+            )
+        return None
+
+    def _normalize_forward_exception(self, exc: Exception) -> str | None:
+        detail = getattr(exc, "detail", None)
+        if self._contains_model_not_found(detail) or self._contains_model_not_found(str(exc)):
+            return (
+                "Context Compiler pipe misconfigured: BASE_MODEL_ID was not found "
+                "in Open WebUI models."
+            )
+        return None
 
     async def _forward_passthrough(
         self,
@@ -151,7 +192,17 @@ class Pipe:
         payload = {**body}
         payload["model"] = self.valves.BASE_MODEL_ID
         user = Users.get_user_by_id(user_payload["id"])
-        return await generate_chat_completion(request, payload, user)
+        try:
+            response = await generate_chat_completion(request, payload, user)
+        except Exception as exc:
+            normalized_exception = self._normalize_forward_exception(exc)
+            if normalized_exception is not None:
+                return normalized_exception
+            raise
+        normalized_error = self._normalize_forward_error(response)
+        if normalized_error is not None:
+            return normalized_error
+        return response
 
     async def _forward_update(
         self,
@@ -180,7 +231,17 @@ class Pipe:
         )
 
         user = Users.get_user_by_id(user_payload["id"])
-        return await generate_chat_completion(request, payload, user)
+        try:
+            response = await generate_chat_completion(request, payload, user)
+        except Exception as exc:
+            normalized_exception = self._normalize_forward_exception(exc)
+            if normalized_exception is not None:
+                return normalized_exception
+            raise
+        normalized_error = self._normalize_forward_error(response)
+        if normalized_error is not None:
+            return normalized_error
+        return response
 
     async def pipe(
         self,
@@ -205,7 +266,18 @@ class Pipe:
             if isinstance(raw_messages, list)
             else []
         )
+        base_model_id = self.valves.BASE_MODEL_ID.strip()
+        current_model_id = str(body.get("model", "")).strip()
+        if not base_model_id:
+            return "Context Compiler pipe misconfigured: BASE_MODEL_ID is required."
+        if current_model_id and base_model_id == current_model_id:
+            return (
+                "Context Compiler pipe misconfigured: BASE_MODEL_ID must not match "
+                "the selected pipe model id to avoid recursive routing."
+            )
+
         latest_user_text = _extract_latest_user_text(messages)
+        logger.debug("pipe: user_input_found=%s", latest_user_text is not None)
 
         if latest_user_text is None:
             return await self._forward_passthrough(body, __user__, __request__)
@@ -216,8 +288,10 @@ class Pipe:
             engine = create_engine()
             _ENGINES_BY_CHAT_KEY[chat_key] = engine
 
+        logger.debug("pipe: engine_input=%r", latest_user_text)
         decision = engine.step(latest_user_text)
         kind = decision["kind"]
+        logger.debug("pipe: decision=%s", kind)
 
         if kind == "clarify":
             return decision["prompt_to_user"] or ""
