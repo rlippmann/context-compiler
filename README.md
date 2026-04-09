@@ -117,30 +117,6 @@ change premise to formal tone
 
 ---
 
-## Evidence
-
-### Behavioral correctness (key examples)
-
-Concrete behavioral comparisons (base model vs compiler) are available here:
-
-- [Open WebUI integration README](examples/integrations/openwebui/README.md)
-
-These demonstrate deterministic clarification, state enforcement, and conflict handling.
-
-### Cross-model evaluation
-
-- Models tested: `llama3.1:8b`, `gpt-4o-mini`, `gpt-4.1`, `gpt-5`, `claude-sonnet-4`, `claude-opus-4`
-- Pass-rate summary: baseline (LLM only) `2–4 / 6`; with compiler `6 / 6`; with compiler + compaction `6 / 6`.
-
-### Efficiency
-
-- Context reduction in long conversations: up to `99%`
-- Prompt size reduction: about `50%`
-
-### Additional results
-
-- [SWE curated results (compiler vs baseline)](evals/swe-bench/README.md) — cross-model evaluation on 6 tasks showing mostly positive deltas
-
 ---
 
 ## Architecture
@@ -268,13 +244,6 @@ Cross-language conformance tests are defined in [`tests/fixtures/`](tests/fixtur
 
 ---
 
-## Advanced topics
-
-- [LLM preprocessor](docs/llm-preprocessor.md)
-- [Multiple engines](docs/multi-engine.md)
-
----
-
 ## Guarantees
 
 - State changes only through explicit user directives or confirmation.
@@ -283,6 +252,41 @@ Cross-language conformance tests are defined in [`tests/fixtures/`](tests/fixtur
 - Ambiguous directives trigger clarification instead of changing state.
 
 These invariants are verified through behavioral tests and Hypothesis-based property tests.
+
+---
+
+## Evidence
+
+### Behavioral correctness (key examples)
+
+Concrete behavioral comparisons (base model vs compiler) are available here:
+
+- [Open WebUI integration README](examples/integrations/openwebui/README.md)
+
+These demonstrate deterministic clarification, state enforcement, and conflict handling.
+
+### Cross-model evaluation
+
+- Models tested: `llama3.1:8b`, `gpt-4o-mini`, `gpt-4.1`, `gpt-5`, `claude-sonnet-4`, `claude-opus-4`
+- Pass-rate summary: baseline (LLM only) `2–4 / 6`; with compiler `6 / 6`; with compiler + compaction `6 / 6`.
+
+### Efficiency
+
+- Context reduction in long conversations: up to `99%`
+- Prompt size reduction: about `50%`
+
+### Additional results
+
+- [SWE curated results (compiler vs baseline)](evals/swe-bench/README.md) — cross-model evaluation on 6 tasks showing mostly positive deltas
+
+
+---
+
+
+## Advanced topics
+
+- [LLM preprocessor](docs/llm-preprocessor.md)
+- [Multiple engines](docs/multi-engine.md)
 
 ---
 
