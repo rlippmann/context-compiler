@@ -58,10 +58,6 @@ class PrecompileResult(TypedDict):
     rule_id: str | None
 
 
-class PreprocessorModelNotFoundError(RuntimeError):
-    """Raised when an explicitly configured fallback preprocessor model is unavailable."""
-
-
 _NOOP_PRECOMPILE_RESULT: PrecompileResult = {
     "outcome": "no_directive",
     "directive": None,
@@ -71,16 +67,6 @@ _NOOP_PRECOMPILE_RESULT: PrecompileResult = {
 
 def _noop_precompile(_message: str) -> PrecompileResult:
     return _NOOP_PRECOMPILE_RESULT
-
-
-def _contains_model_not_found(value: object) -> bool:
-    if isinstance(value, str):
-        return "model not found" in value.lower()
-    if isinstance(value, dict):
-        return any(_contains_model_not_found(v) for v in value.values())
-    if isinstance(value, list):
-        return any(_contains_model_not_found(v) for v in value)
-    return False
 
 
 def _repo_root() -> Path:
@@ -269,7 +255,7 @@ def _is_allowed_directive(text: str) -> bool:
 
 
 def _llm_fallback_precompile(
-    message: str, state: State, *, prompt_profile: str, model: str, strict_model_check: bool
+    message: str, state: State, *, prompt_profile: str, model: str
 ) -> str | None:
     # Fallback is optional. If prompt files, dependencies, or credentials are
     # unavailable, we return no directive and continue normal compiler flow.
@@ -310,12 +296,7 @@ def _llm_fallback_precompile(
     try:
         response = completion(**kwargs)
         raw_output = cast(Any, response.choices[0].message.content)
-    except Exception as exc:
-        detail = getattr(exc, "detail", None)
-        if strict_model_check and (
-            _contains_model_not_found(detail) or _contains_model_not_found(str(exc))
-        ):
-            raise PreprocessorModelNotFoundError from exc
+    except Exception:
         return None
 
     parsed = _normalize_precompiler_output(raw_output)
@@ -332,7 +313,6 @@ def _precompile_user_input(
     *,
     prompt_profile: str,
     model: str,
-    strict_model_check: bool,
 ) -> str | None:
     # Heuristic first for precision, determinism, and low latency.
     # If heuristic does not produce a directive, try LLM fallback.
@@ -347,7 +327,6 @@ def _precompile_user_input(
         state,
         prompt_profile=prompt_profile,
         model=model,
-        strict_model_check=strict_model_check,
     )
 
 
@@ -362,10 +341,6 @@ class Pipe:
         BASE_MODEL_ID: str = Field(
             default="",
             description="Open WebUI model id used as the base model for forwarding.",
-        )
-        PREPROCESSOR_MODEL_ID: str = Field(
-            default="",
-            description="Model id used for LLM fallback precompilation.",
         )
         PREPROCESSOR_PROMPT_PROFILE: Literal["default", "llama"] = Field(
             default="default",
@@ -509,21 +484,12 @@ class Pipe:
             engine = create_engine()
             _ENGINES_BY_CHAT_KEY[chat_key] = engine
 
-        explicit_preprocessor_model_id = self.valves.PREPROCESSOR_MODEL_ID.strip()
-        preprocessor_model_id = explicit_preprocessor_model_id or base_model_id
-        try:
-            precompiled = _precompile_user_input(
-                latest_user_text,
-                engine.state,
-                prompt_profile=self.valves.PREPROCESSOR_PROMPT_PROFILE,
-                model=preprocessor_model_id,
-                strict_model_check=bool(explicit_preprocessor_model_id),
-            )
-        except PreprocessorModelNotFoundError:
-            return (
-                "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID was not found "
-                "by the fallback provider."
-            )
+        precompiled = _precompile_user_input(
+            latest_user_text,
+            engine.state,
+            prompt_profile=self.valves.PREPROCESSOR_PROMPT_PROFILE,
+            model=base_model_id,
+        )
         logger.debug("preprocessor: precompiled=%r", precompiled)
         # Preserve core behavior: if precompile yields no directive, use raw user
         # text so the compiler still decides clarify/passthrough/update.

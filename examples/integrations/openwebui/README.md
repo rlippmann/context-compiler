@@ -17,10 +17,10 @@ Tested target: Open WebUI `v0.7.2`.
 4. Select the pipe model in chat.
 
 If using `open_webui_pipe_with_preprocessor.py`:
-- Set `PREPROCESSOR_MODEL_ID` to a model available to LiteLLM.
 - Set `PREPROCESSOR_PROMPT_PROFILE` to `default` or `llama`.
 - Ensure `OPENAI_API_KEY` is set (and `OPENAI_BASE_URL` if needed).
 - Prompt files are loaded from `experimental/preprocessor/prompts/default.txt` and `experimental/preprocessor/prompts/llama.txt`.
+- LLM fallback uses `BASE_MODEL_ID` as its model.
 
 ### Note on Open WebUI execution context
 
