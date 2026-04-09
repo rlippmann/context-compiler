@@ -151,6 +151,37 @@ class Pipe:
     def __init__(self) -> None:
         self.valves = self.Valves()
 
+    def _is_model_not_found_text(self, value: object) -> bool:
+        if not isinstance(value, str):
+            return False
+        return "model not found" in value.lower()
+
+    def _contains_model_not_found(self, value: object) -> bool:
+        if self._is_model_not_found_text(value):
+            return True
+        if isinstance(value, dict):
+            return any(self._contains_model_not_found(v) for v in value.values())
+        if isinstance(value, list):
+            return any(self._contains_model_not_found(v) for v in value)
+        return False
+
+    def _normalize_forward_error(self, response: Any) -> str | None:
+        if self._contains_model_not_found(response):
+            return (
+                "Context Compiler pipe misconfigured: BASE_MODEL_ID was not found "
+                "in Open WebUI models."
+            )
+        return None
+
+    def _normalize_forward_exception(self, exc: Exception) -> str | None:
+        detail = getattr(exc, "detail", None)
+        if self._contains_model_not_found(detail) or self._contains_model_not_found(str(exc)):
+            return (
+                "Context Compiler pipe misconfigured: BASE_MODEL_ID was not found "
+                "in Open WebUI models."
+            )
+        return None
+
     async def _forward_passthrough(
         self,
         body: dict[str, Any],
@@ -161,7 +192,17 @@ class Pipe:
         payload = {**body}
         payload["model"] = self.valves.BASE_MODEL_ID
         user = Users.get_user_by_id(user_payload["id"])
-        return await generate_chat_completion(request, payload, user)
+        try:
+            response = await generate_chat_completion(request, payload, user)
+        except Exception as exc:
+            normalized_exception = self._normalize_forward_exception(exc)
+            if normalized_exception is not None:
+                return normalized_exception
+            raise
+        normalized_error = self._normalize_forward_error(response)
+        if normalized_error is not None:
+            return normalized_error
+        return response
 
     async def _forward_update(
         self,
@@ -190,7 +231,17 @@ class Pipe:
         )
 
         user = Users.get_user_by_id(user_payload["id"])
-        return await generate_chat_completion(request, payload, user)
+        try:
+            response = await generate_chat_completion(request, payload, user)
+        except Exception as exc:
+            normalized_exception = self._normalize_forward_exception(exc)
+            if normalized_exception is not None:
+                return normalized_exception
+            raise
+        normalized_error = self._normalize_forward_error(response)
+        if normalized_error is not None:
+            return normalized_error
+        return response
 
     async def pipe(
         self,
