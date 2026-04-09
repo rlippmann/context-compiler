@@ -1,6 +1,20 @@
-# Documentation
+# Documentation Index
 
-This directory contains the project design and milestone specifications.
+## Start Here
+- [Project README](../README.md)
 
-- [DescriptionAndMilestones.md](DescriptionAndMilestones.md) — project overview and milestone roadmap
-- [DirectiveGrammarSpec.md](DirectiveGrammarSpec.md) — authoritative behavioral specification for the deterministic directive engine
+## Core Concepts
+- [Directive Grammar](DirectiveGrammarSpec.md)
+
+## Integrations
+- [Open WebUI integration](../examples/integrations/openwebui/README.md)
+
+## Preprocessor
+- [LLM preprocessor](llm-preprocessor.md)
+
+## Evaluation & Evidence
+- [Behavioral comparisons (Open WebUI)](../examples/integrations/openwebui/README.md)
+- [SWE curated results](../evals/swe-bench/README.md)
+
+## Project Background
+- [Description and Milestones](DescriptionAndMilestones.md)
