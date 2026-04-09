@@ -47,3 +47,45 @@ If not set, the example will safely fall back to no-directive behavior.
 ## Manual Validation
 
 Validate clarify short-circuit, passthrough forwarding, update injection with one `[[cc_state]]`, no accumulation across repeated updates, chat isolation with real chat ids, restart state loss, and non-text bypass behavior.
+
+## Behavioral comparisons
+
+**Case 1**
+
+- prompt(s): `clear state` → `change premise to formal tone`
+- base model: “To adjust the tone… provide the original content…”
+- basic pipe: `No premise exists yet. Use 'set premise ...' first.`
+- preprocessor pipe: `No premise exists yet. Use 'set premise ...' first.`
+- why this is a real win: lifecycle rule is enforced deterministically; base model drifts into generic rewriting help.
+
+**Case 2**
+
+- prompt(s): `clear state` → `use docker` → `prohibit docker`
+- base model: generic Docker/prohibition guidance text
+- basic pipe: `'docker' is already in use. Only one policy per item is allowed. Use 'reset policies' to change it.`
+- preprocessor pipe: same conflict clarify
+- why this is a real win: explicit conflict semantics are preserved instead of conversational interpretation.
+
+**Case 3**
+
+- prompt(s): `clear state` → `use podman instead of docker`
+- base model: generic “how to switch to Podman” tutorial
+- basic pipe: `No exact policy found for "docker". Replacement requires an exact policy match...`
+- preprocessor pipe: same replacement clarify
+- why this is a real win: replacement precondition (old item must exist) is enforced.
+
+**Case 4**
+
+- prompt(s): `clear state` → `set premise to concise replies` → `set premise formal tone`
+- base model: accepts both as conversational style requests
+- basic pipe: `Did you mean 'set premise concise replies'?` then conversational formal-tone rewrite
+- preprocessor pipe: `Premise set: Concise replies.` then `Premise already exists...`
+- why this is a real win: preprocessor canonicalizes near-miss form and preserves premise-slot semantics end-to-end.
+
+**Case 5**
+
+- prompt(s): `clear state` → `change premise concise replies`
+- base model: generic “please clarify changes” response
+- basic pipe: `Did you mean 'change premise to concise replies'?`
+- preprocessor pipe: `No premise exists yet. Use 'set premise ...' first.`
+- why this is a real win: preprocessor upgrades near-miss form and reaches the correct lifecycle clarify state instead of stopping at syntax clarify.
