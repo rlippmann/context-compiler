@@ -92,12 +92,12 @@ The host supplies the authoritative state to the model so the constraint persist
 
 LLMs interpret intent. Context Compiler enforces it.
 
-**Near-miss directive**
+**Explicit directive**
 ```text
-set premise to concise replies
+set premise concise replies
 ```
 - Base model: silently accepts / rewrites
-- Context Compiler: clarifies (“Did you mean 'set premise concise replies'?”)
+- Context Compiler: applies a deterministic state update
 
 **State-dependent operation**
 ```text
