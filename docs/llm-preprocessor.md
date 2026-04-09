@@ -32,6 +32,20 @@ Use prompt files from `experimental/preprocessor/prompts/`:
 
 These files are the maintained prompt sources for host-side preprocessor use.
 
+## Prompt rendering helper
+
+Shared prompt rendering lives in `experimental/preprocessor/prompt_utils.py`:
+
+- `render_prompt(path: Path, state) -> str | None`
+
+Behavior:
+
+- reads the prompt file from `path`
+- strips leading `#` header comment lines and leading blank lines
+- replaces `<NULL_OR_VALUE>` with `null` or current premise
+- replaces `<SET OF CURRENT POLICY ITEMS>` with sorted policy keys or `(none)`
+- returns `None` if the file cannot be loaded
+
 ## Examples
 
 ```text

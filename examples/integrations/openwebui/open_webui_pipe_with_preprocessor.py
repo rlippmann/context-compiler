@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 _CC_MARKER = "[[cc_state]]"
 _ENGINES_BY_CHAT_KEY: dict[str, Engine] = {}
 _HEURISTIC_PRECOMPILE: Any | None = None
+_RENDER_PROMPT_HELPER: Any | None = None
 
 # Keep accepted output strict: fallback text must be a canonical directive line
 # or we treat it as no directive.
@@ -122,6 +123,20 @@ def _load_heuristic_precompile() -> Any:
     return fn
 
 
+def _load_render_prompt_helper() -> Any:
+    """Load shared prompt renderer from experimental preprocessor utilities."""
+    module_path = _repo_root() / "experimental" / "preprocessor" / "prompt_utils.py"
+    spec = importlib.util.spec_from_file_location("preprocessor_prompt_utils_runtime", module_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load prompt utils module: {module_path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    fn = getattr(module, "render_prompt", None)
+    if fn is None or not callable(fn):
+        raise RuntimeError("prompt_utils.py does not define callable render_prompt")
+    return fn
+
+
 def _get_heuristic_precompile() -> Any:
     # Load once per process to keep per-message overhead low in this example.
     global _HEURISTIC_PRECOMPILE
@@ -132,6 +147,18 @@ def _get_heuristic_precompile() -> Any:
             logger.debug("preprocessor: heuristic_unavailable=%s", exc)
             _HEURISTIC_PRECOMPILE = _noop_precompile
     return _HEURISTIC_PRECOMPILE
+
+
+def _get_render_prompt_helper() -> Any:
+    """Return cached render helper; return ``None`` when unavailable."""
+    global _RENDER_PROMPT_HELPER
+    if _RENDER_PROMPT_HELPER is None:
+        try:
+            _RENDER_PROMPT_HELPER = _load_render_prompt_helper()
+        except Exception as exc:
+            logger.debug("preprocessor: prompt_render_helper_unavailable=%s", exc)
+            _RENDER_PROMPT_HELPER = None
+    return _RENDER_PROMPT_HELPER
 
 
 def _resolve_chat_key(
@@ -227,20 +254,6 @@ def _is_allowed_directive(text: str) -> bool:
     return any(pattern.fullmatch(text) for pattern in _ALLOWED_DIRECTIVE_PATTERNS)
 
 
-def _render_prompt_template(prompt_template: str, state: State) -> str:
-    premise = get_premise_value(state)
-    premise_value = "null" if premise is None else premise
-
-    all_policy_items = sorted(
-        set(get_policy_items(state, "use")) | set(get_policy_items(state, "prohibit"))
-    )
-    policies_value = ", ".join(all_policy_items) if all_policy_items else "(none)"
-
-    rendered = prompt_template.replace("<NULL_OR_VALUE>", premise_value)
-    rendered = rendered.replace("<SET OF CURRENT POLICY ITEMS>", policies_value)
-    return rendered
-
-
 def _llm_fallback_precompile(
     message: str, state: State, *, prompt_profile: str, model: str
 ) -> str | None:
@@ -251,11 +264,12 @@ def _llm_fallback_precompile(
     except Exception as exc:
         logger.debug("preprocessor: prompt_unavailable=%s", exc)
         return None
-    if not prompt_path.exists():
+    render_prompt = _get_render_prompt_helper()
+    if render_prompt is None:
         return None
-
-    prompt_template = prompt_path.read_text(encoding="utf-8")
-    prompt = _render_prompt_template(prompt_template, state)
+    prompt = cast(str | None, render_prompt(prompt_path, state))
+    if prompt is None:
+        return None
 
     try:
         from litellm import completion  # type: ignore[import-not-found]
