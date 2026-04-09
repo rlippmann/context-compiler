@@ -88,18 +88,34 @@ The host supplies the authoritative state to the model so the constraint persist
 
 ---
 
-## Evidence (cross-model runs)
+## Deterministic behavior (examples)
 
-Behavior was evaluated using a fixed set of deterministic [demo scenarios](demos/).
+LLMs interpret intent. Context Compiler enforces it.
 
-A run is considered a "pass" if the model output satisfies the scenario’s expected behavior.
+**Explicit directive**
+```text
+set premise concise replies
+```
+- Base model: silently accepts / rewrites
+- Context Compiler: applies a deterministic state update
 
-- Models tested: `llama3.1:8b`, `gpt-4o-mini`, `gpt-4.1`, `gpt-5`, `claude-sonnet-4`, `claude-opus-4`
-- Demo scenarios (all pass with compiler) cover ambiguity handling, constraint persistence, correction replacement, and tool governance.
-- Pass-rate summary: baseline (LLM only) `2–4 / 6`; with compiler `6 / 6`; with compiler + compaction `6 / 6`.
-- Context reduction in long conversations: up to `99%`
-- Prompt size reduction: about `50%`
-- [SWE curated results (compiler vs baseline)](evals/swe-bench/README.md) — cross-model evaluation on 6 tasks showing mostly positive deltas
+**State-dependent operation**
+```text
+clear state
+use podman instead of docker
+```
+- Base model: generic explanation
+- Context Compiler: rejects (“No exact policy found for 'docker'…”)
+
+**Lifecycle enforcement**
+```text
+clear state
+change premise to formal tone
+```
+- Base model: conversational rewrite guidance
+- Context Compiler: clarifies (“No premise exists yet…”)
+
+---
 
 ---
 
@@ -222,19 +238,6 @@ For full directive grammar and edge-case behavior, see [DirectiveGrammarSpec.md]
 
 ---
 
-## Conformance Fixtures
-
-Cross-language conformance tests are defined in [`tests/fixtures/`](tests/fixtures/).
-
----
-
-## Advanced topics
-
-- [LLM preprocessor](docs/llm-preprocessor.md)
-- [Multiple engines](docs/multi-engine.md)
-
----
-
 ## Guarantees
 
 - State changes only through explicit user directives or confirmation.
@@ -246,12 +249,55 @@ These invariants are verified through behavioral tests and Hypothesis-based prop
 
 ---
 
+## Evidence
+
+### Behavioral correctness (key examples)
+
+Concrete behavioral comparisons (base model vs compiler) are available here:
+
+- [Open WebUI integration README](examples/integrations/openwebui/README.md)
+
+These demonstrate deterministic clarification, state enforcement, and conflict handling.
+
+### Cross-model evaluation
+
+- Models tested: `llama3.1:8b`, `gpt-4o-mini`, `gpt-4.1`, `gpt-5`, `claude-sonnet-4`, `claude-opus-4`
+- Pass-rate summary: baseline (LLM only) `2–4 / 6`; with compiler `6 / 6`; with compiler + compaction `6 / 6`.
+
+### Efficiency
+
+- Context reduction in long conversations: up to `99%`
+- Prompt size reduction: about `50%`
+
+### Additional results
+
+- [SWE curated results (compiler vs baseline)](evals/swe-bench/README.md) — cross-model evaluation on 6 tasks showing mostly positive deltas
+
+
+---
+
+
+## Advanced topics
+
+- [LLM preprocessor](docs/llm-preprocessor.md)
+- [Multiple engines](docs/multi-engine.md)
+
+For a full documentation map, see [docs/README.md](docs/README.md).
+
+---
+
 ## Design Notes
 
 More detailed design and milestone documents are available in:
 
 - [Project overview](docs/DescriptionAndMilestones.md)
 - [Directive grammar specification](docs/DirectiveGrammarSpec.md)
+
+---
+
+## Conformance Fixtures
+
+Cross-language conformance tests are defined in [`tests/fixtures/`](tests/fixtures/).
 
 ---
 
