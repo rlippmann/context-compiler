@@ -64,7 +64,7 @@ class ContextCompilerPreCallHook(CustomLogger):  # type: ignore[misc]
         ],
     ) -> dict[str, object] | str:
         del user_api_key_dict, cache
-        if call_type not in {"completion", "text_completion"}:
+        if call_type != "completion":
             return data
 
         request_messages = _extract_request_messages(data)
@@ -72,9 +72,8 @@ class ContextCompilerPreCallHook(CustomLogger):  # type: ignore[misc]
         replay_result = compile_transcript(user_transcript)
 
         if replay_result["kind"] == "confirm":
-            # Intentional minimal blocking behavior: for completion/text completion
-            # calls, returning a string here is treated by LiteLLM as a rejected
-            # assistant response, so the upstream model call is not executed.
+            # Returning a string from this pre-call hook blocks the upstream
+            # LiteLLM model call under LiteLLM callback semantics.
             return replay_result["prompt_to_user"] or "Confirmation required."
 
         compiled_state = replay_result["state"]
