@@ -16,6 +16,7 @@ import os
 from typing import Any, cast
 
 from context_compiler import State, get_policy_items, get_premise_value
+from context_compiler.engine import Engine
 
 logger = logging.getLogger(__name__)
 
@@ -72,17 +73,15 @@ def _call_litellm(messages: list[dict[str, str]]) -> str:
     return cast(str, response["choices"][0]["message"]["content"])
 
 
-def handle_turn(user_input: str, engine: Any) -> str:
+def handle_turn(user_input: str, engine: Engine) -> str:
     logger.debug("litellm_basic: engine_input=%r", user_input)
     decision = engine.step(user_input)
     kind = cast(str, decision["kind"])
     logger.debug("litellm_basic: decision=%s", kind)
 
     if kind == "clarify":
-        return cast(str, decision["prompt_to_user"] or "")
+        return decision["prompt_to_user"] or ""
 
-    compiled_state = cast(
-        State, decision["state"] if decision["state"] is not None else engine.state
-    )
+    compiled_state = decision["state"] if decision["state"] is not None else engine.state
     messages = _build_messages(user_input, compiled_state)
     return _call_litellm(messages)

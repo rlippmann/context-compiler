@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from context_compiler import State, get_policy_items, get_premise_value
+from context_compiler.engine import Engine
 from experimental.preprocessor.heuristic_precompiler import precompile_heuristic
 from experimental.preprocessor.prompt_utils import render_prompt
 
@@ -181,8 +182,8 @@ def _precompile_user_input(message: str, state: State) -> str | None:
         return None
 
 
-def handle_turn(user_input: str, engine: Any) -> str:
-    precompiled = _precompile_user_input(user_input, cast(State, engine.state))
+def handle_turn(user_input: str, engine: Engine) -> str:
+    precompiled = _precompile_user_input(user_input, engine.state)
     logger.debug("preprocessor: precompiled=%r", precompiled)
 
     compile_input = precompiled if precompiled else user_input
@@ -193,10 +194,8 @@ def handle_turn(user_input: str, engine: Any) -> str:
     logger.debug("preprocessor: decision=%s", kind)
 
     if kind == "clarify":
-        return cast(str, decision["prompt_to_user"] or "")
+        return decision["prompt_to_user"] or ""
 
-    compiled_state = cast(
-        State, decision["state"] if decision["state"] is not None else engine.state
-    )
+    compiled_state = decision["state"] if decision["state"] is not None else engine.state
     messages = _build_messages(user_input, compiled_state)
     return _call_litellm(messages)
