@@ -16,8 +16,9 @@ Intended host usage:
 import logging
 import os
 import re
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Any, cast
+from typing import TypedDict, cast
 
 from context_compiler import State, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
@@ -40,10 +41,41 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 _PROMPTS_DIR = _REPO_ROOT / "experimental" / "preprocessor" / "prompts"
 
 
-def _get_litellm_completion() -> Any:
+class _LiteLLMCallKwargs(TypedDict, total=False):
+    model: str
+    messages: list[dict[str, str]]
+    api_key: str
+    temperature: float
+    api_base: str
+
+
+def _extract_response_content(response: object) -> str | None:
+    if isinstance(response, Mapping):
+        choices = response.get("choices")
+        if isinstance(choices, Sequence) and choices:
+            first = choices[0]
+            if isinstance(first, Mapping):
+                message = first.get("message")
+                if isinstance(message, Mapping):
+                    content = message.get("content")
+                    if isinstance(content, str):
+                        return content
+
+    choices_attr = getattr(response, "choices", None)
+    if isinstance(choices_attr, Sequence) and choices_attr:
+        first = choices_attr[0]
+        message_attr = getattr(first, "message", None)
+        content_attr = getattr(message_attr, "content", None)
+        if isinstance(content_attr, str):
+            return content_attr
+
+    return None
+
+
+def _get_litellm_completion() -> Callable[..., object]:
     from litellm import completion  # type: ignore[import-not-found]
 
-    return completion
+    return cast(Callable[..., object], completion)
 
 
 def _render_compiled_state_contract(compiled_state: State) -> str:
@@ -84,7 +116,7 @@ def _call_litellm(messages: list[dict[str, str]]) -> str:
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is required.")
 
-    kwargs: dict[str, Any] = {
+    kwargs: _LiteLLMCallKwargs = {
         "model": os.getenv("MODEL", "openai/gpt-4o-mini"),
         "messages": messages,
         "api_key": api_key,
@@ -95,7 +127,10 @@ def _call_litellm(messages: list[dict[str, str]]) -> str:
         kwargs["api_base"] = base_url
 
     response = completion(**kwargs)
-    return cast(str, response["choices"][0]["message"]["content"])
+    content = _extract_response_content(response)
+    if content is None:
+        raise RuntimeError("LiteLLM response missing choices[0].message.content")
+    return content
 
 
 def _normalize_precompiler_output(raw_output: object) -> str | None:
@@ -139,7 +174,7 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
     if not api_key:
         return None
 
-    kwargs: dict[str, Any] = {
+    kwargs: _LiteLLMCallKwargs = {
         "model": os.getenv("MODEL", "openai/gpt-4o-mini"),
         "messages": [
             {"role": "system", "content": prompt},
@@ -154,7 +189,7 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
 
     try:
         response = completion(**kwargs)
-        raw_output = cast(Any, response.choices[0].message.content)
+        raw_output = _extract_response_content(response)
     except Exception:
         return None
 

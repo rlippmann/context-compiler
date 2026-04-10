@@ -13,12 +13,44 @@ Intended host usage:
 
 import logging
 import os
-from typing import Any, cast
+from collections.abc import Callable, Mapping, Sequence
+from typing import TypedDict, cast
 
 from context_compiler import State, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
 
 logger = logging.getLogger(__name__)
+
+
+class _LiteLLMCallKwargs(TypedDict, total=False):
+    model: str
+    messages: list[dict[str, str]]
+    api_key: str
+    temperature: float
+    api_base: str
+
+
+def _extract_response_content(response: object) -> str | None:
+    if isinstance(response, Mapping):
+        choices = response.get("choices")
+        if isinstance(choices, Sequence) and choices:
+            first = choices[0]
+            if isinstance(first, Mapping):
+                message = first.get("message")
+                if isinstance(message, Mapping):
+                    content = message.get("content")
+                    if isinstance(content, str):
+                        return content
+
+    choices_attr = getattr(response, "choices", None)
+    if isinstance(choices_attr, Sequence) and choices_attr:
+        first = choices_attr[0]
+        message_attr = getattr(first, "message", None)
+        content_attr = getattr(message_attr, "content", None)
+        if isinstance(content_attr, str):
+            return content_attr
+
+    return None
 
 
 def _render_compiled_state_contract(compiled_state: State) -> str:
@@ -54,12 +86,13 @@ def _call_litellm(messages: list[dict[str, str]]) -> str:
         from litellm import completion  # type: ignore[import-not-found]
     except ModuleNotFoundError as exc:
         raise RuntimeError("litellm is required. Install with: pip install litellm") from exc
+    completion_fn: Callable[..., object] = completion
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is required.")
 
-    kwargs: dict[str, Any] = {
+    kwargs: _LiteLLMCallKwargs = {
         "model": os.getenv("MODEL", "openai/gpt-4o-mini"),
         "messages": messages,
         "api_key": api_key,
@@ -69,8 +102,11 @@ def _call_litellm(messages: list[dict[str, str]]) -> str:
     if base_url:
         kwargs["api_base"] = base_url
 
-    response = completion(**kwargs)
-    return cast(str, response["choices"][0]["message"]["content"])
+    response = completion_fn(**kwargs)
+    content = _extract_response_content(response)
+    if content is None:
+        raise RuntimeError("LiteLLM response missing choices[0].message.content")
+    return content
 
 
 def handle_turn(user_input: str, engine: Engine) -> str:
