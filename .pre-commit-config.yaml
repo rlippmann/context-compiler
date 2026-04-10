@@ -14,3 +14,5 @@ repos:
         args: [--pretty]
         additional_dependencies:
           - hypothesis
+          - litellm
+          - pydantic

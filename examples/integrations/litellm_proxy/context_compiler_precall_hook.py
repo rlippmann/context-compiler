@@ -6,9 +6,9 @@ Architecture:
 - Otherwise inject compiled state guidance into a system message.
 """
 
-from typing import Any, Literal
+from typing import Any
 
-from litellm.integrations.custom_logger import CustomLogger  # type: ignore[import-not-found]
+from litellm.integrations.custom_logger import CustomLogger
 
 from context_compiler import State, compile_transcript, get_policy_items, get_premise_value
 
@@ -48,20 +48,13 @@ def _extract_user_transcript(messages: list[dict[str, object]]) -> list[dict[str
     return transcript
 
 
-class ContextCompilerPreCallHook(CustomLogger):  # type: ignore[misc]
+class ContextCompilerPreCallHook(CustomLogger):
     async def async_pre_call_hook(
         self,
         user_api_key_dict: Any,
         cache: Any,
         data: dict[str, object],
-        call_type: Literal[
-            "completion",
-            "text_completion",
-            "embeddings",
-            "image_generation",
-            "moderation",
-            "audio_transcription",
-        ],
+        call_type: str,
     ) -> dict[str, object] | str:
         del user_api_key_dict, cache
         if call_type != "completion":

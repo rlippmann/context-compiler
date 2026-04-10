@@ -27,7 +27,7 @@ from typing import Any, Literal, TypedDict, cast
 from fastapi import Request  # type: ignore[import-not-found]
 from open_webui.models.users import Users  # type: ignore[import-not-found]
 from open_webui.utils.chat import generate_chat_completion  # type: ignore[import-not-found]
-from pydantic import BaseModel, Field  # type: ignore[import-not-found]
+from pydantic import BaseModel, Field
 
 import context_compiler
 from context_compiler import State, create_engine, get_policy_items, get_premise_value
@@ -339,7 +339,7 @@ class Pipe:
     heuristic first, then LLM fallback.
     """
 
-    class Valves(BaseModel):  # type: ignore[misc]
+    class Valves(BaseModel):
         BASE_MODEL_ID: str = Field(
             default="",
             description="Open WebUI model id used as the base model for forwarding.",
