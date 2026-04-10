@@ -6,6 +6,11 @@ Flow:
 3. If no directive, run LLM fallback precompiler using prompt files
 4. Pass directive (or original input) to engine.step(...)
 5. Handle clarify/passthrough/update like the basic integration
+
+Intended host usage:
+- collect user input
+- call handle_turn(user_input, engine)
+- display returned assistant text
 """
 
 import logging
@@ -14,7 +19,7 @@ import re
 from pathlib import Path
 from typing import Any, cast
 
-from context_compiler import State, create_engine, get_policy_items, get_premise_value
+from context_compiler import State, get_policy_items, get_premise_value
 from experimental.preprocessor.heuristic_precompiler import precompile_heuristic
 from experimental.preprocessor.prompt_utils import render_prompt
 
@@ -164,11 +169,10 @@ def _precompile_user_input(message: str, state: State) -> str | None:
     # Heuristic first (fast + high precision), then optional LLM fallback.
     try:
         heuristic_result = precompile_heuristic(message)
+        if heuristic_result["outcome"] == "directive" and heuristic_result["directive"]:
+            return heuristic_result["directive"]
     except Exception:
-        return None
-
-    if heuristic_result["outcome"] == "directive" and heuristic_result["directive"]:
-        return heuristic_result["directive"]
+        pass
 
     try:
         return _llm_fallback_precompile(message, state)
@@ -196,26 +200,3 @@ def handle_turn(user_input: str, engine: Any) -> str:
     )
     messages = _build_messages(user_input, compiled_state)
     return _call_litellm(messages)
-
-
-def main() -> None:
-    engine = create_engine()
-
-    turns = [
-        "set premise to concise replies",
-        "change premise to formal tone",
-        "use docker",
-        "prohibit docker",
-        "use podman instead of docker",
-        "please use docker",
-        "I usually use docker",
-    ]
-
-    for turn in turns:
-        print(f"User: {turn}")
-        print(f"Assistant: {handle_turn(turn, engine)}")
-        print()
-
-
-if __name__ == "__main__":
-    main()

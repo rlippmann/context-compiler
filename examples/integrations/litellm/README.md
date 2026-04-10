@@ -22,14 +22,14 @@ export PREPROCESSOR_PROMPT_PROFILE=default  # or llama (with_preprocessor.py onl
 
 `MODEL` uses LiteLLM format: `<provider>/<model>`.
 
-## Run
+## Usage pattern
 
-From repo root:
+These files are importable integration references for host applications.
 
-```shell
-uv run python examples/integrations/litellm/basic.py
-uv run python examples/integrations/litellm/with_preprocessor.py
-```
+- Import `handle_turn(...)` from either `basic.py` or `with_preprocessor.py`.
+- Create and retain an engine instance in host/session state.
+- Pass each user input through `handle_turn(user_input, engine)`.
+- Display the returned assistant text.
 
 ## Basic vs preprocessor behavior
 
