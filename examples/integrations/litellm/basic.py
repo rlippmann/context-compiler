@@ -4,13 +4,18 @@ Flow:
 1. Call engine.step(user_input)
 2. clarify -> return prompt_to_user (no model call)
 3. passthrough/update -> call LiteLLM with compiled state + user input
+
+Intended host usage:
+- collect user input
+- call handle_turn(user_input, engine)
+- display returned assistant text
 """
 
 import logging
 import os
 from typing import Any, cast
 
-from context_compiler import State, create_engine, get_policy_items, get_premise_value
+from context_compiler import State, get_policy_items, get_premise_value
 
 logger = logging.getLogger(__name__)
 
@@ -81,24 +86,3 @@ def handle_turn(user_input: str, engine: Any) -> str:
     )
     messages = _build_messages(user_input, compiled_state)
     return _call_litellm(messages)
-
-
-def main() -> None:
-    engine = create_engine()
-
-    turns = [
-        "set premise to concise replies",
-        "change premise to formal tone",
-        "use docker",
-        "prohibit docker",
-        "use podman instead of docker",
-    ]
-
-    for turn in turns:
-        print(f"User: {turn}")
-        print(f"Assistant: {handle_turn(turn, engine)}")
-        print()
-
-
-if __name__ == "__main__":
-    main()
