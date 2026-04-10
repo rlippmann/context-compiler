@@ -6,6 +6,10 @@ These examples show how to integrate Context Compiler with external systems.
 
 Minimal example showing how to run Context Compiler before an LLM call with LiteLLM.
 
+Files:
+- Legacy single-file example: [litellm_sdk.py](litellm_sdk.py)
+- New examples (basic + preprocessor): [litellm/README.md](litellm/README.md)
+
 ### Requirements
 
 ```shell
