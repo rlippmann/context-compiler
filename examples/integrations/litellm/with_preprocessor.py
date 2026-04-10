@@ -17,6 +17,7 @@ import logging
 import os
 import re
 from collections.abc import Callable, Mapping, Sequence
+from importlib import import_module
 from pathlib import Path
 from typing import TypedDict, cast
 
@@ -73,9 +74,8 @@ def _extract_response_content(response: object) -> str | None:
 
 
 def _get_litellm_completion() -> Callable[..., object]:
-    from litellm import completion  # type: ignore[import-not-found]
-
-    return cast(Callable[..., object], completion)
+    litellm_module = import_module("litellm")
+    return cast(Callable[..., object], litellm_module.completion)
 
 
 def _render_compiled_state_contract(compiled_state: State) -> str:

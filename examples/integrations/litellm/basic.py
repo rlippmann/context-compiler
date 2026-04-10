@@ -14,6 +14,7 @@ Intended host usage:
 import logging
 import os
 from collections.abc import Callable, Mapping, Sequence
+from importlib import import_module
 from typing import TypedDict, cast
 
 from context_compiler import State, get_policy_items, get_premise_value
@@ -83,10 +84,10 @@ def _build_messages(user_input: str, compiled_state: State) -> list[dict[str, st
 
 def _call_litellm(messages: list[dict[str, str]]) -> str:
     try:
-        from litellm import completion  # type: ignore[import-not-found]
+        litellm_module = import_module("litellm")
     except ModuleNotFoundError as exc:
         raise RuntimeError("litellm is required. Install with: pip install litellm") from exc
-    completion_fn: Callable[..., object] = completion
+    completion_fn = cast(Callable[..., object], litellm_module.completion)
 
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:

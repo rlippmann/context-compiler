@@ -16,6 +16,7 @@ This example extends `open_webui_pipe.py` by inserting a preprocessing step:
 Core decision handling remains the same as the base integration.
 """
 
+import importlib
 import importlib.util
 import logging
 import os
@@ -272,7 +273,8 @@ def _llm_fallback_precompile(
         return None
 
     try:
-        from litellm import completion  # type: ignore[import-not-found]
+        litellm_module = importlib.import_module("litellm")
+        completion = cast(Any, litellm_module.completion)
     except ModuleNotFoundError:
         return None
 

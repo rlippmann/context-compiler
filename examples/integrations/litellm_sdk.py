@@ -7,9 +7,8 @@ Architecture:
 """
 
 import os
+from importlib import import_module
 from typing import Any, cast
-
-from litellm import completion  # type: ignore[import-not-found]
 
 from context_compiler import State, create_engine, get_policy_items, get_premise_value
 
@@ -45,6 +44,12 @@ def _build_messages(user_input: str, compiled_state: State) -> list[dict[str, st
 
 
 def _call_litellm(messages: list[dict[str, str]]) -> str:
+    try:
+        litellm_module = import_module("litellm")
+    except ModuleNotFoundError as exc:
+        raise RuntimeError("litellm is required. Install with: pip install litellm") from exc
+    completion = cast(Any, litellm_module.completion)
+
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         raise RuntimeError("OPENAI_API_KEY is required.")
