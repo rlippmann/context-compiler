@@ -6,11 +6,14 @@ Architecture:
 - Otherwise inject compiled state guidance into a system message.
 """
 
+import logging
 from typing import Any
 
 from litellm.integrations.custom_logger import CustomLogger
 
 from context_compiler import State, compile_transcript, get_policy_items, get_premise_value
+
+logger = logging.getLogger(__name__)
 
 
 def _render_compiled_state_contract(compiled_state: State) -> str:
@@ -57,16 +60,21 @@ class ContextCompilerPreCallHook(CustomLogger):
         call_type: str,
     ) -> dict[str, object] | str:
         del user_api_key_dict, cache
+        logger.debug("litellm_proxy: call_type=%s", call_type)
         if call_type != "completion":
             return data
 
         request_messages = _extract_request_messages(data)
+        logger.debug("litellm_proxy: message_count=%d", len(request_messages))
         user_transcript = _extract_user_transcript(request_messages)
+        logger.debug("litellm_proxy: transcript_len=%d", len(user_transcript))
         replay_result = compile_transcript(user_transcript)
+        logger.debug("litellm_proxy: replay_kind=%s", replay_result["kind"])
 
         if replay_result["kind"] == "confirm":
             # Returning a string from this pre-call hook blocks the upstream
             # LiteLLM model call under LiteLLM callback semantics.
+            logger.debug("litellm_proxy: blocking_on_confirm=true")
             return replay_result["prompt_to_user"] or "Confirmation required."
 
         compiled_state = replay_result["state"]
@@ -78,6 +86,7 @@ class ContextCompilerPreCallHook(CustomLogger):
         }
         # Prepend one compiler contract system message, then forward the original
         # request messages unchanged. Existing system messages are preserved.
+        logger.debug("litellm_proxy: inject_system_message=true")
         data["messages"] = [system_message, *request_messages]
         return data
 
