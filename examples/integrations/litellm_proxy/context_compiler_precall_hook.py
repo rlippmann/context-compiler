@@ -41,13 +41,32 @@ def _extract_request_messages(data: dict[str, object]) -> list[dict[str, object]
     return [msg for msg in raw_messages if isinstance(msg, dict)]
 
 
+def _extract_text_content(content: object) -> str | None:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        text_parts: list[str] = []
+        for item in content:
+            if not isinstance(item, dict):
+                continue
+            if item.get("type") != "text":
+                continue
+            text = item.get("text")
+            if isinstance(text, str):
+                text_parts.append(text)
+        if text_parts:
+            return " ".join(text_parts)
+    return None
+
+
 def _extract_user_transcript(messages: list[dict[str, object]]) -> list[dict[str, object]]:
     transcript: list[dict[str, object]] = []
     for message in messages:
         role = message.get("role")
         content = message.get("content")
-        if role == "user" and isinstance(content, str):
-            transcript.append({"role": "user", "content": content})
+        text_content = _extract_text_content(content)
+        if role == "user" and text_content is not None:
+            transcript.append({"role": "user", "content": text_content})
     return transcript
 
 
