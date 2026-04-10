@@ -3,6 +3,11 @@
 This example shows how to run Context Compiler inside a LiteLLM proxy pre-call hook.
 The hook enforces deterministic state handling before any upstream model call.
 
+Available hook files:
+
+- Basic replay-only hook: `context_compiler_precall_hook.py`
+- Preprocessor-enabled hook: `context_compiler_precall_hook_with_preprocessor.py`
+
 ### Requirements
 
 ```shell
@@ -17,7 +22,8 @@ litellm --config config.example.yaml
 ```
 
 The proxy runs on `http://localhost:4000` by default.
-The proxy loads the Context Compiler pre-call hook from `context_compiler_precall_hook.py`.
+By default, `config.example.yaml` points to the basic replay-only hook.
+To use the preprocessor variant, switch the callback path in the config.
 
 ### Make a request
 
@@ -52,6 +58,19 @@ curl http://localhost:4000/v1/chat/completions \
 - User messages are replayed through Context Compiler before the model call.
 - If clarification is required, the proxy returns the clarification text as the response instead of calling the model.
 - Otherwise, compiled state is injected into a system message.
+
+Preprocessor-enabled variant behavior:
+
+- Only the latest user transcript message is preprocessed for compiler replay input.
+- Heuristic runs first; if no directive is found, LLM fallback is attempted.
+- Forwarded upstream request messages are not rewritten (except injected compiler system message).
+
+Optional env vars for preprocessor fallback:
+
+```shell
+export PREPROCESSOR_MODEL=openai/gpt-4o-mini
+export PREPROCESSOR_PROMPT_PROFILE=default  # or llama
+```
 
 ### Note
 
