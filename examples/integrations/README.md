@@ -7,8 +7,7 @@ These examples show how to integrate Context Compiler with external systems.
 Minimal example showing how to run Context Compiler before an LLM call with LiteLLM.
 
 Files:
-- Legacy single-file example: [litellm_sdk.py](litellm_sdk.py)
-- New examples (basic + preprocessor): [litellm/README.md](litellm/README.md)
+- Examples (basic + preprocessor): [litellm/README.md](litellm/README.md)
 
 ### Requirements
 
@@ -19,11 +18,8 @@ export OPENAI_API_KEY=...
 
 ### Run
 
-MODEL uses the format `<provider>/<model>`, e.g. `openai/gpt-4o-mini`.
-
-```shell
-MODEL=openai/gpt-4o-mini python litellm_sdk.py
-```
+See the LiteLLM examples README for setup and usage:
+[litellm/README.md](litellm/README.md)
 
 ### Behavior
 
