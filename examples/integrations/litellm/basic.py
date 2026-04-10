@@ -74,7 +74,7 @@ def _call_litellm(messages: list[dict[str, str]]) -> str:
 
 
 def handle_turn(user_input: str, engine: Engine) -> str:
-    logger.debug("litellm_basic: engine_input=%r", user_input)
+    logger.debug("litellm_basic: engine_input=%s", f"user_input len={len(user_input)}")
     decision = engine.step(user_input)
     kind = cast(str, decision["kind"])
     logger.debug("litellm_basic: decision=%s", kind)

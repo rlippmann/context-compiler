@@ -170,13 +170,17 @@ def _precompile_user_input(message: str, state: State) -> str | None:
     # Heuristic first (fast + high precision), then optional LLM fallback.
     try:
         heuristic_result = precompile_heuristic(message)
+        logger.debug("preprocessor: heuristic_outcome=%s", heuristic_result["outcome"])
         if heuristic_result["outcome"] == "directive" and heuristic_result["directive"]:
+            logger.debug("preprocessor: heuristic_directive=%r", heuristic_result["directive"])
             return heuristic_result["directive"]
     except Exception:
-        pass
+        logger.debug("preprocessor: heuristic_exception", exc_info=True)
 
     try:
-        return _llm_fallback_precompile(message, state)
+        fallback_directive = _llm_fallback_precompile(message, state)
+        logger.debug("preprocessor: fallback_directive=%r", fallback_directive)
+        return fallback_directive
     except Exception:
         # Safe no-op fallback: if preprocessor path fails, preserve basic behavior.
         return None
@@ -184,10 +188,12 @@ def _precompile_user_input(message: str, state: State) -> str | None:
 
 def handle_turn(user_input: str, engine: Engine) -> str:
     precompiled = _precompile_user_input(user_input, engine.state)
-    logger.debug("preprocessor: precompiled=%r", precompiled)
 
     compile_input = precompiled if precompiled else user_input
-    logger.debug("preprocessor: engine_input=%r", compile_input)
+    logger.debug(
+        "preprocessor: engine_input=%s",
+        "directive" if precompiled else f"user_input len={len(user_input)}",
+    )
 
     decision = engine.step(compile_input)
     kind = cast(str, decision["kind"])
