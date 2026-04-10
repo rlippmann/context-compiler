@@ -33,8 +33,6 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
-from litellm import completion  # type: ignore[import-not-found]
-
 from context_compiler import create_engine
 
 RUBRIC_WEIGHTS: dict[str, int] = {
@@ -436,6 +434,12 @@ def _temporary_litellm_drop_params(enabled: bool) -> Any:
 
 
 def call_model(prompt: str, cfg: RunConfig) -> str:
+    try:
+        litellm_module = import_module("litellm")
+    except ModuleNotFoundError as exc:
+        raise RuntimeError("litellm is required. Install with: pip install litellm") from exc
+    completion = cast(Any, litellm_module.completion)
+
     provider = detect_provider(cfg.model)
     kwargs: dict[str, Any] = {
         "model": cfg.model,
