@@ -1,0 +1,47 @@
+name: Stress Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      stress_loops:
+        description: Number of full pytest stress loops
+        required: false
+        default: "10"
+  schedule:
+    - cron: "0 3 * * *"
+
+jobs:
+  stress-tests:
+    name: Stress tests
+    runs-on: ubuntu-latest
+    env:
+      STRESS_LOOPS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.stress_loops || '10' }}
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dev dependencies
+        run: uv sync --extra dev
+
+      - name: Run pytest stress loop
+        shell: bash
+        run: |
+          loops="${STRESS_LOOPS}"
+          if ! [[ "$loops" =~ ^[1-9][0-9]*$ ]]; then
+            echo "Invalid stress loop count: $loops"
+            exit 1
+          fi
+          for i in $(seq 1 "$loops"); do
+            echo "== stress run $i/$loops =="
+            uv run pytest -q
+          done
