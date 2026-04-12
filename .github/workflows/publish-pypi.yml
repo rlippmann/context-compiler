@@ -3,12 +3,6 @@ name: Publish to PyPI
 on:
   release:
     types: [published]
-  workflow_dispatch:
-    inputs:
-      stress_loops:
-        description: Number of full pytest stress loops to run before publish
-        required: false
-        default: "10"
 
 permissions:
   contents: read
@@ -18,8 +12,6 @@ jobs:
   stress-tests:
     name: Stress tests (release gate)
     runs-on: ubuntu-latest
-    env:
-      STRESS_LOOPS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.stress_loops || '10' }}
 
     steps:
       - uses: actions/checkout@v6
@@ -40,11 +32,7 @@ jobs:
       - name: Run pytest stress loop
         shell: bash
         run: |
-          loops="${STRESS_LOOPS}"
-          if ! [[ "$loops" =~ ^[1-9][0-9]*$ ]]; then
-            echo "Invalid stress loop count: $loops"
-            exit 1
-          fi
+          loops="10"
           for i in $(seq 1 "$loops"); do
             echo "== stress run $i/$loops =="
             uv run pytest -q
