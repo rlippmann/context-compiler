@@ -15,6 +15,13 @@ from context_compiler import State, compile_transcript, get_policy_items, get_pr
 
 logger = logging.getLogger(__name__)
 
+_SUPPORTED_CALL_TYPES = {
+    "completion",
+    "acompletion",
+    "chat_completion",
+    "achat_completion",
+}
+
 
 def _render_compiled_state_contract(compiled_state: State) -> str:
     prohibited = get_policy_items(compiled_state, "prohibit")
@@ -80,7 +87,7 @@ class ContextCompilerPreCallHook(CustomLogger):
     ) -> dict[str, object] | str:
         del user_api_key_dict, cache
         logger.debug("litellm_proxy: call_type=%s", call_type)
-        if call_type != "completion":
+        if call_type not in _SUPPORTED_CALL_TYPES:
             return data
 
         request_messages = _extract_request_messages(data)

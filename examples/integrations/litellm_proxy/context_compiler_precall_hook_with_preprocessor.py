@@ -27,6 +27,13 @@ from experimental.preprocessor.prompt_utils import render_prompt
 
 logger = logging.getLogger(__name__)
 
+_SUPPORTED_CALL_TYPES = {
+    "completion",
+    "acompletion",
+    "chat_completion",
+    "achat_completion",
+}
+
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _PROMPTS_DIR = _REPO_ROOT / "experimental" / "preprocessor" / "prompts"
 
@@ -206,7 +213,7 @@ class ContextCompilerPreCallHookWithPreprocessor(CustomLogger):
     ) -> dict[str, object] | str:
         del user_api_key_dict, cache
         logger.debug("litellm_proxy: call_type=%s", call_type)
-        if call_type != "completion":
+        if call_type not in _SUPPORTED_CALL_TYPES:
             return data
 
         request_messages = _extract_request_messages(data)
