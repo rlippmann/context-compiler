@@ -180,7 +180,9 @@ def _precompile_last_user_message(message: str, state: State | None) -> str | No
             heuristic_result["outcome"] == PRECOMPILE_OUTCOME_DIRECTIVE
             and heuristic_result["directive"]
         ):
-            return heuristic_result["directive"]
+            parsed = parse_precompiler_output(heuristic_result["directive"])
+            if parsed is not None and parsed != PRECOMPILER_NO_DIRECTIVE_SENTINEL:
+                return parsed
     except Exception:
         logger.debug("litellm_proxy: heuristic_exception", exc_info=True)
 

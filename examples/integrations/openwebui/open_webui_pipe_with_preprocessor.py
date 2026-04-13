@@ -366,7 +366,21 @@ def _precompile_user_input(
         heuristic_result["outcome"] == _PRECOMPILE_OUTCOME_DIRECTIVE
         and heuristic_result["directive"]
     ):
-        return heuristic_result["directive"]
+        if _PARSE_PRECOMPILER_OUTPUT_HELPER is not None:
+            parsed = cast(
+                str | None, _PARSE_PRECOMPILER_OUTPUT_HELPER(heuristic_result["directive"])
+            )
+            if parsed is not None and parsed != _NO_DIRECTIVE_SENTINEL:
+                return parsed
+        else:
+            parsed = _normalize_precompiler_output(heuristic_result["directive"])
+            if (
+                parsed is not None
+                and parsed != _NO_DIRECTIVE_SENTINEL
+                and parsed
+                and _is_allowed_directive(parsed)
+            ):
+                return parsed
 
     return _llm_fallback_precompile(
         message,

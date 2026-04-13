@@ -182,8 +182,10 @@ def _precompile_user_input(message: str, state: State) -> str | None:
             heuristic_result["outcome"] == PRECOMPILE_OUTCOME_DIRECTIVE
             and heuristic_result["directive"]
         ):
+            parsed = parse_precompiler_output(heuristic_result["directive"])
             logger.debug("preprocessor: heuristic_directive=%r", heuristic_result["directive"])
-            return heuristic_result["directive"]
+            if parsed is not None and parsed != PRECOMPILER_NO_DIRECTIVE_SENTINEL:
+                return parsed
     except Exception:
         logger.debug("preprocessor: heuristic_exception", exc_info=True)
 
