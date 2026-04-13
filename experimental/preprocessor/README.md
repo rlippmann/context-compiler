@@ -1,0 +1,62 @@
+# Experimental Preprocessor Package
+
+This package provides optional host-layer preprocessing utilities for Context
+Compiler integrations.
+
+It is experimental and separate from the deterministic core engine in `src/`.
+
+## Modules
+
+- `heuristic_precompiler.py`: conservative structural precompile pass.
+- `output_validation.py`: shared normalization/validation boundary.
+- `prompt_utils.py`: state-aware prompt rendering helper.
+- `constants.py`: shared protocol literals and directive validation patterns.
+- `prompts/default.txt`: default runtime prompt.
+- `prompts/llama.txt`: stricter prompt for Llama-family models in LLM-only mode.
+
+## Validation boundary (required)
+
+Public validator entry point:
+
+- `parse_precompiler_output(raw_output: object) -> str | None`
+
+All preprocessor outputs (heuristic or LLM) must be validated with
+`parse_precompiler_output(...)` before being applied.
+
+Raw preprocessor/LLM outputs must not be passed directly to the compiler.
+
+## Safe usage pattern
+
+1. Run `precompile_heuristic(message)`.
+2. If a heuristic candidate directive exists, validate it with
+   `parse_precompiler_output(...)`.
+3. If no valid directive was produced, run LLM fallback precompile.
+4. Validate fallback output with `parse_precompiler_output(...)`.
+5. Only then pass validated directive (or original input) into
+   `engine.step(...)` / transcript replay.
+
+## Prompt guidance
+
+- Use `prompts/default.txt` as the recommended default prompt.
+- Use `prompts/llama.txt` only for LLM-only preprocessing with Llama-family
+  models.
+- Heuristic-first integrations should still keep `default.txt` as the normal
+  fallback prompt unless there is a model-specific reason not to.
+
+## Prompt rendering helper
+
+`prompt_utils.py` exposes:
+
+- `render_prompt(path: Path, state: State) -> str | None`
+
+Behavior:
+
+- reads prompt text from `path`
+- strips leading `#` header lines and leading blank lines
+- replaces `<NULL_OR_VALUE>` and `<SET OF CURRENT POLICY ITEMS>` using state
+- returns `None` if prompt loading fails
+
+## Notes
+
+- This package does not mutate compiler state directly.
+- State changes still occur only through compiler parsing/replay paths.
