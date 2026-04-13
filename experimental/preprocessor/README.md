@@ -32,8 +32,12 @@ Raw preprocessor/LLM outputs must not be passed directly to the compiler.
    `parse_precompiler_output(...)`.
 3. If no valid directive was produced, run LLM fallback precompile.
 4. Validate fallback output with `parse_precompiler_output(...)`.
-5. Only then pass validated directive (or original input) into
-   `engine.step(...)` / transcript replay.
+5. If a valid directive is produced, pass it through a normal compiler input path.
+   For session-owned integrations, use `engine.step(...)`.
+   For transcript-based integrations that receive full chat history each turn:
+   - use `context_compiler.compile_transcript(...)` for stateless evaluation
+   - use `engine.apply_transcript(...)` to update an existing engine
+   Otherwise pass the original user input unchanged.
 
 ## Prompt guidance
 

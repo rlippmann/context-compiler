@@ -15,7 +15,8 @@ Recommended conceptual flow:
 2. validate candidate output
 3. LLM fallback precompile (only when needed)
 4. validate candidate output
-5. pass validated directive (or original input) to compiler
+5. If a valid directive is produced, pass it to the compiler.
+   Otherwise pass the original input unchanged.
 
 All preprocessor outputs, including heuristic outputs, must be validated with
 `parse_precompiler_output(...)` before being applied.
