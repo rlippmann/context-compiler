@@ -11,6 +11,14 @@ maybe avoid docker but actually don't use docker anymore
 
 The compiler remains deterministic and authoritative. The preprocessor is optional and external.
 
+## Usage Recommendations
+
+- Default: use heuristic precompilation first, then validator, then LLM fallback.
+- This gives the safest behavior: deterministic structural handling plus conservative fallback.
+- Use LLM-only mode only when heuristic precompilation is unavailable.
+- In LLM-only mode, use stricter prompting and validate outputs before applying them.
+- Llama-family models are typically more interpretive in LLM-only mode and may require extra prompt strictness.
+
 ## What it does
 
 The preprocessor tries to:
@@ -45,6 +53,8 @@ Behavior:
 - replaces `<NULL_OR_VALUE>` with `null` or current premise
 - replaces `<SET OF CURRENT POLICY ITEMS>` with sorted policy keys or `(none)`
 - returns `None` if the file cannot be loaded
+
+LLM outputs should be validated before being applied to ensure they match allowed directive forms.
 
 ## Examples
 
