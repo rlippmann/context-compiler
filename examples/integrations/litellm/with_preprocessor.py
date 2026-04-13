@@ -17,7 +17,8 @@ import logging
 import os
 from collections.abc import Callable, Mapping, Sequence
 from importlib import import_module
-from pathlib import Path
+from importlib.abc import Traversable
+from importlib.resources import as_file, files
 from typing import TypedDict, cast
 
 from context_compiler import State, get_policy_items, get_premise_value
@@ -32,8 +33,7 @@ from experimental.preprocessor.prompt_utils import render_prompt
 
 logger = logging.getLogger(__name__)
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-_PROMPTS_DIR = _REPO_ROOT / "experimental" / "preprocessor" / "prompts"
+_PROMPTS_DIR = files("experimental.preprocessor").joinpath("prompts")
 
 
 class _LiteLLMCallKwargs(TypedDict, total=False):
@@ -127,15 +127,16 @@ def _call_litellm(messages: list[dict[str, str]]) -> str:
     return content
 
 
-def _prompt_file_path() -> Path:
+def _prompt_file_path() -> Traversable:
     profile = os.getenv("PREPROCESSOR_PROMPT_PROFILE", "default").strip().lower()
     if profile == "llama":
-        return _PROMPTS_DIR / "llama.txt"
-    return _PROMPTS_DIR / "default.txt"
+        return _PROMPTS_DIR.joinpath("llama.txt")
+    return _PROMPTS_DIR.joinpath("default.txt")
 
 
 def _llm_fallback_precompile(message: str, state: State) -> str | None:
-    prompt = render_prompt(_prompt_file_path(), state)
+    with as_file(_prompt_file_path()) as prompt_path:
+        prompt = render_prompt(prompt_path, state)
     if prompt is None:
         return None
 

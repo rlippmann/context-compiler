@@ -12,7 +12,14 @@ Available hook files:
 
 ```shell
 pip install 'litellm[proxy]'
+pip install context-compiler
 export OPENAI_API_KEY=...
+```
+
+For `context_compiler_precall_hook_with_preprocessor.py`:
+
+```shell
+pip install "context-compiler[experimental]"
 ```
 
 ### Run proxy

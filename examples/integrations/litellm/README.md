@@ -9,7 +9,14 @@ This directory contains two minimal Context Compiler + LiteLLM integrations:
 
 ```shell
 pip install litellm
+pip install context-compiler
 export OPENAI_API_KEY=...
+```
+
+For `with_preprocessor.py`:
+
+```shell
+pip install "context-compiler[experimental]"
 ```
 
 Optional:

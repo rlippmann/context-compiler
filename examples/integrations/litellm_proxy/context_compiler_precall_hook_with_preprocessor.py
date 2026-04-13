@@ -11,7 +11,8 @@ import logging
 import os
 from collections.abc import Callable, Mapping, Sequence
 from importlib import import_module
-from pathlib import Path
+from importlib.abc import Traversable
+from importlib.resources import as_file, files
 from typing import Any, cast
 
 from litellm.integrations.custom_logger import CustomLogger
@@ -34,8 +35,7 @@ _SUPPORTED_CALL_TYPES = {
     "achat_completion",
 }
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-_PROMPTS_DIR = _REPO_ROOT / "experimental" / "preprocessor" / "prompts"
+_PROMPTS_DIR = files("experimental.preprocessor").joinpath("prompts")
 
 
 def _render_compiled_state_contract(compiled_state: State) -> str:
@@ -115,11 +115,11 @@ def _extract_response_content(response: object) -> str | None:
     return None
 
 
-def _prompt_file_path() -> Path:
+def _prompt_file_path() -> Traversable:
     profile = os.getenv("PREPROCESSOR_PROMPT_PROFILE", "default").strip().lower()
     if profile == "llama":
-        return _PROMPTS_DIR / "llama.txt"
-    return _PROMPTS_DIR / "default.txt"
+        return _PROMPTS_DIR.joinpath("llama.txt")
+    return _PROMPTS_DIR.joinpath("default.txt")
 
 
 def _get_litellm_completion() -> Callable[..., object]:
@@ -128,7 +128,8 @@ def _get_litellm_completion() -> Callable[..., object]:
 
 
 def _llm_fallback_precompile(message: str, state: State) -> str | None:
-    prompt = render_prompt(_prompt_file_path(), state)
+    with as_file(_prompt_file_path()) as prompt_path:
+        prompt = render_prompt(prompt_path, state)
     if prompt is None:
         return None
 

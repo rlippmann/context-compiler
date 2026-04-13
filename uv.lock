@@ -312,19 +312,23 @@ dev = [
     { name = "pytest-cov" },
     { name = "ruff" },
 ]
+experimental = [
+    { name = "litellm" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "coverage", marker = "extra == 'dev'" },
     { name = "hypothesis", marker = "extra == 'dev'" },
     { name = "litellm", marker = "extra == 'demos'", specifier = ">=1.0.0" },
+    { name = "litellm", marker = "extra == 'experimental'", specifier = ">=1.0.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.12,<2.0" },
     { name = "pre-commit", marker = "extra == 'dev'" },
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "pytest-cov", marker = "extra == 'dev'" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.12,<1.0" },
 ]
-provides-extras = ["demos", "dev"]
+provides-extras = ["demos", "experimental", "dev"]
 
 [[package]]
 name = "coverage"

@@ -17,23 +17,12 @@ Tested target: Open WebUI `v0.7.2`.
 4. Select the pipe model in chat.
 
 If using `open_webui_pipe_with_preprocessor.py`:
+- Install preprocessor support in the Open WebUI environment:
+  - `pip install "context-compiler[experimental]"`
 - Set `PREPROCESSOR_PROMPT_PROFILE` to `default` or `llama`.
 - Ensure `OPENAI_API_KEY` is set (and `OPENAI_BASE_URL` if needed).
-- Prompt files are loaded from `experimental/preprocessor/prompts/default.txt` and `experimental/preprocessor/prompts/llama.txt`.
+- Prompt files are loaded from the installed package prompts (`default`/`llama` profiles).
 - LLM fallback uses `BASE_MODEL_ID` as its model.
-
-### Note on Open WebUI execution context
-
-Open WebUI runs Pipe Functions from a temporary/cached location rather than
-their original repository path. Because of this, file paths derived from
-`__file__` will not point to the original `context-compiler` repo.
-
-To ensure the preprocessor can locate its heuristic module and prompt files,
-set:
-
-`CONTEXT_COMPILER_REPO_ROOT=/path/to/context-compiler`
-
-If not set, the example will safely fall back to no-directive behavior.
 
 ## Limitations
 
