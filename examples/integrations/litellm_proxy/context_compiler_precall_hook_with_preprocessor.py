@@ -9,38 +9,26 @@ Architecture:
 
 import logging
 import os
-import re
 from collections.abc import Callable, Mapping, Sequence
 from importlib import import_module
 from pathlib import Path
-from typing import Any, TypedDict, cast
+from typing import Any, cast
 
 from litellm.integrations.custom_logger import CustomLogger
 
 from context_compiler import State, compile_transcript, get_policy_items, get_premise_value
+from experimental.preprocessor.constants import (
+    PRECOMPILE_OUTCOME_DIRECTIVE,
+    PRECOMPILER_NO_DIRECTIVE_SENTINEL,
+)
 from experimental.preprocessor.heuristic_precompiler import precompile_heuristic
+from experimental.preprocessor.output_validation import parse_precompiler_output
 from experimental.preprocessor.prompt_utils import render_prompt
 
 logger = logging.getLogger(__name__)
 
-_ALLOWED_DIRECTIVE_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"^set premise (?!to\b)\S(?:.*\S)?$"),
-    re.compile(r"^change premise to \S(?:.*\S)?$"),
-    re.compile(r"^use \S(?:.*\S)? instead of \S(?:.*\S)?$"),
-    re.compile(r"^use (?!.*\sinstead of(?:\s|$))\S(?:.*\S)?$"),
-    re.compile(r"^prohibit \S(?:.*\S)?$"),
-    re.compile(r"^remove policy \S(?:.*\S)?$"),
-)
-_ALLOWED_DIRECTIVE_EXACT = {"clear premise", "reset policies", "clear state"}
-
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _PROMPTS_DIR = _REPO_ROOT / "experimental" / "preprocessor" / "prompts"
-
-
-class PrecompileResult(TypedDict):
-    outcome: str
-    directive: str | None
-    rule_id: str | None
 
 
 def _render_compiled_state_contract(compiled_state: State) -> str:
@@ -97,21 +85,6 @@ def _extract_user_transcript(messages: list[dict[str, object]]) -> list[dict[str
     return transcript
 
 
-def _normalize_precompiler_output(raw_output: object) -> str | None:
-    if not isinstance(raw_output, str):
-        return None
-
-    stripped = raw_output.strip()
-    if stripped.upper() == "<NO_DIRECTIVE>":
-        return "<NO_DIRECTIVE>"
-
-    non_empty_lines = [line.strip() for line in raw_output.splitlines() if line.strip()]
-    if non_empty_lines and non_empty_lines[-1].upper() == "<NO_DIRECTIVE>":
-        return "<NO_DIRECTIVE>"
-
-    return stripped
-
-
 def _extract_response_content(response: object) -> str | None:
     if isinstance(response, Mapping):
         choices = response.get("choices")
@@ -133,12 +106,6 @@ def _extract_response_content(response: object) -> str | None:
             return content_attr
 
     return None
-
-
-def _is_allowed_directive(text: str) -> bool:
-    if text in _ALLOWED_DIRECTIVE_EXACT:
-        return True
-    return any(pattern.fullmatch(text) for pattern in _ALLOWED_DIRECTIVE_PATTERNS)
 
 
 def _prompt_file_path() -> Path:
@@ -190,10 +157,8 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
     except Exception:
         return None
 
-    parsed = _normalize_precompiler_output(raw_output)
-    if parsed is None or parsed == "<NO_DIRECTIVE>" or not parsed:
-        return None
-    if not _is_allowed_directive(parsed):
+    parsed = parse_precompiler_output(raw_output)
+    if parsed is None or parsed == PRECOMPILER_NO_DIRECTIVE_SENTINEL:
         return None
     return parsed
 
@@ -210,8 +175,11 @@ def _state_before_last_message(user_transcript: list[dict[str, object]]) -> Stat
 
 def _precompile_last_user_message(message: str, state: State | None) -> str | None:
     try:
-        heuristic_result = cast(PrecompileResult, precompile_heuristic(message))
-        if heuristic_result["outcome"] == "directive" and heuristic_result["directive"]:
+        heuristic_result = precompile_heuristic(message)
+        if (
+            heuristic_result["outcome"] == PRECOMPILE_OUTCOME_DIRECTIVE
+            and heuristic_result["directive"]
+        ):
             return heuristic_result["directive"]
     except Exception:
         logger.debug("litellm_proxy: heuristic_exception", exc_info=True)

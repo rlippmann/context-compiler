@@ -39,18 +39,50 @@ _CC_MARKER = "[[cc_state]]"
 _ENGINES_BY_CHAT_KEY: dict[str, Engine] = {}
 _HEURISTIC_PRECOMPILE: Any | None = None
 _RENDER_PROMPT_HELPER: Any | None = None
+_PARSE_PRECOMPILER_OUTPUT_HELPER: Any | None = None
 
-# Keep accepted output strict: fallback text must be a canonical directive line
-# or we treat it as no directive.
-_ALLOWED_DIRECTIVE_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"^set premise (?!to\b)\S(?:.*\S)?$"),
-    re.compile(r"^change premise to \S(?:.*\S)?$"),
-    re.compile(r"^use \S(?:.*\S)? instead of \S(?:.*\S)?$"),
-    re.compile(r"^use (?!.*\sinstead of(?:\s|$))\S(?:.*\S)?$"),
-    re.compile(r"^prohibit \S(?:.*\S)?$"),
-    re.compile(r"^remove policy \S(?:.*\S)?$"),
-)
-_ALLOWED_DIRECTIVE_EXACT = {"clear premise", "reset policies", "clear state"}
+try:
+    from experimental.preprocessor.constants import (
+        CANONICAL_DIRECTIVE_EXACT as _IMPORTED_ALLOWED_DIRECTIVE_EXACT,
+    )
+    from experimental.preprocessor.constants import (
+        CANONICAL_DIRECTIVE_PATTERNS as _IMPORTED_ALLOWED_DIRECTIVE_PATTERNS,
+    )
+    from experimental.preprocessor.constants import (
+        PRECOMPILE_OUTCOME_DIRECTIVE as _IMPORTED_PRECOMPILE_OUTCOME_DIRECTIVE,
+    )
+    from experimental.preprocessor.constants import (
+        PRECOMPILE_OUTCOME_NO_DIRECTIVE as _IMPORTED_PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+    )
+    from experimental.preprocessor.constants import (
+        PRECOMPILER_NO_DIRECTIVE_SENTINEL as _IMPORTED_NO_DIRECTIVE_SENTINEL,
+    )
+    from experimental.preprocessor.output_validation import (
+        parse_precompiler_output as _IMPORTED_PARSE_PRECOMPILER_OUTPUT,
+    )
+
+    _NO_DIRECTIVE_SENTINEL = _IMPORTED_NO_DIRECTIVE_SENTINEL
+    _PRECOMPILE_OUTCOME_DIRECTIVE = _IMPORTED_PRECOMPILE_OUTCOME_DIRECTIVE
+    _PRECOMPILE_OUTCOME_NO_DIRECTIVE = _IMPORTED_PRECOMPILE_OUTCOME_NO_DIRECTIVE
+    _ALLOWED_DIRECTIVE_PATTERNS = _IMPORTED_ALLOWED_DIRECTIVE_PATTERNS
+    _ALLOWED_DIRECTIVE_EXACT = _IMPORTED_ALLOWED_DIRECTIVE_EXACT
+    _PARSE_PRECOMPILER_OUTPUT_HELPER = _IMPORTED_PARSE_PRECOMPILER_OUTPUT
+except Exception:  # pragma: no cover - fallback for standalone Open WebUI deployment
+    _NO_DIRECTIVE_SENTINEL = "<NO_DIRECTIVE>"
+    _PRECOMPILE_OUTCOME_DIRECTIVE = "directive"
+    _PRECOMPILE_OUTCOME_NO_DIRECTIVE = "no_directive"
+    # Keep accepted output strict: fallback text must be a canonical directive
+    # line or we treat it as no directive.
+    _ALLOWED_DIRECTIVE_PATTERNS = (
+        re.compile(r"^set premise (?!to\b)\S(?:.*\S)?$"),
+        re.compile(r"^change premise to \S(?:.*\S)?$"),
+        re.compile(r"^use \S(?:.*\S)? instead of \S(?:.*\S)?$"),
+        re.compile(r"^use (?!.*\sinstead of(?:\s|$))\S(?:.*\S)?$"),
+        re.compile(r"^prohibit \S(?:.*\S)?$"),
+        re.compile(r"^remove policy \S(?:.*\S)?$"),
+    )
+    _ALLOWED_DIRECTIVE_EXACT = frozenset({"clear premise", "reset policies", "clear state"})
+    _PARSE_PRECOMPILER_OUTPUT_HELPER = None
 
 
 class PrecompileResult(TypedDict):
@@ -60,7 +92,10 @@ class PrecompileResult(TypedDict):
 
 
 _NOOP_PRECOMPILE_RESULT: PrecompileResult = {
-    "outcome": "no_directive",
+    "outcome": cast(
+        Literal["directive", "no_directive", "unknown"],
+        _PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+    ),
     "directive": None,
     "rule_id": "unavailable",
 }
@@ -239,12 +274,12 @@ def _normalize_precompiler_output(raw_output: object) -> str | None:
         return None
 
     stripped = raw_output.strip()
-    if stripped.upper() == "<NO_DIRECTIVE>":
-        return "<NO_DIRECTIVE>"
+    if stripped.upper() == _NO_DIRECTIVE_SENTINEL:
+        return _NO_DIRECTIVE_SENTINEL
 
     non_empty_lines = [line.strip() for line in raw_output.splitlines() if line.strip()]
-    if non_empty_lines and non_empty_lines[-1].upper() == "<NO_DIRECTIVE>":
-        return "<NO_DIRECTIVE>"
+    if non_empty_lines and non_empty_lines[-1].upper() == _NO_DIRECTIVE_SENTINEL:
+        return _NO_DIRECTIVE_SENTINEL
 
     return stripped
 
@@ -301,8 +336,14 @@ def _llm_fallback_precompile(
     except Exception:
         return None
 
+    if _PARSE_PRECOMPILER_OUTPUT_HELPER is not None:
+        parsed = cast(str | None, _PARSE_PRECOMPILER_OUTPUT_HELPER(raw_output))
+        if parsed is None or parsed == _NO_DIRECTIVE_SENTINEL:
+            return None
+        return parsed
+
     parsed = _normalize_precompiler_output(raw_output)
-    if parsed is None or parsed == "<NO_DIRECTIVE>" or not parsed:
+    if parsed is None or parsed == _NO_DIRECTIVE_SENTINEL or not parsed:
         return None
     if not _is_allowed_directive(parsed):
         return None
@@ -321,7 +362,10 @@ def _precompile_user_input(
     heuristic = _get_heuristic_precompile()
     heuristic_result = cast(PrecompileResult, heuristic(message))
 
-    if heuristic_result["outcome"] == "directive" and heuristic_result["directive"]:
+    if (
+        heuristic_result["outcome"] == _PRECOMPILE_OUTCOME_DIRECTIVE
+        and heuristic_result["directive"]
+    ):
         return heuristic_result["directive"]
 
     return _llm_fallback_precompile(
