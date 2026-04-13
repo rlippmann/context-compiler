@@ -117,8 +117,6 @@ change premise to formal tone
 
 ---
 
----
-
 ## Architecture
 
 ```text
@@ -277,9 +275,23 @@ These demonstrate deterministic clarification, state enforcement, and conflict h
 ---
 
 
+## Optional: LLM Preprocessor (Experimental)
+
+An optional host-side preprocessor can convert natural-language instructions
+into canonical directives before compilation.
+
+It is designed to be conservative and must be used with validation:
+
+- heuristic-first, with LLM fallback when needed
+- all outputs must be validated with `parse_precompiler_output(...)`
+- raw outputs must not be passed directly to the compiler
+
+See [LLM preprocessor](docs/llm-preprocessor.md) and
+[`experimental/preprocessor/`](experimental/preprocessor/) for details.
+
+
 ## Advanced topics
 
-- [LLM preprocessor](docs/llm-preprocessor.md)
 - [Multiple engines](docs/multi-engine.md)
 
 For a full documentation map, see [docs/README.md](docs/README.md).

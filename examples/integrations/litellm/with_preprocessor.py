@@ -15,7 +15,6 @@ Intended host usage:
 
 import logging
 import os
-import re
 from collections.abc import Callable, Mapping, Sequence
 from importlib import import_module
 from pathlib import Path
@@ -23,20 +22,15 @@ from typing import TypedDict, cast
 
 from context_compiler import State, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
+from experimental.preprocessor.constants import (
+    PRECOMPILE_OUTCOME_DIRECTIVE,
+    PRECOMPILER_NO_DIRECTIVE_SENTINEL,
+)
 from experimental.preprocessor.heuristic_precompiler import precompile_heuristic
+from experimental.preprocessor.output_validation import parse_precompiler_output
 from experimental.preprocessor.prompt_utils import render_prompt
 
 logger = logging.getLogger(__name__)
-
-_ALLOWED_DIRECTIVE_PATTERNS: tuple[re.Pattern[str], ...] = (
-    re.compile(r"^set premise (?!to\b)\S(?:.*\S)?$"),
-    re.compile(r"^change premise to \S(?:.*\S)?$"),
-    re.compile(r"^use \S(?:.*\S)? instead of \S(?:.*\S)?$"),
-    re.compile(r"^use (?!.*\sinstead of(?:\s|$))\S(?:.*\S)?$"),
-    re.compile(r"^prohibit \S(?:.*\S)?$"),
-    re.compile(r"^remove policy \S(?:.*\S)?$"),
-)
-_ALLOWED_DIRECTIVE_EXACT = {"clear premise", "reset policies", "clear state"}
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _PROMPTS_DIR = _REPO_ROOT / "experimental" / "preprocessor" / "prompts"
@@ -133,26 +127,6 @@ def _call_litellm(messages: list[dict[str, str]]) -> str:
     return content
 
 
-def _normalize_precompiler_output(raw_output: object) -> str | None:
-    if not isinstance(raw_output, str):
-        return None
-    stripped = raw_output.strip()
-    if stripped.upper() == "<NO_DIRECTIVE>":
-        return "<NO_DIRECTIVE>"
-
-    non_empty_lines = [line.strip() for line in raw_output.splitlines() if line.strip()]
-    if non_empty_lines and non_empty_lines[-1].upper() == "<NO_DIRECTIVE>":
-        return "<NO_DIRECTIVE>"
-
-    return stripped
-
-
-def _is_allowed_directive(text: str) -> bool:
-    if text in _ALLOWED_DIRECTIVE_EXACT:
-        return True
-    return any(pattern.fullmatch(text) for pattern in _ALLOWED_DIRECTIVE_PATTERNS)
-
-
 def _prompt_file_path() -> Path:
     profile = os.getenv("PREPROCESSOR_PROMPT_PROFILE", "default").strip().lower()
     if profile == "llama":
@@ -193,10 +167,8 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
     except Exception:
         return None
 
-    parsed = _normalize_precompiler_output(raw_output)
-    if parsed is None or parsed == "<NO_DIRECTIVE>" or not parsed:
-        return None
-    if not _is_allowed_directive(parsed):
+    parsed = parse_precompiler_output(raw_output)
+    if parsed is None or parsed == PRECOMPILER_NO_DIRECTIVE_SENTINEL:
         return None
     return parsed
 
@@ -206,9 +178,14 @@ def _precompile_user_input(message: str, state: State) -> str | None:
     try:
         heuristic_result = precompile_heuristic(message)
         logger.debug("preprocessor: heuristic_outcome=%s", heuristic_result["outcome"])
-        if heuristic_result["outcome"] == "directive" and heuristic_result["directive"]:
+        if (
+            heuristic_result["outcome"] == PRECOMPILE_OUTCOME_DIRECTIVE
+            and heuristic_result["directive"]
+        ):
+            parsed = parse_precompiler_output(heuristic_result["directive"])
             logger.debug("preprocessor: heuristic_directive=%r", heuristic_result["directive"])
-            return heuristic_result["directive"]
+            if parsed is not None and parsed != PRECOMPILER_NO_DIRECTIVE_SENTINEL:
+                return parsed
     except Exception:
         logger.debug("preprocessor: heuristic_exception", exc_info=True)
 
