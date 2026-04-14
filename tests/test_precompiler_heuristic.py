@@ -1,18 +1,4 @@
-from importlib.util import module_from_spec, spec_from_file_location
-from pathlib import Path
-
-_MODULE_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "experimental"
-    / "preprocessor"
-    / "heuristic_precompiler.py"
-)
-_SPEC = spec_from_file_location("heuristic_precompiler", _MODULE_PATH)
-assert _SPEC is not None
-assert _SPEC.loader is not None
-_MODULE = module_from_spec(_SPEC)
-_SPEC.loader.exec_module(_MODULE)
-precompile_heuristic = _MODULE.precompile_heuristic
+from experimental.preprocessor.heuristic_precompiler import precompile_heuristic
 
 
 def test_heuristic_rejects_consistent_high_risk_non_directives() -> None:
