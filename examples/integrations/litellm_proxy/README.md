@@ -76,8 +76,11 @@ Optional env vars for preprocessor fallback:
 
 ```shell
 export PREPROCESSOR_MODEL=openai/gpt-4o-mini
-export PREPROCESSOR_PROMPT_PROFILE=default  # or llama
+export PREPROCESSOR_PROMPT_PROFILE=default
 ```
+
+For heuristic-first usage, keep `PREPROCESSOR_PROMPT_PROFILE=default`.
+Use `llama` only for LLM-only preprocessing with Llama-family models.
 
 ### Note
 

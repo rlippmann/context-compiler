@@ -19,7 +19,8 @@ Tested target: Open WebUI `v0.7.2`.
 If using `open_webui_pipe_with_preprocessor.py`:
 - Install preprocessor support in the Open WebUI environment:
   - `pip install "context-compiler[experimental]"`
-- Set `PREPROCESSOR_PROMPT_PROFILE` to `default` or `llama`.
+- Set `PREPROCESSOR_PROMPT_PROFILE` to `default` for heuristic-first usage.
+- Use `llama` only for LLM-only preprocessing with Llama-family models.
 - Ensure `OPENAI_API_KEY` is set (and `OPENAI_BASE_URL` if needed).
 - Prompt files are loaded from the installed package prompts (`default`/`llama` profiles).
 - LLM fallback uses `BASE_MODEL_ID` as its model.
