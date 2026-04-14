@@ -1,3 +1,5 @@
+import pytest
+
 from experimental.preprocessor.heuristic_precompiler import precompile_heuristic
 
 
@@ -242,3 +244,9 @@ def test_heuristic_returns_unknown_for_unresolved_cases() -> None:
             "directive": None,
             "rule_id": None,
         }
+
+
+@pytest.mark.parametrize("message", ['""', "''", "()", "[]", "``"])
+def test_heuristic_empty_wrappers_do_not_produce_directive(message: str) -> None:
+    result = precompile_heuristic(message)
+    assert result["directive"] is None
