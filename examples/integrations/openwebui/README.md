@@ -2,7 +2,7 @@
 
 Open WebUI Pipe Function examples for Context Compiler.
 
-Tested target: Open WebUI `v0.7.2`.
+Tested target: Open WebUI `v0.8.12` (latest at time of testing).
 
 ## Files
 
@@ -19,6 +19,9 @@ Tested target: Open WebUI `v0.7.2`.
 If using `open_webui_pipe_with_preprocessor.py`:
 - Install preprocessor support in the Open WebUI environment:
   - `pip install "context-compiler[experimental]"`
+- Open WebUI executes copied functions from a temp/cached location, so
+  preprocessor imports/resources must come from the installed package (not
+  repo-relative paths).
 - Set `PREPROCESSOR_PROMPT_PROFILE` to `default` for heuristic-first usage.
 - Use `llama` only for LLM-only preprocessing with Llama-family models.
 - Ensure `OPENAI_API_KEY` is set (and `OPENAI_BASE_URL` if needed).

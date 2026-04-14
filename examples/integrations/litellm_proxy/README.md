@@ -28,6 +28,11 @@ pip install "context-compiler[experimental]"
 litellm --config config.example.yaml
 ```
 
+Hook behavior in this directory is smoke-validated. Proxy server startup with
+`litellm --config ...` is environment-sensitive (callback import resolution) and
+was not re-validated end-to-end as-is in the latest smoke pass with
+`litellm==1.83.7`.
+
 The proxy runs on `http://localhost:4000` by default.
 By default, `config.example.yaml` points to the basic replay-only hook.
 To use the preprocessor variant, switch the callback path in the config.
