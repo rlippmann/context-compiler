@@ -11,7 +11,13 @@ from typing import Any
 
 from litellm.integrations.custom_logger import CustomLogger
 
-from context_compiler import State, compile_transcript, get_policy_items, get_premise_value
+from context_compiler import (
+    State,
+    Transcript,
+    compile_transcript,
+    get_policy_items,
+    get_premise_value,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -66,8 +72,8 @@ def _extract_text_content(content: object) -> str | None:
     return None
 
 
-def _extract_user_transcript(messages: list[dict[str, object]]) -> list[dict[str, object]]:
-    transcript: list[dict[str, object]] = []
+def _extract_user_transcript(messages: list[dict[str, object]]) -> Transcript:
+    transcript: Transcript = []
     for message in messages:
         role = message.get("role")
         content = message.get("content")

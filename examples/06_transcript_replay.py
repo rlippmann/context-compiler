@@ -2,11 +2,11 @@
 
 from _util import print_replay_result_summary
 
-from context_compiler import compile_transcript, create_engine
+from context_compiler import Transcript, compile_transcript, create_engine
 
 
 def main() -> None:
-    transcript: list[dict[str, object]] = [
+    transcript: Transcript = [
         {"role": "system", "content": "System prompt"},
         {"role": "user", "content": "prohibit peanuts"},
         {"role": "assistant", "content": "Understood"},

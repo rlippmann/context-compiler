@@ -17,7 +17,13 @@ from typing import Any, cast
 
 from litellm.integrations.custom_logger import CustomLogger
 
-from context_compiler import State, compile_transcript, get_policy_items, get_premise_value
+from context_compiler import (
+    State,
+    Transcript,
+    compile_transcript,
+    get_policy_items,
+    get_premise_value,
+)
 from experimental.preprocessor.constants import (
     PRECOMPILE_OUTCOME_DIRECTIVE,
     PRECOMPILER_NO_DIRECTIVE_SENTINEL,
@@ -81,8 +87,8 @@ def _extract_text_content(content: object) -> str | None:
     return None
 
 
-def _extract_user_transcript(messages: list[dict[str, object]]) -> list[dict[str, object]]:
-    transcript: list[dict[str, object]] = []
+def _extract_user_transcript(messages: list[dict[str, object]]) -> Transcript:
+    transcript: Transcript = []
     for message in messages:
         role = message.get("role")
         content = message.get("content")
@@ -171,7 +177,7 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
     return parsed
 
 
-def _state_before_last_message(user_transcript: list[dict[str, object]]) -> State | None:
+def _state_before_last_message(user_transcript: Transcript) -> State | None:
     if not user_transcript:
         return None
     prefix = user_transcript[:-1]
