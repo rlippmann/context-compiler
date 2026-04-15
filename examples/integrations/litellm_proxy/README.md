@@ -24,6 +24,8 @@ pip install "context-compiler[experimental]"
 
 ### Run proxy
 
+Typical startup command (environment-sensitive):
+
 ```shell
 litellm --config config.example.yaml
 ```
