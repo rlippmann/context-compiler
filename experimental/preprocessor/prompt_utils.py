@@ -22,15 +22,20 @@ def _strip_leading_headers(prompt_template: str) -> str:
 
 
 def render_prompt(path: Path, state: State) -> str | None:
-    """Render a state-aware preprocessor prompt from path.
+    """Render a state-aware preprocessor prompt from a template file.
 
-    Behavior is intentionally narrow and deterministic:
-    - read prompt text from path
-    - drop leading # comment header lines and leading blank lines
-    - replace tokens:
-      - <NULL_OR_VALUE> -> null or current premise string
-      - <SET OF CURRENT POLICY ITEMS> -> sorted policy keys joined by ", " or "(none)"
-    - return None if the file cannot be loaded
+    Args:
+        path: Prompt template path.
+        state: Current compiler state used for token replacement.
+
+    Returns:
+        The rendered prompt text, or None when the prompt file cannot be loaded.
+
+    Notes:
+        Rendering is intentionally narrow and deterministic:
+        - leading # header lines and leading blank lines are removed
+        - <NULL_OR_VALUE> becomes null or current premise
+        - <SET OF CURRENT POLICY ITEMS> becomes sorted policy keys or "(none)"
     """
     try:
         prompt_template = path.read_text(encoding="utf-8")

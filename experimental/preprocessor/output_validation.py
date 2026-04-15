@@ -79,6 +79,19 @@ def _is_allowed_directive(text: str) -> bool:
 
 
 def parse_precompiler_output(raw_output: object) -> str | None:
+    """Validate and normalize precompiler output.
+
+    Args:
+        raw_output: Raw value produced by heuristic or LLM preprocessing.
+
+    Returns:
+        PRECOMPILER_NO_DIRECTIVE_SENTINEL for abstain output, a canonical
+        directive string when valid, or None when output is invalid/rejected.
+
+    Notes:
+        This is the public validation boundary. Preprocessor outputs must be
+        passed through this function before being applied to compiler paths.
+    """
     normalized = _normalize_precompiler_output(raw_output)
     if normalized is None:
         return None

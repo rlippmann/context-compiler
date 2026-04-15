@@ -123,6 +123,21 @@ def _normalize_candidate(message: str) -> str:
 
 
 def precompile_heuristic(message: str) -> PrecompileResult:
+    """Run the conservative structural heuristic precompile pass.
+
+    Args:
+        message: Raw user text to evaluate as a possible directive.
+
+    Returns:
+        A PrecompileResult with:
+        - outcome="directive" and a canonical directive string when matched
+        - outcome="no_directive" when the heuristic abstains/rejects
+        - outcome="unknown" when unresolved and LLM fallback may be attempted
+
+    Notes:
+        This pass is precision-first and intentionally narrow. It may abstain
+        on ambiguous or mixed-intent inputs.
+    """
     # Precision-first hard rejection for question-like inputs.
     if "?" in message:
         return {
