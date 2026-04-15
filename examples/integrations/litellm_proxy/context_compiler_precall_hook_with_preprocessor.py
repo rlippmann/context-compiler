@@ -24,13 +24,15 @@ from context_compiler import (
     get_policy_items,
     get_premise_value,
 )
+from experimental.preprocessor import (
+    parse_precompiler_output,
+    precompile_heuristic,
+    render_prompt,
+)
 from experimental.preprocessor.constants import (
     PRECOMPILE_OUTCOME_DIRECTIVE,
     PRECOMPILER_NO_DIRECTIVE_SENTINEL,
 )
-from experimental.preprocessor.heuristic_precompiler import precompile_heuristic
-from experimental.preprocessor.output_validation import parse_precompiler_output
-from experimental.preprocessor.prompt_utils import render_prompt
 
 logger = logging.getLogger(__name__)
 
