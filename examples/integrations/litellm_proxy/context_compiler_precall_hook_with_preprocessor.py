@@ -25,13 +25,11 @@ from context_compiler import (
     get_premise_value,
 )
 from experimental.preprocessor import (
+    PRECOMPILE_OUTCOME_DIRECTIVE,
+    PRECOMPILER_NO_DIRECTIVE_SENTINEL,
     parse_precompiler_output,
     precompile_heuristic,
     render_prompt,
-)
-from experimental.preprocessor.constants import (
-    PRECOMPILE_OUTCOME_DIRECTIVE,
-    PRECOMPILER_NO_DIRECTIVE_SENTINEL,
 )
 
 logger = logging.getLogger(__name__)
