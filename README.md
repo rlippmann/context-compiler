@@ -49,6 +49,13 @@ Install:
 pip install context-compiler
 ```
 
+Packaging notes:
+- Base install includes core engine modules and `examples/` artifacts.
+- LLM demos require: `pip install "context-compiler[demos]"`.
+- Optional preprocessor support: `pip install "context-compiler[experimental]"`.
+- Integration-oriented dependency support: `pip install "context-compiler[integrations]"`.
+- LiteLLM Proxy example dependency bundle: `pip install "context-compiler[litellm_proxy]"`.
+
 ### Development
 
 ```bash

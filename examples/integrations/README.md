@@ -12,7 +12,7 @@ Files:
 ### Requirements
 
 ```shell
-pip install litellm
+pip install "context-compiler[integrations]"
 export OPENAI_API_KEY=...
 ```
 

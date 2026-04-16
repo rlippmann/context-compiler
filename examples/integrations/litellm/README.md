@@ -8,8 +8,7 @@ This directory contains two minimal Context Compiler + LiteLLM integrations:
 ## Requirements
 
 ```shell
-pip install litellm
-pip install context-compiler
+pip install "context-compiler[integrations]"
 export OPENAI_API_KEY=...
 ```
 

@@ -15,6 +15,9 @@ pip install "context-compiler[litellm_proxy]"
 export OPENAI_API_KEY=...
 ```
 
+`litellm_proxy` is intentionally separate from the general `integrations`
+extra because this path targets proxy/gateway runtime use.
+
 For `context_compiler_precall_hook_with_preprocessor.py`:
 
 ```shell
