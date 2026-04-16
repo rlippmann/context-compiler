@@ -55,6 +55,7 @@ Packaging notes:
 - Optional preprocessor support: `pip install "context-compiler[experimental]"`.
 - Integration-oriented dependency support: `pip install "context-compiler[integrations]"`.
 - LiteLLM Proxy example dependency bundle: `pip install "context-compiler[litellm_proxy]"`.
+- Host runtimes (for example, Open WebUI) are not installed by `integrations`.
 
 ### Development
 

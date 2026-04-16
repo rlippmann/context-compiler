@@ -37,6 +37,8 @@ See: [LiteLLM Proxy README](litellm_proxy/README.md)
 
 Tested target: Open WebUI `v0.8.12`.
 
+Open WebUI is host-provided runtime infrastructure and must be installed/configured separately.
+
 Files:
 - Basic example: [open_webui_pipe.py](openwebui/open_webui_pipe.py)
 - With preprocessor: [open_webui_pipe_with_preprocessor.py](openwebui/open_webui_pipe_with_preprocessor.py)
