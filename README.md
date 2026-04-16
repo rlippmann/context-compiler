@@ -200,6 +200,34 @@ The internal structure of the state is intentionally opaque to host applications
 
 ---
 
+### When to use `premise`
+
+The `premise` is intended for **persistent context that changes how all answers should be interpreted**, especially when it:
+
+- applies across many turns
+- significantly changes what solutions are valid
+- cannot be fully captured as simple `use` / `prohibit` policies
+
+Examples:
+
+- “Current medications: …”
+- “Outdoor event; no seating available”
+- “GDPR data handling requirements apply”
+- “System is deployed across multiple regions”
+- “Limited time available”
+
+In these cases, the premise acts as an **authoritative context anchor** that the host supplies to the model on every turn.
+
+Use policies instead when the constraint is explicit and enforceable:
+
+- “prohibit foods that may cause GI upset”
+- “use handheld foods”
+- “prohibit storing personal data beyond immediate use”
+- “prohibit introducing new external dependencies”
+- “use single-step preparation methods”
+
+---
+
 ## Directive Examples
 
 Set and change premise:
