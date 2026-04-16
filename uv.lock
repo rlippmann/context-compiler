@@ -496,11 +496,11 @@ litellm-proxy = [
 
 [package.metadata]
 requires-dist = [
-    { name = "context-compiler", extras = ["experimental"], marker = "extra == 'integrations'", specifier = ">=0.6.2" },
     { name = "coverage", marker = "extra == 'dev'" },
     { name = "hypothesis", marker = "extra == 'dev'" },
     { name = "litellm", marker = "extra == 'demos'", specifier = ">=1.0.0" },
     { name = "litellm", marker = "extra == 'experimental'", specifier = ">=1.0.0" },
+    { name = "litellm", marker = "extra == 'integrations'", specifier = ">=1.0.0" },
     { name = "litellm", extras = ["proxy"], marker = "extra == 'litellm-proxy'", specifier = ">=1.0.0" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.12,<2.0" },
     { name = "pre-commit", marker = "extra == 'dev'" },

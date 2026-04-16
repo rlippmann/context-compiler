@@ -48,7 +48,7 @@ experimental = [
   "litellm>=1.0.0",
 ]
 integrations = [
-  "context-compiler[experimental]>=0.6.2",
+  "litellm>=1.0.0",
 ]
 litellm_proxy = [
   "litellm[proxy]>=1.0.0",
