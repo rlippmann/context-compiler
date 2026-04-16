@@ -37,9 +37,6 @@ context-compiler = "context_compiler.repl:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/context_compiler", "experimental"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"experimental/preprocessor/prompts" = "experimental/preprocessor/prompts"
-
 [project.optional-dependencies]
 demos = [
   "litellm>=1.0.0",
