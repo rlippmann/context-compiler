@@ -11,8 +11,7 @@ Available hook files:
 ### Requirements
 
 ```shell
-pip install 'litellm[proxy]'
-pip install context-compiler
+pip install "context-compiler[litellm_proxy]"
 export OPENAI_API_KEY=...
 ```
 
