@@ -17,184 +17,41 @@ Core decision handling remains the same as the base integration.
 """
 
 import importlib
-import importlib.util
 import logging
 import os
-import re
-from pathlib import Path
-from typing import Any, Literal, TypedDict, cast
+from importlib.abc import Traversable
+from importlib.resources import as_file, files
+from typing import Any, Literal, cast
 
 from fastapi import Request  # type: ignore[import-not-found]
 from open_webui.models.users import Users  # type: ignore[import-not-found]
 from open_webui.utils.chat import generate_chat_completion  # type: ignore[import-not-found]
 from pydantic import BaseModel, Field
 
-import context_compiler
 from context_compiler import State, create_engine, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
+from experimental.preprocessor import (
+    PRECOMPILE_OUTCOME_DIRECTIVE,
+    PRECOMPILER_NO_DIRECTIVE_SENTINEL,
+    parse_precompiler_output,
+    precompile_heuristic,
+    render_prompt,
+)
 
 logger = logging.getLogger(__name__)
 
 _CC_MARKER = "[[cc_state]]"
 _ENGINES_BY_CHAT_KEY: dict[str, Engine] = {}
-_HEURISTIC_PRECOMPILE: Any | None = None
-_RENDER_PROMPT_HELPER: Any | None = None
-_PARSE_PRECOMPILER_OUTPUT_HELPER: Any | None = None
-
-try:
-    from experimental.preprocessor.constants import (
-        CANONICAL_DIRECTIVE_EXACT as _IMPORTED_ALLOWED_DIRECTIVE_EXACT,
-    )
-    from experimental.preprocessor.constants import (
-        CANONICAL_DIRECTIVE_PATTERNS as _IMPORTED_ALLOWED_DIRECTIVE_PATTERNS,
-    )
-    from experimental.preprocessor.constants import (
-        PRECOMPILE_OUTCOME_DIRECTIVE as _IMPORTED_PRECOMPILE_OUTCOME_DIRECTIVE,
-    )
-    from experimental.preprocessor.constants import (
-        PRECOMPILE_OUTCOME_NO_DIRECTIVE as _IMPORTED_PRECOMPILE_OUTCOME_NO_DIRECTIVE,
-    )
-    from experimental.preprocessor.constants import (
-        PRECOMPILER_NO_DIRECTIVE_SENTINEL as _IMPORTED_NO_DIRECTIVE_SENTINEL,
-    )
-    from experimental.preprocessor.output_validation import (
-        parse_precompiler_output as _IMPORTED_PARSE_PRECOMPILER_OUTPUT,
-    )
-
-    _NO_DIRECTIVE_SENTINEL = _IMPORTED_NO_DIRECTIVE_SENTINEL
-    _PRECOMPILE_OUTCOME_DIRECTIVE = _IMPORTED_PRECOMPILE_OUTCOME_DIRECTIVE
-    _PRECOMPILE_OUTCOME_NO_DIRECTIVE = _IMPORTED_PRECOMPILE_OUTCOME_NO_DIRECTIVE
-    _ALLOWED_DIRECTIVE_PATTERNS = _IMPORTED_ALLOWED_DIRECTIVE_PATTERNS
-    _ALLOWED_DIRECTIVE_EXACT = _IMPORTED_ALLOWED_DIRECTIVE_EXACT
-    _PARSE_PRECOMPILER_OUTPUT_HELPER = _IMPORTED_PARSE_PRECOMPILER_OUTPUT
-except Exception:  # pragma: no cover - fallback for standalone Open WebUI deployment
-    _NO_DIRECTIVE_SENTINEL = "<NO_DIRECTIVE>"
-    _PRECOMPILE_OUTCOME_DIRECTIVE = "directive"
-    _PRECOMPILE_OUTCOME_NO_DIRECTIVE = "no_directive"
-    # Keep accepted output strict: fallback text must be a canonical directive
-    # line or we treat it as no directive.
-    _ALLOWED_DIRECTIVE_PATTERNS = (
-        re.compile(r"^set premise (?!to\b)\S(?:.*\S)?$"),
-        re.compile(r"^change premise to \S(?:.*\S)?$"),
-        re.compile(r"^use \S(?:.*\S)? instead of \S(?:.*\S)?$"),
-        re.compile(r"^use (?!.*\sinstead of(?:\s|$))\S(?:.*\S)?$"),
-        re.compile(r"^prohibit \S(?:.*\S)?$"),
-        re.compile(r"^remove policy \S(?:.*\S)?$"),
-    )
-    _ALLOWED_DIRECTIVE_EXACT = frozenset({"clear premise", "reset policies", "clear state"})
-    _PARSE_PRECOMPILER_OUTPUT_HELPER = None
+_PROMPTS_DIR = files("experimental.preprocessor").joinpath("prompts")
 
 
-class PrecompileResult(TypedDict):
-    outcome: Literal["directive", "no_directive", "unknown"]
-    directive: str | None
-    rule_id: str | None
-
-
-_NOOP_PRECOMPILE_RESULT: PrecompileResult = {
-    "outcome": cast(
-        Literal["directive", "no_directive", "unknown"],
-        _PRECOMPILE_OUTCOME_NO_DIRECTIVE,
-    ),
-    "directive": None,
-    "rule_id": "unavailable",
-}
-
-
-def _noop_precompile(_message: str) -> PrecompileResult:
-    return _NOOP_PRECOMPILE_RESULT
-
-
-def _repo_root() -> Path:
-    env_root = os.getenv("CONTEXT_COMPILER_REPO_ROOT", "").strip()
-    candidates: list[Path] = []
-
-    if env_root:
-        candidates.append(Path(env_root))
-
-    cwd = Path.cwd()
-    candidates.extend([cwd, *cwd.parents])
-
-    package_root_candidates = [Path(context_compiler.__file__).resolve().parent]
-    for package_root in package_root_candidates:
-        candidates.extend([package_root, *package_root.parents])
-
-    seen: set[Path] = set()
-    for candidate in candidates:
-        resolved = candidate.resolve()
-        if resolved in seen:
-            continue
-        seen.add(resolved)
-        heuristic_path = resolved / "experimental" / "preprocessor" / "heuristic_precompiler.py"
-        if heuristic_path.exists():
-            return resolved
-
-    raise RuntimeError(
-        "Unable to locate context-compiler repo root. "
-        "Set CONTEXT_COMPILER_REPO_ROOT to a checkout path that contains "
-        "experimental/preprocessor/heuristic_precompiler.py."
-    )
-
-
-def _prompt_file_path(profile: str) -> Path:
+def _prompt_file_path(profile: str) -> Traversable:
     # Runtime prompt selection for fallback precompilation:
     # - default: most instruction-following models
     # - llama: models that need tighter prompt guidance
-    prompts_dir = _repo_root() / "experimental" / "preprocessor" / "prompts"
     if profile == "llama":
-        return prompts_dir / "llama.txt"
-    return prompts_dir / "default.txt"
-
-
-def _load_heuristic_precompile() -> Any:
-    module_path = _repo_root() / "experimental" / "preprocessor" / "heuristic_precompiler.py"
-    spec = importlib.util.spec_from_file_location("heuristic_precompiler_runtime", module_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Unable to load heuristic precompiler module: {module_path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    fn = getattr(module, "precompile_heuristic", None)
-    if fn is None or not callable(fn):
-        raise RuntimeError("heuristic_precompiler.py does not define callable precompile_heuristic")
-    return fn
-
-
-def _load_render_prompt_helper() -> Any:
-    """Load shared prompt renderer from experimental preprocessor utilities."""
-    module_path = _repo_root() / "experimental" / "preprocessor" / "prompt_utils.py"
-    spec = importlib.util.spec_from_file_location("preprocessor_prompt_utils_runtime", module_path)
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"Unable to load prompt utils module: {module_path}")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    fn = getattr(module, "render_prompt", None)
-    if fn is None or not callable(fn):
-        raise RuntimeError("prompt_utils.py does not define callable render_prompt")
-    return fn
-
-
-def _get_heuristic_precompile() -> Any:
-    # Load once per process to keep per-message overhead low in this example.
-    global _HEURISTIC_PRECOMPILE
-    if _HEURISTIC_PRECOMPILE is None:
-        try:
-            _HEURISTIC_PRECOMPILE = _load_heuristic_precompile()
-        except Exception as exc:
-            logger.debug("preprocessor: heuristic_unavailable=%s", exc)
-            _HEURISTIC_PRECOMPILE = _noop_precompile
-    return _HEURISTIC_PRECOMPILE
-
-
-def _get_render_prompt_helper() -> Any:
-    """Return cached render helper; return ``None`` when unavailable."""
-    global _RENDER_PROMPT_HELPER
-    if _RENDER_PROMPT_HELPER is None:
-        try:
-            _RENDER_PROMPT_HELPER = _load_render_prompt_helper()
-        except Exception as exc:
-            logger.debug("preprocessor: prompt_render_helper_unavailable=%s", exc)
-            _RENDER_PROMPT_HELPER = None
-    return _RENDER_PROMPT_HELPER
+        return _PROMPTS_DIR.joinpath("llama.txt")
+    return _PROMPTS_DIR.joinpath("default.txt")
 
 
 def _resolve_chat_key(
@@ -267,43 +124,11 @@ def _replace_compiler_system_message(
     ]
 
 
-def _normalize_precompiler_output(raw_output: object) -> str | None:
-    # Fallback responses can be malformed or non-text depending on provider/model.
-    # Treat invalid content as no directive rather than failing request handling.
-    if not isinstance(raw_output, str):
-        return None
-
-    stripped = raw_output.strip()
-    if stripped.upper() == _NO_DIRECTIVE_SENTINEL:
-        return _NO_DIRECTIVE_SENTINEL
-
-    non_empty_lines = [line.strip() for line in raw_output.splitlines() if line.strip()]
-    if non_empty_lines and non_empty_lines[-1].upper() == _NO_DIRECTIVE_SENTINEL:
-        return _NO_DIRECTIVE_SENTINEL
-
-    return stripped
-
-
-def _is_allowed_directive(text: str) -> bool:
-    if text in _ALLOWED_DIRECTIVE_EXACT:
-        return True
-    return any(pattern.fullmatch(text) for pattern in _ALLOWED_DIRECTIVE_PATTERNS)
-
-
 def _llm_fallback_precompile(
     message: str, state: State, *, prompt_profile: str, model: str
 ) -> str | None:
-    # Fallback is optional. If prompt files, dependencies, or credentials are
-    # unavailable, we return no directive and continue normal compiler flow.
-    try:
-        prompt_path = _prompt_file_path(prompt_profile)
-    except Exception as exc:
-        logger.debug("preprocessor: prompt_unavailable=%s", exc)
-        return None
-    render_prompt = _get_render_prompt_helper()
-    if render_prompt is None:
-        return None
-    prompt = cast(str | None, render_prompt(prompt_path, state))
+    with as_file(_prompt_file_path(prompt_profile)) as prompt_path:
+        prompt = render_prompt(prompt_path, state)
     if prompt is None:
         return None
 
@@ -336,16 +161,8 @@ def _llm_fallback_precompile(
     except Exception:
         return None
 
-    if _PARSE_PRECOMPILER_OUTPUT_HELPER is not None:
-        parsed = cast(str | None, _PARSE_PRECOMPILER_OUTPUT_HELPER(raw_output))
-        if parsed is None or parsed == _NO_DIRECTIVE_SENTINEL:
-            return None
-        return parsed
-
-    parsed = _normalize_precompiler_output(raw_output)
-    if parsed is None or parsed == _NO_DIRECTIVE_SENTINEL or not parsed:
-        return None
-    if not _is_allowed_directive(parsed):
+    parsed = parse_precompiler_output(raw_output)
+    if parsed is None or parsed == PRECOMPILER_NO_DIRECTIVE_SENTINEL:
         return None
     return parsed
 
@@ -359,28 +176,15 @@ def _precompile_user_input(
 ) -> str | None:
     # Heuristic first for precision, determinism, and low latency.
     # If heuristic does not produce a directive, try LLM fallback.
-    heuristic = _get_heuristic_precompile()
-    heuristic_result = cast(PrecompileResult, heuristic(message))
+    heuristic_result = precompile_heuristic(message)
 
     if (
-        heuristic_result["outcome"] == _PRECOMPILE_OUTCOME_DIRECTIVE
+        heuristic_result["outcome"] == PRECOMPILE_OUTCOME_DIRECTIVE
         and heuristic_result["directive"]
     ):
-        if _PARSE_PRECOMPILER_OUTPUT_HELPER is not None:
-            parsed = cast(
-                str | None, _PARSE_PRECOMPILER_OUTPUT_HELPER(heuristic_result["directive"])
-            )
-            if parsed is not None and parsed != _NO_DIRECTIVE_SENTINEL:
-                return parsed
-        else:
-            parsed = _normalize_precompiler_output(heuristic_result["directive"])
-            if (
-                parsed is not None
-                and parsed != _NO_DIRECTIVE_SENTINEL
-                and parsed
-                and _is_allowed_directive(parsed)
-            ):
-                return parsed
+        parsed = parse_precompiler_output(heuristic_result["directive"])
+        if parsed is not None and parsed != PRECOMPILER_NO_DIRECTIVE_SENTINEL:
+            return parsed
 
     return _llm_fallback_precompile(
         message,

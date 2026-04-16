@@ -7,6 +7,12 @@ compilation.
 The compiler remains deterministic and authoritative. The preprocessor does not
 replace core parsing or state semantics.
 
+Install path for integrations using this layer:
+`pip install "context-compiler[experimental]"`.
+
+Integration runtimes must use installed-package imports/resources for this
+layer. Do not rely on repo-relative preprocessor paths.
+
 ## Required flow
 
 Recommended conceptual flow:

@@ -35,7 +35,7 @@ See: [LiteLLM Proxy README](litellm_proxy/README.md)
 
 ## Open WebUI Pipe Function
 
-Tested target: Open WebUI `v0.7.2`.
+Tested target: Open WebUI `v0.8.12`.
 
 Files:
 - Basic example: [open_webui_pipe.py](openwebui/open_webui_pipe.py)

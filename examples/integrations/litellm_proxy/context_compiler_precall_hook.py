@@ -11,9 +11,22 @@ from typing import Any
 
 from litellm.integrations.custom_logger import CustomLogger
 
-from context_compiler import State, compile_transcript, get_policy_items, get_premise_value
+from context_compiler import (
+    State,
+    Transcript,
+    compile_transcript,
+    get_policy_items,
+    get_premise_value,
+)
 
 logger = logging.getLogger(__name__)
+
+_SUPPORTED_CALL_TYPES = {
+    "completion",
+    "acompletion",
+    "chat_completion",
+    "achat_completion",
+}
 
 
 def _render_compiled_state_contract(compiled_state: State) -> str:
@@ -59,8 +72,8 @@ def _extract_text_content(content: object) -> str | None:
     return None
 
 
-def _extract_user_transcript(messages: list[dict[str, object]]) -> list[dict[str, object]]:
-    transcript: list[dict[str, object]] = []
+def _extract_user_transcript(messages: list[dict[str, object]]) -> Transcript:
+    transcript: Transcript = []
     for message in messages:
         role = message.get("role")
         content = message.get("content")
@@ -80,7 +93,7 @@ class ContextCompilerPreCallHook(CustomLogger):
     ) -> dict[str, object] | str:
         del user_api_key_dict, cache
         logger.debug("litellm_proxy: call_type=%s", call_type)
-        if call_type != "completion":
+        if call_type not in _SUPPORTED_CALL_TYPES:
             return data
 
         request_messages = _extract_request_messages(data)

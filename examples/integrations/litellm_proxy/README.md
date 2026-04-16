@@ -12,14 +12,28 @@ Available hook files:
 
 ```shell
 pip install 'litellm[proxy]'
+pip install context-compiler
 export OPENAI_API_KEY=...
+```
+
+For `context_compiler_precall_hook_with_preprocessor.py`:
+
+```shell
+pip install "context-compiler[experimental]"
 ```
 
 ### Run proxy
 
+Typical startup command (environment-sensitive):
+
 ```shell
 litellm --config config.example.yaml
 ```
+
+Hook behavior in this directory is smoke-validated. Proxy server startup with
+`litellm --config ...` is environment-sensitive (callback import resolution) and
+was not re-validated end-to-end as-is in the latest smoke pass with
+`litellm==1.83.7`.
 
 The proxy runs on `http://localhost:4000` by default.
 By default, `config.example.yaml` points to the basic replay-only hook.
@@ -69,8 +83,11 @@ Optional env vars for preprocessor fallback:
 
 ```shell
 export PREPROCESSOR_MODEL=openai/gpt-4o-mini
-export PREPROCESSOR_PROMPT_PROFILE=default  # or llama
+export PREPROCESSOR_PROMPT_PROFILE=default
 ```
+
+For heuristic-first usage, keep `PREPROCESSOR_PROMPT_PROFILE=default`.
+Use `llama` only for LLM-only preprocessing with Llama-family models.
 
 ### Note
 

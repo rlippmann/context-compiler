@@ -1,6 +1,6 @@
 """Demo 6: host-side prompt replacement from authoritative compiled state."""
 
-from context_compiler import compile_transcript, get_premise_value
+from context_compiler import Transcript, compile_transcript, get_premise_value
 from demos.common import compact_user_turns, is_verbose, print_info_report
 
 DEMO_NAME = "06_context_compaction — superseded directives eliminated"
@@ -40,7 +40,7 @@ def _build_turns(turn_count: int) -> list[str]:
 
 
 def _compile_premise(turns: list[str]) -> str:
-    messages: list[dict[str, object]] = [{"role": "user", "content": turn} for turn in turns]
+    messages: Transcript = [{"role": "user", "content": turn} for turn in turns]
     result = compile_transcript(messages)
     assert result["kind"] == "state"
     compiled_premise = get_premise_value(result["state"])

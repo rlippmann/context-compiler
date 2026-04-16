@@ -167,8 +167,8 @@ Meaning:
 |---|---|
 | `create_engine(state=None)` | Create a new compiler engine; optional `state` provides initial authoritative state (validated/canonicalized). |
 | `step(user_input)` | Parse one user turn and return a deterministic `Decision`. |
-| `compile_transcript(messages)` | Replay a transcript from a fresh engine and return either final state or a confirmation prompt. |
-| `engine.apply_transcript(messages)` | Replay a transcript onto the current engine state and return either final state or a confirmation prompt. |
+| `compile_transcript(messages: Transcript)` | Replay a transcript from a fresh engine and return either final state or a confirmation prompt. |
+| `engine.apply_transcript(messages: Transcript)` | Replay a transcript onto the current engine state and return either final state or a confirmation prompt. |
 | `engine.state` | Read current authoritative in-memory state snapshot. |
 | `get_premise_value(state)` | Read the current premise value from a state snapshot. |
 | `get_policy_items(state, value=None)` | Read policy items from a state snapshot (all, `use`, or `prohibit`). |

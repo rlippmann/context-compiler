@@ -11,24 +11,37 @@ import logging
 import os
 from collections.abc import Callable, Mapping, Sequence
 from importlib import import_module
-from pathlib import Path
+from importlib.abc import Traversable
+from importlib.resources import as_file, files
 from typing import Any, cast
 
 from litellm.integrations.custom_logger import CustomLogger
 
-from context_compiler import State, compile_transcript, get_policy_items, get_premise_value
-from experimental.preprocessor.constants import (
+from context_compiler import (
+    State,
+    Transcript,
+    compile_transcript,
+    get_policy_items,
+    get_premise_value,
+)
+from experimental.preprocessor import (
     PRECOMPILE_OUTCOME_DIRECTIVE,
     PRECOMPILER_NO_DIRECTIVE_SENTINEL,
+    parse_precompiler_output,
+    precompile_heuristic,
+    render_prompt,
 )
-from experimental.preprocessor.heuristic_precompiler import precompile_heuristic
-from experimental.preprocessor.output_validation import parse_precompiler_output
-from experimental.preprocessor.prompt_utils import render_prompt
 
 logger = logging.getLogger(__name__)
 
-_REPO_ROOT = Path(__file__).resolve().parents[3]
-_PROMPTS_DIR = _REPO_ROOT / "experimental" / "preprocessor" / "prompts"
+_SUPPORTED_CALL_TYPES = {
+    "completion",
+    "acompletion",
+    "chat_completion",
+    "achat_completion",
+}
+
+_PROMPTS_DIR = files("experimental.preprocessor").joinpath("prompts")
 
 
 def _render_compiled_state_contract(compiled_state: State) -> str:
@@ -74,8 +87,8 @@ def _extract_text_content(content: object) -> str | None:
     return None
 
 
-def _extract_user_transcript(messages: list[dict[str, object]]) -> list[dict[str, object]]:
-    transcript: list[dict[str, object]] = []
+def _extract_user_transcript(messages: list[dict[str, object]]) -> Transcript:
+    transcript: Transcript = []
     for message in messages:
         role = message.get("role")
         content = message.get("content")
@@ -108,11 +121,11 @@ def _extract_response_content(response: object) -> str | None:
     return None
 
 
-def _prompt_file_path() -> Path:
+def _prompt_file_path() -> Traversable:
     profile = os.getenv("PREPROCESSOR_PROMPT_PROFILE", "default").strip().lower()
     if profile == "llama":
-        return _PROMPTS_DIR / "llama.txt"
-    return _PROMPTS_DIR / "default.txt"
+        return _PROMPTS_DIR.joinpath("llama.txt")
+    return _PROMPTS_DIR.joinpath("default.txt")
 
 
 def _get_litellm_completion() -> Callable[..., object]:
@@ -121,7 +134,8 @@ def _get_litellm_completion() -> Callable[..., object]:
 
 
 def _llm_fallback_precompile(message: str, state: State) -> str | None:
-    prompt = render_prompt(_prompt_file_path(), state)
+    with as_file(_prompt_file_path()) as prompt_path:
+        prompt = render_prompt(prompt_path, state)
     if prompt is None:
         return None
 
@@ -163,7 +177,7 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
     return parsed
 
 
-def _state_before_last_message(user_transcript: list[dict[str, object]]) -> State | None:
+def _state_before_last_message(user_transcript: Transcript) -> State | None:
     if not user_transcript:
         return None
     prefix = user_transcript[:-1]
@@ -206,7 +220,7 @@ class ContextCompilerPreCallHookWithPreprocessor(CustomLogger):
     ) -> dict[str, object] | str:
         del user_api_key_dict, cache
         logger.debug("litellm_proxy: call_type=%s", call_type)
-        if call_type != "completion":
+        if call_type not in _SUPPORTED_CALL_TYPES:
             return data
 
         request_messages = _extract_request_messages(data)

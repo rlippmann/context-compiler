@@ -1,18 +1,6 @@
-from importlib.util import module_from_spec, spec_from_file_location
-from pathlib import Path
+import pytest
 
-_MODULE_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "experimental"
-    / "preprocessor"
-    / "heuristic_precompiler.py"
-)
-_SPEC = spec_from_file_location("heuristic_precompiler", _MODULE_PATH)
-assert _SPEC is not None
-assert _SPEC.loader is not None
-_MODULE = module_from_spec(_SPEC)
-_SPEC.loader.exec_module(_MODULE)
-precompile_heuristic = _MODULE.precompile_heuristic
+from experimental.preprocessor.heuristic_precompiler import precompile_heuristic
 
 
 def test_heuristic_rejects_consistent_high_risk_non_directives() -> None:
@@ -256,3 +244,9 @@ def test_heuristic_returns_unknown_for_unresolved_cases() -> None:
             "directive": None,
             "rule_id": None,
         }
+
+
+@pytest.mark.parametrize("message", ['""', "''", "()", "[]", "``"])
+def test_heuristic_empty_wrappers_do_not_produce_directive(message: str) -> None:
+    result = precompile_heuristic(message)
+    assert result["directive"] is None

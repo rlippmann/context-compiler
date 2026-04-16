@@ -5,6 +5,12 @@ Compiler integrations.
 
 It is experimental and separate from the deterministic core engine in `src/`.
 
+Recommended install for integrations using this package:
+`pip install "context-compiler[experimental]"`.
+
+Integrations should import this package from the installed environment rather
+than using repo-relative preprocessor paths.
+
 ## Modules
 
 - `heuristic_precompiler.py`: conservative structural precompile pass.

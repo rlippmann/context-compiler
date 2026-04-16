@@ -9,7 +9,14 @@ This directory contains two minimal Context Compiler + LiteLLM integrations:
 
 ```shell
 pip install litellm
+pip install context-compiler
 export OPENAI_API_KEY=...
+```
+
+For `with_preprocessor.py`:
+
+```shell
+pip install "context-compiler[experimental]"
 ```
 
 Optional:
@@ -17,10 +24,13 @@ Optional:
 ```shell
 export MODEL=openai/gpt-4o-mini
 export OPENAI_BASE_URL=...
-export PREPROCESSOR_PROMPT_PROFILE=default  # or llama (with_preprocessor.py only)
+export PREPROCESSOR_PROMPT_PROFILE=default
 ```
 
 `MODEL` uses LiteLLM format: `<provider>/<model>`.
+
+For heuristic-first usage, keep `PREPROCESSOR_PROMPT_PROFILE=default`.
+Use `llama` only for LLM-only preprocessing with Llama-family models.
 
 ## Usage pattern
 
