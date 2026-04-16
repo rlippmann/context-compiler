@@ -2,6 +2,8 @@
 
 This directory contains small integration examples showing typical host-side usage of the Context Compiler.
 
+These files are included in the base package install (`pip install context-compiler`).
+
 ## 01_persistent_guardrails.py
 
 Demonstrates how a prohibition persists as authoritative state across later turns.  

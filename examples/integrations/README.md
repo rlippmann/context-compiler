@@ -12,7 +12,7 @@ Files:
 ### Requirements
 
 ```shell
-pip install litellm
+pip install "context-compiler[integrations]"
 export OPENAI_API_KEY=...
 ```
 
@@ -36,6 +36,8 @@ See: [LiteLLM Proxy README](litellm_proxy/README.md)
 ## Open WebUI Pipe Function
 
 Tested target: Open WebUI `v0.8.12`.
+
+Open WebUI is host-provided runtime infrastructure and must be installed/configured separately.
 
 Files:
 - Basic example: [open_webui_pipe.py](openwebui/open_webui_pipe.py)

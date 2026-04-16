@@ -32,7 +32,7 @@ patterns still appear in real applications.
 Install demo dependencies:
 
 ```bash
-pip install -e .[demos]
+pip install "context-compiler[demos]"
 ```
 
 Environment variables (LiteLLM/OpenAI-compatible API):

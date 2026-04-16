@@ -11,10 +11,13 @@ Tested target: Open WebUI `v0.8.12` (latest at time of testing).
 
 ## Setup
 
-1. Install `context-compiler` in the Open WebUI Python environment.
+1. Install integration support in the Open WebUI Python environment:
+   - `pip install "context-compiler[integrations]"`
 2. Add one of the files above as a Function in Open WebUI.
 3. Set `BASE_MODEL_ID` to a valid Open WebUI model id (required).
 4. Select the pipe model in chat.
+
+Open WebUI is host-provided runtime infrastructure and must already be installed/configured separately.
 
 If using `open_webui_pipe_with_preprocessor.py`:
 - Install preprocessor support in the Open WebUI environment:
