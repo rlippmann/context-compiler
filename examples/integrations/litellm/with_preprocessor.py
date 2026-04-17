@@ -17,8 +17,8 @@ import logging
 import os
 from collections.abc import Callable, Mapping, Sequence
 from importlib import import_module
-from importlib.abc import Traversable
 from importlib.resources import as_file, files
+from importlib.resources.abc import Traversable
 from typing import TypedDict, cast
 
 from context_compiler import State, get_policy_items, get_premise_value

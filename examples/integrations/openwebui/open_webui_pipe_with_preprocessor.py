@@ -18,8 +18,8 @@ Core decision handling remains the same as the base integration.
 """
 
 import logging
-from importlib.abc import Traversable
 from importlib.resources import as_file, files
+from importlib.resources.abc import Traversable
 from typing import Any, Literal
 
 from fastapi import Request  # type: ignore[import-not-found]
