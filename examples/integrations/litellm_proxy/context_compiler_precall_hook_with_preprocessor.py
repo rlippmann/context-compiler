@@ -141,6 +141,8 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
 
     preprocessor_model = os.getenv("PREPROCESSOR_MODEL", "").strip()
     if not preprocessor_model:
+        preprocessor_model = os.getenv("MODEL", "").strip()
+    if not preprocessor_model:
         return None
 
     api_key = os.getenv("OPENAI_API_KEY")
