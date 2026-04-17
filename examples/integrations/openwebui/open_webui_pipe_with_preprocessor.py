@@ -4,28 +4,28 @@ author: rlippmann
 author_url: https://github.com/rlippmann/context-compiler
 funding_url: https://github.com/rlippmann/context-compiler
 version: 0.1
+requirements: context-compiler[experimental]>=0.6.4
 
 Open WebUI integration with Context Compiler preprocessor.
 
 This example extends `open_webui_pipe.py` by inserting a preprocessing step:
 
 1. Run heuristic precompiler (fast, high-precision cases)
-2. Fall back to LLM-based precompiler when needed
+2. Fall back to Open WebUI-native model completion when needed
 3. Pass resulting directive (or original input) to `engine.step(...)`
 
 Core decision handling remains the same as the base integration.
 """
 
-import importlib
 import logging
-import os
-from importlib.abc import Traversable
 from importlib.resources import as_file, files
-from typing import Any, Literal, cast
+from importlib.resources.abc import Traversable
+from typing import Any, Literal
 
 from fastapi import Request  # type: ignore[import-not-found]
 from open_webui.models.users import Users  # type: ignore[import-not-found]
 from open_webui.utils.chat import generate_chat_completion  # type: ignore[import-not-found]
+from open_webui.utils.models import get_all_models  # type: ignore[import-not-found]
 from pydantic import BaseModel, Field
 
 from context_compiler import State, create_engine, get_policy_items, get_premise_value
@@ -124,87 +124,46 @@ def _replace_compiler_system_message(
     ]
 
 
-def _llm_fallback_precompile(
-    message: str, state: State, *, prompt_profile: str, model: str
-) -> str | None:
-    with as_file(_prompt_file_path(prompt_profile)) as prompt_path:
-        prompt = render_prompt(prompt_path, state)
-    if prompt is None:
-        return None
+def _extract_completion_content(response: object) -> str | None:
+    choices_attr = getattr(response, "choices", None)
+    if isinstance(choices_attr, list) and choices_attr:
+        first_choice = choices_attr[0]
+        message_attr = getattr(first_choice, "message", None)
+        content_attr = getattr(message_attr, "content", None)
+        if isinstance(content_attr, str):
+            return content_attr
 
-    try:
-        litellm_module = importlib.import_module("litellm")
-        completion = cast(Any, litellm_module.completion)
-    except ModuleNotFoundError:
-        return None
+    if isinstance(response, dict):
+        choices = response.get("choices")
+        if isinstance(choices, list) and choices:
+            first_choice = choices[0]
+            if isinstance(first_choice, dict):
+                message = first_choice.get("message")
+                if isinstance(message, dict):
+                    content = message.get("content")
+                    if isinstance(content, str):
+                        return content
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return None
-
-    kwargs: dict[str, Any] = {
-        "model": model,
-        "messages": [
-            {"role": "system", "content": prompt},
-            {"role": "user", "content": message},
-        ],
-        "api_key": api_key,
-        "temperature": 0,
-    }
-    api_base = os.getenv("OPENAI_BASE_URL")
-    if api_base:
-        kwargs["api_base"] = api_base
-
-    try:
-        response = completion(**kwargs)
-        raw_output = cast(Any, response.choices[0].message.content)
-    except Exception:
-        return None
-
-    parsed = parse_precompiler_output(raw_output)
-    if parsed is None or parsed == PRECOMPILER_NO_DIRECTIVE_SENTINEL:
-        return None
-    return parsed
-
-
-def _precompile_user_input(
-    message: str,
-    state: State,
-    *,
-    prompt_profile: str,
-    model: str,
-) -> str | None:
-    # Heuristic first for precision, determinism, and low latency.
-    # If heuristic does not produce a directive, try LLM fallback.
-    heuristic_result = precompile_heuristic(message)
-
-    if (
-        heuristic_result["outcome"] == PRECOMPILE_OUTCOME_DIRECTIVE
-        and heuristic_result["directive"]
-    ):
-        parsed = parse_precompiler_output(heuristic_result["directive"])
-        if parsed is not None and parsed != PRECOMPILER_NO_DIRECTIVE_SENTINEL:
-            return parsed
-
-    return _llm_fallback_precompile(
-        message,
-        state,
-        prompt_profile=prompt_profile,
-        model=model,
-    )
+    return None
 
 
 class Pipe:
     """Map Context Compiler decisions into Open WebUI pipe behavior.
 
     This variant adds a precompiler stage before ``engine.step(...)``:
-    heuristic first, then LLM fallback.
+    heuristic first, then Open WebUI-native LLM fallback.
     """
 
     class Valves(BaseModel):
         BASE_MODEL_ID: str = Field(
             default="",
             description="Open WebUI model id used as the base model for forwarding.",
+        )
+        PREPROCESSOR_MODEL_ID: str = Field(
+            default="",
+            description=(
+                "Optional model id for fallback precompilation (defaults to BASE_MODEL_ID)."
+            ),
         )
         PREPROCESSOR_PROMPT_PROFILE: Literal["default", "llama"] = Field(
             default="default",
@@ -249,14 +208,150 @@ class Pipe:
             )
         return None
 
+    def _normalize_preprocessor_error(self, response: Any) -> str | None:
+        if self._contains_model_not_found(response):
+            return (
+                "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID was not found "
+                "in Open WebUI models."
+            )
+        return None
+
+    def _normalize_preprocessor_exception(self, exc: Exception) -> str | None:
+        detail = getattr(exc, "detail", None)
+        if self._contains_model_not_found(detail) or self._contains_model_not_found(str(exc)):
+            return (
+                "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID was not found "
+                "in Open WebUI models."
+            )
+        return None
+
+    def _resolve_preprocessor_model_id(self, base_model_id: str) -> str:
+        preprocessor_model_id = self.valves.PREPROCESSOR_MODEL_ID.strip()
+        if preprocessor_model_id:
+            return preprocessor_model_id
+        return base_model_id
+
+    async def _validate_configured_model_ids(
+        self,
+        request: Request,
+        user_payload: dict[str, Any],
+        *,
+        base_model_id: str,
+        preprocessor_model_id: str,
+    ) -> str | None:
+        # Best-effort preflight: fail closed only for clear missing-model mismatches.
+        # If model discovery fails, preserve runtime behavior and rely on call-path
+        # normalization below.
+        user = Users.get_user_by_id(user_payload["id"])
+        try:
+            models = await get_all_models(request, user=user)
+        except Exception:
+            return None
+
+        known_model_ids: set[str] = set()
+        if isinstance(models, list):
+            for model in models:
+                if not isinstance(model, dict):
+                    continue
+                model_id = model.get("id")
+                if isinstance(model_id, str):
+                    known_model_ids.add(model_id)
+
+        if base_model_id and base_model_id not in known_model_ids:
+            return (
+                "Context Compiler pipe misconfigured: BASE_MODEL_ID was not found "
+                "in Open WebUI models."
+            )
+        if preprocessor_model_id and preprocessor_model_id not in known_model_ids:
+            return (
+                "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID was not found "
+                "in Open WebUI models."
+            )
+        return None
+
+    async def _llm_fallback_precompile(
+        self,
+        message: str,
+        state: State,
+        *,
+        request: Request,
+        user_payload: dict[str, Any],
+        prompt_profile: str,
+        model_id: str,
+    ) -> tuple[str | None, str | None]:
+        with as_file(_prompt_file_path(prompt_profile)) as prompt_path:
+            prompt = render_prompt(prompt_path, state)
+        if prompt is None:
+            return None, None
+
+        payload: dict[str, Any] = {
+            "model": model_id,
+            "stream": False,
+            "messages": [
+                {"role": "system", "content": prompt},
+                {"role": "user", "content": message},
+            ],
+        }
+        user = Users.get_user_by_id(user_payload["id"])
+        try:
+            response = await generate_chat_completion(request, payload, user)
+        except Exception as exc:
+            normalized_exception = self._normalize_preprocessor_exception(exc)
+            if normalized_exception is not None:
+                return None, normalized_exception
+            return None, None
+
+        normalized_error = self._normalize_preprocessor_error(response)
+        if normalized_error is not None:
+            return None, normalized_error
+
+        raw_output = _extract_completion_content(response)
+        parsed = parse_precompiler_output(raw_output)
+        if parsed is None or parsed == PRECOMPILER_NO_DIRECTIVE_SENTINEL:
+            return None, None
+        return parsed, None
+
+    async def _precompile_user_input(
+        self,
+        message: str,
+        state: State,
+        *,
+        request: Request,
+        user_payload: dict[str, Any],
+        prompt_profile: str,
+        model_id: str,
+    ) -> tuple[str | None, str | None]:
+        # Heuristic first for precision, determinism, and low latency.
+        # If heuristic does not produce a directive, try Open WebUI-native fallback.
+        heuristic_result = precompile_heuristic(message)
+
+        if (
+            heuristic_result["outcome"] == PRECOMPILE_OUTCOME_DIRECTIVE
+            and heuristic_result["directive"]
+        ):
+            parsed = parse_precompiler_output(heuristic_result["directive"])
+            if parsed is not None and parsed != PRECOMPILER_NO_DIRECTIVE_SENTINEL:
+                return parsed, None
+
+        return await self._llm_fallback_precompile(
+            message,
+            state,
+            request=request,
+            user_payload=user_payload,
+            prompt_profile=prompt_profile,
+            model_id=model_id,
+        )
+
     async def _forward_passthrough(
         self,
         body: dict[str, Any],
         user_payload: dict[str, Any],
         request: Request,
+        *,
+        base_model_id: str,
     ) -> Any:
         payload = {**body}
-        payload["model"] = self.valves.BASE_MODEL_ID
+        payload["model"] = base_model_id
         user = Users.get_user_by_id(user_payload["id"])
         try:
             response = await generate_chat_completion(request, payload, user)
@@ -276,9 +371,11 @@ class Pipe:
         user_payload: dict[str, Any],
         request: Request,
         state: State,
+        *,
+        base_model_id: str,
     ) -> Any:
         payload = {**body}
-        payload["model"] = self.valves.BASE_MODEL_ID
+        payload["model"] = base_model_id
 
         raw_messages = body.get("messages")
         messages = (
@@ -324,7 +421,9 @@ class Pipe:
             else []
         )
         base_model_id = self.valves.BASE_MODEL_ID.strip()
+        preprocessor_model_id = self._resolve_preprocessor_model_id(base_model_id)
         current_model_id = str(body.get("model", "")).strip()
+
         if not base_model_id and not self.valves.ALLOW_MISSING_BASE_MODEL_FOR_DEBUG:
             return (
                 "Context Compiler pipe misconfigured: BASE_MODEL_ID is required "
@@ -335,12 +434,31 @@ class Pipe:
                 "Context Compiler pipe misconfigured: BASE_MODEL_ID must not match "
                 "the selected pipe model id to avoid recursive routing."
             )
+        if preprocessor_model_id and current_model_id and preprocessor_model_id == current_model_id:
+            return (
+                "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID must not "
+                "match the selected pipe model id to avoid recursive routing."
+            )
+
+        preflight_error = await self._validate_configured_model_ids(
+            __request__,
+            __user__,
+            base_model_id=base_model_id,
+            preprocessor_model_id=preprocessor_model_id,
+        )
+        if preflight_error is not None:
+            return preflight_error
 
         latest_user_text = _extract_latest_user_text(messages)
         logger.debug("preprocessor: user_input_found=%s", latest_user_text is not None)
 
         if latest_user_text is None:
-            return await self._forward_passthrough(body, __user__, __request__)
+            return await self._forward_passthrough(
+                body,
+                __user__,
+                __request__,
+                base_model_id=base_model_id,
+            )
 
         chat_key = _resolve_chat_key(__user__, __chat_id__, __metadata__)
         engine = _ENGINES_BY_CHAT_KEY.get(chat_key)
@@ -348,12 +466,17 @@ class Pipe:
             engine = create_engine()
             _ENGINES_BY_CHAT_KEY[chat_key] = engine
 
-        precompiled = _precompile_user_input(
+        precompiled, precompile_error = await self._precompile_user_input(
             latest_user_text,
             engine.state,
+            request=__request__,
+            user_payload=__user__,
             prompt_profile=self.valves.PREPROCESSOR_PROMPT_PROFILE,
-            model=base_model_id,
+            model_id=preprocessor_model_id,
         )
+        if precompile_error is not None:
+            return precompile_error
+
         logger.debug("preprocessor: precompiled=%r", precompiled)
         # Preserve core behavior: if precompile yields no directive, use raw user
         # text so the compiler still decides clarify/passthrough/update.
@@ -367,8 +490,24 @@ class Pipe:
         if kind == "clarify":
             return decision["prompt_to_user"] or ""
         if kind == "passthrough":
-            return await self._forward_passthrough(body, __user__, __request__)
+            return await self._forward_passthrough(
+                body,
+                __user__,
+                __request__,
+                base_model_id=base_model_id,
+            )
         if kind == "update":
-            return await self._forward_update(body, __user__, __request__, engine.state)
+            return await self._forward_update(
+                body,
+                __user__,
+                __request__,
+                engine.state,
+                base_model_id=base_model_id,
+            )
 
-        return await self._forward_passthrough(body, __user__, __request__)
+        return await self._forward_passthrough(
+            body,
+            __user__,
+            __request__,
+            base_model_id=base_model_id,
+        )

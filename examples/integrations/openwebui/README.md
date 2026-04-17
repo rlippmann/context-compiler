@@ -6,8 +6,8 @@ Tested target: Open WebUI `v0.8.12` (latest at time of testing).
 
 ## Files
 
-- `open_webui_pipe.py`: basic integration, no preprocessor layer.
-- `open_webui_pipe_with_preprocessor.py`: heuristic-first preprocessor plus LLM fallback before `engine.step(...)`.
+- `open_webui_pipe.py`: basic integration, no preprocessor layer (recommended/default).
+- `open_webui_pipe_with_preprocessor.py`: optional/experimental preprocessor layer (heuristic first, then model fallback) before `engine.step(...)`.
 
 ## Setup
 
@@ -27,9 +27,13 @@ If using `open_webui_pipe_with_preprocessor.py`:
   repo-relative paths).
 - Set `PREPROCESSOR_PROMPT_PROFILE` to `default` for heuristic-first usage.
 - Use `llama` only for LLM-only preprocessing with Llama-family models.
-- Ensure `OPENAI_API_KEY` is set (and `OPENAI_BASE_URL` if needed).
 - Prompt files are loaded from the installed package prompts (`default`/`llama` profiles).
-- LLM fallback uses `BASE_MODEL_ID` as its model.
+- Optional: set `PREPROCESSOR_MODEL_ID` to route fallback precompilation through
+  a separate model. If unset, fallback uses `BASE_MODEL_ID`.
+- Fallback routing is Open WebUI-native (no LiteLLM dependency for this pipe).
+- Invalid configured model ids return explicit runtime misconfiguration errors:
+  - `BASE_MODEL_ID` not found in Open WebUI models
+  - `PREPROCESSOR_MODEL_ID` not found in Open WebUI models
 
 ## Limitations
 

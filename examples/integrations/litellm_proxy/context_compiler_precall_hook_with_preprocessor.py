@@ -11,8 +11,8 @@ import logging
 import os
 from collections.abc import Callable, Mapping, Sequence
 from importlib import import_module
-from importlib.abc import Traversable
 from importlib.resources import as_file, files
+from importlib.resources.abc import Traversable
 from typing import Any, cast
 
 from litellm.integrations.custom_logger import CustomLogger
@@ -140,6 +140,8 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
         return None
 
     preprocessor_model = os.getenv("PREPROCESSOR_MODEL", "").strip()
+    if not preprocessor_model:
+        preprocessor_model = os.getenv("MODEL", "").strip()
     if not preprocessor_model:
         return None
 

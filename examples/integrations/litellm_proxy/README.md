@@ -88,6 +88,8 @@ export PREPROCESSOR_MODEL=openai/gpt-4o-mini
 export PREPROCESSOR_PROMPT_PROFILE=default
 ```
 
+`PREPROCESSOR_MODEL` is optional and defaults to `MODEL`.
+
 For heuristic-first usage, keep `PREPROCESSOR_PROMPT_PROFILE=default`.
 Use `llama` only for LLM-only preprocessing with Llama-family models.
 

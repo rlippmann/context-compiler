@@ -17,8 +17,8 @@ import logging
 import os
 from collections.abc import Callable, Mapping, Sequence
 from importlib import import_module
-from importlib.abc import Traversable
 from importlib.resources import as_file, files
+from importlib.resources.abc import Traversable
 from typing import TypedDict, cast
 
 from context_compiler import State, get_policy_items, get_premise_value
@@ -148,9 +148,12 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
     api_key = os.getenv("OPENAI_API_KEY")
     if not api_key:
         return None
+    preprocessor_model = os.getenv("PREPROCESSOR_MODEL", "").strip()
+    if not preprocessor_model:
+        preprocessor_model = os.getenv("MODEL", "openai/gpt-4o-mini")
 
     kwargs: _LiteLLMCallKwargs = {
-        "model": os.getenv("MODEL", "openai/gpt-4o-mini"),
+        "model": preprocessor_model,
         "messages": [
             {"role": "system", "content": prompt},
             {"role": "user", "content": message},
