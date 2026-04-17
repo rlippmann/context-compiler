@@ -3,6 +3,7 @@
 This directory contains small integration examples showing typical host-side usage of the Context Compiler.
 
 These files are included in the base package install (`pip install context-compiler`).
+Non-integration example files in this directory are standalone scripts and can be run directly.
 
 ## 01_persistent_guardrails.py
 
