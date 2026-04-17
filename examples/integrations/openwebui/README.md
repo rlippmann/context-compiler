@@ -11,11 +11,11 @@ Tested target: Open WebUI `v0.8.12` (latest at time of testing).
 
 ## Setup
 
-1. Install integration support in the Open WebUI Python environment:
-   - `pip install "context-compiler[integrations]"`
-2. Add one of the files above as a Function in Open WebUI.
-3. Set `BASE_MODEL_ID` to a valid Open WebUI model id (required).
-4. Select the pipe model in chat.
+1. Import `open_webui_pipe.py` (recommended/default) as a Function by URL.
+2. Open WebUI installs `context-compiler>=0.6.4` from the function frontmatter requirements.
+3. Enable the function.
+4. Set `BASE_MODEL_ID` to a valid Open WebUI model id (required).
+5. Select the pipe model in chat.
 
 Open WebUI is host-provided runtime infrastructure and must already be installed/configured separately.
 
@@ -34,6 +34,22 @@ If using `open_webui_pipe_with_preprocessor.py`:
 - Invalid configured model ids return explicit runtime misconfiguration errors:
   - `BASE_MODEL_ID` not found in Open WebUI models
   - `PREPROCESSOR_MODEL_ID` not found in Open WebUI models
+
+### Docker/manual install fallback
+
+If frontmatter dependency installs are disabled, offline, or unavailable:
+
+1. Open a shell in the Open WebUI container:
+   - `docker exec -it <openwebui-container> sh`
+2. Install the package manually:
+   - Minimal pipe: `pip install "context-compiler>=0.6.4"`
+   - Preprocessor pipe: `pip install "context-compiler[experimental]>=0.6.4"`
+3. Import and enable the function in Open WebUI, then configure valves.
+
+### Finding valid model ids
+
+Use the Open WebUI model picker/list to copy exact model ids for `BASE_MODEL_ID`
+(and optional `PREPROCESSOR_MODEL_ID` for the preprocessor pipe).
 
 ## Limitations
 
