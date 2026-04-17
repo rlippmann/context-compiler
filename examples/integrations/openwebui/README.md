@@ -12,7 +12,7 @@ Runtime-validated on stock Docker Open WebUI with a real backend model provider.
 
 ## Setup
 
-The minimal pipe path below is the easiest first-run flow and was validated end-to-end in Docker with a real backend model.
+The minimal pipe path below is the easiest first-run flow and was runtime-validated in Docker via API flow with a real backend model.
 
 1. Import `open_webui_pipe.py` (recommended/default) as a Function by URL.
 2. Open WebUI installs `context-compiler>=0.6.6` from the function frontmatter requirements.
