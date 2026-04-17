@@ -24,6 +24,16 @@ For `context_compiler_precall_hook_with_preprocessor.py`:
 pip install "context-compiler[experimental]"
 ```
 
+### Quickstart (copy/paste)
+
+From the repo root:
+
+```shell
+pip install "context-compiler[litellm_proxy]"
+export OPENAI_API_KEY=...
+litellm --config examples/integrations/litellm_proxy/config.example.yaml
+```
+
 ### Run proxy
 
 Typical startup command (environment-sensitive):
@@ -40,6 +50,7 @@ was not re-validated end-to-end as-is in the latest smoke pass with
 The proxy runs on `http://localhost:4000` by default.
 By default, `config.example.yaml` points to the basic replay-only hook.
 To use the preprocessor variant, switch the callback path in the config.
+Run from the repo root, or set `PYTHONPATH` so `examples.integrations...` callback imports resolve.
 
 ### Make a request
 
@@ -97,3 +108,9 @@ Use `llama` only for LLM-only preprocessing with Llama-family models.
 
 - The callback path in `config.example.yaml` must be importable.
   Run the proxy from the repo root or set `PYTHONPATH` accordingly.
+
+### Troubleshooting
+
+- `ModuleNotFoundError` for callback path: run from repo root, or set `PYTHONPATH=<repo-root>`.
+- proxy starts but upstream calls fail: check `OPENAI_API_KEY` and upstream model/provider config in `config.example.yaml`.
+- preprocessor fallback issues: `PREPROCESSOR_MODEL` defaults to `MODEL`; set it explicitly only when using a separate fallback model.
