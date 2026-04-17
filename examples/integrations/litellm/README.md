@@ -18,6 +18,42 @@ For `with_preprocessor.py`:
 pip install "context-compiler[experimental]"
 ```
 
+## Quickstart (copy/paste)
+
+```shell
+pip install "context-compiler[integrations]"
+export OPENAI_API_KEY=...
+export MODEL=openai/gpt-4o-mini
+python - <<'PY'
+from context_compiler import create_engine
+from examples.integrations.litellm.basic import handle_turn
+engine = create_engine()
+print(handle_turn("set premise concise replies", engine))
+PY
+```
+
+For preprocessor behavior:
+
+```shell
+pip install "context-compiler[experimental]"
+export OPENAI_API_KEY=...
+export MODEL=openai/gpt-4o-mini
+python - <<'PY'
+from context_compiler import create_engine
+from examples.integrations.litellm.with_preprocessor import handle_turn
+engine = create_engine()
+print(handle_turn("set premise to concise replies", engine))
+PY
+```
+
+## Environment configuration
+
+Required:
+
+```shell
+export OPENAI_API_KEY=...
+```
+
 Optional:
 
 ```shell
@@ -41,6 +77,12 @@ These files are importable integration references for host applications.
 - Create and retain an engine instance in host/session state.
 - Pass each user input through `handle_turn(user_input, engine)`.
 - Display the returned assistant text.
+
+## Troubleshooting
+
+- `litellm is required`: install `context-compiler[integrations]` (or `context-compiler[experimental]` for preprocessor).
+- `OPENAI_API_KEY is required`: export a key before running.
+- model/provider errors (`Model not found`, provider auth errors): confirm `MODEL` uses LiteLLM format and provider credentials are valid.
 
 ## Basic vs preprocessor behavior
 
