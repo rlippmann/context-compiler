@@ -142,6 +142,41 @@ def test_import_json_rejects_policy_keys_that_normalize_to_empty(
         )
 
 
+def test_import_json_rejects_empty_normalized_key_atomically() -> None:
+    engine = create_engine()
+    engine.step("use kubectl")
+    before = engine.state
+
+    with pytest.raises(ValueError, match="Invalid state payload"):
+        engine.import_json(
+            json.dumps(
+                {
+                    "premise": None,
+                    "policies": {"Docker": "use", "a": "use"},
+                    "version": 2,
+                }
+            )
+        )
+
+    assert engine.state == before
+
+
+def test_import_json_accepts_valid_policy_key_and_normalizes_it() -> None:
+    engine = create_engine()
+
+    engine.import_json(
+        json.dumps(
+            {
+                "premise": None,
+                "policies": {"Docker": "use"},
+                "version": 2,
+            }
+        )
+    )
+
+    assert engine.state == {"premise": None, "policies": {"docker": "use"}, "version": 2}
+
+
 @pytest.mark.contract
 def test_export_checkpoint_contains_version_authoritative_state_and_pending_none() -> None:
     engine = create_engine()
