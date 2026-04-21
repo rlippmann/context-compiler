@@ -73,10 +73,12 @@ Extend host-level workflows around persisted exported state safely and intention
 - Export the current authoritative state
 - Initialize a new engine from previously exported state
 - Ensure restored state behaves identically to live state
+- Support serialized continuation checkpoints for restoring both authoritative state and pending confirmation-required continuation state
 
 **Deliverables:**
 
 - Host-side storage/recovery patterns built on the existing import/export API
+- Host-side storage/recovery patterns for checkpoint object/JSON continuation restore
 
 **User-visible outcome:**
 

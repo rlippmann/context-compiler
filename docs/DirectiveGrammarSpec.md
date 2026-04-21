@@ -328,6 +328,48 @@ JSON persistence boundary:
 - `engine.export_json()` serializes authoritative state.
 - `engine.import_json(payload)` validates/canonicalizes payload and replaces active state.
 
+Checkpoint boundary:
+
+- `engine.export_checkpoint()` exports a checkpoint object contract.
+- `engine.import_checkpoint(payload)` validates/restores a checkpoint object and returns `None`.
+- `engine.export_checkpoint_json()` and `engine.import_checkpoint_json(payload)` are JSON string wrappers around the object form.
+- Checkpoint includes both authoritative state and pending continuation state.
+
+Checkpoint object contract:
+
+```json
+{
+  "checkpoint_version": 1,
+  "authoritative_state": {
+    "premise": "Use concise, formal language.",
+    "policies": {
+      "docker": "prohibit",
+      "pytest": "use"
+    },
+    "version": 2
+  },
+  "pending": {
+    "kind": "replacement",
+    "replacement": {
+      "kind": "use_only",
+      "new_item": "kubectl",
+      "old_item": null
+    },
+    "prompt_to_user": "..."
+  }
+}
+```
+
+Checkpoint semantics:
+
+- `authoritative_state` uses the same validation/canonicalization boundary as `export_json` / `import_json`.
+- `pending` captures confirmation-required continuation (for example replacement clarifications).
+- `pending` is `null` when there is no outstanding continuation.
+- In `"use_only"` pending replacement cases, `old_item` may be `null` because no exact existing policy matched for replacement; confirmation asks whether to apply a new `use` item while keeping current policies.
+- Restore is all-or-nothing: invalid checkpoint payloads raise and no partial state restore occurs.
+- Continuation behavior is deterministic after restore (same confirmation token handling and resolution outcomes as live pending state).
+- `checkpoint_version` is independent of authoritative state `version`; it must be bumped when checkpoint contract shape changes (especially `pending`).
+
 ## 12. Invariants
 
 1. State changes only from valid directive transitions or pending-confirmation acceptance.
