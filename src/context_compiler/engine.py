@@ -587,7 +587,10 @@ def _load_state_obj(raw: object) -> State:
             raise ValueError("Invalid state payload.")
         if value not in {POLICY_USE, POLICY_PROHIBIT}:
             raise ValueError("Invalid state payload.")
-        normalized_policies[_normalize_item(key)] = value
+        normalized_key = _normalize_item(key)
+        if normalized_key == "":
+            raise ValueError("Invalid state payload.")
+        normalized_policies[normalized_key] = value
 
     return {
         STATE_PREMISE: None if premise is None else _sanitize_premise_value(premise),
