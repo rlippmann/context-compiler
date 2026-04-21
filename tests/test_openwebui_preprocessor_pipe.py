@@ -1,4 +1,5 @@
 import asyncio
+import builtins
 import importlib.util
 import sys
 import types
@@ -8,7 +9,9 @@ from typing import Any
 MODULE_PATH = Path("examples/integrations/openwebui/open_webui_pipe_with_preprocessor.py")
 
 
-def _load_module_with_openwebui_stubs(module_name: str):
+def _load_module_with_openwebui_stubs(
+    module_name: str, monkeypatch, *, block_pydantic: bool = True
+):
     fastapi_mod = types.ModuleType("fastapi")
 
     class _Request:  # minimal placeholder for type import
@@ -22,7 +25,6 @@ def _load_module_with_openwebui_stubs(module_name: str):
     open_webui_utils_mod = types.ModuleType("open_webui.utils")
     open_webui_utils_chat_mod = types.ModuleType("open_webui.utils.chat")
     open_webui_utils_models_mod = types.ModuleType("open_webui.utils.models")
-    pydantic_mod = types.ModuleType("pydantic")
 
     class _Users:
         @staticmethod
@@ -42,18 +44,6 @@ def _load_module_with_openwebui_stubs(module_name: str):
     open_webui_utils_chat_mod.generate_chat_completion = _chat_completion
     open_webui_utils_models_mod.get_all_models = _all_models
 
-    class _BaseModel:
-        def __init__(self, **kwargs: object) -> None:
-            for key, value in kwargs.items():
-                setattr(self, key, value)
-
-    def _field(*, default: object, description: str = "") -> object:
-        del description
-        return default
-
-    pydantic_mod.BaseModel = _BaseModel
-    pydantic_mod.Field = _field
-
     sys.modules["fastapi"] = fastapi_mod
     sys.modules["open_webui"] = open_webui_mod
     sys.modules["open_webui.models"] = open_webui_models_mod
@@ -61,7 +51,21 @@ def _load_module_with_openwebui_stubs(module_name: str):
     sys.modules["open_webui.utils"] = open_webui_utils_mod
     sys.modules["open_webui.utils.chat"] = open_webui_utils_chat_mod
     sys.modules["open_webui.utils.models"] = open_webui_utils_models_mod
-    sys.modules["pydantic"] = pydantic_mod
+    if block_pydantic:
+        real_import = builtins.__import__
+
+        def _guarded_import(
+            name: str,
+            globals_: dict[str, object] | None = None,
+            locals_: dict[str, object] | None = None,
+            fromlist: tuple[str, ...] = (),
+            level: int = 0,
+        ) -> object:
+            if name == "pydantic":
+                raise ModuleNotFoundError("No module named 'pydantic'")
+            return real_import(name, globals_, locals_, fromlist, level)
+
+        monkeypatch.setattr(builtins, "__import__", _guarded_import)
 
     spec = importlib.util.spec_from_file_location(module_name, MODULE_PATH)
     assert spec is not None and spec.loader is not None
@@ -70,8 +74,8 @@ def _load_module_with_openwebui_stubs(module_name: str):
     return module
 
 
-def test_preprocessor_model_defaults_to_base_model() -> None:
-    module = _load_module_with_openwebui_stubs("owui_preproc_defaults")
+def test_preprocessor_model_defaults_to_base_model(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_defaults", monkeypatch)
     pipe = module.Pipe()
     pipe.valves.BASE_MODEL_ID = "base-model"
     pipe.valves.PREPROCESSOR_MODEL_ID = ""
@@ -79,8 +83,8 @@ def test_preprocessor_model_defaults_to_base_model() -> None:
     assert pipe._resolve_preprocessor_model_id("base-model") == "base-model"
 
 
-def test_preprocessor_model_can_be_overridden() -> None:
-    module = _load_module_with_openwebui_stubs("owui_preproc_override")
+def test_preprocessor_model_can_be_overridden(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_override", monkeypatch)
     pipe = module.Pipe()
     pipe.valves.BASE_MODEL_ID = "base-model"
     pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
@@ -88,8 +92,8 @@ def test_preprocessor_model_can_be_overridden() -> None:
     assert pipe._resolve_preprocessor_model_id("base-model") == "prep-model"
 
 
-def test_invalid_preprocessor_model_is_normalized() -> None:
-    module = _load_module_with_openwebui_stubs("owui_preproc_invalid")
+def test_invalid_preprocessor_model_is_normalized(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_invalid", monkeypatch)
     pipe = module.Pipe()
 
     async def _models(_: object, user: object = None) -> list[dict[str, str]]:
@@ -113,8 +117,8 @@ def test_invalid_preprocessor_model_is_normalized() -> None:
     )
 
 
-def test_preprocessor_fallback_uses_preprocessor_model_only() -> None:
-    module = _load_module_with_openwebui_stubs("owui_preproc_routing")
+def test_preprocessor_fallback_uses_preprocessor_model_only(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_routing", monkeypatch)
     pipe = module.Pipe()
 
     calls: list[str] = []
@@ -157,8 +161,8 @@ def test_preprocessor_fallback_uses_preprocessor_model_only() -> None:
     assert calls == ["prep-model", "base-model"]
 
 
-def test_recursion_guard_for_preprocessor_model() -> None:
-    module = _load_module_with_openwebui_stubs("owui_preproc_recursion")
+def test_recursion_guard_for_preprocessor_model(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_recursion", monkeypatch)
     pipe = module.Pipe()
     pipe.valves.BASE_MODEL_ID = "base-model"
     pipe.valves.PREPROCESSOR_MODEL_ID = "pipe-model"
