@@ -26,7 +26,22 @@ from fastapi import Request  # type: ignore[import-not-found]
 from open_webui.models.users import Users  # type: ignore[import-not-found]
 from open_webui.utils.chat import generate_chat_completion  # type: ignore[import-not-found]
 from open_webui.utils.models import get_all_models  # type: ignore[import-not-found]
-from pydantic import BaseModel, Field
+
+try:
+    from pydantic import BaseModel, Field
+except ModuleNotFoundError:
+    # Keep this import optional: CI/tests run without integration extras.
+    # These lightweight fallbacks keep import-time behavior deterministic so
+    # coverage exercises the pipe module without pydantic installed.
+    class BaseModel:  # type: ignore[no-redef]
+        def __init__(self, **kwargs: object) -> None:
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+
+    def Field(*, default: Any, description: str = "") -> Any:  # type: ignore[no-redef]
+        del description
+        return default
+
 
 from context_compiler import State, create_engine, get_policy_items, get_premise_value
 from context_compiler.engine import Engine

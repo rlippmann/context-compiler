@@ -9,7 +9,15 @@ Architecture:
 import logging
 from typing import Any
 
-from litellm.integrations.custom_logger import CustomLogger
+try:
+    from litellm.integrations.custom_logger import CustomLogger
+except ModuleNotFoundError:
+    # Keep this import path optional: CI/tests run without integration extras.
+    # A tiny fallback base class keeps module imports deterministic so coverage
+    # validates behavior instead of failing or silently skipping on missing litellm.
+    class CustomLogger:  # type: ignore[no-redef]
+        pass
+
 
 from context_compiler import (
     State,
