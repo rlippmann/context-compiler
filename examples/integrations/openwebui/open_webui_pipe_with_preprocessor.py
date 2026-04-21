@@ -30,7 +30,9 @@ from open_webui.utils.models import get_all_models  # type: ignore[import-not-fo
 try:
     from pydantic import BaseModel, Field
 except ModuleNotFoundError:
-
+    # Keep this import optional: CI/tests run without integration extras.
+    # These lightweight fallbacks keep import-time behavior deterministic so
+    # coverage exercises the pipe module without pydantic installed.
     class BaseModel:  # type: ignore[no-redef]
         def __init__(self, **kwargs: object) -> None:
             for key, value in kwargs.items():
