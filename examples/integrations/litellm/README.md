@@ -79,6 +79,9 @@ These files are importable integration references for host applications.
 - Optional serialized continuation checkpointing: pass `session_key=...` and
   let the example integration restore before first `engine.step(...)` and
   persist after `update`/`clarify` decisions.
+- In this example, checkpoint/session storage is in-memory only.
+  Continuation state is limited to the current process lifetime; real restart
+  continuity requires external persistence (DB/Redis/etc.).
 - Display the returned assistant text.
 
 ## Troubleshooting

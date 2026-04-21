@@ -57,6 +57,10 @@ logger = logging.getLogger(__name__)
 
 _CC_MARKER = "[[cc_state]]"
 _ENGINES_BY_CHAT_KEY: dict[str, Engine] = {}
+# Example-only in-memory checkpoint store.
+# This keeps continuation state only for the current process lifetime.
+# Real deployments should persist checkpoints externally (DB/Redis/etc.),
+# or restart continuity for pending flows will be lost.
 _CHECKPOINTS_BY_CHAT_KEY: dict[str, str] = {}
 _PROMPTS_DIR = files("experimental.preprocessor").joinpath("prompts")
 

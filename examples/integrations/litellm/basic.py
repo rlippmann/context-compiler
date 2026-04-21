@@ -21,6 +21,10 @@ from context_compiler import State, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
 
 logger = logging.getLogger(__name__)
+# Example-only in-memory checkpoint store.
+# This keeps continuation state only for the current process lifetime.
+# Real deployments should persist checkpoints externally (DB/Redis/etc.),
+# or restart continuity for pending flows will be lost.
 _CHECKPOINTS_BY_SESSION_KEY: dict[str, str] = {}
 _RESTORED_ENGINE_BY_SESSION_KEY: dict[str, int] = {}
 

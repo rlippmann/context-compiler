@@ -34,6 +34,10 @@ from experimental.preprocessor import (
 logger = logging.getLogger(__name__)
 
 _PROMPTS_DIR = files("experimental.preprocessor").joinpath("prompts")
+# Example-only in-memory checkpoint store.
+# This keeps continuation state only for the current process lifetime.
+# Real deployments should persist checkpoints externally (DB/Redis/etc.),
+# or restart continuity for pending flows will be lost.
 _CHECKPOINTS_BY_SESSION_KEY: dict[str, str] = {}
 _RESTORED_ENGINE_BY_SESSION_KEY: dict[str, int] = {}
 
