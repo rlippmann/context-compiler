@@ -145,6 +145,20 @@ def test_export_checkpoint_json_round_trip_preserves_authoritative_and_pending_s
     assert target.export_checkpoint() == source.export_checkpoint()
 
 
+def test_export_checkpoint_json_is_canonical_sorted_and_compact() -> None:
+    engine = create_engine()
+    engine.step("set premise concise")
+    engine.step("use zeta")
+    engine.step("use alpha")
+
+    payload = engine.export_checkpoint_json()
+
+    assert payload == (
+        '{"authoritative_state":{"policies":{"alpha":"use","zeta":"use"},'
+        '"premise":"concise","version":2},"checkpoint_version":1,"pending":null}'
+    )
+
+
 def test_export_checkpoint_serializes_pending_replacement_state_for_exact_resume() -> None:
     engine = create_engine()
     clarify = engine.step("use kubectl instead of docker")
@@ -164,6 +178,80 @@ def test_export_checkpoint_serializes_pending_replacement_state_for_exact_resume
             'Confirm to use "kubectl" and keep existing policies?'
         ),
     }
+
+
+def test_export_checkpoint_serializes_replace_use_pending_and_round_trips() -> None:
+    source = create_engine()
+    source.step("use docker")
+    source.step("prohibit kubectl")
+    clarify = source.step("use kubectl instead of docker")
+    assert clarify["kind"] == "clarify"
+
+    checkpoint = source.export_checkpoint()
+    assert checkpoint["pending"] == {
+        "kind": "replacement",
+        "replacement": {
+            "kind": "replace_use",
+            "new_item": "kubectl",
+            "old_item": "docker",
+        },
+        "prompt_to_user": (
+            '"kubectl" is currently prohibited. Did you mean to remove "docker" '
+            'and use "kubectl" instead?'
+        ),
+    }
+
+    yes_target = create_engine()
+    yes_target.import_checkpoint(checkpoint)
+    yes_decision = yes_target.step("yes")
+    assert yes_decision["kind"] == "update"
+    assert yes_target.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
+
+    no_target = create_engine()
+    no_target.import_checkpoint(checkpoint)
+    before_no = no_target.state
+    no_decision = no_target.step("no")
+    assert no_decision == {"kind": "update", "state": before_no, "prompt_to_user": None}
+    assert no_target.state == {
+        "premise": None,
+        "policies": {"docker": "use", "kubectl": "prohibit"},
+        "version": 2,
+    }
+
+
+def test_import_checkpoint_restores_pending_clarification_and_unmatched_input_reuses_prompt() -> (
+    None
+):
+    source = create_engine()
+    first = source.step("use kubectl instead of docker")
+    assert first["kind"] == "clarify"
+    checkpoint = source.export_checkpoint()
+
+    target = create_engine()
+    target.import_checkpoint(checkpoint)
+    before = target.state
+    second = target.step("maybe")
+
+    assert second == first
+    assert target.state == before
+
+
+def test_export_checkpoint_json_object_and_restore_paths_are_behaviorally_equivalent() -> None:
+    source = create_engine()
+    source.step("use kubectl instead of docker")
+
+    checkpoint_obj = source.export_checkpoint()
+    checkpoint_json = source.export_checkpoint_json()
+    assert json.loads(checkpoint_json) == checkpoint_obj
+
+    via_obj = create_engine()
+    via_obj.import_checkpoint(checkpoint_obj)
+
+    via_json = create_engine()
+    via_json.import_checkpoint_json(checkpoint_json)
+
+    assert via_obj.step("yes") == via_json.step("yes")
+    assert via_obj.state == via_json.state
 
 
 def test_import_checkpoint_restores_pending_clarification_and_resolves_yes() -> None:
@@ -206,6 +294,20 @@ def test_import_checkpoint_rejects_unsupported_checkpoint_version() -> None:
         )
 
 
+def test_import_checkpoint_json_rejects_unsupported_checkpoint_version() -> None:
+    engine = create_engine()
+    with pytest.raises(ValueError, match="Unsupported checkpoint version"):
+        engine.import_checkpoint_json(
+            json.dumps(
+                {
+                    "checkpoint_version": 2,
+                    "authoritative_state": {"premise": None, "policies": {}, "version": 2},
+                    "pending": None,
+                }
+            )
+        )
+
+
 def test_import_checkpoint_is_all_or_nothing_when_pending_is_invalid() -> None:
     engine = create_engine()
     engine.step("set premise baseline")
@@ -232,6 +334,30 @@ def test_import_checkpoint_is_all_or_nothing_when_pending_is_invalid() -> None:
             }
         )
 
+    assert engine.state == before
+
+
+def test_import_checkpoint_is_all_or_nothing_when_authoritative_state_is_invalid() -> None:
+    engine = create_engine()
+    first = engine.step("use kubectl instead of docker")
+    assert first["kind"] == "clarify"
+    before = engine.state
+
+    with pytest.raises(ValueError, match="Invalid state payload"):
+        engine.import_checkpoint(  # type: ignore[arg-type]
+            {
+                "checkpoint_version": 1,
+                "authoritative_state": {
+                    "premise": None,
+                    "policies": [],
+                    "version": 2,
+                },
+                "pending": None,
+            }
+        )
+
+    second = engine.step("maybe")
+    assert second == first
     assert engine.state == before
 
 
