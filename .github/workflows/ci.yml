@@ -58,3 +58,45 @@ jobs:
             coverage.xml
             htmlcov/
           if-no-files-found: ignore
+
+  contract-repl-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dev dependencies
+        run: uv sync --extra dev
+
+      - name: Contract tests with strict REPL coverage gate (100%)
+        run: uv run pytest -m contract --cov=context_compiler.repl --cov-report=term-missing --cov-fail-under=100
+
+  contract-engine-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dev dependencies
+        run: uv sync --extra dev
+
+      - name: Contract tests with strict engine/checkpoint coverage gate (100%)
+        run: uv run pytest -m contract --cov=context_compiler.engine --cov-report=term-missing --cov-fail-under=100

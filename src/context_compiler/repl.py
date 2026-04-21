@@ -57,8 +57,6 @@ def _render_state_lines(state: State) -> list[str]:
     for item in all_policy_items:
         value = "use" if item in use_items else "prohibit"
         policy_items.append((item, value))
-    if not policy_items:
-        return [premise_line, "policies: (none)"]
 
     lines = [premise_line, "policies:"]
     for item, value in policy_items:

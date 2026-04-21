@@ -87,6 +87,9 @@ mypy_path = "src"
 [tool.pytest.ini_options]
 addopts = "-ra"
 testpaths = ["tests"]
+markers = [
+  "contract: curated stable user-facing behavior contract tests",
+]
 
 [tool.coverage.run]
 source = ["context_compiler"]

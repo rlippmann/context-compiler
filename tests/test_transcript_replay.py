@@ -1,4 +1,8 @@
+import pytest
+
 from context_compiler import compile_transcript, create_engine
+
+pytestmark = pytest.mark.contract
 
 
 def test_only_user_messages_affect_transcript_replay() -> None:
