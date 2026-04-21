@@ -1,10 +1,13 @@
 from io import StringIO
 
+import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from context_compiler import create_engine
 from context_compiler.repl import run_repl
+
+pytestmark = pytest.mark.contract
 
 LINE_TEXT = st.text(
     alphabet=st.characters(blacklist_characters="\n\r"),

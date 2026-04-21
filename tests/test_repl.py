@@ -1,6 +1,10 @@
 from io import StringIO
 
+import pytest
+
 from context_compiler.repl import run_repl
+
+pytestmark = pytest.mark.contract
 
 
 class _TTYStringIO(StringIO):
