@@ -523,9 +523,7 @@ def _parse_directive(user_input: str) -> Action | None:
             return Action(kind="use_item", item="")
         if payload.startswith("instead of ") or payload.endswith(" instead of"):
             return Action(kind="replace_use_incomplete")
-        if payload != "":
-            return Action(kind="use_item", item=payload)
-        return None
+        return Action(kind="use_item", item=payload)
 
     if user_input == "prohibit":
         return Action(kind="prohibit_item", item="")
