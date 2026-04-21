@@ -242,6 +242,9 @@ Notes:
 - `pending` is `null` when no continuation is waiting for confirmation.
 - `pending` captures confirmation-required operations (for example replacement flows).
 - `old_item` may be `null` for `"use_only"` when confirming “use X instead?” without an existing exact policy to replace.
+- imported policy keys are normalized during `import_json` / checkpoint authoritative-state restore.
+- if a policy key normalizes to `""`, the payload is invalid and is rejected.
+- this keeps import-time state integrity aligned with directive-time behavior where empty policy items are not allowed.
 - checkpoint restore is full and deterministic: authoritative state and pending continuation are restored together.
 - checkpoint validation is all-or-nothing; invalid payloads raise and no partial restore occurs.
 - `checkpoint_version` is independent of authoritative state `version` and must be bumped when checkpoint contract shape changes (especially `pending`).

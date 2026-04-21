@@ -327,6 +327,9 @@ JSON persistence boundary:
 
 - `engine.export_json()` serializes authoritative state.
 - `engine.import_json(payload)` validates/canonicalizes payload and replaces active state.
+- Policy keys are normalized during import validation/canonicalization.
+- If a policy key normalizes to `""`, the payload is invalid and must be rejected.
+- This aligns import-time state acceptance with directive-time behavior, where empty policy items are invalid.
 
 Checkpoint boundary:
 
