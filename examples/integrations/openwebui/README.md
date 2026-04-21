@@ -57,7 +57,7 @@ Use the Open WebUI model picker/list to copy exact model ids for `BASE_MODEL_ID`
 
 ## Limitations
 
-- No persistence.
+- No durable external persistence (checkpoint continuation is in-process only).
 - No multi-worker or cross-process guarantees.
 - No Redis/DB/external storage.
 - No Filters or Pipelines.

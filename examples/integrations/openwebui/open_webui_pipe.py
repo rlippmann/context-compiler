@@ -47,6 +47,7 @@ logger = logging.getLogger(__name__)
 
 _CC_MARKER = "[[cc_state]]"
 _ENGINES_BY_CHAT_KEY: dict[str, Engine] = {}
+_CHECKPOINTS_BY_CHAT_KEY: dict[str, str] = {}
 
 
 def _resolve_chat_key(
@@ -302,6 +303,9 @@ class Pipe:
         engine = _ENGINES_BY_CHAT_KEY.get(chat_key)
         if engine is None:
             engine = create_engine()
+            checkpoint = _CHECKPOINTS_BY_CHAT_KEY.get(chat_key)
+            if checkpoint is not None:
+                engine.import_checkpoint_json(checkpoint)
             _ENGINES_BY_CHAT_KEY[chat_key] = engine
 
         logger.debug("pipe: engine_input=%r", latest_user_text)
@@ -310,10 +314,12 @@ class Pipe:
         logger.debug("pipe: decision=%s", kind)
 
         if kind == "clarify":
+            _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
             return decision["prompt_to_user"] or ""
         if kind == "passthrough":
             return await self._forward_passthrough(body, __user__, __request__)
         if kind == "update":
+            _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
             return await self._forward_update(body, __user__, __request__, engine.state)
 
         return await self._forward_passthrough(body, __user__, __request__)

@@ -179,3 +179,75 @@ def test_recursion_guard_for_preprocessor_model(monkeypatch) -> None:
         "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID must not "
         "match the selected pipe model id to avoid recursive routing."
     )
+
+
+def test_preprocessor_pipe_restore_and_persist_checkpoint_points(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_checkpoint", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY["chat-1"] = "ckpt-in"
+
+    class _FakeEngine:
+        def __init__(self, kind: str, checkpoint_out: str) -> None:
+            self.kind = kind
+            self.state = {"premise": None, "policies": {}, "version": 2}
+            self.imported: list[str] = []
+            self._checkpoint_out = checkpoint_out
+            self.export_calls = 0
+
+        def import_checkpoint_json(self, payload: str) -> None:
+            self.imported.append(payload)
+
+        def export_checkpoint_json(self) -> str:
+            self.export_calls += 1
+            return self._checkpoint_out
+
+        def step(self, _text: str) -> dict[str, object]:
+            if self.kind == "clarify":
+                return {"kind": "clarify", "prompt_to_user": "confirm?", "state": None}
+            return {"kind": self.kind, "state": self.state}
+
+    created: list[_FakeEngine] = []
+
+    def _create_engine():
+        engine = _FakeEngine("clarify", "ckpt-clarify")
+        created.append(engine)
+        return engine
+
+    monkeypatch.setattr(module, "create_engine", _create_engine)
+    monkeypatch.setattr(module, "precompile_heuristic", lambda _text: {"outcome": "no_directive"})
+    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value: None)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "test"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-1",
+        )
+    )
+    assert result == "confirm?"
+    assert created[0].imported == ["ckpt-in"]
+    assert module._CHECKPOINTS_BY_CHAT_KEY["chat-1"] == "ckpt-clarify"
+    assert created[0].export_calls == 1
+
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY["chat-2"] = "ckpt-keep"
+
+    passthrough_engine = _FakeEngine("passthrough", "ckpt-new")
+    monkeypatch.setattr(module, "create_engine", lambda: passthrough_engine)
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-2",
+        )
+    )
+    assert isinstance(result, dict)
+    assert passthrough_engine.imported == ["ckpt-keep"]
+    assert passthrough_engine.export_calls == 0
+    assert module._CHECKPOINTS_BY_CHAT_KEY["chat-2"] == "ckpt-keep"
