@@ -118,6 +118,65 @@ def test_import_json_rejects_non_string_policy_keys() -> None:
         create_engine(state=payload)  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize(
+    "policies",
+    [
+        {"A": "use", "a": "use"},
+        {"a": "use"},
+        {"the": "use"},
+    ],
+)
+def test_import_json_rejects_policy_keys_that_normalize_to_empty(
+    policies: dict[str, str],
+) -> None:
+    engine = create_engine()
+    with pytest.raises(ValueError, match="Invalid state payload"):
+        engine.import_json(
+            json.dumps(
+                {
+                    "premise": None,
+                    "policies": policies,
+                    "version": 2,
+                }
+            )
+        )
+
+
+def test_import_json_rejects_empty_normalized_key_atomically() -> None:
+    engine = create_engine()
+    engine.step("use kubectl")
+    before = engine.state
+
+    with pytest.raises(ValueError, match="Invalid state payload"):
+        engine.import_json(
+            json.dumps(
+                {
+                    "premise": None,
+                    "policies": {"Docker": "use", "a": "use"},
+                    "version": 2,
+                }
+            )
+        )
+
+    assert engine.state == before
+
+
+def test_import_json_accepts_valid_policy_key_and_normalizes_it() -> None:
+    engine = create_engine()
+
+    engine.import_json(
+        json.dumps(
+            {
+                "premise": None,
+                "policies": {"Docker": "use"},
+                "version": 2,
+            }
+        )
+    )
+
+    assert engine.state == {"premise": None, "policies": {"docker": "use"}, "version": 2}
+
+
 @pytest.mark.contract
 def test_export_checkpoint_contains_version_authoritative_state_and_pending_none() -> None:
     engine = create_engine()
@@ -289,6 +348,42 @@ def test_import_checkpoint_invalid_json_and_invalid_object_payload_are_rejected(
                 "checkpoint_version": 1,
                 "authoritative_state": {"premise": None, "policies": {}, "version": 2},
             }
+        )
+
+
+def test_import_checkpoint_rejects_authoritative_state_with_empty_normalized_policy_key() -> None:
+    engine = create_engine()
+    with pytest.raises(ValueError, match="Invalid state payload"):
+        engine.import_checkpoint(  # type: ignore[arg-type]
+            {
+                "checkpoint_version": 1,
+                "authoritative_state": {
+                    "premise": None,
+                    "policies": {"a": "use"},
+                    "version": 2,
+                },
+                "pending": None,
+            }
+        )
+
+
+def test_import_checkpoint_json_rejects_authoritative_state_with_empty_normalized_policy_key() -> (
+    None
+):
+    engine = create_engine()
+    with pytest.raises(ValueError, match="Invalid state payload"):
+        engine.import_checkpoint_json(
+            json.dumps(
+                {
+                    "checkpoint_version": 1,
+                    "authoritative_state": {
+                        "premise": None,
+                        "policies": {"a": "use"},
+                        "version": 2,
+                    },
+                    "pending": None,
+                }
+            )
         )
 
 
