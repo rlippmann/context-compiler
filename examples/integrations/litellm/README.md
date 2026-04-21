@@ -12,6 +12,8 @@ pip install "context-compiler[integrations]"
 export OPENAI_API_KEY=...
 ```
 
+Checkpoint continuation in these examples requires `context-compiler>=0.6.7`.
+
 For `with_preprocessor.py`:
 
 ```shell
