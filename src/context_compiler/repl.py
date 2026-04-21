@@ -1,7 +1,7 @@
 import sys
 from typing import TextIO
 
-from . import create_engine
+from . import create_engine, get_policy_items, get_premise_value
 from .engine import Decision, DecisionKind, State
 
 _EXIT_TOKENS = {"exit", "quit"}
@@ -45,10 +45,18 @@ def _print_interactive_help(out_stream: TextIO) -> None:
 
 
 def _render_state_lines(state: State) -> list[str]:
-    premise = state["premise"]
+    premise = get_premise_value(state)
     premise_line = "premise: (none)" if premise is None else f"premise: {premise}"
 
-    policy_items = sorted(state["policies"].items())
+    all_policy_items = get_policy_items(state)
+    if not all_policy_items:
+        return [premise_line, "policies: (none)"]
+
+    use_items = set(get_policy_items(state, "use"))
+    policy_items: list[tuple[str, str]] = []
+    for item in all_policy_items:
+        value = "use" if item in use_items else "prohibit"
+        policy_items.append((item, value))
     if not policy_items:
         return [premise_line, "policies: (none)"]
 
