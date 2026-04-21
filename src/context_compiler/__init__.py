@@ -2,6 +2,7 @@ from importlib.metadata import version
 
 from .engine import (
     ApplyResult,
+    Checkpoint,
     Decision,
     Engine,
     State,
@@ -17,6 +18,7 @@ __version__ = version("context-compiler")
 
 __all__ = [
     "ApplyResult",
+    "Checkpoint",
     "Decision",
     "Engine",
     "State",
