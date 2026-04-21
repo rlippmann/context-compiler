@@ -1,3 +1,4 @@
+import ast
 import sys
 import types
 from contextlib import contextmanager
@@ -12,6 +13,25 @@ if str(REPO_ROOT) not in sys.path:
 
 import demos.llm_client as llm_client  # noqa: E402
 from demos.llm_client import DemoLLMError, LLMConfig, complete_messages  # noqa: E402
+
+
+def test_module_does_not_use_litellm_importorskip_guard() -> None:
+    source = Path(__file__).read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call):
+            continue
+        if not isinstance(node.func, ast.Attribute):
+            continue
+        if not isinstance(node.func.value, ast.Name):
+            continue
+        if node.func.value.id != "pytest" or node.func.attr != "importorskip":
+            continue
+        if not node.args:
+            continue
+        first_arg = node.args[0]
+        if isinstance(first_arg, ast.Constant) and first_arg.value == "litellm":
+            pytest.fail("tests/test_llm_client.py must not use pytest.importorskip('litellm')")
 
 
 def _fake_config() -> LLMConfig:
