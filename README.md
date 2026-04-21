@@ -180,8 +180,12 @@ Meaning:
 | `engine.state` | Read current authoritative in-memory state snapshot. |
 | `get_premise_value(state)` | Read the current premise value from a state snapshot. |
 | `get_policy_items(state, value=None)` | Read policy items from a state snapshot (all, `use`, or `prohibit`). |
-| `engine.export_json()` | Export current state as JSON for persistence/transport. |
-| `engine.import_json(payload)` | Load/restore state from exported JSON payload. |
+| `engine.export_json()` | Export authoritative state as JSON (`str`) for state transport/persistence. |
+| `engine.import_json(payload)` | Load/restore authoritative state from exported JSON (`str`). |
+| `engine.export_checkpoint()` | Export resumable checkpoint object (`Checkpoint`). |
+| `engine.import_checkpoint(payload)` | Restore full checkpoint (`Checkpoint`) and return `None`. |
+| `engine.export_checkpoint_json()` | Export checkpoint as canonical JSON (`str`). |
+| `engine.import_checkpoint_json(payload)` | Restore checkpoint from JSON (`str`) and return `None`. |
 
 ---
 
@@ -197,6 +201,50 @@ The compiler maintains an authoritative state snapshot.
 Identical input sequences always produce identical state.
 
 The internal structure of the state is intentionally opaque to host applications.
+
+---
+
+## Checkpoint Contract
+
+`export_json()` / `import_json()` and checkpoint APIs serve different boundaries:
+
+- `export_json()` / `import_json()` transport **authoritative state only**
+- checkpoint APIs transport **serialized continuation**:
+  - authoritative state
+  - pending confirmation-required continuation state
+
+Checkpoint object shape:
+
+```json
+{
+  "checkpoint_version": 1,
+  "authoritative_state": {
+    "premise": "concise replies",
+    "policies": {
+      "docker": "use"
+    },
+    "version": 2
+  },
+  "pending": {
+    "kind": "replacement",
+    "replacement": {
+      "kind": "use_only",
+      "new_item": "kubectl",
+      "old_item": null
+    },
+    "prompt_to_user": "..."
+  }
+}
+```
+
+Notes:
+
+- `pending` is `null` when no continuation is waiting for confirmation.
+- `pending` captures confirmation-required operations (for example replacement flows).
+- `old_item` may be `null` for `"use_only"` when confirming “use X instead?” without an existing exact policy to replace.
+- checkpoint restore is full and deterministic: authoritative state and pending continuation are restored together.
+- checkpoint validation is all-or-nothing; invalid payloads raise and no partial restore occurs.
+- `checkpoint_version` is independent of authoritative state `version` and must be bumped when checkpoint contract shape changes (especially `pending`).
 
 ---
 

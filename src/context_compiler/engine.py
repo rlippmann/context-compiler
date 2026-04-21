@@ -28,6 +28,24 @@ class State(TypedDict):
     version: Literal[2]
 
 
+class CheckpointPendingReplacement(TypedDict):
+    kind: Literal["use_only", "replace_use"]
+    new_item: str
+    old_item: str | None
+
+
+class CheckpointPending(TypedDict):
+    kind: Literal["replacement"]
+    replacement: CheckpointPendingReplacement
+    prompt_to_user: str
+
+
+class Checkpoint(TypedDict):
+    checkpoint_version: Literal[1]
+    authoritative_state: State
+    pending: CheckpointPending | None
+
+
 class DecisionKind(StrEnum):
     UPDATE = "update"
     PASSTHROUGH = "passthrough"
@@ -99,6 +117,7 @@ _PASSTHROUGH: Decision = {
 _AFFIRMATIVE_CONFIRMATIONS = {"yes", "yes please", "yep", "yeah", "sure", "ok", "okay"}
 _NEGATIVE_CONFIRMATIONS = {"no", "nope", "no thanks"}
 _TRAILING_CONFIRM_PUNCT_RE = re.compile(r"[.,!?]+$")
+_CHECKPOINT_VERSION: Literal[1] = 1
 
 
 def create_engine(state: State | None = None) -> "Engine":
@@ -136,6 +155,45 @@ class Engine:
 
     def import_json(self, payload: str) -> None:
         self._replace_state(_load_state_json(payload))
+
+    def export_checkpoint(self) -> Checkpoint:
+        pending: CheckpointPending | None = None
+        if self._pending_replacement is not None:
+            assert self._pending_prompt is not None
+            pending = {
+                "kind": "replacement",
+                "replacement": {
+                    "kind": self._pending_replacement.kind,
+                    "new_item": self._pending_replacement.new_item,
+                    "old_item": self._pending_replacement.old_item,
+                },
+                "prompt_to_user": self._pending_prompt,
+            }
+
+        # Reuse authoritative export/import path for canonicalized state payload.
+        authoritative_state = _load_state_json(self.export_json())
+        return {
+            "checkpoint_version": _CHECKPOINT_VERSION,
+            "authoritative_state": authoritative_state,
+            "pending": pending,
+        }
+
+    def import_checkpoint(self, payload: Checkpoint) -> None:
+        state, pending_replacement, pending_prompt = _load_checkpoint_obj(payload)
+        self._replace_state(state)
+        self._pending_replacement = pending_replacement
+        self._pending_prompt = pending_prompt
+
+    def export_checkpoint_json(self) -> str:
+        return json.dumps(self.export_checkpoint(), sort_keys=True, separators=(",", ":"))
+
+    def import_checkpoint_json(self, payload: str) -> None:
+        try:
+            raw = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            raise ValueError("Invalid JSON payload.") from exc
+
+        self.import_checkpoint(raw)
 
     def step(self, user_input: str) -> Decision:
         if self._pending_replacement is not None:
@@ -538,6 +596,67 @@ def _load_state_obj(raw: object) -> State:
         STATE_POLICIES: dict(sorted(normalized_policies.items())),
         STATE_VERSION: SCHEMA_VERSION,
     }
+
+
+def _load_checkpoint_obj(raw: object) -> tuple[State, PendingReplacement | None, str | None]:
+    if not isinstance(raw, dict):
+        raise ValueError("Invalid checkpoint payload.")
+
+    if set(raw.keys()) != {"checkpoint_version", "authoritative_state", "pending"}:
+        raise ValueError("Invalid checkpoint payload.")
+
+    checkpoint_version = raw["checkpoint_version"]
+    if checkpoint_version != _CHECKPOINT_VERSION:
+        raise ValueError(f"Unsupported checkpoint version: {checkpoint_version!r}")
+
+    authoritative_state = _load_state_obj(raw["authoritative_state"])
+    pending_replacement, pending_prompt = _load_checkpoint_pending_obj(raw["pending"])
+    return authoritative_state, pending_replacement, pending_prompt
+
+
+def _load_checkpoint_pending_obj(
+    raw: object,
+) -> tuple[PendingReplacement | None, str | None]:
+    if raw is None:
+        return None, None
+    if not isinstance(raw, dict):
+        raise ValueError("Invalid checkpoint payload.")
+    if set(raw.keys()) != {"kind", "replacement", "prompt_to_user"}:
+        raise ValueError("Invalid checkpoint payload.")
+    if raw["kind"] != "replacement":
+        raise ValueError("Invalid checkpoint payload.")
+
+    prompt = raw["prompt_to_user"]
+    if not isinstance(prompt, str):
+        raise ValueError("Invalid checkpoint payload.")
+
+    replacement = _load_checkpoint_replacement_obj(raw["replacement"])
+    return replacement, prompt
+
+
+def _load_checkpoint_replacement_obj(raw: object) -> PendingReplacement:
+    if not isinstance(raw, dict):
+        raise ValueError("Invalid checkpoint payload.")
+    if set(raw.keys()) != {"kind", "new_item", "old_item"}:
+        raise ValueError("Invalid checkpoint payload.")
+
+    kind = raw["kind"]
+    new_item = raw["new_item"]
+    old_item = raw["old_item"]
+
+    if kind not in {"use_only", "replace_use"}:
+        raise ValueError("Invalid checkpoint payload.")
+    if not isinstance(new_item, str):
+        raise ValueError("Invalid checkpoint payload.")
+
+    if kind == "use_only":
+        if old_item is not None:
+            raise ValueError("Invalid checkpoint payload.")
+        return PendingReplacement(kind=kind, new_item=new_item, old_item=None)
+
+    if not isinstance(old_item, str):
+        raise ValueError("Invalid checkpoint payload.")
+    return PendingReplacement(kind=kind, new_item=new_item, old_item=old_item)
 
 
 def _sanitize_premise_value(value: str) -> str:
