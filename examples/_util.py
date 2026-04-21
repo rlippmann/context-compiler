@@ -1,5 +1,7 @@
 import json
-from typing import Any
+from typing import Any, Literal
+
+from context_compiler import get_policy_items, get_premise_value
 
 
 def canonical_json(obj: Any) -> str:
@@ -10,21 +12,19 @@ def print_json(obj: Any) -> None:
     print(canonical_json(obj))
 
 
-def _format_policy_values(policies: dict[str, str], value: str) -> str:
-    items = sorted(key for key, stored in policies.items() if stored == value)
+def _format_policy_values(state: Any, value: Literal["use", "prohibit"]) -> str:
+    items = get_policy_items(state, value)
     return ", ".join(items) if items else "(none)"
 
 
 def print_state_summary(state: Any, label: str = "state") -> None:
-    premise = state.get("premise")
+    premise = get_premise_value(state)
     premise_text = premise if premise is not None else "(none)"
-    policies = state.get("policies")
-    assert isinstance(policies, dict)
 
     print(f"{label}:")
     print(f"- premise: {premise_text}")
-    print(f"- use policies: {_format_policy_values(policies, 'use')}")
-    print(f"- prohibit policies: {_format_policy_values(policies, 'prohibit')}")
+    print(f"- use policies: {_format_policy_values(state, 'use')}")
+    print(f"- prohibit policies: {_format_policy_values(state, 'prohibit')}")
 
 
 def print_decision_summary(decision: Any) -> None:
