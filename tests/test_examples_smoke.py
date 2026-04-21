@@ -5,6 +5,7 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES_DIR = REPO_ROOT / "examples"
+pytestmark = pytest.mark.contract
 
 
 @pytest.mark.parametrize(

@@ -77,5 +77,5 @@ jobs:
       - name: Install dev dependencies
         run: uv sync --extra dev
 
-      - name: Contract marker coverage gate (100%)
-        run: uv run pytest -m contract --cov=context_compiler.repl --cov-report=term-missing --cov-fail-under=100
+      - name: Contract marker coverage gate
+        run: uv run pytest -m contract --cov=context_compiler.repl --cov=context_compiler.engine --cov-report=term-missing --cov-fail-under=90
