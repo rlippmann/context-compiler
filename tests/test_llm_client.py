@@ -1,11 +1,10 @@
 import sys
+import types
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
-
-litellm = pytest.importorskip("litellm")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
@@ -77,6 +76,24 @@ class _FakeRateLimitError(RuntimeError):
             (),
             {"headers": {"retry-after": retry_after}},
         )()
+
+
+def _install_fake_litellm_module(monkeypatch: pytest.MonkeyPatch) -> type[Exception]:
+    # Avoid importorskip here: an import-time litellm dependency would skip this
+    # entire module in CI when extras are not installed. We stub litellm in
+    # sys.modules so tests stay deterministic, avoid optional dependency coupling,
+    # and still exercise the real wrapper's import/exception handling path.
+    class _FakeUnsupportedParamsError(Exception):
+        def __init__(self, message: str, model: str, llm_provider: str) -> None:
+            super().__init__(message)
+            self.message = message
+            self.model = model
+            self.llm_provider = llm_provider
+
+    litellm_mod = types.ModuleType("litellm")
+    litellm_mod.UnsupportedParamsError = _FakeUnsupportedParamsError
+    monkeypatch.setitem(sys.modules, "litellm", litellm_mod)
+    return _FakeUnsupportedParamsError
 
 
 def test_complete_messages_maps_model_not_found_error(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -407,6 +424,7 @@ def test_complete_messages_normal_path_uses_deterministic_decoding_first(
 def test_complete_messages_retries_once_without_temperature_on_unsupported_param(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    unsupported_error = _install_fake_litellm_module(monkeypatch)
     monkeypatch.setattr(llm_client, "load_config", _fake_config)
     monkeypatch.setenv("CONTEXT_COMPILER_DEMO_VERBOSE", "1")
     drop_params_scopes: list[bool] = []
@@ -419,7 +437,7 @@ def test_complete_messages_retries_once_without_temperature_on_unsupported_param
     monkeypatch.setattr(llm_client, "_temporary_litellm_drop_params", fake_drop_params_scope)
     fake_completion = _RecordingLiteLLMCompletion(
         [
-            litellm.UnsupportedParamsError(
+            unsupported_error(
                 message="temperature is not supported",
                 model="bad-model",
                 llm_provider="openai",
@@ -443,6 +461,7 @@ def test_complete_messages_retries_once_without_temperature_on_unsupported_param
 def test_complete_messages_fallback_failure_surfaces_existing_error(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    unsupported_error = _install_fake_litellm_module(monkeypatch)
     monkeypatch.setattr(llm_client, "load_config", _fake_config)
     drop_params_scopes: list[bool] = []
 
@@ -454,7 +473,7 @@ def test_complete_messages_fallback_failure_surfaces_existing_error(
     monkeypatch.setattr(llm_client, "_temporary_litellm_drop_params", fake_drop_params_scope)
     fake_completion = _RecordingLiteLLMCompletion(
         [
-            litellm.UnsupportedParamsError(
+            unsupported_error(
                 message="temperature is not supported",
                 model="bad-model",
                 llm_provider="openai",
