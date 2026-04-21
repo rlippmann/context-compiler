@@ -22,6 +22,7 @@ def _load_module_with_openwebui_stubs(module_name: str):
     open_webui_utils_mod = types.ModuleType("open_webui.utils")
     open_webui_utils_chat_mod = types.ModuleType("open_webui.utils.chat")
     open_webui_utils_models_mod = types.ModuleType("open_webui.utils.models")
+    pydantic_mod = types.ModuleType("pydantic")
 
     class _Users:
         @staticmethod
@@ -41,6 +42,18 @@ def _load_module_with_openwebui_stubs(module_name: str):
     open_webui_utils_chat_mod.generate_chat_completion = _chat_completion
     open_webui_utils_models_mod.get_all_models = _all_models
 
+    class _BaseModel:
+        def __init__(self, **kwargs: object) -> None:
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+
+    def _field(*, default: object, description: str = "") -> object:
+        del description
+        return default
+
+    pydantic_mod.BaseModel = _BaseModel
+    pydantic_mod.Field = _field
+
     sys.modules["fastapi"] = fastapi_mod
     sys.modules["open_webui"] = open_webui_mod
     sys.modules["open_webui.models"] = open_webui_models_mod
@@ -48,6 +61,7 @@ def _load_module_with_openwebui_stubs(module_name: str):
     sys.modules["open_webui.utils"] = open_webui_utils_mod
     sys.modules["open_webui.utils.chat"] = open_webui_utils_chat_mod
     sys.modules["open_webui.utils.models"] = open_webui_utils_models_mod
+    sys.modules["pydantic"] = pydantic_mod
 
     spec = importlib.util.spec_from_file_location(module_name, MODULE_PATH)
     assert spec is not None and spec.loader is not None
