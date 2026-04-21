@@ -15,7 +15,13 @@ from importlib.resources import as_file, files
 from importlib.resources.abc import Traversable
 from typing import Any, cast
 
-from litellm.integrations.custom_logger import CustomLogger
+try:
+    from litellm.integrations.custom_logger import CustomLogger
+except ModuleNotFoundError:
+
+    class CustomLogger:  # type: ignore[no-redef]
+        pass
+
 
 from context_compiler import (
     State,

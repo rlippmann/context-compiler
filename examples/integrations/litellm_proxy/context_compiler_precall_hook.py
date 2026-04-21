@@ -9,7 +9,13 @@ Architecture:
 import logging
 from typing import Any
 
-from litellm.integrations.custom_logger import CustomLogger
+try:
+    from litellm.integrations.custom_logger import CustomLogger
+except ModuleNotFoundError:
+
+    class CustomLogger:  # type: ignore[no-redef]
+        pass
+
 
 from context_compiler import (
     State,
