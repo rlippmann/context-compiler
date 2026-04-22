@@ -29,7 +29,7 @@ pytestmark = pytest.mark.contract
             "03_ambiguity_with_clarification.py",
             (
                 "Host behavior: clarification pending, do NOT call LLM.",
-                "Use 'reset policies' to change it.",
+                "Remove or replace it before using it.",
             ),
         ),
         (

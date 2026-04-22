@@ -17,9 +17,5 @@ def test_compaction_keeps_first_clarify_line_and_stops_replay() -> None:
     )
 
     assert compacted == ["prohibit docker"]
-    assert prompt == (
-        "'docker' is already in use.\n"
-        "Only one policy per item is allowed.\n"
-        "Use 'reset policies' to change it."
-    )
+    assert prompt == ('"docker" is currently in use.\nRemove or replace it before prohibiting it.')
     assert state == {"premise": None, "policies": {"docker": "use"}, "version": 2}

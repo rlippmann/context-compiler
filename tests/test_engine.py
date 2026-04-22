@@ -541,9 +541,7 @@ def test_replace_use_clarifies_when_old_policy_is_not_use_in_invalid_internal_st
         "kind": "clarify",
         "state": None,
         "prompt_to_user": (
-            "'docker' is not a use policy.\n"
-            "Replacement requires an existing use policy.\n"
-            "Use 'reset policies' to change it."
+            "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
         ),
     }
 
@@ -779,7 +777,11 @@ def test_set_premise_lifecycle_rules() -> None:
 
     before = engine.state
     d2 = engine.step("set premise new")
-    assert d2["kind"] == "clarify"
+    assert d2 == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": ("Premise already set.\nUse 'change premise to <value>' to modify it."),
+    }
     assert engine.state == before
 
 
@@ -787,7 +789,13 @@ def test_set_premise_empty_payload_clarifies_without_mutation() -> None:
     engine = create_engine()
     before = engine.state
     d1 = engine.step("set premise")
-    assert d1["kind"] == "clarify"
+    assert d1 == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": (
+            "Premise value cannot be empty.\nUse 'set premise <value>' with a non-empty value."
+        ),
+    }
     assert engine.state == before
 
 
@@ -795,7 +803,13 @@ def test_set_premise_whitespace_payload_clarifies_without_mutation() -> None:
     engine = create_engine()
     before = engine.state
     d1 = engine.step("set premise    ")
-    assert d1["kind"] == "clarify"
+    assert d1 == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": (
+            "Premise value cannot be empty.\nUse 'set premise <value>' with a non-empty value."
+        ),
+    }
     assert engine.state == before
 
 
@@ -816,7 +830,11 @@ def test_change_premise_requires_existing_premise() -> None:
     engine = create_engine()
 
     d1 = engine.step("change premise to concise")
-    assert d1["kind"] == "clarify"
+    assert d1 == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": "No premise is set.\nUse 'set premise <value>' to define one.",
+    }
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
     engine.step("set premise first")
@@ -831,7 +849,14 @@ def test_change_premise_to_empty_payload_clarifies_without_mutation() -> None:
     before = engine.state
 
     d1 = engine.step("change premise to")
-    assert d1["kind"] == "clarify"
+    assert d1 == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": (
+            "Premise value cannot be empty.\n"
+            "Use 'change premise to <value>' with a non-empty value."
+        ),
+    }
     assert engine.state == before
 
 
@@ -853,7 +878,8 @@ def test_change_premise_to_without_space_payload_clarifies_after_near_miss() -> 
         "kind": "clarify",
         "state": None,
         "prompt_to_user": (
-            "Premise value cannot be empty.\nUse 'change premise to ...' with a non-empty value."
+            "Premise value cannot be empty.\n"
+            "Use 'change premise to <value>' with a non-empty value."
         ),
     }
     assert engine.state == before
@@ -865,7 +891,14 @@ def test_change_premise_to_whitespace_payload_clarifies_without_mutation() -> No
     before = engine.state
 
     d1 = engine.step("change premise to    ")
-    assert d1["kind"] == "clarify"
+    assert d1 == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": (
+            "Premise value cannot be empty.\n"
+            "Use 'change premise to <value>' with a non-empty value."
+        ),
+    }
     assert engine.state == before
 
 
@@ -921,9 +954,7 @@ def test_policy_directives_and_idempotent_update() -> None:
     d3 = engine.step("prohibit docker")
     assert d3["kind"] == "clarify"
     assert d3["prompt_to_user"] == (
-        "'docker' is already in use.\n"
-        "Only one policy per item is allowed.\n"
-        "Use 'reset policies' to change it."
+        '"docker" is currently in use.\nRemove or replace it before prohibiting it.'
     )
     assert engine.state["policies"] == {"docker": "use"}
 
@@ -936,9 +967,7 @@ def test_policy_directives_and_idempotent_update() -> None:
     d5 = engine2.step("use docker")
     assert d5["kind"] == "clarify"
     assert d5["prompt_to_user"] == (
-        "'docker' is already prohibited.\n"
-        "Only one policy per item is allowed.\n"
-        "Use 'reset policies' to change it."
+        '"docker" is currently prohibited.\nRemove or replace it before using it.'
     )
     assert engine2.state["policies"] == {"docker": "prohibit"}
 

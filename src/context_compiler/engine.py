@@ -256,11 +256,11 @@ class Engine:
                 if action.kind == "set_premise":
                     return _clarify(
                         "Premise value cannot be empty.\n"
-                        "Use 'set premise ...' with a non-empty value."
+                        "Use 'set premise <value>' with a non-empty value."
                     )
                 return _clarify(
                     "Premise value cannot be empty.\n"
-                    "Use 'change premise to ...' with a non-empty value."
+                    "Use 'change premise to <value>' with a non-empty value."
                 )
 
         if action.kind == "set_premise_to_variant":
@@ -300,24 +300,17 @@ class Engine:
             )
 
         if action.kind == "set_premise" and self._state[STATE_PREMISE] is not None:
-            return _clarify(
-                "Premise already exists.\n"
-                "Use 'change premise to ...' to replace it.\n"
-                "Premise is a single slot.\n"
-                "To keep multiple ideas, rewrite them as one premise value."
-            )
+            return _clarify("Premise already set.\nUse 'change premise to <value>' to modify it.")
 
         if action.kind == "change_premise" and self._state[STATE_PREMISE] is None:
-            return _clarify("No premise exists yet. Use 'set premise ...' first.")
+            return _clarify("No premise is set.\nUse 'set premise <value>' to define one.")
 
         if action.kind == "use_item":
             assert action.item is not None
             item_key = _normalize_item(action.item)
             if self._state[STATE_POLICIES].get(item_key) == POLICY_PROHIBIT:
                 return _clarify(
-                    f"'{item_key}' is already prohibited.\n"
-                    "Only one policy per item is allowed.\n"
-                    "Use 'reset policies' to change it."
+                    f'"{item_key}" is currently prohibited.\nRemove or replace it before using it.'
                 )
 
         if action.kind == "prohibit_item":
@@ -325,9 +318,8 @@ class Engine:
             item_key = _normalize_item(action.item)
             if self._state[STATE_POLICIES].get(item_key) == POLICY_USE:
                 return _clarify(
-                    f"'{item_key}' is already in use.\n"
-                    "Only one policy per item is allowed.\n"
-                    "Use 'reset policies' to change it."
+                    f'"{item_key}" is currently in use.\n'
+                    "Remove or replace it before prohibiting it."
                 )
 
         if action.kind == "replace_use":
@@ -393,9 +385,8 @@ class Engine:
                 return _clarify(prompt)
             if old_state != POLICY_USE:
                 return _clarify(
-                    f"'{action.old_item}' is not a use policy.\n"
-                    "Replacement requires an existing use policy.\n"
-                    "Use 'reset policies' to change it."
+                    f'"{action.old_item}" is not currently in use.\n'
+                    "Replacement requires an active 'use' policy."
                 )
 
         return None

@@ -229,9 +229,8 @@ def test_repl_contradiction_clarify_is_not_pending_confirmable() -> None:
     assert _contains_subsequence(
         lines,
         [
-            "error: 'docker' is already in use.",
-            "Only one policy per item is allowed.",
-            "Use 'reset policies' to change it.",
+            'error: "docker" is currently in use.',
+            "Remove or replace it before prohibiting it.",
             "passthrough",
         ],
     )
@@ -251,9 +250,8 @@ def test_repl_interactive_prints_confirm_and_error_for_clarify_types() -> None:
     error_out = _TTYStringIO()
     run_repl(_TTYStringIO("use docker\nprohibit docker\nquit\n"), error_out)
     error_lines = error_out.getvalue().splitlines()
-    assert "error: 'docker' is already in use." in error_lines
-    assert "Only one policy per item is allowed." in error_lines
-    assert "Use 'reset policies' to change it." in error_lines
+    assert 'error: "docker" is currently in use.' in error_lines
+    assert "Remove or replace it before prohibiting it." in error_lines
 
     confirm_out = _TTYStringIO()
     run_repl(_TTYStringIO("use podman instead of docker\nquit\n"), confirm_out)
@@ -306,10 +304,8 @@ def test_repl_premise_lifecycle_outputs_expected_state_shape() -> None:
     assert _contains_subsequence(
         lines,
         [
-            "error: Premise already exists.",
-            "Use 'change premise to ...' to replace it.",
-            "Premise is a single slot.",
-            "To keep multiple ideas, rewrite them as one premise value.",
+            "error: Premise already set.",
+            "Use 'change premise to <value>' to modify it.",
         ],
     )
     assert _contains_subsequence(
@@ -377,13 +373,10 @@ def test_repl_interactive_confirm_vs_error_alignment_for_actual_clarify_behavior
         "quit\n"
     )
 
-    assert ("error: Premise already exists.") in lines
-    assert "Use 'change premise to ...' to replace it." in lines
-    assert "Premise is a single slot." in lines
-    assert "To keep multiple ideas, rewrite them as one premise value." in lines
-    assert ("error: 'docker' is already in use.") in lines
-    assert "Only one policy per item is allowed." in lines
-    assert "Use 'reset policies' to change it." in lines
+    assert ("error: Premise already set.") in lines
+    assert "Use 'change premise to <value>' to modify it." in lines
+    assert ('error: "docker" is currently in use.') in lines
+    assert "Remove or replace it before prohibiting it." in lines
     assert 'confirm: No exact policy found for "buildx".' in lines
     assert "Replacement requires an exact policy match." in lines
     assert 'Confirm to use "podman" and keep existing policies?' in lines
@@ -424,7 +417,7 @@ def test_repl_interactive_prints_blank_line_before_error_decision() -> None:
     run_repl(_TTYStringIO("set premise concise\nset premise verbose\nquit\n"), out)
     text = out.getvalue()
 
-    assert "\n\nerror: Premise already exists.\n" in text
+    assert "\n\nerror: Premise already set.\n" in text
 
 
 def test_repl_interactive_state_renders_empty_state() -> None:
