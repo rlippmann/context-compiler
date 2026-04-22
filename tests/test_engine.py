@@ -237,11 +237,7 @@ def test_export_checkpoint_serializes_pending_replacement_state_for_exact_resume
             "new_item": "kubectl",
             "old_item": None,
         },
-        "prompt_to_user": (
-            'No exact policy found for "docker".\n'
-            "Replacement requires an exact policy match.\n"
-            'Confirm to use "kubectl" and keep existing policies?'
-        ),
+        "prompt_to_user": 'Did you mean to use "kubectl" instead?',
     }
 
 
@@ -1124,11 +1120,7 @@ def test_replace_use_identity_is_noop_update() -> None:
 
 def test_replace_use_missing_source_state_enters_replacement_intent_clarify() -> None:
     engine = create_engine()
-    expected_prompt = (
-        'No exact policy found for "docker".\n'
-        "Replacement requires an exact policy match.\n"
-        'Confirm to use "kubectl" and keep existing policies?'
-    )
+    expected_prompt = 'Did you mean to use "kubectl" instead?'
 
     d1 = engine.step("use kubectl instead of docker")
     assert d1 == {
@@ -1141,11 +1133,7 @@ def test_replace_use_missing_source_state_enters_replacement_intent_clarify() ->
 
 def test_replace_use_missing_source_yes_confirmation_applies_use_only() -> None:
     engine = create_engine()
-    expected_prompt = (
-        'No exact policy found for "docker".\n'
-        "Replacement requires an exact policy match.\n"
-        'Confirm to use "kubectl" and keep existing policies?'
-    )
+    expected_prompt = 'Did you mean to use "kubectl" instead?'
 
     first = engine.step("use kubectl instead of docker")
     assert first == {
@@ -1177,11 +1165,7 @@ def test_replace_use_missing_source_no_confirmation_has_no_mutation() -> None:
 def test_replace_use_missing_source_takes_priority_over_target_prohibit_prompt() -> None:
     engine = create_engine()
     engine.step("prohibit kubectl")
-    expected_prompt = (
-        'No exact policy found for "docker".\n'
-        "Replacement requires an exact policy match.\n"
-        'Confirm to use "kubectl" and keep existing policies?'
-    )
+    expected_prompt = 'Did you mean to use "kubectl" instead?'
 
     decision = engine.step("use kubectl instead of docker")
     assert decision == {
@@ -1196,12 +1180,11 @@ def test_replace_use_missing_source_prompt_includes_contains_diagnostic_hints() 
     engine.step("use python and docker")
 
     decision = engine.step("use kubectl instead of python")
-    assert decision["kind"] == "clarify"
-    prompt = decision["prompt_to_user"] or ""
-    assert 'No exact policy found for "python".' in prompt
-    assert "Replacement requires an exact policy match." in prompt
-    assert 'Existing policies containing that text: "python and docker".' in prompt
-    assert prompt.endswith('Confirm to use "kubectl" and keep "python and docker"?')
+    assert decision == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": 'Did you mean to use "kubectl" instead?',
+    }
 
 
 def test_replace_use_missing_source_prompt_lists_multiple_diagnostic_hints_sorted() -> None:
@@ -1210,16 +1193,11 @@ def test_replace_use_missing_source_prompt_lists_multiple_diagnostic_hints_sorte
     engine.step("prohibit python tooling")
 
     decision = engine.step("use kubectl instead of python")
-    assert decision["kind"] == "clarify"
-    prompt = decision["prompt_to_user"] or ""
-    assert 'No exact policy found for "python".' in prompt
-    assert "Replacement requires an exact policy match." in prompt
-    assert (
-        'Existing policies containing that text: "python and docker", "python tooling".' in prompt
-    )
-    assert prompt.endswith(
-        'Confirm to use "kubectl" and keep "python and docker", "python tooling"?'
-    )
+    assert decision == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": 'Did you mean to use "kubectl" instead?',
+    }
 
 
 def test_replace_use_missing_source_with_empty_normalized_probe_omits_diagnostic_hints() -> None:
@@ -1228,11 +1206,11 @@ def test_replace_use_missing_source_with_empty_normalized_probe_omits_diagnostic
     before = engine.state
 
     decision = engine.step("use kubectl instead of the")
-    assert decision["kind"] == "clarify"
-    prompt = decision["prompt_to_user"] or ""
-    assert 'No exact policy found for "the".' in prompt
-    assert "Replacement requires an exact policy match." in prompt
-    assert "Existing policies containing that text:" not in prompt
+    assert decision == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": 'Did you mean to use "kubectl" instead?',
+    }
     assert engine.state == before
 
 

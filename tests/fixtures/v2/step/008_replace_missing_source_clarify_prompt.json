@@ -10,7 +10,7 @@
   "expected": {
     "decision": {
       "kind": "clarify",
-      "prompt_to_user": "No exact policy found for \"docker\".\nReplacement requires an exact policy match.\nConfirm to use \"kubectl\" and keep existing policies?",
+      "prompt_to_user": "Did you mean to use \"kubectl\" instead?",
       "state": null
     },
     "state": {

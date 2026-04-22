@@ -306,9 +306,7 @@ def test_repl_replacement_clarify_requires_confirmation_tokens_and_persists_unti
     None
 ):
     lines = _run_non_interactive_lines("use podman instead of docker\nmaybe\nyes please!!\nquit\n")
-    assert lines.count('confirm: No exact policy found for "docker".') == 2
-    assert lines.count("Replacement requires an exact policy match.") == 2
-    assert lines.count('Confirm to use "podman" and keep existing policies?') == 2
+    assert lines.count('confirm: Did you mean to use "podman" instead?') == 2
     assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use podman"])
 
 
@@ -322,9 +320,7 @@ def test_repl_interactive_prints_confirm_and_error_for_clarify_types() -> None:
     confirm_out = _TTYStringIO()
     run_repl(_TTYStringIO("use podman instead of docker\nquit\n"), confirm_out)
     confirm_lines = confirm_out.getvalue().splitlines()
-    assert 'confirm: No exact policy found for "docker".' in confirm_lines
-    assert "Replacement requires an exact policy match." in confirm_lines
-    assert 'Confirm to use "podman" and keep existing policies?' in confirm_lines
+    assert 'confirm: Did you mean to use "podman" instead?' in confirm_lines
 
 
 def test_repl_replacement_negative_confirmation_returns_update_unchanged_and_clears_pending() -> (
@@ -391,31 +387,23 @@ def test_repl_interactive_renders_updated_state_blocks_for_multiple_operations()
 
 def test_repl_interactive_confirmation_token_variants_resolve_pending_clarify() -> None:
     lines_yes = _run_interactive_lines("use podman instead of docker\nyeah\nquit\n")
-    assert 'confirm: No exact policy found for "docker".' in lines_yes
-    assert "Replacement requires an exact policy match." in lines_yes
-    assert 'Confirm to use "podman" and keep existing policies?' in lines_yes
+    assert 'confirm: Did you mean to use "podman" instead?' in lines_yes
     assert _contains_subsequence(
         lines_yes, ["updated", "premise: (none)", "policies:", "- use podman"]
     )
 
     lines_ok = _run_interactive_lines("use buildah instead of docker\nok\nquit\n")
-    assert 'confirm: No exact policy found for "docker".' in lines_ok
-    assert "Replacement requires an exact policy match." in lines_ok
-    assert 'Confirm to use "buildah" and keep existing policies?' in lines_ok
+    assert 'confirm: Did you mean to use "buildah" instead?' in lines_ok
     assert _contains_subsequence(
         lines_ok, ["updated", "premise: (none)", "policies:", "- use buildah"]
     )
 
     lines_nope = _run_interactive_lines("use nerdctl instead of docker\nnope\nquit\n")
-    assert 'confirm: No exact policy found for "docker".' in lines_nope
-    assert "Replacement requires an exact policy match." in lines_nope
-    assert 'Confirm to use "nerdctl" and keep existing policies?' in lines_nope
+    assert 'confirm: Did you mean to use "nerdctl" instead?' in lines_nope
     assert _contains_subsequence(lines_nope, ["updated", "premise: (none)", "policies: (none)"])
 
     lines_no_thanks = _run_interactive_lines("use helm instead of docker\nno thanks\nquit\n")
-    assert 'confirm: No exact policy found for "docker".' in lines_no_thanks
-    assert "Replacement requires an exact policy match." in lines_no_thanks
-    assert 'Confirm to use "helm" and keep existing policies?' in lines_no_thanks
+    assert 'confirm: Did you mean to use "helm" instead?' in lines_no_thanks
     assert _contains_subsequence(
         lines_no_thanks, ["updated", "premise: (none)", "policies: (none)"]
     )
@@ -443,9 +431,7 @@ def test_repl_interactive_confirm_vs_error_alignment_for_actual_clarify_behavior
     assert "Use 'change premise to <value>' to modify it." in lines
     assert ('error: "docker" is currently in use.') in lines
     assert "Remove or replace it before prohibiting it." in lines
-    assert 'confirm: No exact policy found for "buildx".' in lines
-    assert "Replacement requires an exact policy match." in lines
-    assert 'Confirm to use "podman" and keep existing policies?' in lines
+    assert 'confirm: Did you mean to use "podman" instead?' in lines
 
 
 def test_repl_interactive_passthrough_prints_passthrough_label() -> None:

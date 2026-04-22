@@ -205,7 +205,7 @@ def test_litellm_with_preprocessor_checkpoint_resume_yes_no_end_to_end(
             first_engine,
             session_key=session_key,
         )
-        assert "No exact policy found for" in clarify
+        assert clarify == 'Did you mean to use "kubectl" instead?'
         assert precompile_inputs == ["use kubectl instead of docker"]
         assert session_key in checkpoints
 

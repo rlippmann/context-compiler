@@ -460,7 +460,7 @@ def test_preprocessor_pipe_checkpoint_resume_yes_no_end_to_end(
         )
     )
     assert isinstance(clarify, str)
-    assert "No exact policy found for" in clarify
+    assert clarify == 'Did you mean to use "kubectl" instead?'
     assert heuristic_inputs == ["use kubectl instead of docker"]
 
     module._ENGINES_BY_CHAT_KEY.clear()
