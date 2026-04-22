@@ -35,34 +35,36 @@ Install demo dependencies:
 pip install "context-compiler[demos]"
 ```
 
-Environment variables (LiteLLM/OpenAI-compatible API):
+Environment variables (strict provider mode contract):
 
+- `PROVIDER` (optional): `openai` (default), `ollama`, `openai_compatible`
 - `MODEL` (optional)
-- `OPENAI_API_KEY` (required)
-- `OPENAI_BASE_URL` (optional; use for local or alternative endpoints)
+- `OPENAI_API_KEY` (required in normal `openai` mode)
+- `OPENAI_BASE_URL` (explicit endpoint override; required for explicit `openai_compatible`)
 Note: Demos prefer deterministic decoding (`temperature=0`) for reproducible PASS/FAIL behavior.
 If a model rejects that parameter (for example, some `gpt-5` paths), the demo client retries once without it.
 
-LiteLLM model naming with Ollama:
-
-- Ollama native endpoint (`http://127.0.0.1:11434`): use `MODEL=ollama/llama3.1:8b`
-- OpenAI-compatible endpoint (`.../v1`): use `MODEL=openai/llama3.1:8b`
-
-Example: locally hosted OpenAI-compatible endpoint
-
-Any locally hosted OpenAI-compatible endpoint will work.
-
-```bash
-export OPENAI_BASE_URL=http://localhost:11434/v1
-export OPENAI_API_KEY=ollama
-export MODEL=openai/your_local_model_id
-```
-
-OpenAI-compatible hosted example:
+Default (openai):
 
 ```bash
 export OPENAI_API_KEY=your_key_here
-export MODEL=your_model_id
+export MODEL=gpt-4.1-mini
+```
+
+Ollama mode:
+
+```bash
+export PROVIDER=ollama
+export MODEL=ollama/llama3.1:8b
+```
+
+Explicit openai_compatible mode:
+
+```bash
+export PROVIDER=openai_compatible
+export OPENAI_BASE_URL=http://localhost:11434/v1
+export OPENAI_API_KEY=ollama
+export MODEL=openai/llama3.1:8b
 ```
 
 ## Quick run

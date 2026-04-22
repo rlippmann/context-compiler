@@ -12,13 +12,13 @@ Intended host usage:
 """
 
 import logging
-import os
 from collections.abc import Callable, Mapping, Sequence
 from importlib import import_module
 from typing import TypedDict, cast
 
 from context_compiler import State, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
+from host_support.provider_mode import print_startup_config, resolve_provider_config
 
 logger = logging.getLogger(__name__)
 # Example-only in-memory checkpoint store.
@@ -95,19 +95,17 @@ def _call_litellm(messages: list[dict[str, str]]) -> str:
         raise RuntimeError("litellm is required. Install with: pip install litellm") from exc
     completion_fn = cast(Callable[..., object], litellm_module.completion)
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError("OPENAI_API_KEY is required.")
+    config = resolve_provider_config(default_model="openai/gpt-4o-mini")
+    print_startup_config(config, logger=logger)
 
     kwargs: _LiteLLMCallKwargs = {
-        "model": os.getenv("MODEL", "openai/gpt-4o-mini"),
+        "model": config.model,
         "messages": messages,
-        "api_key": api_key,
         "temperature": 0,
+        "api_base": config.base_url,
     }
-    base_url = os.getenv("OPENAI_BASE_URL")
-    if base_url:
-        kwargs["api_base"] = base_url
+    if config.api_key:
+        kwargs["api_key"] = config.api_key
 
     response = completion_fn(**kwargs)
     content = _extract_response_content(response)

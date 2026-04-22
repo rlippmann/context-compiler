@@ -30,6 +30,7 @@ from experimental.preprocessor import (
     precompile_heuristic,
     render_prompt,
 )
+from host_support.provider_mode import print_startup_config, resolve_provider_config
 
 logger = logging.getLogger(__name__)
 
@@ -112,19 +113,17 @@ def _call_litellm(messages: list[dict[str, str]]) -> str:
     except ModuleNotFoundError as exc:
         raise RuntimeError("litellm is required. Install with: pip install litellm") from exc
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError("OPENAI_API_KEY is required.")
+    config = resolve_provider_config(default_model="openai/gpt-4o-mini")
+    print_startup_config(config, logger=logger)
 
     kwargs: _LiteLLMCallKwargs = {
-        "model": os.getenv("MODEL", "openai/gpt-4o-mini"),
+        "model": config.model,
         "messages": messages,
-        "api_key": api_key,
         "temperature": 0,
+        "api_base": config.base_url,
     }
-    base_url = os.getenv("OPENAI_BASE_URL")
-    if base_url:
-        kwargs["api_base"] = base_url
+    if config.api_key:
+        kwargs["api_key"] = config.api_key
 
     response = completion(**kwargs)
     content = _extract_response_content(response)
@@ -151,8 +150,11 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
     except ModuleNotFoundError:
         return None
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
+    try:
+        config = resolve_provider_config(default_model="openai/gpt-4o-mini")
+    except RuntimeError:
+        return None
+    if config.mode == "openai" and not config.api_key:
         return None
     preprocessor_model = os.getenv("PREPROCESSOR_MODEL", "").strip()
     if not preprocessor_model:
@@ -164,12 +166,11 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
             {"role": "system", "content": prompt},
             {"role": "user", "content": message},
         ],
-        "api_key": api_key,
         "temperature": 0,
+        "api_base": config.base_url,
     }
-    base_url = os.getenv("OPENAI_BASE_URL")
-    if base_url:
-        kwargs["api_base"] = base_url
+    if config.api_key:
+        kwargs["api_key"] = config.api_key
 
     try:
         response = completion(**kwargs)

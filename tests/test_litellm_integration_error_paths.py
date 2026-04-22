@@ -37,10 +37,12 @@ def _patch_completion_loader(monkeypatch, module: object, completion_fn: Any) ->
 )
 def test_call_litellm_requires_api_key(monkeypatch, module_name: str, path: Path) -> None:
     module = _load_module(module_name, path)
+    monkeypatch.delenv("PROVIDER", raising=False)
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     _patch_completion_loader(monkeypatch, module, lambda **_: {})
 
-    with pytest.raises(RuntimeError, match="OPENAI_API_KEY is required"):
+    with pytest.raises(RuntimeError, match="OPENAI_API_KEY is required in openai mode"):
         module._call_litellm([{"role": "user", "content": "hello"}])
 
 
@@ -55,6 +57,8 @@ def test_call_litellm_requires_litellm_dependency(
     monkeypatch, module_name: str, path: Path
 ) -> None:
     module = _load_module(module_name, path)
+    monkeypatch.delenv("PROVIDER", raising=False)
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "dummy")
 
     def _raise_module_not_found() -> Any:
@@ -84,6 +88,8 @@ def test_call_litellm_rejects_missing_content_shape(
     monkeypatch, module_name: str, path: Path
 ) -> None:
     module = _load_module(module_name, path)
+    monkeypatch.delenv("PROVIDER", raising=False)
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
     monkeypatch.setenv("OPENAI_API_KEY", "dummy")
 
     def _completion(**_: Any) -> dict[str, object]:
@@ -95,6 +101,142 @@ def test_call_litellm_rejects_missing_content_shape(
         RuntimeError, match="LiteLLM response missing choices\\[0\\]\\.message\\.content"
     ):
         module._call_litellm([{"role": "user", "content": "hello"}])
+
+
+@pytest.mark.parametrize(
+    ("module_name", "path"),
+    [
+        ("litellm_basic_provider_unknown", LITELLM_BASIC_PATH),
+        ("litellm_with_preproc_provider_unknown", LITELLM_WITH_PREPROC_PATH),
+    ],
+)
+def test_call_litellm_rejects_unknown_provider(monkeypatch, module_name: str, path: Path) -> None:
+    module = _load_module(module_name, path)
+    monkeypatch.setenv("PROVIDER", "bedrock")
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "dummy")
+    _patch_completion_loader(monkeypatch, module, lambda **_: {})
+
+    with pytest.raises(
+        RuntimeError,
+        match=(
+            "Invalid PROVIDER value 'bedrock'. Allowed values: openai, ollama, openai_compatible"
+        ),
+    ):
+        module._call_litellm([{"role": "user", "content": "hello"}])
+
+
+@pytest.mark.parametrize(
+    ("module_name", "path"),
+    [
+        ("litellm_basic_openai_compatible_missing_base", LITELLM_BASIC_PATH),
+        ("litellm_with_preproc_openai_compatible_missing_base", LITELLM_WITH_PREPROC_PATH),
+    ],
+)
+def test_call_litellm_openai_compatible_requires_base_url(
+    monkeypatch, module_name: str, path: Path
+) -> None:
+    module = _load_module(module_name, path)
+    monkeypatch.setenv("PROVIDER", "openai_compatible")
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    _patch_completion_loader(monkeypatch, module, lambda **_: {})
+
+    with pytest.raises(
+        RuntimeError, match="OPENAI_BASE_URL is required when PROVIDER=openai_compatible."
+    ):
+        module._call_litellm([{"role": "user", "content": "hello"}])
+
+
+@pytest.mark.parametrize(
+    ("module_name", "path"),
+    [
+        ("litellm_basic_ollama_optional_key", LITELLM_BASIC_PATH),
+        ("litellm_with_preproc_ollama_optional_key", LITELLM_WITH_PREPROC_PATH),
+    ],
+)
+def test_call_litellm_ollama_mode_allows_missing_api_key(
+    monkeypatch, module_name: str, path: Path
+) -> None:
+    module = _load_module(module_name, path)
+    seen: dict[str, object] = {}
+
+    def _completion(**kwargs: Any) -> dict[str, object]:
+        seen.update(kwargs)
+        return {"choices": [{"message": {"content": "ok"}}]}
+
+    monkeypatch.setenv("PROVIDER", "ollama")
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    _patch_completion_loader(monkeypatch, module, _completion)
+
+    result = module._call_litellm([{"role": "user", "content": "hello"}])
+    assert result == "ok"
+    assert seen["api_base"] == "http://localhost:11434/v1"
+    assert "api_key" not in seen
+
+
+@pytest.mark.parametrize(
+    ("module_name", "path"),
+    [
+        ("litellm_basic_base_url_override", LITELLM_BASIC_PATH),
+        ("litellm_with_preproc_base_url_override", LITELLM_WITH_PREPROC_PATH),
+    ],
+)
+def test_call_litellm_base_url_override_wins_over_provider(
+    monkeypatch, module_name: str, path: Path
+) -> None:
+    module = _load_module(module_name, path)
+    seen: dict[str, object] = {}
+
+    def _completion(**kwargs: Any) -> dict[str, object]:
+        seen.update(kwargs)
+        return {"choices": [{"message": {"content": "ok"}}]}
+
+    monkeypatch.setenv("PROVIDER", "ollama")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://example.compat/v1")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    _patch_completion_loader(monkeypatch, module, _completion)
+
+    result = module._call_litellm([{"role": "user", "content": "hello"}])
+    assert result == "ok"
+    assert seen["api_base"] == "https://example.compat/v1"
+    assert "api_key" not in seen
+
+
+def test_call_litellm_logs_single_mode_resolution_line(
+    monkeypatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    import host_support.provider_mode as _provider
+
+    module = _load_module("litellm_basic_logs_resolution", LITELLM_BASIC_PATH)
+    _provider._STARTUP_LOGGED = False
+
+    def _completion(**_: Any) -> dict[str, object]:
+        return {"choices": [{"message": {"content": "ok"}}]}
+
+    monkeypatch.setenv("MODEL", "openai/demo-model")
+    monkeypatch.setenv("OPENAI_BASE_URL", "http://localhost:11434/v1")
+    monkeypatch.setenv("PROVIDER", "ollama")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    _patch_completion_loader(monkeypatch, module, _completion)
+
+    with caplog.at_level("INFO"):
+        first = module._call_litellm([{"role": "user", "content": "hello"}])
+        second = module._call_litellm([{"role": "user", "content": "again"}])
+
+    assert first == "ok"
+    assert second == "ok"
+    matches = [
+        rec
+        for rec in caplog.records
+        if rec.getMessage().startswith("litellm_config mode=openai_compatible")
+    ]
+    assert len(matches) == 1
+    message = matches[0].getMessage()
+    assert "base_url=http://localhost:11434/v1" in message
+    assert "model=openai/demo-model" in message
+    assert "source=OPENAI_BASE_URL override" in message
 
 
 def test_with_preprocessor_fallback_failure_preserves_basic_behavior(monkeypatch) -> None:

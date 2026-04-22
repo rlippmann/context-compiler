@@ -82,12 +82,13 @@ def _run(
 
 
 def _print_config_error(exc: MissingDemoConfigError) -> None:
-    mode = "OpenAI-compatible endpoint" if exc.base_url else "OpenAI API"
+    is_openai_compatible = exc.mode == "openai_compatible" or bool(exc.base_url)
+    mode = "OpenAI-compatible endpoint" if is_openai_compatible else "OpenAI API"
     print("Unable to run LLM demos: missing model configuration.")
     print(f"Assumed mode: {mode}")
     print(f"Missing variables: {', '.join(exc.missing)}")
     print("Example setup:")
-    if exc.base_url:
+    if is_openai_compatible:
         print("  export OPENAI_BASE_URL=http://localhost:11434/v1")
         print("  export OPENAI_API_KEY=ollama")
         print("  export MODEL=llama3.1:8b")
