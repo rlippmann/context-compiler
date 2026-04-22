@@ -16,6 +16,24 @@ Before committing:
 
 Do not bypass pre-commit hooks.
 
+## Test coverage expectations
+Before opening a PR, consider:
+
+* Does this change affect any user-facing behavior?
+* If so, is that behavior covered by tests?
+
+User-facing behavior includes:
+
+* engine decision outcomes (`kind`, `prompt_to_user`)
+* checkpoint export/import and continuation behavior
+* clarify/confirmation flows (`yes` / `no`)
+* integration behavior (LiteLLM, OpenWebUI)
+* integration error-path normalization
+
+If a user-facing behavior is changed or introduced, add or update tests to cover it.
+
+Do not rely solely on coverage metrics.
+
 ## Scope of changes
 - Only modify files necessary for the requested task.
 - Do not refactor unrelated code.
