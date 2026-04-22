@@ -29,6 +29,13 @@ All preprocessor outputs, including heuristic outputs, must be validated with
 
 Raw heuristic/LLM outputs must not be passed directly to the compiler.
 
+Pending clarification rule:
+
+- If the engine has pending clarification state, bypass preprocessing and pass
+  raw user input directly to `engine.step(...)`.
+- This preserves deterministic continuation behavior because pending resolution
+  accepts only confirmation tokens until resolved.
+
 ## Limits
 
 The preprocessor is best-effort and intentionally conservative. Ambiguous,
