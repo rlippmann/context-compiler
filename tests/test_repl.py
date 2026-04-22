@@ -2,6 +2,8 @@ from io import StringIO
 
 import pytest
 
+import context_compiler.repl as repl_module
+from context_compiler import create_engine
 from context_compiler.repl import run_repl
 
 pytestmark = pytest.mark.contract
@@ -232,6 +234,70 @@ def test_repl_contradiction_clarify_is_not_pending_confirmable() -> None:
             'error: "docker" is currently in use.',
             "Remove or replace it before prohibiting it.",
             "passthrough",
+        ],
+    )
+
+
+def test_repl_change_premise_without_existing_premise_renders_exact_error() -> None:
+    lines = _run_non_interactive_lines("change premise to concise\nquit\n")
+    assert _contains_subsequence(
+        lines,
+        [
+            "error: No premise is set.",
+            "Use 'set premise <value>' to define one.",
+        ],
+    )
+
+
+def test_repl_set_premise_empty_payload_renders_exact_error() -> None:
+    lines = _run_non_interactive_lines("set premise\nquit\n")
+    assert _contains_subsequence(
+        lines,
+        [
+            "error: Premise value cannot be empty.",
+            "Use 'set premise <value>' with a non-empty value.",
+        ],
+    )
+
+
+def test_repl_change_premise_empty_payload_renders_exact_error() -> None:
+    lines = _run_non_interactive_lines("change premise to\nquit\n")
+    assert _contains_subsequence(
+        lines,
+        [
+            "error: Premise value cannot be empty.",
+            "Use 'change premise to <value>' with a non-empty value.",
+        ],
+    )
+
+
+def test_repl_use_item_when_prohibited_renders_exact_error() -> None:
+    lines = _run_non_interactive_lines("prohibit docker\nuse docker\nquit\n")
+    assert _contains_subsequence(
+        lines,
+        [
+            'error: "docker" is currently prohibited.',
+            "Remove or replace it before using it.",
+        ],
+    )
+
+
+def test_repl_replace_use_when_old_policy_not_use_renders_exact_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine = create_engine()
+    engine._state["policies"]["docker"] = "invalid"  # type: ignore[assignment]
+    monkeypatch.setattr(repl_module, "create_engine", lambda: engine)
+
+    out = StringIO()
+    run_repl(StringIO("use podman instead of docker\nquit\n"), out)
+    lines = [line for line in out.getvalue().splitlines() if line.strip()]
+
+    assert _contains_subsequence(
+        lines,
+        [
+            'error: "docker" is not currently in use.',
+            "Replacement requires an active 'use' policy.",
         ],
     )
 
