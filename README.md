@@ -249,6 +249,12 @@ Notes:
 - checkpoint validation is all-or-nothing; invalid payloads raise and no partial restore occurs.
 - `checkpoint_version` is independent of authoritative state `version` and must be bumped when checkpoint contract shape changes (especially `pending`).
 
+When to use checkpoint APIs:
+
+- stateless host/integration boundaries where engine instances are short-lived.
+- resume after interruption without losing pending clarification flow.
+- preserve confirmation-required continuation state (`pending`) across process/request boundaries.
+
 ---
 
 ### When to use `premise`

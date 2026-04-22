@@ -15,7 +15,7 @@ Runtime-validated on stock Docker Open WebUI with a real backend model provider.
 The minimal pipe path below is the easiest first-run flow and was runtime-validated in Docker via API flow with a real backend model.
 
 1. Import `open_webui_pipe.py` (recommended/default) as a Function by URL.
-2. Open WebUI installs `context-compiler>=0.6.6` from the function frontmatter requirements.
+2. Open WebUI installs `context-compiler>=0.6.7` from the function frontmatter requirements.
 3. Enable the function.
 4. Set `BASE_MODEL_ID` to a valid Open WebUI model id (required).
 5. Select the pipe model in chat.
@@ -48,8 +48,8 @@ If frontmatter dependency installs are disabled, offline, or unavailable:
 1. Open a shell in the Open WebUI container:
    - `docker exec -it <openwebui-container> sh`
 2. Install the package manually:
-   - Minimal pipe: `pip install "context-compiler>=0.6.6"`
-   - Preprocessor pipe: `pip install "context-compiler[experimental]>=0.6.6"`
+   - Minimal pipe: `pip install "context-compiler>=0.6.7"`
+   - Preprocessor pipe: `pip install "context-compiler[experimental]>=0.6.7"`
 3. Import and enable the function in Open WebUI, then configure valves.
 
 ### Finding valid model ids
