@@ -1,10 +1,11 @@
 import asyncio
 import builtins
 import importlib.util
+import json
 import sys
 import types
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 
@@ -333,3 +334,70 @@ def test_preprocessor_pipe_bypasses_precompile_while_pending(
 
     assert isinstance(result, dict)
     assert engine.step_inputs == [confirmation]
+
+
+@pytest.mark.parametrize(
+    ("confirmation", "expected_policies"),
+    [
+        ("yes", {"kubectl": "use"}),
+        ("no", {}),
+    ],
+)
+def test_preprocessor_pipe_checkpoint_resume_yes_no_end_to_end(
+    monkeypatch, confirmation: str, expected_policies: dict[str, str]
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_resume_e2e", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    heuristic_inputs: list[str] = []
+
+    def _heuristic(text: str) -> dict[str, object]:
+        if text in {"yes", "no"}:
+            raise AssertionError("heuristic precompile should be bypassed while pending")
+        heuristic_inputs.append(text)
+        return {"outcome": "no_directive", "directive": None}
+
+    monkeypatch.setattr(module, "precompile_heuristic", _heuristic)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+
+    chat_key = "chat-resume-e2e"
+    clarify = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "use kubectl instead of docker"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_key,
+        )
+    )
+    assert isinstance(clarify, str)
+    assert "No exact policy found for" in clarify
+    assert heuristic_inputs == ["use kubectl instead of docker"]
+
+    module._ENGINES_BY_CHAT_KEY.clear()
+    resumed = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": confirmation}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_key,
+        )
+    )
+    assert isinstance(resumed, dict)
+    resumed_engine = cast(Any, module._ENGINES_BY_CHAT_KEY[chat_key])
+    assert resumed_engine.state == {
+        "premise": None,
+        "policies": expected_policies,
+        "version": 2,
+    }
+    resumed_checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
+    assert resumed_checkpoint["pending"] is None

@@ -1,8 +1,11 @@
 import importlib.util
+import json
 from pathlib import Path
 from typing import Any, cast
 
 import pytest
+
+from context_compiler import create_engine
 
 
 class _FakeEngine:
@@ -158,3 +161,65 @@ def test_litellm_with_preprocessor_bypasses_precompile_while_pending(confirmatio
 
     assert result == "ok"
     assert engine.step_inputs == [confirmation]
+
+
+@pytest.mark.parametrize(
+    ("confirmation", "expected_policies"),
+    [
+        ("yes", {"kubectl": "use"}),
+        ("no", {}),
+    ],
+)
+def test_litellm_with_preprocessor_checkpoint_resume_yes_no_end_to_end(
+    confirmation: str, expected_policies: dict[str, str]
+) -> None:
+    module = _load_module(
+        "litellm_with_preprocessor_checkpoint_resume_e2e",
+        Path("examples/integrations/litellm/with_preprocessor.py"),
+    )
+    checkpoints = cast(dict[str, str], module._CHECKPOINTS_BY_SESSION_KEY)
+    restored = cast(dict[str, int], module._RESTORED_ENGINE_BY_SESSION_KEY)
+    checkpoints.clear()
+    restored.clear()
+
+    call_litellm = cast(Any, module._call_litellm)
+    precompile_user_input = cast(Any, module._precompile_user_input)
+
+    precompile_inputs: list[str] = []
+
+    def _precompile_before_pending(text: str, _state: dict[str, object]) -> None:
+        precompile_inputs.append(text)
+        return None
+
+    def _fail_precompile(_text: str, _state: dict[str, object]) -> None:
+        raise AssertionError("precompile should be bypassed while pending is restored")
+
+    module._call_litellm = lambda _messages: "ok"
+    module._precompile_user_input = _precompile_before_pending
+    session_key = "resume-e2e"
+
+    try:
+        first_engine = create_engine()
+        clarify = module.handle_turn(
+            "use kubectl instead of docker",
+            first_engine,
+            session_key=session_key,
+        )
+        assert "No exact policy found for" in clarify
+        assert precompile_inputs == ["use kubectl instead of docker"]
+        assert session_key in checkpoints
+
+        module._precompile_user_input = _fail_precompile
+        second_engine = create_engine()
+        resumed = module.handle_turn(confirmation, second_engine, session_key=session_key)
+        assert resumed == "ok"
+        assert second_engine.state == {
+            "premise": None,
+            "policies": expected_policies,
+            "version": 2,
+        }
+        resumed_checkpoint = json.loads(checkpoints[session_key])
+        assert resumed_checkpoint["pending"] is None
+    finally:
+        module._call_litellm = call_litellm
+        module._precompile_user_input = precompile_user_input
