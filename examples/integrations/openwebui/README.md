@@ -22,6 +22,7 @@ The minimal pipe path below is the easiest first-run flow and was runtime-valida
 
 Open WebUI is host-provided runtime infrastructure and must already be installed/configured separately.
 Open WebUI also needs at least one real backend model/provider configured (for example Ollama or OpenAI) so `BASE_MODEL_ID` resolves to an actual model.
+Note: The `PROVIDER` environment contract used in LiteLLM examples/demos does not apply to OpenWebUI. OpenWebUI manages providers via its own connection settings and model IDs.
 
 Checkpoint continuation in these examples requires `context-compiler>=0.6.7`.
 
