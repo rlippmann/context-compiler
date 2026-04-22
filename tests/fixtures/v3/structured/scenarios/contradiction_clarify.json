@@ -1,0 +1,9 @@
+{
+  "description": "Policy contradiction yields clarify with no mutation",
+  "id": "contradiction_clarify",
+  "initial_checkpoint": null,
+  "inputs": [
+    "use docker",
+    "prohibit docker"
+  ]
+}

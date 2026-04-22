@@ -1,0 +1,11 @@
+{
+  "description": "Pending replacement resolves negatively",
+  "id": "pending_clarify_no",
+  "initial_checkpoint": null,
+  "inputs": [
+    "use docker",
+    "prohibit kubectl",
+    "use kubectl instead of docker",
+    "no"
+  ]
+}

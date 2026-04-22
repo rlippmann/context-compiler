@@ -1,0 +1,12 @@
+{
+  "description": "Premise lifecycle updates and clarify gates",
+  "id": "premise_lifecycle",
+  "initial_checkpoint": null,
+  "inputs": [
+    "set premise concise replies",
+    "set premise formal replies",
+    "change premise to concise bullet points",
+    "clear premise",
+    "change premise to formal tone"
+  ]
+}
