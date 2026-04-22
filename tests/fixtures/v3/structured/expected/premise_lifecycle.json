@@ -1,0 +1,85 @@
+{
+  "id": "premise_lifecycle",
+  "turns": [
+    {
+      "checkpoint": {
+        "authoritative_state": {
+          "policies": {},
+          "premise": "concise replies",
+          "version": 2
+        },
+        "checkpoint_version": 1,
+        "pending": null
+      },
+      "decision": {
+        "kind": "update",
+        "prompt_to_user": null
+      },
+      "input": "set premise concise replies"
+    },
+    {
+      "checkpoint": {
+        "authoritative_state": {
+          "policies": {},
+          "premise": "concise replies",
+          "version": 2
+        },
+        "checkpoint_version": 1,
+        "pending": null
+      },
+      "decision": {
+        "kind": "clarify",
+        "prompt_to_user": "Premise already set.\nUse 'change premise to <value>' to modify it."
+      },
+      "input": "set premise formal replies"
+    },
+    {
+      "checkpoint": {
+        "authoritative_state": {
+          "policies": {},
+          "premise": "concise bullet points",
+          "version": 2
+        },
+        "checkpoint_version": 1,
+        "pending": null
+      },
+      "decision": {
+        "kind": "update",
+        "prompt_to_user": null
+      },
+      "input": "change premise to concise bullet points"
+    },
+    {
+      "checkpoint": {
+        "authoritative_state": {
+          "policies": {},
+          "premise": null,
+          "version": 2
+        },
+        "checkpoint_version": 1,
+        "pending": null
+      },
+      "decision": {
+        "kind": "update",
+        "prompt_to_user": null
+      },
+      "input": "clear premise"
+    },
+    {
+      "checkpoint": {
+        "authoritative_state": {
+          "policies": {},
+          "premise": null,
+          "version": 2
+        },
+        "checkpoint_version": 1,
+        "pending": null
+      },
+      "decision": {
+        "kind": "clarify",
+        "prompt_to_user": "No premise is set.\nUse 'set premise <value>' to define one."
+      },
+      "input": "change premise to formal tone"
+    }
+  ]
+}

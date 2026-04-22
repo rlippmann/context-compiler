@@ -1,0 +1,29 @@
+{
+  "id": "replacement_clarify",
+  "turns": [
+    {
+      "checkpoint": {
+        "authoritative_state": {
+          "policies": {},
+          "premise": null,
+          "version": 2
+        },
+        "checkpoint_version": 1,
+        "pending": {
+          "kind": "replacement",
+          "prompt_to_user": "Did you mean to use \"podman\" instead?",
+          "replacement": {
+            "kind": "use_only",
+            "new_item": "podman",
+            "old_item": null
+          }
+        }
+      },
+      "decision": {
+        "kind": "clarify",
+        "prompt_to_user": "Did you mean to use \"podman\" instead?"
+      },
+      "input": "use podman instead of docker"
+    }
+  ]
+}

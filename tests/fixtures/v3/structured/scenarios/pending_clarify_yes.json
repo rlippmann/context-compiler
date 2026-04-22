@@ -1,0 +1,11 @@
+{
+  "description": "Pending replacement resolves affirmatively",
+  "id": "pending_clarify_yes",
+  "initial_checkpoint": null,
+  "inputs": [
+    "use docker",
+    "prohibit kubectl",
+    "use kubectl instead of docker",
+    "yes"
+  ]
+}
