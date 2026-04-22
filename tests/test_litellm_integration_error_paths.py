@@ -207,9 +207,10 @@ def test_call_litellm_base_url_override_wins_over_provider(
 def test_call_litellm_logs_single_mode_resolution_line(
     monkeypatch, caplog: pytest.LogCaptureFixture
 ) -> None:
+    from examples import _provider
+
     module = _load_module("litellm_basic_logs_resolution", LITELLM_BASIC_PATH)
-    if hasattr(module, "_CONFIG_LOGGED"):
-        module._CONFIG_LOGGED = False
+    _provider._STARTUP_LOGGED = False
 
     def _completion(**_: Any) -> dict[str, object]:
         return {"choices": [{"message": {"content": "ok"}}]}

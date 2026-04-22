@@ -11,6 +11,8 @@ from email.utils import parsedate_to_datetime
 from importlib import import_module
 from typing import Any, Literal, TypedDict, cast
 
+from examples._provider import print_startup_config, resolve_provider_config
+
 
 class Message(TypedDict):
     role: Literal["system", "user", "assistant", "tool"]
@@ -19,15 +21,18 @@ class Message(TypedDict):
 
 @dataclass(frozen=True)
 class LLMConfig:
-    base_url: str | None
-    api_key: str
+    base_url: str
+    api_key: str | None
     model: str
+    mode: str
+    source: str
 
 
 @dataclass(frozen=True)
 class MissingDemoConfigError(RuntimeError):
     missing: list[str]
     base_url: str | None
+    mode: str | None = None
 
     def __str__(self) -> str:
         missing_text = ", ".join(self.missing)
@@ -176,19 +181,32 @@ def _configured_delay_seconds(delay_seconds: float) -> float:
 
 
 def load_config() -> LLMConfig:
-    """Load OpenAI-compatible configuration from environment variables."""
-    base_url = os.getenv("OPENAI_BASE_URL")
-    api_key = os.getenv("OPENAI_API_KEY")
-    model = os.getenv("MODEL", "gpt-4.1-mini")
-
-    missing: list[str] = []
-    if not api_key:
-        missing.append("OPENAI_API_KEY")
-    if missing:
-        raise MissingDemoConfigError(missing=missing, base_url=base_url)
-
-    assert api_key is not None
-    return LLMConfig(base_url=base_url, api_key=api_key, model=model)
+    """Load provider mode configuration from environment variables."""
+    try:
+        config = resolve_provider_config(default_model="gpt-4.1-mini")
+    except RuntimeError as exc:
+        message = str(exc)
+        if message == "OPENAI_API_KEY is required in openai mode.":
+            raise MissingDemoConfigError(
+                missing=["OPENAI_API_KEY"],
+                base_url=None,
+                mode="openai",
+            ) from exc
+        if message == "OPENAI_BASE_URL is required when PROVIDER=openai_compatible.":
+            raise MissingDemoConfigError(
+                missing=["OPENAI_BASE_URL"],
+                base_url=None,
+                mode="openai_compatible",
+            ) from exc
+        raise DemoLLMError(message) from exc
+    print_startup_config(config)
+    return LLMConfig(
+        base_url=config.base_url,
+        api_key=config.api_key,
+        model=config.model,
+        mode=config.mode,
+        source=config.source,
+    )
 
 
 def _litellm_completion(
@@ -214,13 +232,13 @@ def _litellm_completion(
     kwargs: dict[str, Any] = {
         "model": target_model,
         "messages": messages,
-        "api_key": config.api_key,
     }
+    if config.api_key:
+        kwargs["api_key"] = config.api_key
     if deterministic_decoding:
         # Demos prefer deterministic decoding so PASS/FAIL results are reproducible.
         kwargs["temperature"] = 0
-    if config.base_url:
-        kwargs["api_base"] = config.base_url
+    kwargs["api_base"] = config.base_url
     return completion_fn(**kwargs)
 
 

@@ -16,14 +16,14 @@ Intended host usage:
 import logging
 import os
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
 from importlib import import_module
 from importlib.resources import as_file, files
 from importlib.resources.abc import Traversable
-from typing import Literal, TypedDict, cast
+from typing import TypedDict, cast
 
 from context_compiler import State, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
+from examples._provider import print_startup_config, resolve_provider_config
 from experimental.preprocessor import (
     PRECOMPILE_OUTCOME_DIRECTIVE,
     PRECOMPILER_NO_DIRECTIVE_SENTINEL,
@@ -41,8 +41,6 @@ _PROMPTS_DIR = files("experimental.preprocessor").joinpath("prompts")
 # or restart continuity for pending flows will be lost.
 _CHECKPOINTS_BY_SESSION_KEY: dict[str, str] = {}
 _RESTORED_ENGINE_BY_SESSION_KEY: dict[str, int] = {}
-_CONFIG_LOGGED = False
-_ALLOWED_PROVIDER_VALUES = ("openai", "ollama", "openai_compatible")
 
 
 class _LiteLLMCallKwargs(TypedDict, total=False):
@@ -51,74 +49,6 @@ class _LiteLLMCallKwargs(TypedDict, total=False):
     api_key: str
     temperature: float
     api_base: str
-
-
-@dataclass(frozen=True)
-class _ResolvedModeConfig:
-    mode: Literal["openai", "ollama", "openai_compatible"]
-    source: Literal["default", "PROVIDER", "OPENAI_BASE_URL override"]
-    base_url: str
-    api_key: str | None
-
-
-def _resolve_mode_config() -> _ResolvedModeConfig:
-    base_url = os.getenv("OPENAI_BASE_URL", "").strip() or None
-    provider = os.getenv("PROVIDER", "").strip().lower() or None
-    api_key = os.getenv("OPENAI_API_KEY", "").strip() or None
-
-    if base_url:
-        return _ResolvedModeConfig(
-            mode="openai_compatible",
-            source="OPENAI_BASE_URL override",
-            base_url=base_url,
-            api_key=api_key,
-        )
-
-    if provider is not None and provider not in _ALLOWED_PROVIDER_VALUES:
-        allowed_values = ", ".join(_ALLOWED_PROVIDER_VALUES)
-        raise RuntimeError(f"Invalid PROVIDER value '{provider}'. Allowed values: {allowed_values}")
-
-    mode: Literal["openai", "ollama", "openai_compatible"]
-    source: Literal["default", "PROVIDER", "OPENAI_BASE_URL override"]
-    if provider is None:
-        mode = "openai"
-        source = "default"
-    else:
-        mode = cast(Literal["openai", "ollama", "openai_compatible"], provider)
-        source = "PROVIDER"
-
-    if mode == "openai":
-        if not api_key:
-            raise RuntimeError("OPENAI_API_KEY is required in openai mode.")
-        return _ResolvedModeConfig(
-            mode=mode,
-            source=source,
-            base_url="https://api.openai.com/v1",
-            api_key=api_key,
-        )
-    if mode == "ollama":
-        return _ResolvedModeConfig(
-            mode=mode,
-            source=source,
-            base_url="http://localhost:11434/v1",
-            api_key=api_key,
-        )
-
-    raise RuntimeError("OPENAI_BASE_URL is required when PROVIDER=openai_compatible.")
-
-
-def _log_mode_resolution_once(config: _ResolvedModeConfig, model: str) -> None:
-    global _CONFIG_LOGGED
-    if _CONFIG_LOGGED:
-        return
-    logger.info(
-        "litellm_config mode=%s base_url=%s model=%s source=%s",
-        config.mode,
-        config.base_url,
-        model,
-        config.source,
-    )
-    _CONFIG_LOGGED = True
 
 
 def _extract_response_content(response: object) -> str | None:
@@ -183,12 +113,11 @@ def _call_litellm(messages: list[dict[str, str]]) -> str:
     except ModuleNotFoundError as exc:
         raise RuntimeError("litellm is required. Install with: pip install litellm") from exc
 
-    model = os.getenv("MODEL", "openai/gpt-4o-mini")
-    config = _resolve_mode_config()
-    _log_mode_resolution_once(config, model)
+    config = resolve_provider_config(default_model="openai/gpt-4o-mini")
+    print_startup_config(config, logger=logger)
 
     kwargs: _LiteLLMCallKwargs = {
-        "model": model,
+        "model": config.model,
         "messages": messages,
         "temperature": 0,
         "api_base": config.base_url,
@@ -222,7 +151,7 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
         return None
 
     try:
-        config = _resolve_mode_config()
+        config = resolve_provider_config(default_model="openai/gpt-4o-mini")
     except RuntimeError:
         return None
     if config.mode == "openai" and not config.api_key:

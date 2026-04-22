@@ -35,7 +35,13 @@ def test_module_does_not_use_litellm_importorskip_guard() -> None:
 
 
 def _fake_config() -> LLMConfig:
-    return LLMConfig(base_url="http://localhost:11434/v1", api_key="test-key", model="bad-model")
+    return LLMConfig(
+        base_url="http://localhost:11434/v1",
+        api_key="test-key",
+        model="bad-model",
+        mode="openai_compatible",
+        source="OPENAI_BASE_URL override",
+    )
 
 
 class _FakeLiteLLMCompletion:
