@@ -1,7 +1,8 @@
 """Example 5: host integration pattern using Decision API."""
 
+from _util import print_decision_summary, print_state_summary
+
 from context_compiler import Engine, State, create_engine
-from examples._util import print_decision_summary, print_state_summary
 
 
 def fake_llm(state: State | None, user_input: str) -> str:

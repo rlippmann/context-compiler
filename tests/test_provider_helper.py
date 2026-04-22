@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from examples import _provider
+import host_support.provider_mode as _provider
 
 
 def test_resolve_provider_config_defaults_to_openai(monkeypatch: pytest.MonkeyPatch) -> None:

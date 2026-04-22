@@ -1,7 +1,8 @@
 """Example 1: persistent guardrails across turns."""
 
+from _util import print_decision_summary, print_state_summary
+
 from context_compiler import State, create_engine, get_policy_items
-from examples._util import print_decision_summary, print_state_summary
 
 
 def build_prompt(state: State, user_input: str) -> str:

@@ -23,7 +23,6 @@ from typing import TypedDict, cast
 
 from context_compiler import State, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
-from examples._provider import print_startup_config, resolve_provider_config
 from experimental.preprocessor import (
     PRECOMPILE_OUTCOME_DIRECTIVE,
     PRECOMPILER_NO_DIRECTIVE_SENTINEL,
@@ -31,6 +30,7 @@ from experimental.preprocessor import (
     precompile_heuristic,
     render_prompt,
 )
+from host_support.provider_mode import print_startup_config, resolve_provider_config
 
 logger = logging.getLogger(__name__)
 

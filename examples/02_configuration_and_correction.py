@@ -1,7 +1,8 @@
 """Example 2: explicit premise lifecycle with deterministic replacement."""
 
+from _util import print_decision_summary, print_state_summary
+
 from context_compiler import create_engine
-from examples._util import print_decision_summary, print_state_summary
 
 
 def main() -> None:

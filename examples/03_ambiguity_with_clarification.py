@@ -1,7 +1,8 @@
 """Example 3: contradiction clarify flow with host-side blocking."""
 
+from _util import print_decision_summary, print_state_summary
+
 from context_compiler import create_engine
-from examples._util import print_decision_summary, print_state_summary
 
 
 def fake_llm(user_input: str) -> str:

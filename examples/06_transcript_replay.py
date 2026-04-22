@@ -1,7 +1,8 @@
 """Example 6: transcript replay with compile_transcript and apply_transcript."""
 
+from _util import print_replay_result_summary
+
 from context_compiler import Transcript, compile_transcript, create_engine
-from examples._util import print_replay_result_summary
 
 
 def main() -> None:

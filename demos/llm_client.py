@@ -11,7 +11,7 @@ from email.utils import parsedate_to_datetime
 from importlib import import_module
 from typing import Any, Literal, TypedDict, cast
 
-from examples._provider import print_startup_config, resolve_provider_config
+from host_support.provider_mode import print_startup_config, resolve_provider_config
 
 
 class Message(TypedDict):

@@ -207,7 +207,7 @@ def test_call_litellm_base_url_override_wins_over_provider(
 def test_call_litellm_logs_single_mode_resolution_line(
     monkeypatch, caplog: pytest.LogCaptureFixture
 ) -> None:
-    from examples import _provider
+    import host_support.provider_mode as _provider
 
     module = _load_module("litellm_basic_logs_resolution", LITELLM_BASIC_PATH)
     _provider._STARTUP_LOGGED = False

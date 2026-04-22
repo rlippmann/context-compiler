@@ -2,8 +2,9 @@
 
 from dataclasses import dataclass
 
+from _util import print_decision_summary, print_state_summary
+
 from context_compiler import create_engine, get_policy_items
-from examples._util import print_decision_summary, print_state_summary
 
 
 @dataclass
