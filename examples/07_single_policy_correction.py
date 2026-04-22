@@ -1,8 +1,7 @@
 """Example 7: explicit single-policy correction without reset policies."""
 
-from _util import print_decision_summary, print_state_summary
-
 from context_compiler import create_engine
+from examples._util import print_decision_summary, print_state_summary
 
 
 def main() -> None:
