@@ -1,10 +1,13 @@
 import asyncio
 import builtins
 import importlib.util
+import json
 import sys
 import types
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
+
+import pytest
 
 MODULE_PATH = Path("examples/integrations/openwebui/open_webui_pipe_with_preprocessor.py")
 
@@ -81,6 +84,26 @@ def test_preprocessor_model_defaults_to_base_model(monkeypatch) -> None:
     pipe.valves.PREPROCESSOR_MODEL_ID = ""
 
     assert pipe._resolve_preprocessor_model_id("base-model") == "base-model"
+
+
+def test_pipe_requires_base_model_id_when_debug_disabled(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_requires_base", monkeypatch)
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = ""
+    pipe.valves.ALLOW_MISSING_BASE_MODEL_FOR_DEBUG = False
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hi"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+        )
+    )
+
+    assert result == (
+        "Context Compiler pipe misconfigured: BASE_MODEL_ID is required "
+        "(or set ALLOW_MISSING_BASE_MODEL_FOR_DEBUG=true for testing)."
+    )
 
 
 def test_preprocessor_model_can_be_overridden(monkeypatch) -> None:
@@ -179,3 +202,285 @@ def test_recursion_guard_for_preprocessor_model(monkeypatch) -> None:
         "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID must not "
         "match the selected pipe model id to avoid recursive routing."
     )
+
+
+def test_pipe_normalizes_preprocessor_model_not_found_response(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_model_not_found_response", monkeypatch)
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+
+    async def _chat_completion(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        if payload.get("model") == "prep-model":
+            return {"error": {"message": "model not found"}}
+        return {"ok": True}
+
+    module.generate_chat_completion = _chat_completion
+    module.precompile_heuristic = lambda _text: {"outcome": "no_directive", "directive": None}
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+        )
+    )
+
+    assert result == (
+        "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID was not found "
+        "in Open WebUI models."
+    )
+
+
+def test_pipe_normalizes_preprocessor_model_not_found_exception(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs(
+        "owui_preproc_model_not_found_exception", monkeypatch
+    )
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+
+    class _PreprocessorError(Exception):
+        def __init__(self) -> None:
+            super().__init__("preprocessor failed")
+            self.detail = {"error": {"message": "model not found"}}
+
+    async def _chat_completion(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        if payload.get("model") == "prep-model":
+            raise _PreprocessorError()
+        return {"ok": True}
+
+    module.generate_chat_completion = _chat_completion
+    module.precompile_heuristic = lambda _text: {"outcome": "no_directive", "directive": None}
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+        )
+    )
+
+    assert result == (
+        "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID was not found "
+        "in Open WebUI models."
+    )
+
+
+def test_preprocessor_pipe_restore_and_persist_checkpoint_points(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_checkpoint", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY["chat-1"] = "ckpt-in"
+
+    class _FakeEngine:
+        def __init__(self, kind: str, checkpoint_out: str, *, has_pending: bool = False) -> None:
+            self.kind = kind
+            self.state = {"premise": None, "policies": {}, "version": 2}
+            self.has_pending = has_pending
+            self.imported: list[str] = []
+            self._checkpoint_out = checkpoint_out
+            self.export_calls = 0
+
+        def import_checkpoint_json(self, payload: str) -> None:
+            self.imported.append(payload)
+
+        def export_checkpoint_json(self) -> str:
+            self.export_calls += 1
+            return self._checkpoint_out
+
+        def export_checkpoint(self) -> dict[str, object]:
+            pending: object = None
+            if self.has_pending:
+                pending = {
+                    "kind": "replacement",
+                    "replacement": {"kind": "use_only", "new_item": "kubectl", "old_item": None},
+                    "prompt_to_user": "confirm?",
+                }
+            return {
+                "checkpoint_version": 1,
+                "authoritative_state": self.state,
+                "pending": pending,
+            }
+
+        def step(self, _text: str) -> dict[str, object]:
+            if self.kind == "clarify":
+                return {"kind": "clarify", "prompt_to_user": "confirm?", "state": None}
+            return {"kind": self.kind, "state": self.state}
+
+    created: list[_FakeEngine] = []
+
+    def _create_engine():
+        engine = _FakeEngine("clarify", "ckpt-clarify")
+        created.append(engine)
+        return engine
+
+    monkeypatch.setattr(module, "create_engine", _create_engine)
+    monkeypatch.setattr(module, "precompile_heuristic", lambda _text: {"outcome": "no_directive"})
+    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value: None)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "test"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-1",
+        )
+    )
+    assert result == "confirm?"
+    assert created[0].imported == ["ckpt-in"]
+    assert module._CHECKPOINTS_BY_CHAT_KEY["chat-1"] == "ckpt-clarify"
+    assert created[0].export_calls == 1
+
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY["chat-2"] = "ckpt-keep"
+
+    passthrough_engine = _FakeEngine("passthrough", "ckpt-new")
+    monkeypatch.setattr(module, "create_engine", lambda: passthrough_engine)
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-2",
+        )
+    )
+    assert isinstance(result, dict)
+    assert passthrough_engine.imported == ["ckpt-keep"]
+    assert passthrough_engine.export_calls == 0
+    assert module._CHECKPOINTS_BY_CHAT_KEY["chat-2"] == "ckpt-keep"
+
+
+@pytest.mark.parametrize("confirmation", ["yes", "no"])
+def test_preprocessor_pipe_bypasses_precompile_while_pending(
+    monkeypatch, confirmation: str
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_pending_bypass", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    class _PendingEngine:
+        def __init__(self) -> None:
+            self.state = {"premise": None, "policies": {}, "version": 2}
+            self.pending = True
+            self.step_inputs: list[str] = []
+
+        def export_checkpoint(self) -> dict[str, object]:
+            pending: object = None
+            if self.pending:
+                pending = {
+                    "kind": "replacement",
+                    "replacement": {"kind": "use_only", "new_item": "kubectl", "old_item": None},
+                    "prompt_to_user": "confirm?",
+                }
+            return {
+                "checkpoint_version": 1,
+                "authoritative_state": self.state,
+                "pending": pending,
+            }
+
+        def export_checkpoint_json(self) -> str:
+            return "ckpt-out"
+
+        def step(self, text: str) -> dict[str, object]:
+            self.step_inputs.append(text)
+            if self.pending and text in {"yes", "no"}:
+                self.pending = False
+                return {"kind": "update", "state": self.state}
+            if self.pending:
+                return {"kind": "clarify", "state": None, "prompt_to_user": "confirm?"}
+            return {"kind": "passthrough", "state": None}
+
+    engine = _PendingEngine()
+    monkeypatch.setattr(module, "create_engine", lambda: engine)
+
+    def _fail_precompile(_: str) -> dict[str, object]:
+        raise AssertionError("should not precompile")
+
+    monkeypatch.setattr(module, "precompile_heuristic", _fail_precompile)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": confirmation}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-pending",
+        )
+    )
+
+    assert isinstance(result, dict)
+    assert engine.step_inputs == [confirmation]
+
+
+@pytest.mark.parametrize(
+    ("confirmation", "expected_policies"),
+    [
+        ("yes", {"kubectl": "use"}),
+        ("no", {}),
+    ],
+)
+def test_preprocessor_pipe_checkpoint_resume_yes_no_end_to_end(
+    monkeypatch, confirmation: str, expected_policies: dict[str, str]
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_resume_e2e", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    heuristic_inputs: list[str] = []
+
+    def _heuristic(text: str) -> dict[str, object]:
+        if text in {"yes", "no"}:
+            raise AssertionError("heuristic precompile should be bypassed while pending")
+        heuristic_inputs.append(text)
+        return {"outcome": "no_directive", "directive": None}
+
+    monkeypatch.setattr(module, "precompile_heuristic", _heuristic)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+
+    chat_key = "chat-resume-e2e"
+    clarify = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "use kubectl instead of docker"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_key,
+        )
+    )
+    assert isinstance(clarify, str)
+    assert "No exact policy found for" in clarify
+    assert heuristic_inputs == ["use kubectl instead of docker"]
+
+    module._ENGINES_BY_CHAT_KEY.clear()
+    resumed = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": confirmation}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_key,
+        )
+    )
+    assert isinstance(resumed, dict)
+    resumed_engine = cast(Any, module._ENGINES_BY_CHAT_KEY[chat_key])
+    assert resumed_engine.state == {
+        "premise": None,
+        "policies": expected_policies,
+        "version": 2,
+    }
+    resumed_checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
+    assert resumed_checkpoint["pending"] is None

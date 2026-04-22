@@ -16,6 +16,8 @@ pip install "context-compiler[integrations]"
 export OPENAI_API_KEY=...
 ```
 
+Checkpoint continuation in these integration examples requires `context-compiler>=0.6.7`.
+
 ### Run
 
 See the LiteLLM examples README for setup and usage:

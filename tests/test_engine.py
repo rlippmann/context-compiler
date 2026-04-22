@@ -346,7 +346,7 @@ def test_import_checkpoint_invalid_json_and_invalid_object_payload_are_rejected(
         engine.import_checkpoint(  # type: ignore[arg-type]
             {
                 "checkpoint_version": 1,
-                "authoritative_state": {"premise": None, "policies": {}, "version": 2},
+                "pending": None,
             }
         )
 
@@ -568,6 +568,81 @@ def test_import_checkpoint_with_pending_none_clears_existing_pending() -> None:
     yes_decision = engine.step("yes")
     assert yes_decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == {"premise": "baseline", "policies": {"pytest": "use"}, "version": 2}
+
+
+@pytest.mark.contract
+def test_import_checkpoint_with_pending_absent_clears_existing_pending() -> None:
+    engine = create_engine()
+    engine.step("use kubectl instead of docker")
+
+    engine.import_checkpoint(
+        {
+            "checkpoint_version": 1,
+            "authoritative_state": {
+                "premise": "baseline",
+                "policies": {"pytest": "use"},
+                "version": 2,
+            },
+        }
+    )
+
+    yes_decision = engine.step("yes")
+    assert yes_decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert engine.state == {"premise": "baseline", "policies": {"pytest": "use"}, "version": 2}
+
+
+@pytest.mark.parametrize("new_item", ["", "   ", "the", "an", "a"])
+def test_import_checkpoint_rejects_pending_use_only_with_invalid_new_item(new_item: str) -> None:
+    engine = create_engine()
+    with pytest.raises(ValueError, match="Invalid checkpoint payload"):
+        engine.import_checkpoint(  # type: ignore[arg-type]
+            {
+                "checkpoint_version": 1,
+                "authoritative_state": {"premise": None, "policies": {}, "version": 2},
+                "pending": {
+                    "kind": "replacement",
+                    "replacement": {"kind": "use_only", "new_item": new_item, "old_item": None},
+                    "prompt_to_user": "confirm?",
+                },
+            }
+        )
+
+
+@pytest.mark.parametrize(
+    ("new_item", "old_item"),
+    [
+        ("", "docker"),
+        ("kubectl", ""),
+        ("the", "docker"),
+        ("kubectl", "an"),
+        ("  ", "docker"),
+        ("kubectl", "   "),
+    ],
+)
+def test_import_checkpoint_rejects_pending_replace_use_with_invalid_items(
+    new_item: str, old_item: str
+) -> None:
+    engine = create_engine()
+    with pytest.raises(ValueError, match="Invalid checkpoint payload"):
+        engine.import_checkpoint(  # type: ignore[arg-type]
+            {
+                "checkpoint_version": 1,
+                "authoritative_state": {
+                    "premise": None,
+                    "policies": {"docker": "use"},
+                    "version": 2,
+                },
+                "pending": {
+                    "kind": "replacement",
+                    "replacement": {
+                        "kind": "replace_use",
+                        "new_item": new_item,
+                        "old_item": old_item,
+                    },
+                    "prompt_to_user": "confirm?",
+                },
+            }
+        )
 
 
 @pytest.mark.parametrize(

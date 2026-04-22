@@ -3,8 +3,8 @@ title: Context Compiler Preprocessor Pipe
 author: rlippmann
 author_url: https://github.com/rlippmann/context-compiler
 funding_url: https://github.com/rlippmann/context-compiler
-version: 0.1
-requirements: context-compiler[experimental]>=0.6.6
+version: 0.2
+requirements: context-compiler[experimental]>=0.6.7
 
 Open WebUI integration with Context Compiler preprocessor.
 
@@ -57,6 +57,11 @@ logger = logging.getLogger(__name__)
 
 _CC_MARKER = "[[cc_state]]"
 _ENGINES_BY_CHAT_KEY: dict[str, Engine] = {}
+# Example-only in-memory checkpoint store.
+# This keeps continuation state only for the current process lifetime.
+# Real deployments should persist checkpoints externally (DB/Redis/etc.),
+# or restart continuity for pending flows will be lost.
+_CHECKPOINTS_BY_CHAT_KEY: dict[str, str] = {}
 _PROMPTS_DIR = files("experimental.preprocessor").joinpath("prompts")
 
 
@@ -137,6 +142,10 @@ def _replace_compiler_system_message(
         compiler_message,
         *filtered_messages[insert_at:],
     ]
+
+
+def _has_pending_clarification(engine: Engine) -> bool:
+    return engine.export_checkpoint()["pending"] is not None
 
 
 def _extract_completion_content(response: object) -> str | None:
@@ -479,18 +488,24 @@ class Pipe:
         engine = _ENGINES_BY_CHAT_KEY.get(chat_key)
         if engine is None:
             engine = create_engine()
+            checkpoint = _CHECKPOINTS_BY_CHAT_KEY.get(chat_key)
+            if checkpoint is not None:
+                engine.import_checkpoint_json(checkpoint)
             _ENGINES_BY_CHAT_KEY[chat_key] = engine
 
-        precompiled, precompile_error = await self._precompile_user_input(
-            latest_user_text,
-            engine.state,
-            request=__request__,
-            user_payload=__user__,
-            prompt_profile=self.valves.PREPROCESSOR_PROMPT_PROFILE,
-            model_id=preprocessor_model_id,
-        )
-        if precompile_error is not None:
-            return precompile_error
+        precompiled: str | None = None
+        precompile_error: str | None = None
+        if not _has_pending_clarification(engine):
+            precompiled, precompile_error = await self._precompile_user_input(
+                latest_user_text,
+                engine.state,
+                request=__request__,
+                user_payload=__user__,
+                prompt_profile=self.valves.PREPROCESSOR_PROMPT_PROFILE,
+                model_id=preprocessor_model_id,
+            )
+            if precompile_error is not None:
+                return precompile_error
 
         logger.debug("preprocessor: precompiled=%r", precompiled)
         # Preserve core behavior: if precompile yields no directive, use raw user
@@ -503,6 +518,7 @@ class Pipe:
         logger.debug("preprocessor: decision=%s", kind)
 
         if kind == "clarify":
+            _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
             return decision["prompt_to_user"] or ""
         if kind == "passthrough":
             return await self._forward_passthrough(
@@ -512,6 +528,7 @@ class Pipe:
                 base_model_id=base_model_id,
             )
         if kind == "update":
+            _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
             return await self._forward_update(
                 body,
                 __user__,

@@ -23,6 +23,8 @@ The minimal pipe path below is the easiest first-run flow and was runtime-valida
 Open WebUI is host-provided runtime infrastructure and must already be installed/configured separately.
 Open WebUI also needs at least one real backend model/provider configured (for example Ollama or OpenAI) so `BASE_MODEL_ID` resolves to an actual model.
 
+Checkpoint continuation in these examples requires `context-compiler>=0.6.7`.
+
 If using `open_webui_pipe_with_preprocessor.py`:
 - Install preprocessor support in the Open WebUI environment:
   - `pip install "context-compiler[experimental]"`
@@ -57,7 +59,7 @@ Use the Open WebUI model picker/list to copy exact model ids for `BASE_MODEL_ID`
 
 ## Limitations
 
-- No persistence.
+- No durable external persistence (checkpoint continuation is in-process only).
 - No multi-worker or cross-process guarantees.
 - No Redis/DB/external storage.
 - No Filters or Pipelines.

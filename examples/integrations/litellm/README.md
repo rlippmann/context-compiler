@@ -12,6 +12,8 @@ pip install "context-compiler[integrations]"
 export OPENAI_API_KEY=...
 ```
 
+Checkpoint continuation in these examples requires `context-compiler>=0.6.7`.
+
 For `with_preprocessor.py`:
 
 ```shell
@@ -76,6 +78,12 @@ These files are importable integration references for host applications.
 - Import `handle_turn(...)` from either `basic.py` or `with_preprocessor.py`.
 - Create and retain an engine instance in host/session state.
 - Pass each user input through `handle_turn(user_input, engine)`.
+- Optional serialized continuation checkpointing: pass `session_key=...` and
+  let the example integration restore before first `engine.step(...)` and
+  persist after `update`/`clarify` decisions.
+- In this example, checkpoint/session storage is in-memory only.
+  Continuation state is limited to the current process lifetime; real restart
+  continuity requires external persistence (DB/Redis/etc.).
 - Display the returned assistant text.
 
 ## Troubleshooting

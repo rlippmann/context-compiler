@@ -21,6 +21,12 @@ from context_compiler import State, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
 
 logger = logging.getLogger(__name__)
+# Example-only in-memory checkpoint store.
+# This keeps continuation state only for the current process lifetime.
+# Real deployments should persist checkpoints externally (DB/Redis/etc.),
+# or restart continuity for pending flows will be lost.
+_CHECKPOINTS_BY_SESSION_KEY: dict[str, str] = {}
+_RESTORED_ENGINE_BY_SESSION_KEY: dict[str, int] = {}
 
 
 class _LiteLLMCallKwargs(TypedDict, total=False):
@@ -110,14 +116,40 @@ def _call_litellm(messages: list[dict[str, str]]) -> str:
     return content
 
 
-def handle_turn(user_input: str, engine: Engine) -> str:
+def _restore_session_checkpoint_if_needed(engine: Engine, session_key: str | None) -> None:
+    if session_key is None:
+        return
+    engine_id = id(engine)
+    if _RESTORED_ENGINE_BY_SESSION_KEY.get(session_key) == engine_id:
+        return
+
+    checkpoint = _CHECKPOINTS_BY_SESSION_KEY.get(session_key)
+    if checkpoint is not None:
+        engine.import_checkpoint_json(checkpoint)
+    _RESTORED_ENGINE_BY_SESSION_KEY[session_key] = engine_id
+
+
+def _persist_session_checkpoint_if_needed(
+    engine: Engine, kind: str, session_key: str | None
+) -> None:
+    if session_key is None:
+        return
+    if kind not in {"update", "clarify"}:
+        return
+    _CHECKPOINTS_BY_SESSION_KEY[session_key] = engine.export_checkpoint_json()
+
+
+def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = None) -> str:
+    _restore_session_checkpoint_if_needed(engine, session_key)
     logger.debug("litellm_basic: engine_input=%s", f"user_input len={len(user_input)}")
     decision = engine.step(user_input)
     kind = cast(str, decision["kind"])
     logger.debug("litellm_basic: decision=%s", kind)
 
     if kind == "clarify":
+        _persist_session_checkpoint_if_needed(engine, kind, session_key)
         return decision["prompt_to_user"] or ""
+    _persist_session_checkpoint_if_needed(engine, kind, session_key)
 
     compiled_state = decision["state"] if decision["state"] is not None else engine.state
     messages = _build_messages(user_input, compiled_state)
