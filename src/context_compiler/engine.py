@@ -5,7 +5,7 @@ import re
 from copy import deepcopy
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Literal, TypedDict
+from typing import Literal, NotRequired, TypedDict
 from unicodedata import normalize as unicode_normalize
 
 from .const import (
@@ -43,7 +43,7 @@ class CheckpointPending(TypedDict):
 class Checkpoint(TypedDict):
     checkpoint_version: Literal[1]
     authoritative_state: State
-    pending: CheckpointPending | None
+    pending: NotRequired[CheckpointPending | None]
 
 
 class DecisionKind(StrEnum):
@@ -603,7 +603,11 @@ def _load_checkpoint_obj(raw: object) -> tuple[State, PendingReplacement | None,
     if not isinstance(raw, dict):
         raise ValueError("Invalid checkpoint payload.")
 
-    if set(raw.keys()) != {"checkpoint_version", "authoritative_state", "pending"}:
+    keys = set(raw.keys())
+    if keys not in (
+        {"checkpoint_version", "authoritative_state"},
+        {"checkpoint_version", "authoritative_state", "pending"},
+    ):
         raise ValueError("Invalid checkpoint payload.")
 
     checkpoint_version = raw["checkpoint_version"]
@@ -611,7 +615,7 @@ def _load_checkpoint_obj(raw: object) -> tuple[State, PendingReplacement | None,
         raise ValueError(f"Unsupported checkpoint version: {checkpoint_version!r}")
 
     authoritative_state = _load_state_obj(raw["authoritative_state"])
-    pending_replacement, pending_prompt = _load_checkpoint_pending_obj(raw["pending"])
+    pending_replacement, pending_prompt = _load_checkpoint_pending_obj(raw.get("pending"))
     return authoritative_state, pending_replacement, pending_prompt
 
 
@@ -649,6 +653,8 @@ def _load_checkpoint_replacement_obj(raw: object) -> PendingReplacement:
         raise ValueError("Invalid checkpoint payload.")
     if not isinstance(new_item, str):
         raise ValueError("Invalid checkpoint payload.")
+    if _normalize_item(new_item) == "":
+        raise ValueError("Invalid checkpoint payload.")
 
     if kind == "use_only":
         if old_item is not None:
@@ -656,6 +662,8 @@ def _load_checkpoint_replacement_obj(raw: object) -> PendingReplacement:
         return PendingReplacement(kind=kind, new_item=new_item, old_item=None)
 
     if not isinstance(old_item, str):
+        raise ValueError("Invalid checkpoint payload.")
+    if _normalize_item(old_item) == "":
         raise ValueError("Invalid checkpoint payload.")
     return PendingReplacement(kind=kind, new_item=new_item, old_item=old_item)
 

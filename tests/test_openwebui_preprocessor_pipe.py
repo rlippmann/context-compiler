@@ -6,6 +6,8 @@ import types
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 MODULE_PATH = Path("examples/integrations/openwebui/open_webui_pipe_with_preprocessor.py")
 
 
@@ -188,9 +190,10 @@ def test_preprocessor_pipe_restore_and_persist_checkpoint_points(monkeypatch) ->
     module._CHECKPOINTS_BY_CHAT_KEY["chat-1"] = "ckpt-in"
 
     class _FakeEngine:
-        def __init__(self, kind: str, checkpoint_out: str) -> None:
+        def __init__(self, kind: str, checkpoint_out: str, *, has_pending: bool = False) -> None:
             self.kind = kind
             self.state = {"premise": None, "policies": {}, "version": 2}
+            self.has_pending = has_pending
             self.imported: list[str] = []
             self._checkpoint_out = checkpoint_out
             self.export_calls = 0
@@ -201,6 +204,20 @@ def test_preprocessor_pipe_restore_and_persist_checkpoint_points(monkeypatch) ->
         def export_checkpoint_json(self) -> str:
             self.export_calls += 1
             return self._checkpoint_out
+
+        def export_checkpoint(self) -> dict[str, object]:
+            pending: object = None
+            if self.has_pending:
+                pending = {
+                    "kind": "replacement",
+                    "replacement": {"kind": "use_only", "new_item": "kubectl", "old_item": None},
+                    "prompt_to_user": "confirm?",
+                }
+            return {
+                "checkpoint_version": 1,
+                "authoritative_state": self.state,
+                "pending": pending,
+            }
 
         def step(self, _text: str) -> dict[str, object]:
             if self.kind == "clarify":
@@ -251,3 +268,68 @@ def test_preprocessor_pipe_restore_and_persist_checkpoint_points(monkeypatch) ->
     assert passthrough_engine.imported == ["ckpt-keep"]
     assert passthrough_engine.export_calls == 0
     assert module._CHECKPOINTS_BY_CHAT_KEY["chat-2"] == "ckpt-keep"
+
+
+@pytest.mark.parametrize("confirmation", ["yes", "no"])
+def test_preprocessor_pipe_bypasses_precompile_while_pending(
+    monkeypatch, confirmation: str
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_pending_bypass", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    class _PendingEngine:
+        def __init__(self) -> None:
+            self.state = {"premise": None, "policies": {}, "version": 2}
+            self.pending = True
+            self.step_inputs: list[str] = []
+
+        def export_checkpoint(self) -> dict[str, object]:
+            pending: object = None
+            if self.pending:
+                pending = {
+                    "kind": "replacement",
+                    "replacement": {"kind": "use_only", "new_item": "kubectl", "old_item": None},
+                    "prompt_to_user": "confirm?",
+                }
+            return {
+                "checkpoint_version": 1,
+                "authoritative_state": self.state,
+                "pending": pending,
+            }
+
+        def export_checkpoint_json(self) -> str:
+            return "ckpt-out"
+
+        def step(self, text: str) -> dict[str, object]:
+            self.step_inputs.append(text)
+            if self.pending and text in {"yes", "no"}:
+                self.pending = False
+                return {"kind": "update", "state": self.state}
+            if self.pending:
+                return {"kind": "clarify", "state": None, "prompt_to_user": "confirm?"}
+            return {"kind": "passthrough", "state": None}
+
+    engine = _PendingEngine()
+    monkeypatch.setattr(module, "create_engine", lambda: engine)
+
+    def _fail_precompile(_: str) -> dict[str, object]:
+        raise AssertionError("should not precompile")
+
+    monkeypatch.setattr(module, "precompile_heuristic", _fail_precompile)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": confirmation}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-pending",
+        )
+    )
+
+    assert isinstance(result, dict)
+    assert engine.step_inputs == [confirmation]

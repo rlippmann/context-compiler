@@ -144,6 +144,10 @@ def _replace_compiler_system_message(
     ]
 
 
+def _has_pending_clarification(engine: Engine) -> bool:
+    return engine.export_checkpoint()["pending"] is not None
+
+
 def _extract_completion_content(response: object) -> str | None:
     choices_attr = getattr(response, "choices", None)
     if isinstance(choices_attr, list) and choices_attr:
@@ -489,16 +493,19 @@ class Pipe:
                 engine.import_checkpoint_json(checkpoint)
             _ENGINES_BY_CHAT_KEY[chat_key] = engine
 
-        precompiled, precompile_error = await self._precompile_user_input(
-            latest_user_text,
-            engine.state,
-            request=__request__,
-            user_payload=__user__,
-            prompt_profile=self.valves.PREPROCESSOR_PROMPT_PROFILE,
-            model_id=preprocessor_model_id,
-        )
-        if precompile_error is not None:
-            return precompile_error
+        precompiled: str | None = None
+        precompile_error: str | None = None
+        if not _has_pending_clarification(engine):
+            precompiled, precompile_error = await self._precompile_user_input(
+                latest_user_text,
+                engine.state,
+                request=__request__,
+                user_payload=__user__,
+                prompt_profile=self.valves.PREPROCESSOR_PROMPT_PROFILE,
+                model_id=preprocessor_model_id,
+            )
+            if precompile_error is not None:
+                return precompile_error
 
         logger.debug("preprocessor: precompiled=%r", precompiled)
         # Preserve core behavior: if precompile yields no directive, use raw user

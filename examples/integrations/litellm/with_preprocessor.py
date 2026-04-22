@@ -231,11 +231,18 @@ def _persist_session_checkpoint_if_needed(
     _CHECKPOINTS_BY_SESSION_KEY[session_key] = engine.export_checkpoint_json()
 
 
+def _has_pending_clarification(engine: Engine) -> bool:
+    return engine.export_checkpoint()["pending"] is not None
+
+
 def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = None) -> str:
     _restore_session_checkpoint_if_needed(engine, session_key)
-    precompiled = _precompile_user_input(user_input, engine.state)
-
-    compile_input = precompiled if precompiled else user_input
+    precompiled: str | None = None
+    if _has_pending_clarification(engine):
+        compile_input = user_input
+    else:
+        precompiled = _precompile_user_input(user_input, engine.state)
+        compile_input = precompiled if precompiled else user_input
     logger.debug(
         "preprocessor: engine_input=%s",
         "directive" if precompiled else f"user_input len={len(user_input)}",

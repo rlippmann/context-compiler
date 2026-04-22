@@ -2,12 +2,15 @@ import importlib.util
 from pathlib import Path
 from typing import Any, cast
 
+import pytest
+
 
 class _FakeEngine:
-    def __init__(self, kind: str, checkpoint_out: str) -> None:
+    def __init__(self, kind: str, checkpoint_out: str, *, has_pending: bool = False) -> None:
         self.kind = kind
         self.state: dict[str, object] = {"premise": None, "policies": {}, "version": 2}
         self._checkpoint_out = checkpoint_out
+        self._has_pending = has_pending
         self.imported: list[str] = []
         self.step_calls = 0
         self.export_calls = 0
@@ -18,6 +21,20 @@ class _FakeEngine:
     def export_checkpoint_json(self) -> str:
         self.export_calls += 1
         return self._checkpoint_out
+
+    def export_checkpoint(self) -> dict[str, object]:
+        pending: object = None
+        if self._has_pending:
+            pending = {
+                "kind": "replacement",
+                "replacement": {"kind": "use_only", "new_item": "kubectl", "old_item": None},
+                "prompt_to_user": "confirm?",
+            }
+        return {
+            "checkpoint_version": 1,
+            "authoritative_state": self.state,
+            "pending": pending,
+        }
 
     def step(self, _text: str) -> dict[str, object]:
         self.step_calls += 1
@@ -86,3 +103,58 @@ def test_litellm_with_preprocessor_checkpoint_restore_and_persist_points() -> No
         Path("examples/integrations/litellm/with_preprocessor.py"),
     )
     _assert_checkpoint_behavior(module)
+
+
+@pytest.mark.parametrize("confirmation", ["yes", "no"])
+def test_litellm_with_preprocessor_bypasses_precompile_while_pending(confirmation: str) -> None:
+    module = _load_module(
+        "litellm_with_preprocessor_pending_bypass",
+        Path("examples/integrations/litellm/with_preprocessor.py"),
+    )
+
+    class _PendingEngine:
+        def __init__(self) -> None:
+            self.state: dict[str, object] = {"premise": None, "policies": {}, "version": 2}
+            self.pending = True
+            self.step_inputs: list[str] = []
+
+        def export_checkpoint(self) -> dict[str, object]:
+            pending: object = None
+            if self.pending:
+                pending = {
+                    "kind": "replacement",
+                    "replacement": {"kind": "use_only", "new_item": "kubectl", "old_item": None},
+                    "prompt_to_user": "confirm?",
+                }
+            return {
+                "checkpoint_version": 1,
+                "authoritative_state": self.state,
+                "pending": pending,
+            }
+
+        def step(self, text: str) -> dict[str, object]:
+            self.step_inputs.append(text)
+            if self.pending and text in {"yes", "no"}:
+                self.pending = False
+                return {"kind": "update", "state": self.state}
+            if self.pending:
+                return {"kind": "clarify", "state": None, "prompt_to_user": "confirm?"}
+            return {"kind": "passthrough", "state": None}
+
+    call_litellm = cast(Any, module._call_litellm)
+    precompile_user_input = cast(Any, module._precompile_user_input)
+
+    def _fail_precompile(_text: str, _state: dict[str, object]) -> None:
+        raise AssertionError("should not precompile")
+
+    module._call_litellm = lambda _messages: "ok"
+    module._precompile_user_input = _fail_precompile
+    try:
+        engine = _PendingEngine()
+        result = module.handle_turn(confirmation, engine)
+    finally:
+        module._call_litellm = call_litellm
+        module._precompile_user_input = precompile_user_input
+
+    assert result == "ok"
+    assert engine.step_inputs == [confirmation]
