@@ -333,25 +333,7 @@ class Engine:
             old_state = self._state[STATE_POLICIES].get(old_key)
             new_state = self._state[STATE_POLICIES].get(new_key)
             if old_key not in self._state[STATE_POLICIES]:
-                prompt_lines = [
-                    f'No exact policy found for "{action.old_item}".',
-                    "Replacement requires an exact policy match.",
-                ]
-                diagnostic_hints = _diagnostic_policy_contains_hints(
-                    self._state[STATE_POLICIES], action.old_item
-                )
-                if diagnostic_hints:
-                    prompt_lines.append(
-                        f"Existing policies containing that text: {diagnostic_hints}."
-                    )
-                    prompt_lines.append(
-                        f'Confirm to use "{action.new_item}" and keep {diagnostic_hints}?'
-                    )
-                else:
-                    prompt_lines.append(
-                        f'Confirm to use "{action.new_item}" and keep existing policies?'
-                    )
-                prompt = "\n".join(prompt_lines)
+                prompt = f'Did you mean to use "{action.new_item}" instead?'
                 self._pending_replacement = PendingReplacement(
                     kind="use_only",
                     new_item=action.new_item,
@@ -673,16 +655,6 @@ def _normalize_item(value: str) -> str:
     normalized = re.sub(r"\s+", " ", normalized).strip()
     normalized = re.sub(r"^(?:a|an|the)\b\s*", "", normalized)
     return normalized.strip()
-
-
-def _diagnostic_policy_contains_hints(policies: dict[str, PolicyValue], raw_item: str) -> str:
-    probe = _normalize_item(raw_item)
-    if probe == "":
-        return ""
-    matches = sorted(key for key in policies if probe in key)
-    if not matches:
-        return ""
-    return ", ".join(f'"{key}"' for key in matches)
 
 
 def _normalize_confirmation(text: str) -> str:
