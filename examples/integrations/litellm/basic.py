@@ -14,8 +14,9 @@ Intended host usage:
 import logging
 import os
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from importlib import import_module
-from typing import TypedDict, cast
+from typing import Literal, TypedDict, cast
 
 from context_compiler import State, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
@@ -27,6 +28,8 @@ logger = logging.getLogger(__name__)
 # or restart continuity for pending flows will be lost.
 _CHECKPOINTS_BY_SESSION_KEY: dict[str, str] = {}
 _RESTORED_ENGINE_BY_SESSION_KEY: dict[str, int] = {}
+_CONFIG_LOGGED = False
+_ALLOWED_PROVIDER_VALUES = ("openai", "ollama", "openai_compatible")
 
 
 class _LiteLLMCallKwargs(TypedDict, total=False):
@@ -35,6 +38,74 @@ class _LiteLLMCallKwargs(TypedDict, total=False):
     api_key: str
     temperature: float
     api_base: str
+
+
+@dataclass(frozen=True)
+class _ResolvedModeConfig:
+    mode: Literal["openai", "ollama", "openai_compatible"]
+    source: Literal["default", "PROVIDER", "OPENAI_BASE_URL override"]
+    base_url: str
+    api_key: str | None
+
+
+def _resolve_mode_config() -> _ResolvedModeConfig:
+    base_url = os.getenv("OPENAI_BASE_URL", "").strip() or None
+    provider = os.getenv("PROVIDER", "").strip().lower() or None
+    api_key = os.getenv("OPENAI_API_KEY", "").strip() or None
+
+    if base_url:
+        return _ResolvedModeConfig(
+            mode="openai_compatible",
+            source="OPENAI_BASE_URL override",
+            base_url=base_url,
+            api_key=api_key,
+        )
+
+    if provider is not None and provider not in _ALLOWED_PROVIDER_VALUES:
+        allowed_values = ", ".join(_ALLOWED_PROVIDER_VALUES)
+        raise RuntimeError(f"Invalid PROVIDER value '{provider}'. Allowed values: {allowed_values}")
+
+    mode: Literal["openai", "ollama", "openai_compatible"]
+    source: Literal["default", "PROVIDER", "OPENAI_BASE_URL override"]
+    if provider is None:
+        mode = "openai"
+        source = "default"
+    else:
+        mode = cast(Literal["openai", "ollama", "openai_compatible"], provider)
+        source = "PROVIDER"
+
+    if mode == "openai":
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY is required in openai mode.")
+        return _ResolvedModeConfig(
+            mode=mode,
+            source=source,
+            base_url="https://api.openai.com/v1",
+            api_key=api_key,
+        )
+    if mode == "ollama":
+        return _ResolvedModeConfig(
+            mode=mode,
+            source=source,
+            base_url="http://localhost:11434/v1",
+            api_key=api_key,
+        )
+
+    raise RuntimeError("OPENAI_BASE_URL is required when PROVIDER=openai_compatible.")
+
+
+def _log_mode_resolution_once(config: _ResolvedModeConfig, model: str) -> None:
+    global _CONFIG_LOGGED
+    if _CONFIG_LOGGED:
+        return
+    logger.info(
+        "litellm_config mode=%s base_url=%s model=%s source=%s",
+        config.mode,
+        config.base_url,
+        model,
+        config.source,
+    )
+    _CONFIG_LOGGED = True
 
 
 def _extract_response_content(response: object) -> str | None:
@@ -95,19 +166,18 @@ def _call_litellm(messages: list[dict[str, str]]) -> str:
         raise RuntimeError("litellm is required. Install with: pip install litellm") from exc
     completion_fn = cast(Callable[..., object], litellm_module.completion)
 
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise RuntimeError("OPENAI_API_KEY is required.")
+    model = os.getenv("MODEL", "openai/gpt-4o-mini")
+    config = _resolve_mode_config()
+    _log_mode_resolution_once(config, model)
 
     kwargs: _LiteLLMCallKwargs = {
-        "model": os.getenv("MODEL", "openai/gpt-4o-mini"),
+        "model": model,
         "messages": messages,
-        "api_key": api_key,
         "temperature": 0,
+        "api_base": config.base_url,
     }
-    base_url = os.getenv("OPENAI_BASE_URL")
-    if base_url:
-        kwargs["api_base"] = base_url
+    if config.api_key:
+        kwargs["api_key"] = config.api_key
 
     response = completion_fn(**kwargs)
     content = _extract_response_content(response)

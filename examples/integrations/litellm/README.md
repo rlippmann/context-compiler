@@ -50,7 +50,7 @@ PY
 
 ## Environment configuration
 
-Required:
+Required (normal `openai` mode):
 
 ```shell
 export OPENAI_API_KEY=...
@@ -59,13 +59,43 @@ export OPENAI_API_KEY=...
 Optional:
 
 ```shell
+export PROVIDER=openai
 export MODEL=openai/gpt-4o-mini
 export PREPROCESSOR_MODEL=openai/gpt-4o-mini
 export OPENAI_BASE_URL=...
 export PREPROCESSOR_PROMPT_PROFILE=default
 ```
 
-`MODEL` uses LiteLLM format: `<provider>/<model>`.
+Provider mode contract (`PROVIDER`) is strict:
+
+- `openai`
+- `ollama`
+- `openai_compatible`
+
+Unknown values hard fail with a validation error.
+
+Resolution precedence:
+
+1. `OPENAI_BASE_URL` override
+2. `PROVIDER`
+3. default (`openai`)
+
+Operational behavior by mode:
+
+- `openai`
+  - default `base_url`: `https://api.openai.com/v1`
+  - requires `OPENAI_API_KEY`
+- `ollama`
+  - default `base_url`: `http://localhost:11434/v1`
+  - API key optional
+- `openai_compatible`
+  - requires `OPENAI_BASE_URL` when explicitly selected with `PROVIDER`
+  - API key requirement depends on endpoint
+
+Startup emits one concise config line showing resolved `mode`, `base_url`, `model`,
+and resolution `source` (`default`, `PROVIDER`, or `OPENAI_BASE_URL override`).
+
+`MODEL` and `PREPROCESSOR_MODEL` use LiteLLM format: `<provider>/<model>`.
 `PREPROCESSOR_MODEL` is optional and defaults to `MODEL`.
 
 For heuristic-first usage, keep `PREPROCESSOR_PROMPT_PROFILE=default`.
@@ -89,7 +119,9 @@ These files are importable integration references for host applications.
 ## Troubleshooting
 
 - `litellm is required`: install `context-compiler[integrations]` (or `context-compiler[experimental]` for preprocessor).
-- `OPENAI_API_KEY is required`: export a key before running.
+- `OPENAI_API_KEY is required in openai mode`: export a key or use `ollama` / explicit endpoint override.
+- `Invalid PROVIDER value ...`: set `PROVIDER` to one of `openai`, `ollama`, `openai_compatible`.
+- `OPENAI_BASE_URL is required when PROVIDER=openai_compatible`: set an explicit endpoint URL.
 - model/provider errors (`Model not found`, provider auth errors): confirm `MODEL` uses LiteLLM format and provider credentials are valid.
 
 ## Basic vs preprocessor behavior
