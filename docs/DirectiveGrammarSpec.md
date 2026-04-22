@@ -247,12 +247,33 @@ Contradictions never silently overwrite state.
 
 When `Decision.kind = "clarify"`, prompt text is deterministic only for the cases listed below.
 
+- `set premise X` when premise already exists (Section 9 case 1):
+  `Premise already set.`
+  `Use 'change premise to <value>' to modify it.`
+- `change premise to X` when no premise exists (Section 9 case 2):
+  `No premise is set.`
+  `Use 'set premise <value>' to define one.`
+- `set premise X` with empty/whitespace-only payload (Section 9 case 3):
+  `Premise value cannot be empty.`
+  `Use 'set premise <value>' with a non-empty value.`
+- `change premise to X` with empty/whitespace-only payload (Section 9 case 4):
+  `Premise value cannot be empty.`
+  `Use 'change premise to <value>' with a non-empty value.`
+- `use ITEM` when that item is currently `"prohibit"` (Section 9 case 5):
+  `"<item>" is currently prohibited.`
+  `Remove or replace it before using it.`
+- `prohibit ITEM` when that item is currently `"use"` (Section 9 case 6):
+  `"<item>" is currently in use.`
+  `Remove or replace it before prohibiting it.`
 - `use X instead of Y` when `Y` does not exist in policies (Section 9 case 7):
   `Did you mean to use "X" instead?`
 - `use X instead of Y` when `Y` is currently `"prohibit"` (Section 9 case 8):
   `"Y" is currently prohibited. Did you mean to remove it and use "X" instead?`
 - `use X instead of Y` when `X` is currently `"prohibit"` (Section 9 case 9):
   `"X" is currently prohibited. Did you mean to remove "Y" and use "X" instead?`
+- `use X instead of Y` when `Y` exists but is not `"use"` and no replacement-intent clarify rule applies (Section 9 case 10):
+  `"<Y>" is not currently in use.`
+  `Replacement requires an active 'use' policy.`
 - Pending clarification unmatched input (Section 9 case 11):
   reuse the existing pending prompt unchanged.
 - `remove policy ITEM` with empty/whitespace-only payload (Section 9 case 12):
@@ -271,9 +292,6 @@ When `Decision.kind = "clarify"`, prompt text is deterministic only for the case
   `Did you mean 'set premise X'?`
 - Premise near-miss `change premise X` (Section 9 case 17):
   `Did you mean 'change premise to X'?`
-
-Clarify cases 1-6 and 10 must return `clarify` but do not require a standardized prompt string in this specification.
-Their exact prompt text is implementation-defined unless standardized in a later spec revision.
 
 ## 10. Pending Clarification
 
