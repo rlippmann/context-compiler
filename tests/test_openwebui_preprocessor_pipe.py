@@ -86,6 +86,26 @@ def test_preprocessor_model_defaults_to_base_model(monkeypatch) -> None:
     assert pipe._resolve_preprocessor_model_id("base-model") == "base-model"
 
 
+def test_pipe_requires_base_model_id_when_debug_disabled(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_requires_base", monkeypatch)
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = ""
+    pipe.valves.ALLOW_MISSING_BASE_MODEL_FOR_DEBUG = False
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hi"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+        )
+    )
+
+    assert result == (
+        "Context Compiler pipe misconfigured: BASE_MODEL_ID is required "
+        "(or set ALLOW_MISSING_BASE_MODEL_FOR_DEBUG=true for testing)."
+    )
+
+
 def test_preprocessor_model_can_be_overridden(monkeypatch) -> None:
     module = _load_module_with_openwebui_stubs("owui_preproc_override", monkeypatch)
     pipe = module.Pipe()
@@ -181,6 +201,69 @@ def test_recursion_guard_for_preprocessor_model(monkeypatch) -> None:
     assert result == (
         "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID must not "
         "match the selected pipe model id to avoid recursive routing."
+    )
+
+
+def test_pipe_normalizes_preprocessor_model_not_found_response(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_model_not_found_response", monkeypatch)
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+
+    async def _chat_completion(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        if payload.get("model") == "prep-model":
+            return {"error": {"message": "model not found"}}
+        return {"ok": True}
+
+    module.generate_chat_completion = _chat_completion
+    module.precompile_heuristic = lambda _text: {"outcome": "no_directive", "directive": None}
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+        )
+    )
+
+    assert result == (
+        "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID was not found "
+        "in Open WebUI models."
+    )
+
+
+def test_pipe_normalizes_preprocessor_model_not_found_exception(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs(
+        "owui_preproc_model_not_found_exception", monkeypatch
+    )
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+
+    class _PreprocessorError(Exception):
+        def __init__(self) -> None:
+            super().__init__("preprocessor failed")
+            self.detail = {"error": {"message": "model not found"}}
+
+    async def _chat_completion(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        if payload.get("model") == "prep-model":
+            raise _PreprocessorError()
+        return {"ok": True}
+
+    module.generate_chat_completion = _chat_completion
+    module.precompile_heuristic = lambda _text: {"outcome": "no_directive", "directive": None}
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+        )
+    )
+
+    assert result == (
+        "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID was not found "
+        "in Open WebUI models."
     )
 
 

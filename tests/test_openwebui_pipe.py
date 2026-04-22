@@ -136,3 +136,95 @@ def test_pipe_restore_and_persist_checkpoint_points(monkeypatch) -> None:
     assert passthrough_engine.imported == ["ckpt-keep"]
     assert passthrough_engine.export_calls == 0
     assert module._CHECKPOINTS_BY_CHAT_KEY["chat-2"] == "ckpt-keep"
+
+
+def test_pipe_requires_base_model_id(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_requires_base", monkeypatch)
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = ""
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+        )
+    )
+
+    assert result == "Context Compiler pipe misconfigured: BASE_MODEL_ID is required."
+
+
+def test_pipe_blocks_recursive_base_model_id(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_recursion_guard", monkeypatch)
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "pipe-model"
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+        )
+    )
+
+    assert result == (
+        "Context Compiler pipe misconfigured: BASE_MODEL_ID must not match "
+        "the selected pipe model id to avoid recursive routing."
+    )
+
+
+def test_pipe_normalizes_model_not_found_response(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_model_not_found_response", monkeypatch)
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+
+    async def _chat_completion(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        del payload
+        return {"error": {"message": "MODEL NOT FOUND"}}
+
+    module.generate_chat_completion = _chat_completion
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+        )
+    )
+
+    assert result == (
+        "Context Compiler pipe misconfigured: BASE_MODEL_ID was not found in Open WebUI models."
+    )
+
+
+def test_pipe_normalizes_model_not_found_exception(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_model_not_found_exception", monkeypatch)
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+
+    class _ForwardError(Exception):
+        def __init__(self) -> None:
+            super().__init__("forward failed")
+            self.detail = {"error": {"message": "model not found"}}
+
+    async def _chat_completion(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        del payload
+        raise _ForwardError()
+
+    module.generate_chat_completion = _chat_completion
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+        )
+    )
+
+    assert result == (
+        "Context Compiler pipe misconfigured: BASE_MODEL_ID was not found in Open WebUI models."
+    )
