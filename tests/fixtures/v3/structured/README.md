@@ -56,3 +56,11 @@ These surfaces are tested separately because:
 - precompiler behavior is non-deterministic and outside the engine contract
 
 This fixture set is the **canonical engine-level conformance surface**, and may be reused by other implementations (e.g., TypeScript) to validate identical engine behavior.
+
+## Fixture Policy
+
+These fixtures are contract artifacts. Changes should be intentional and reviewed.
+
+If deterministic engine behavior changes, update the corresponding `v3/structured` fixtures in the same PR and explain the behavioral contract change.
+
+Fixture regeneration must be explicit and opt-in. Normal test runs are read-only and must fail on mismatches rather than rewriting fixtures.
