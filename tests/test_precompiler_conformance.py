@@ -1,8 +1,12 @@
 import json
+import re
 from pathlib import Path
 
 from experimental.preprocessor.heuristic_precompiler import precompile_heuristic
-from experimental.preprocessor.output_validation import validate_precompiler_output
+from experimental.preprocessor.output_validation import (
+    is_safe_fallback_directive_rewrite,
+    validate_precompiler_output,
+)
 
 _PRECOMPILER_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "precompiler"
 
@@ -35,6 +39,34 @@ def _normalize_result(message: str) -> dict[str, object]:
     return normalized
 
 
+def _fallback_validate_candidate(source_input: str, candidate_output: str) -> dict[str, object]:
+    validated = validate_precompiler_output(candidate_output)
+    if (
+        validated["classification"] == "directive"
+        and isinstance(validated["output"], str)
+        and not is_safe_fallback_directive_rewrite(source_input, validated["output"])
+    ):
+        return {"classification": "unknown", "output": None}
+    return validated
+
+
+def _derived_risky_rewrite_candidates(source_input: str) -> list[str]:
+    normalized = re.sub(r"\s+", " ", source_input.strip().lower())
+    candidates: list[str] = []
+
+    set_premise_to_match = re.fullmatch(r"set premise to\s+(.+\S)", normalized)
+    if set_premise_to_match is not None:
+        payload = set_premise_to_match.group(1).strip()
+        candidates.append(f"set premise {payload}")
+
+    change_premise_missing_to_match = re.fullmatch(r"change premise\s+(?!to\b)(.+\S)", normalized)
+    if change_premise_missing_to_match is not None:
+        payload = change_premise_missing_to_match.group(1).strip()
+        candidates.append(f"change premise to {payload}")
+
+    return candidates
+
+
 def test_precompiler_conformance_fixtures() -> None:
     for path in _fixture_paths():
         fixture = _load_fixture(path)
@@ -50,3 +82,23 @@ def test_precompiler_conformance_fixtures() -> None:
         second = _normalize_result(input_text)
         assert first == second, fixture_name
         assert first == expected, fixture_name
+
+
+def test_engine_owned_near_misses_are_reject_only_for_fallback_rewrites() -> None:
+    # Engine-owned near-misses must not be canonicalized by the precompiler and
+    # must remain unknown even if fallback proposes a plausible canonical rewrite.
+    for path in _fixture_paths():
+        fixture = _load_fixture(path)
+        expected = fixture["expected"]
+        input_text = fixture["input"]
+        fixture_name = fixture["name"]
+
+        assert isinstance(expected, dict), fixture_name
+        assert isinstance(input_text, str), fixture_name
+
+        if expected.get("classification") != "unknown" or expected.get("output") is not None:
+            continue
+
+        for candidate in _derived_risky_rewrite_candidates(input_text):
+            validated = _fallback_validate_candidate(input_text, candidate)
+            assert validated["classification"] != "directive", fixture_name
