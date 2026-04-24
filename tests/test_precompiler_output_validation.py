@@ -1,5 +1,6 @@
 from experimental.preprocessor.output_validation import (
     _is_allowed_directive,
+    is_safe_fallback_directive_rewrite,
     parse_precompiler_output,
     validate_precompiler_output,
 )
@@ -111,3 +112,25 @@ def test_parse_returns_validated_directive_only() -> None:
     assert parse_precompiler_output("prohibit peanuts") == "prohibit peanuts"
     assert parse_precompiler_output("<NO_DIRECTIVE>") is None
     assert parse_precompiler_output("set premise to concise replies") is None
+
+
+def test_fallback_rewrite_safety_rejects_premise_near_miss_canonicalization() -> None:
+    assert not is_safe_fallback_directive_rewrite(
+        "set premise to concise replies",
+        "set premise concise replies",
+    )
+    assert not is_safe_fallback_directive_rewrite(
+        "change premise concise replies",
+        "change premise to concise replies",
+    )
+
+
+def test_fallback_rewrite_safety_allows_other_directives() -> None:
+    assert is_safe_fallback_directive_rewrite(
+        "prohibit peanuts",
+        "prohibit peanuts",
+    )
+    assert is_safe_fallback_directive_rewrite(
+        "what is a simple curry recipe?",
+        "use coconut milk",
+    )

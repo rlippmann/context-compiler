@@ -18,7 +18,11 @@ from .constants import (
     PrecompileOutcome,
 )
 
-__all__ = ["parse_precompiler_output", "validate_precompiler_output"]
+__all__ = [
+    "is_safe_fallback_directive_rewrite",
+    "parse_precompiler_output",
+    "validate_precompiler_output",
+]
 
 
 class PrecompilerValidationResult(TypedDict):
@@ -30,6 +34,8 @@ _MULTI_CANDIDATE_DIRECTIVE_PATTERN = re.compile(
     r"(?:\band\b|\bthen\b|;|,)\s*(?:set premise\b|change premise\b|use\b|"
     r"prohibit\b|remove policy\b|clear premise\b|reset policies\b|clear state\b)"
 )
+_SET_PREMISE_TO_NEAR_MISS_PATTERN = re.compile(r"^set premise to\s+(.+\S)\s*$")
+_CHANGE_PREMISE_MISSING_TO_NEAR_MISS_PATTERN = re.compile(r"^change premise\s+(?!to\b)(.+\S)\s*$")
 
 
 def _unknown() -> PrecompilerValidationResult:
@@ -53,6 +59,26 @@ def _is_allowed_directive(text: str) -> bool:
 def _contains_multiple_candidate_directives(text: str) -> bool:
     normalized = re.sub(r"\s+", " ", text.strip().lower())
     return bool(_MULTI_CANDIDATE_DIRECTIVE_PATTERN.search(normalized))
+
+
+def is_safe_fallback_directive_rewrite(source_input: str, directive_output: str) -> bool:
+    """Reject fallback rewrites that bypass engine-owned premise clarify behavior."""
+    source = re.sub(r"\s+", " ", source_input.strip().lower())
+    directive = re.sub(r"\s+", " ", directive_output.strip().lower())
+
+    set_premise_to_match = _SET_PREMISE_TO_NEAR_MISS_PATTERN.fullmatch(source)
+    if set_premise_to_match is not None:
+        payload = set_premise_to_match.group(1).strip()
+        if directive == f"set premise {payload}":
+            return False
+
+    change_premise_missing_to_match = _CHANGE_PREMISE_MISSING_TO_NEAR_MISS_PATTERN.fullmatch(source)
+    if change_premise_missing_to_match is not None:
+        payload = change_premise_missing_to_match.group(1).strip()
+        if directive == f"change premise to {payload}":
+            return False
+
+    return True
 
 
 def _validate_structured_output(raw_output: object) -> PrecompilerValidationResult:

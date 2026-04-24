@@ -25,6 +25,7 @@ from context_compiler import State, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
 from experimental.preprocessor import (
     PRECOMPILE_OUTCOME_DIRECTIVE,
+    is_safe_fallback_directive_rewrite,
     parse_precompiler_output,
     precompile_heuristic,
     render_prompt,
@@ -179,6 +180,8 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
 
     parsed = parse_precompiler_output(raw_output)
     if parsed is None:
+        return None
+    if not is_safe_fallback_directive_rewrite(message, parsed):
         return None
     return parsed
 
