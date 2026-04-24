@@ -6,6 +6,7 @@ from hypothesis import strategies as st
 from experimental.preprocessor.constants import (
     PRECOMPILE_OUTCOME_DIRECTIVE,
     PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+    PRECOMPILE_OUTCOME_UNKNOWN,
 )
 from experimental.preprocessor.heuristic_precompiler import precompile_heuristic
 from experimental.preprocessor.output_validation import (
@@ -50,7 +51,7 @@ def test_heuristic_accepts_canonical_directive_with_trailing_period_or_bang(
 @given(st.sampled_from(CANONICAL_DIRECTIVES))
 def test_heuristic_question_suffix_never_produces_directive(directive: str) -> None:
     result = precompile_heuristic(f"{directive}?")
-    assert result["outcome"] == PRECOMPILE_OUTCOME_NO_DIRECTIVE
+    assert result["outcome"] == PRECOMPILE_OUTCOME_UNKNOWN
     assert result["directive"] is None
 
 
@@ -82,11 +83,9 @@ def test_heuristic_rejects_wrapped_directive_with_surrounding_meta_text(
 @given(st.text(max_size=60), st.text(max_size=60))
 def test_heuristic_question_mark_is_always_rejected(prefix: str, suffix: str) -> None:
     message = f"{prefix}?{suffix}"
-    assert precompile_heuristic(message) == {
-        "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
-        "directive": None,
-        "rule_id": "reject.question_mark",
-    }
+    result = precompile_heuristic(message)
+    assert result["outcome"] in {PRECOMPILE_OUTCOME_NO_DIRECTIVE, PRECOMPILE_OUTCOME_UNKNOWN}
+    assert result["directive"] is None
 
 
 @given(st.text(max_size=120))

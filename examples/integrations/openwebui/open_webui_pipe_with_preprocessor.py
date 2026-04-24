@@ -47,7 +47,6 @@ from context_compiler import State, create_engine, get_policy_items, get_premise
 from context_compiler.engine import Engine
 from experimental.preprocessor import (
     PRECOMPILE_OUTCOME_DIRECTIVE,
-    PRECOMPILER_NO_DIRECTIVE_SENTINEL,
     parse_precompiler_output,
     precompile_heuristic,
     render_prompt,
@@ -331,7 +330,7 @@ class Pipe:
 
         raw_output = _extract_completion_content(response)
         parsed = parse_precompiler_output(raw_output)
-        if parsed is None or parsed == PRECOMPILER_NO_DIRECTIVE_SENTINEL:
+        if parsed is None:
             return None, None
         return parsed, None
 
@@ -354,7 +353,7 @@ class Pipe:
             and heuristic_result["directive"]
         ):
             parsed = parse_precompiler_output(heuristic_result["directive"])
-            if parsed is not None and parsed != PRECOMPILER_NO_DIRECTIVE_SENTINEL:
+            if parsed is not None:
                 return parsed, None
 
         return await self._llm_fallback_precompile(

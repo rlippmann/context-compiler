@@ -1,36 +1,8 @@
-from experimental.preprocessor.constants import PRECOMPILER_NO_DIRECTIVE_SENTINEL
 from experimental.preprocessor.output_validation import (
     _is_allowed_directive,
-    _normalize_precompiler_output,
     parse_precompiler_output,
+    validate_precompiler_output,
 )
-
-
-def test_normalize_accepts_exact_abstain_sentinel() -> None:
-    assert _normalize_precompiler_output("<NO_DIRECTIVE>") == PRECOMPILER_NO_DIRECTIVE_SENTINEL
-
-
-def test_normalize_repairs_known_malformed_abstain_tags() -> None:
-    assert _normalize_precompiler_output("<NO_DIRECTIPLE>") == PRECOMPILER_NO_DIRECTIVE_SENTINEL
-    assert _normalize_precompiler_output("<NO_DIRECTITIVE>") == PRECOMPILER_NO_DIRECTIVE_SENTINEL
-    assert (
-        _normalize_precompiler_output("<NO_DIRECT_DIRECTIVE>") == PRECOMPILER_NO_DIRECTIVE_SENTINEL
-    )
-
-
-def test_normalize_repairs_malformed_abstain_with_suffix_text() -> None:
-    raw = "<NO_DIRECTDirective> Directive cannot be generated..."
-    assert _normalize_precompiler_output(raw) == PRECOMPILER_NO_DIRECTIVE_SENTINEL
-
-
-def test_normalize_preserves_last_non_empty_line_abstain_behavior() -> None:
-    raw = "<NO_DIRECT Directive>\n<NO_DIRECTIVE>"
-    assert _normalize_precompiler_output(raw) == PRECOMPILER_NO_DIRECTIVE_SENTINEL
-
-
-def test_normalize_returns_none_for_non_string() -> None:
-    assert _normalize_precompiler_output(None) is None
-    assert _normalize_precompiler_output(123) is None
 
 
 def test_is_allowed_directive_accepts_canonical_shapes() -> None:
@@ -40,11 +12,102 @@ def test_is_allowed_directive_accepts_canonical_shapes() -> None:
     assert _is_allowed_directive("use podman instead of docker")
 
 
-def test_parse_accepts_valid_directive_and_rejects_malformed_directive() -> None:
+def test_validate_text_accepts_canonical_directive() -> None:
+    result = validate_precompiler_output("prohibit peanuts")
+    assert result == {
+        "classification": "directive",
+        "output": "prohibit peanuts",
+    }
+
+
+def test_validate_text_accepts_exact_no_directive_sentinel() -> None:
+    result = validate_precompiler_output("<NO_DIRECTIVE>")
+    assert result == {
+        "classification": "no_directive",
+        "output": None,
+    }
+
+
+def test_validate_text_rejects_malformed_or_mixed_output_as_unknown() -> None:
+    assert validate_precompiler_output("<NO_DIRECTIPLE>") == {
+        "classification": "unknown",
+        "output": None,
+    }
+    assert validate_precompiler_output("set premise to concise replies") == {
+        "classification": "unknown",
+        "output": None,
+    }
+    assert validate_precompiler_output("prohibit peanuts and use almonds") == {
+        "classification": "unknown",
+        "output": None,
+    }
+
+
+def test_validate_structured_output_accepts_strict_contract_shape() -> None:
+    assert validate_precompiler_output(
+        {
+            "classification": "directive",
+            "output": "clear state",
+        }
+    ) == {
+        "classification": "directive",
+        "output": "clear state",
+    }
+
+    assert validate_precompiler_output(
+        {
+            "classification": "no_directive",
+            "output": None,
+        }
+    ) == {
+        "classification": "no_directive",
+        "output": None,
+    }
+
+    assert validate_precompiler_output(
+        {
+            "classification": "unknown",
+            "output": None,
+        }
+    ) == {
+        "classification": "unknown",
+        "output": None,
+    }
+
+
+def test_validate_structured_output_rejects_malformed_shape_or_payload_as_unknown() -> None:
+    cases = [
+        None,
+        123,
+        {},
+        {"classification": "directive"},
+        {"output": "clear state"},
+        {"classification": "directive", "output": None},
+        {"classification": "directive", "output": ""},
+        {"classification": "directive", "output": "set premise to concise replies"},
+        {"classification": "no_directive", "output": "clear state"},
+        {"classification": "unknown", "output": "clear state"},
+        {"classification": "unsupported_action", "output": None},
+        {"classification": "directive", "output": "clear state\nreset policies"},
+        {"classification": "directive", "output": "clear state", "extra": True},
+        {"action": "prohibit", "item": "peanuts"},
+    ]
+    for raw in cases:
+        assert validate_precompiler_output(raw) == {
+            "classification": "unknown",
+            "output": None,
+        }
+
+
+def test_validate_text_parses_and_validates_json_contract() -> None:
+    raw = '{"classification":"directive","output":"use docker"}'
+    assert validate_precompiler_output(raw) == {
+        "classification": "directive",
+        "output": "use docker",
+    }
+
+
+def test_parse_returns_validated_directive_only() -> None:
     assert parse_precompiler_output("prohibit peanuts") == "prohibit peanuts"
+    assert parse_precompiler_output("<NO_DIRECTIVE>") is None
     assert parse_precompiler_output("set premise to concise replies") is None
-    assert parse_precompiler_output("wipe policies") is None
-
-
-def test_parse_maps_malformed_abstain_to_canonical_sentinel() -> None:
-    assert parse_precompiler_output("<NO_DIRECTIPLE>") == PRECOMPILER_NO_DIRECTIVE_SENTINEL

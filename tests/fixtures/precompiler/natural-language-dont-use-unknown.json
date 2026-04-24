@@ -1,0 +1,8 @@
+{
+  "name": "natural-language-dont-use-unknown",
+  "input": "don't use peanuts",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

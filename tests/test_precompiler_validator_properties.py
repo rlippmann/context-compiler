@@ -1,13 +1,10 @@
-import string
-
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from experimental.preprocessor.constants import PRECOMPILER_NO_DIRECTIVE_SENTINEL
 from experimental.preprocessor.output_validation import (
     _is_allowed_directive,
-    _normalize_precompiler_output,
     parse_precompiler_output,
+    validate_precompiler_output,
 )
 
 CANONICAL_DIRECTIVES = [
@@ -35,26 +32,6 @@ NOISY_TEXT = st.one_of(
     st.builds(lambda a, b: f"{a}: {b}", st.text(max_size=30), st.text(max_size=30)),
 )
 
-MALFORMED_ABSTAIN = st.one_of(
-    st.sampled_from(
-        [
-            "<NO_DIRECTIPLE>",
-            "<NO_DIRECTITIVE>",
-            "<NO_DIRECT_DIRECTIVE>",
-            "<NO_DIRECTDirective> Directive cannot be generated...",
-        ]
-    ),
-    st.builds(
-        lambda middle: f"<NO_DIRECT{middle}>",
-        st.text(alphabet=string.ascii_uppercase + "_", min_size=1, max_size=20),
-    ),
-    st.builds(
-        lambda middle, suffix: f"<NO_DIRECT{middle}> {suffix}",
-        st.text(alphabet=string.ascii_uppercase + "_", min_size=1, max_size=20),
-        st.text(min_size=1, max_size=40),
-    ),
-)
-
 
 @given(
     st.one_of(
@@ -74,16 +51,8 @@ def test_parse_non_string_never_produces_directive(raw_output: object) -> None:
 @given(NOISY_TEXT)
 def test_parse_invalid_text_never_becomes_directive(text: str) -> None:
     stripped = text.strip()
-    assume(stripped.upper() != PRECOMPILER_NO_DIRECTIVE_SENTINEL)
     assume(not _is_allowed_directive(stripped))
-    parsed = parse_precompiler_output(text)
-    assert parsed in {None, PRECOMPILER_NO_DIRECTIVE_SENTINEL}
-
-
-@given(MALFORMED_ABSTAIN)
-def test_parse_malformed_abstain_only_maps_to_sentinel_or_rejects(text: str) -> None:
-    parsed = parse_precompiler_output(text)
-    assert parsed in {None, PRECOMPILER_NO_DIRECTIVE_SENTINEL}
+    assert parse_precompiler_output(text) is None
 
 
 @given(st.sampled_from(CANONICAL_DIRECTIVES), SPACE_TEXT, SPACE_TEXT)
@@ -94,24 +63,14 @@ def test_parse_valid_canonical_directive_always_passes(
     assert parse_precompiler_output(raw) == directive
 
 
-@given(NOISY_TEXT)
-def test_normalization_is_idempotent(text: str) -> None:
-    normalized_once = _normalize_precompiler_output(text)
-    if normalized_once is None:
-        return
-    assert _normalize_precompiler_output(normalized_once) == normalized_once
-
-
 @given(st.sampled_from(CANONICAL_DIRECTIVES), NON_EMPTY_TEXT, NON_EMPTY_TEXT)
 def test_parse_rejects_directive_with_surrounding_text(
     directive: str, prefix: str, suffix: str
 ) -> None:
     raw = f"{prefix} {directive} {suffix}"
     stripped = raw.strip()
-    assume(stripped.upper() != PRECOMPILER_NO_DIRECTIVE_SENTINEL)
     assume(not _is_allowed_directive(stripped))
-    parsed = parse_precompiler_output(raw)
-    assert parsed in {None, PRECOMPILER_NO_DIRECTIVE_SENTINEL}
+    assert parse_precompiler_output(raw) is None
 
 
 @given(
@@ -131,21 +90,21 @@ def test_parse_rejects_directive_in_constrained_wrappers(directive: str, wrapper
     assert parse_precompiler_output(wrapped) is None
 
 
-def test_parse_malformed_abstain_negative_boundaries_remain_narrow() -> None:
+def test_validate_malformed_abstain_negative_boundaries_are_unknown() -> None:
     cases = {
-        "<NO_DIRECT>": None,
-        "<NO_DIRECTION>": None,
-        "<NO_DIRECTIVE please>": None,
-        "notes: <NO_DIRECTIVE>": None,
-        "prefix <NO_DIRECTIPLE>": None,
-        "<NOT_DIRECTIVE>": None,
-        "<NO_DIRECTIPLE>": PRECOMPILER_NO_DIRECTIVE_SENTINEL,
+        "<NO_DIRECT>": "unknown",
+        "<NO_DIRECTION>": "unknown",
+        "<NO_DIRECTIVE please>": "unknown",
+        "notes: <NO_DIRECTIVE>": "unknown",
+        "prefix <NO_DIRECTIPLE>": "unknown",
+        "<NOT_DIRECTIVE>": "unknown",
+        "<NO_DIRECTIPLE>": "unknown",
+        "<NO_DIRECTIVE>": "no_directive",
     }
-    for raw, expected in cases.items():
-        parsed = parse_precompiler_output(raw)
-        assert parsed == expected
-        if parsed is not None:
-            assert parsed == PRECOMPILER_NO_DIRECTIVE_SENTINEL or _is_allowed_directive(parsed)
+    for raw, expected_cls in cases.items():
+        validated = validate_precompiler_output(raw)
+        assert validated["classification"] == expected_cls
+        assert validated["output"] is None
 
 
 def test_parse_rejects_near_miss_directives_when_wrapped_or_prefixed() -> None:
@@ -157,10 +116,7 @@ def test_parse_rejects_near_miss_directives_when_wrapped_or_prefixed() -> None:
         'he said "use docker"',
     ]
     for raw in cases:
-        parsed = parse_precompiler_output(raw)
-        assert parsed in {None, PRECOMPILER_NO_DIRECTIVE_SENTINEL}
-        if parsed is not None:
-            assert parsed == PRECOMPILER_NO_DIRECTIVE_SENTINEL
+        assert parse_precompiler_output(raw) is None
 
 
 @given(st.one_of(st.none(), st.integers(), st.text(max_size=120)))
@@ -171,3 +127,16 @@ def test_parse_output_idempotent(raw_output: object) -> None:
         assert second is None
     else:
         assert second == first
+
+
+@given(
+    st.one_of(
+        st.none(), st.integers(), st.text(max_size=120), st.dictionaries(st.text(), st.none())
+    )
+)
+def test_validate_output_always_has_null_for_non_directive(raw_output: object) -> None:
+    validated = validate_precompiler_output(raw_output)
+    if validated["classification"] == "directive":
+        assert isinstance(validated["output"], str)
+    else:
+        assert validated["output"] is None

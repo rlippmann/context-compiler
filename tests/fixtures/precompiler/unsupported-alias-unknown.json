@@ -1,0 +1,8 @@
+{
+  "name": "unsupported-alias-unknown",
+  "input": "allow docker",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

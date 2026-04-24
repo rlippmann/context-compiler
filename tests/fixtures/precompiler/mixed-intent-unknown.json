@@ -1,0 +1,8 @@
+{
+  "name": "mixed-intent-unknown",
+  "input": "use docker and then continue with the answer",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

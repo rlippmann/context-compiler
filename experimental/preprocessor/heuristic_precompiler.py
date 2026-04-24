@@ -77,6 +77,14 @@ _MULTI_SEGMENT_PATTERN = re.compile(
     r".*\b(?:because|then continue|and)\b"
 )
 _PUNCTUATION_TRIM_PATTERN = re.compile(r"[.!]+\s*$")
+_DIRECTIVE_CUE_PATTERN = re.compile(
+    r"\b(set premise|change premise|use|prohibit|remove policy|clear premise|"
+    r"reset policies|clear state)\b"
+)
+_MULTI_CANDIDATE_DIRECTIVE_PATTERN = re.compile(
+    r"(?:\band\b|\bthen\b|;|,)\s*(?:set premise\b|change premise\b|use\b|"
+    r"prohibit\b|remove policy\b|clear premise\b|reset policies\b|clear state\b)"
+)
 _WRAPPER_PAIRS = {
     ('"', '"'),
     ("'", "'"),
@@ -138,54 +146,53 @@ def precompile_heuristic(message: str) -> PrecompileResult:
         This pass is precision-first and intentionally narrow. It may abstain
         on ambiguous or mixed-intent inputs.
     """
-    # Precision-first hard rejection for question-like inputs.
-    if "?" in message:
-        return {
-            "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
-            "directive": None,
-            "rule_id": "reject.question_mark",
-        }
-
     if _LIST_MARKER_PATTERN.match(message):
         return {
-            "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.list_or_enumeration",
         }
 
     normalized = _normalized_for_match(message)
 
+    if "?" in message and _DIRECTIVE_CUE_PATTERN.search(normalized):
+        return {
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "directive": None,
+            "rule_id": "reject.question_form",
+        }
+
     if _META_PREFIX_PATTERN.match(normalized):
         return {
-            "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.meta_or_reporting",
         }
 
     if _MULTI_SEGMENT_PATTERN.match(normalized):
         return {
-            "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.multi_segment_or_mixed_prose",
         }
 
     if normalized in _MULTI_INSTRUCTION_CASES:
         return {
-            "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.multi_instruction",
         }
 
     if _contains_reporting_bracket_mention(message):
         return {
-            "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.quoted_reported_bracket",
         }
 
     if normalized in _QUOTED_OR_REPORTED_CASES:
         return {
-            "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.quoted_reported",
         }
@@ -216,9 +223,16 @@ def precompile_heuristic(message: str) -> PrecompileResult:
 
     if normalized in _NEAR_MISS_ALIAS_CASES:
         return {
-            "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.near_miss_alias",
+        }
+
+    if _MULTI_CANDIDATE_DIRECTIVE_PATTERN.search(normalized_candidate):
+        return {
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "directive": None,
+            "rule_id": "reject.multi_candidate_directive",
         }
 
     if normalized_candidate in CANONICAL_DIRECTIVE_EXACT:
@@ -236,4 +250,15 @@ def precompile_heuristic(message: str) -> PrecompileResult:
                 "rule_id": "canonical.full_match",
             }
 
-    return {"outcome": PRECOMPILE_OUTCOME_UNKNOWN, "directive": None, "rule_id": None}
+    if _DIRECTIVE_CUE_PATTERN.search(normalized_candidate):
+        return {
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "directive": None,
+            "rule_id": "reject.directive_adjacent_unsafe",
+        }
+
+    return {
+        "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+        "directive": None,
+        "rule_id": "reject.confident_non_directive",
+    }
