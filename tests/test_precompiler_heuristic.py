@@ -45,8 +45,6 @@ def test_heuristic_accepts_trailing_period_or_bang_for_whole_message_directives(
 
 def test_heuristic_allows_exact_full_message_wrappers_for_directives() -> None:
     cases = [
-        ("`use docker`", "use docker"),
-        ('"clear state"', "clear state"),
         ("(reset policies)", "reset policies"),
         ("[prohibit peanuts]", "prohibit peanuts"),
     ]
@@ -55,6 +53,20 @@ def test_heuristic_allows_exact_full_message_wrappers_for_directives() -> None:
             "outcome": "directive",
             "directive": expected,
             "rule_id": "canonical.full_match",
+        }
+
+
+def test_heuristic_rejects_quoted_or_backticked_exact_directives() -> None:
+    cases = [
+        "`use docker`",
+        '"clear state"',
+        "'reset policies'",
+    ]
+    for message in cases:
+        assert precompile_heuristic(message) == {
+            "outcome": "unknown",
+            "directive": None,
+            "rule_id": "reject.quoted_exact",
         }
 
 
@@ -134,6 +146,32 @@ def test_heuristic_rejects_multi_segment_or_mixed_prose_inputs() -> None:
             "outcome": "unknown",
             "directive": None,
             "rule_id": "reject.multi_segment_or_mixed_prose",
+        }
+
+
+def test_heuristic_rejects_malformed_replacement_syntax() -> None:
+    cases = [
+        "use podman instead docker",
+        "use podman in stead of docker",
+    ]
+    for message in cases:
+        assert precompile_heuristic(message) == {
+            "outcome": "unknown",
+            "directive": None,
+            "rule_id": "reject.malformed_replacement_syntax",
+        }
+
+
+def test_heuristic_rejects_admin_near_miss_aliases() -> None:
+    cases = [
+        "reset policy",
+        "remove policies docker",
+    ]
+    for message in cases:
+        assert precompile_heuristic(message) == {
+            "outcome": "unknown",
+            "directive": None,
+            "rule_id": "reject.admin_near_miss_alias",
         }
 
 

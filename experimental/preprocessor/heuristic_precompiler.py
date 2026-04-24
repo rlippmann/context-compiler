@@ -58,6 +58,10 @@ _NEAR_MISS_ALIAS_CASES = {
     "use podman not docker",
     "wipe policies",
 }
+_ADMIN_NEAR_MISS_CASES = {
+    "reset policy",
+    "remove policies docker",
+}
 
 _REPORTING_BRACKET_MARKERS = (
     "in my notes",
@@ -79,6 +83,7 @@ _DIRECTIVE_CUE_PATTERN = re.compile(
     r"\b(set premise|change premise|use|prohibit|remove policy|clear premise|"
     r"reset policies|clear state)\b"
 )
+_MALFORMED_REPLACEMENT_PATTERN = re.compile(r"\buse\b.*\binstead\b")
 _MULTI_CANDIDATE_DIRECTIVE_PATTERN = re.compile(
     r"(?:\band\b|\bthen\b|;|,)\s*(?:set premise\b|change premise\b|use\b|"
     r"prohibit\b|remove policy\b|clear premise\b|reset policies\b|clear state\b)"
@@ -126,6 +131,13 @@ def _normalize_candidate(message: str) -> str:
     no_punct = _strip_terminal_punctuation(stripped)
     unwrapped = _strip_exact_wrapper(no_punct)
     return re.sub(r"\s+", " ", unwrapped).strip().lower()
+
+
+def _is_quoted_or_backtick_wrapped(message: str) -> bool:
+    stripped = message.strip()
+    if len(stripped) < 2:
+        return False
+    return (stripped[0], stripped[-1]) in {('"', '"'), ("'", "'"), ("`", "`")}
 
 
 def precompile_heuristic(message: str) -> PrecompileResult:
@@ -188,6 +200,13 @@ def precompile_heuristic(message: str) -> PrecompileResult:
             "rule_id": "reject.quoted_reported_bracket",
         }
 
+    if _is_quoted_or_backtick_wrapped(message):
+        return {
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "directive": None,
+            "rule_id": "reject.quoted_exact",
+        }
+
     if normalized in _QUOTED_OR_REPORTED_CASES:
         return {
             "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
@@ -202,6 +221,23 @@ def precompile_heuristic(message: str) -> PrecompileResult:
             "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.near_miss_alias",
+        }
+
+    if normalized in _ADMIN_NEAR_MISS_CASES:
+        return {
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "directive": None,
+            "rule_id": "reject.admin_near_miss_alias",
+        }
+
+    if (
+        _MALFORMED_REPLACEMENT_PATTERN.search(normalized_candidate)
+        and " instead of " not in normalized_candidate
+    ) or (" in stead of " in normalized_candidate):
+        return {
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "directive": None,
+            "rule_id": "reject.malformed_replacement_syntax",
         }
 
     if _MULTI_CANDIDATE_DIRECTIVE_PATTERN.search(normalized_candidate):

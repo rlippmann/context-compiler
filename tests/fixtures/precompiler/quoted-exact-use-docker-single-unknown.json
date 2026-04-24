@@ -1,0 +1,8 @@
+{
+  "name": "quoted-exact-use-docker-single-unknown",
+  "input": "'use docker'",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

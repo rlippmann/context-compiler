@@ -29,11 +29,15 @@ CANONICAL_DIRECTIVES = [
 NON_EMPTY_TEXT = st.text(min_size=1, max_size=40).filter(lambda s: s.strip() != "")
 WRAPPERS = st.sampled_from(
     [
+        ("(", ")"),
+        ("[", "]"),
+    ]
+)
+QUOTED_WRAPPERS = st.sampled_from(
+    [
         ('"', '"'),
         ("'", "'"),
         ("`", "`"),
-        ("(", ")"),
-        ("[", "]"),
     ]
 )
 
@@ -64,6 +68,16 @@ def test_heuristic_accepts_single_layer_exact_wrapper(
     assert result["outcome"] == PRECOMPILE_OUTCOME_DIRECTIVE
     parsed = parse_precompiler_output(result["directive"])
     assert parsed == result["directive"]
+
+
+@given(st.sampled_from(CANONICAL_DIRECTIVES), QUOTED_WRAPPERS)
+def test_heuristic_quoted_exact_wrappers_never_directive(
+    directive: str, wrapper: tuple[str, str]
+) -> None:
+    left, right = wrapper
+    result = precompile_heuristic(f"{left}{directive}{right}")
+    assert result["outcome"] == PRECOMPILE_OUTCOME_UNKNOWN
+    assert result["directive"] is None
 
 
 @given(

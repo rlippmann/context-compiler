@@ -1,0 +1,8 @@
+{
+  "name": "near-miss-set-premise-empty-unknown",
+  "input": "set premise",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}
