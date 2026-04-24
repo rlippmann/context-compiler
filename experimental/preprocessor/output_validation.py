@@ -19,7 +19,6 @@ from .constants import (
 )
 
 __all__ = [
-    "is_safe_fallback_directive_rewrite",
     "parse_precompiler_output",
     "validate_precompiler_output",
 ]
@@ -61,7 +60,7 @@ def _contains_multiple_candidate_directives(text: str) -> bool:
     return bool(_MULTI_CANDIDATE_DIRECTIVE_PATTERN.search(normalized))
 
 
-def is_safe_fallback_directive_rewrite(source_input: str, directive_output: str) -> bool:
+def _is_safe_fallback_directive_rewrite(source_input: str, directive_output: str) -> bool:
     """Reject fallback rewrites that bypass engine-owned premise clarify behavior."""
     source = re.sub(r"\s+", " ", source_input.strip().lower())
     directive = re.sub(r"\s+", " ", directive_output.strip().lower())
@@ -161,7 +160,7 @@ def validate_precompiler_output(
         source_input is not None
         and validated["classification"] == "directive"
         and isinstance(validated["output"], str)
-        and not is_safe_fallback_directive_rewrite(source_input, validated["output"])
+        and not _is_safe_fallback_directive_rewrite(source_input, validated["output"])
     ):
         return _unknown()
 

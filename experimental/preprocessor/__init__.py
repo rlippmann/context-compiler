@@ -9,7 +9,6 @@ from .constants import (
 )
 from .heuristic_precompiler import PrecompileResult, precompile_heuristic
 from .output_validation import (
-    is_safe_fallback_directive_rewrite,
     parse_precompiler_output,
     validate_precompiler_output,
 )
@@ -23,7 +22,6 @@ __all__ = [
     "PrecompileResult",
     "PrecompileOutcome",
     "parse_precompiler_output",
-    "is_safe_fallback_directive_rewrite",
     "precompile_heuristic",
     "render_prompt",
     "validate_precompiler_output",

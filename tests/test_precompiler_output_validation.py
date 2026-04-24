@@ -1,6 +1,5 @@
 from experimental.preprocessor.output_validation import (
     _is_allowed_directive,
-    is_safe_fallback_directive_rewrite,
     parse_precompiler_output,
     validate_precompiler_output,
 )
@@ -131,23 +130,35 @@ def test_parse_with_source_input_rejects_premise_near_miss_canonicalization() ->
     )
 
 
-def test_fallback_rewrite_safety_rejects_premise_near_miss_canonicalization() -> None:
-    assert not is_safe_fallback_directive_rewrite(
-        "set premise to concise replies",
+def test_validation_with_source_input_rejects_premise_near_miss_canonicalization() -> None:
+    assert validate_precompiler_output(
         "set premise concise replies",
-    )
-    assert not is_safe_fallback_directive_rewrite(
-        "change premise concise replies",
+        source_input="set premise to concise replies",
+    ) == {
+        "classification": "unknown",
+        "output": None,
+    }
+    assert validate_precompiler_output(
         "change premise to concise replies",
-    )
+        source_input="change premise concise replies",
+    ) == {
+        "classification": "unknown",
+        "output": None,
+    }
 
 
-def test_fallback_rewrite_safety_allows_other_directives() -> None:
-    assert is_safe_fallback_directive_rewrite(
+def test_validation_with_source_input_allows_other_directives() -> None:
+    assert validate_precompiler_output(
         "prohibit peanuts",
-        "prohibit peanuts",
-    )
-    assert is_safe_fallback_directive_rewrite(
-        "what is a simple curry recipe?",
+        source_input="prohibit peanuts",
+    ) == {
+        "classification": "directive",
+        "output": "prohibit peanuts",
+    }
+    assert validate_precompiler_output(
         "use coconut milk",
-    )
+        source_input="what is a simple curry recipe?",
+    ) == {
+        "classification": "directive",
+        "output": "use coconut milk",
+    }
