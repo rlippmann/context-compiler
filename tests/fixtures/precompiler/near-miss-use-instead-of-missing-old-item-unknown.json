@@ -1,0 +1,8 @@
+{
+  "name": "near-miss-use-instead-of-missing-old-item-unknown",
+  "input": "use podman instead of",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

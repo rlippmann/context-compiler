@@ -1,8 +1,0 @@
-{
-  "name": "canonicalize-set-premise-to",
-  "input": "set premise to concise replies",
-  "expected": {
-    "classification": "directive",
-    "output": "set premise concise replies"
-  }
-}

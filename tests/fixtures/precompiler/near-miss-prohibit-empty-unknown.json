@@ -1,0 +1,8 @@
+{
+  "name": "near-miss-prohibit-empty-unknown",
+  "input": "prohibit",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

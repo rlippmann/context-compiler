@@ -159,16 +159,16 @@ def test_heuristic_accepts_bracket_wrapper_without_reporting_marker() -> None:
     }
 
 
-def test_heuristic_canonicalizes_set_premise_to_whole_message_only() -> None:
+def test_heuristic_set_premise_to_forms_are_unknown_not_rewritten() -> None:
     cases = [
-        ("set premise to concise replies", "set premise concise replies"),
-        ("set premise to formal tone", "set premise formal tone"),
+        "set premise to concise replies",
+        "set premise to formal tone",
     ]
-    for message, expected in cases:
+    for message in cases:
         assert precompile_heuristic(message) == {
-            "outcome": "directive",
-            "directive": expected,
-            "rule_id": "canonical.structural_set_premise_to",
+            "outcome": "unknown",
+            "directive": None,
+            "rule_id": "reject.directive_adjacent_unsafe",
         }
 
 
@@ -201,16 +201,16 @@ def test_heuristic_does_not_canonicalize_set_premise_to_when_not_whole_message()
     }
 
 
-def test_heuristic_canonicalizes_change_premise_missing_to_whole_message_only() -> None:
+def test_heuristic_change_premise_missing_to_forms_are_unknown_not_rewritten() -> None:
     cases = [
-        ("change premise concise replies", "change premise to concise replies"),
-        ("change premise formal tone", "change premise to formal tone"),
+        "change premise concise replies",
+        "change premise formal tone",
     ]
-    for message, expected in cases:
+    for message in cases:
         assert precompile_heuristic(message) == {
-            "outcome": "directive",
-            "directive": expected,
-            "rule_id": "canonical.structural_change_premise_missing_to",
+            "outcome": "unknown",
+            "directive": None,
+            "rule_id": "reject.directive_adjacent_unsafe",
         }
 
 

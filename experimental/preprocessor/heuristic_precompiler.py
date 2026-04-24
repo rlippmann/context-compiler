@@ -65,8 +65,6 @@ _REPORTING_BRACKET_MARKERS = (
     "i wrote down",
 )
 
-_SET_PREMISE_TO_PATTERN = re.compile(r"^set premise to\s+(.+\S)\s*$")
-_CHANGE_PREMISE_MISSING_TO_PATTERN = re.compile(r"^change premise\s+(?!to\b)(.+\S)\s*$")
 _LIST_MARKER_PATTERN = re.compile(r"^\s*(?:\d+[.)]|[-*])\s+\S")
 _META_PREFIX_PATTERN = re.compile(
     r"^\s*(?:example:|for example\b|the command is\b|(?:i|he|she|they) said\b)"
@@ -198,28 +196,6 @@ def precompile_heuristic(message: str) -> PrecompileResult:
         }
 
     normalized_candidate = _normalize_candidate(message)
-
-    set_premise_to_match = _SET_PREMISE_TO_PATTERN.fullmatch(normalized_candidate)
-    if set_premise_to_match is not None:
-        payload = set_premise_to_match.group(1).strip()
-        if payload:
-            return {
-                "outcome": PRECOMPILE_OUTCOME_DIRECTIVE,
-                "directive": f"set premise {payload}",
-                "rule_id": "canonical.structural_set_premise_to",
-            }
-
-    change_premise_missing_to_match = _CHANGE_PREMISE_MISSING_TO_PATTERN.fullmatch(
-        normalized_candidate
-    )
-    if change_premise_missing_to_match is not None:
-        payload = change_premise_missing_to_match.group(1).strip()
-        if payload:
-            return {
-                "outcome": PRECOMPILE_OUTCOME_DIRECTIVE,
-                "directive": f"change premise to {payload}",
-                "rule_id": "canonical.structural_change_premise_missing_to",
-            }
 
     if normalized in _NEAR_MISS_ALIAS_CASES:
         return {

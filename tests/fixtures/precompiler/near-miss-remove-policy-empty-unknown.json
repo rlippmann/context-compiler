@@ -1,0 +1,8 @@
+{
+  "name": "near-miss-remove-policy-empty-unknown",
+  "input": "remove policy",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}
