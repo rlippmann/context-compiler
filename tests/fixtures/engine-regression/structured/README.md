@@ -61,6 +61,6 @@ This fixture set is the **canonical engine-level conformance surface**, and may 
 
 These fixtures are contract artifacts. Changes should be intentional and reviewed.
 
-If deterministic engine behavior changes, update the corresponding `v3/structured` fixtures in the same PR and explain the behavioral contract change.
+If deterministic engine behavior changes, update the corresponding `engine-regression/structured` fixtures in the same PR and explain the behavioral contract change.
 
 Fixture regeneration must be explicit and opt-in. Normal test runs are read-only and must fail on mismatches rather than rewriting fixtures.

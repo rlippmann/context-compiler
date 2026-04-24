@@ -99,7 +99,7 @@ Use the project's existing tooling:
 - Development dependencies are installed with `uv sync --group dev`.
 
 ## Structured Regression Fixtures
-- Deterministic engine behavior changes that affect `tests/fixtures/v3/structured/` outputs must update the corresponding fixtures.
+- Deterministic engine behavior changes that affect `tests/fixtures/engine-regression/structured/` outputs must update the corresponding fixtures.
 - Fixture updates must be intentional; do not regenerate fixtures casually or as a side effect of normal test runs.
 - If a PR changes structured fixtures, the PR description must explain:
   - what behavioral contract changed
