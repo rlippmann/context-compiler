@@ -142,7 +142,9 @@ def _validate_text_output(raw_output: str) -> PrecompilerValidationResult:
     return _unknown()
 
 
-def validate_precompiler_output(raw_output: object) -> PrecompilerValidationResult:
+def validate_precompiler_output(
+    raw_output: object, *, source_input: str | None = None
+) -> PrecompilerValidationResult:
     """Validate raw precompiler output into a strict classification/output result.
 
     Contract:
@@ -151,11 +153,22 @@ def validate_precompiler_output(raw_output: object) -> PrecompilerValidationResu
         - unknown: output is None
     """
     if isinstance(raw_output, str):
-        return _validate_text_output(raw_output)
-    return _validate_structured_output(raw_output)
+        validated = _validate_text_output(raw_output)
+    else:
+        validated = _validate_structured_output(raw_output)
+
+    if (
+        source_input is not None
+        and validated["classification"] == "directive"
+        and isinstance(validated["output"], str)
+        and not is_safe_fallback_directive_rewrite(source_input, validated["output"])
+    ):
+        return _unknown()
+
+    return validated
 
 
-def parse_precompiler_output(raw_output: object) -> str | None:
+def parse_precompiler_output(raw_output: object, *, source_input: str | None = None) -> str | None:
     """Compatibility wrapper returning only validated directive output.
 
     Args:
@@ -168,7 +181,7 @@ def parse_precompiler_output(raw_output: object) -> str | None:
         This is the public validation boundary. Preprocessor outputs must be
         passed through this function before being applied to compiler paths.
     """
-    validated = validate_precompiler_output(raw_output)
+    validated = validate_precompiler_output(raw_output, source_input=source_input)
     if validated["classification"] == "directive":
         return validated["output"]
     return None

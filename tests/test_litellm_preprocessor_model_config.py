@@ -50,7 +50,7 @@ def test_litellm_preprocessor_model_defaults_to_model(monkeypatch):
 
     monkeypatch.setattr(module, "_get_litellm_completion", lambda: _completion)
     monkeypatch.setattr(module, "render_prompt", lambda *_: "prompt")
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda value: value)
+    monkeypatch.setattr(module, "parse_precompiler_output", lambda value, **_kwargs: value)
 
     result = module._llm_fallback_precompile("please use docker", None)
 
@@ -73,7 +73,7 @@ def test_litellm_preprocessor_model_override(monkeypatch):
 
     monkeypatch.setattr(module, "_get_litellm_completion", lambda: _completion)
     monkeypatch.setattr(module, "render_prompt", lambda *_: "prompt")
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda value: value)
+    monkeypatch.setattr(module, "parse_precompiler_output", lambda value, **_kwargs: value)
 
     result = module._llm_fallback_precompile("please use docker", None)
 
@@ -98,7 +98,7 @@ def test_litellm_proxy_preprocessor_model_defaults_to_model(monkeypatch):
 
     monkeypatch.setattr(module, "_get_litellm_completion", lambda: _completion)
     monkeypatch.setattr(module, "render_prompt", lambda *_: "prompt")
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda value: value)
+    monkeypatch.setattr(module, "parse_precompiler_output", lambda value, **_kwargs: value)
 
     result = module._llm_fallback_precompile("please use docker", None)
 
@@ -123,7 +123,7 @@ def test_litellm_proxy_preprocessor_model_override(monkeypatch):
 
     monkeypatch.setattr(module, "_get_litellm_completion", lambda: _completion)
     monkeypatch.setattr(module, "render_prompt", lambda *_: "prompt")
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda value: value)
+    monkeypatch.setattr(module, "parse_precompiler_output", lambda value, **_kwargs: value)
 
     result = module._llm_fallback_precompile("please use docker", None)
 
@@ -146,7 +146,6 @@ def test_litellm_fallback_rejects_premise_near_miss_rewrite(monkeypatch):
 
     monkeypatch.setattr(module, "_get_litellm_completion", lambda: _completion)
     monkeypatch.setattr(module, "render_prompt", lambda *_: "prompt")
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda value: value)
 
     result = module._llm_fallback_precompile("set premise to concise replies", None)
     assert result is None
@@ -167,7 +166,6 @@ def test_litellm_proxy_fallback_rejects_premise_near_miss_rewrite(monkeypatch):
 
     monkeypatch.setattr(module, "_get_litellm_completion", lambda: _completion)
     monkeypatch.setattr(module, "render_prompt", lambda *_: "prompt")
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda value: value)
 
     result = module._llm_fallback_precompile("change premise concise replies", None)
     assert result is None

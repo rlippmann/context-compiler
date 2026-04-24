@@ -34,7 +34,6 @@ from context_compiler import (
 )
 from experimental.preprocessor import (
     PRECOMPILE_OUTCOME_DIRECTIVE,
-    is_safe_fallback_directive_rewrite,
     parse_precompiler_output,
     precompile_heuristic,
     render_prompt,
@@ -181,10 +180,8 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
     except Exception:
         return None
 
-    parsed = parse_precompiler_output(raw_output)
+    parsed = parse_precompiler_output(raw_output, source_input=message)
     if parsed is None:
-        return None
-    if not is_safe_fallback_directive_rewrite(message, parsed):
         return None
     return parsed
 

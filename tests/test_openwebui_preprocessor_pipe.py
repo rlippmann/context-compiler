@@ -194,7 +194,6 @@ def test_preprocessor_fallback_rejects_premise_near_miss_rewrite(monkeypatch) ->
 
     module.generate_chat_completion = _chat_completion
     module.render_prompt = lambda *_: "prompt"
-    module.parse_precompiler_output = lambda value: value
 
     directive, error = asyncio.run(
         pipe._llm_fallback_precompile(
@@ -344,7 +343,7 @@ def test_preprocessor_pipe_restore_and_persist_checkpoint_points(monkeypatch) ->
 
     monkeypatch.setattr(module, "create_engine", _create_engine)
     monkeypatch.setattr(module, "precompile_heuristic", lambda _text: {"outcome": "no_directive"})
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value: None)
+    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value, **_kwargs: None)
 
     pipe = module.Pipe()
     pipe.valves.BASE_MODEL_ID = "base-model"

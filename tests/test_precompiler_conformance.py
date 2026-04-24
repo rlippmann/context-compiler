@@ -3,10 +3,7 @@ import re
 from pathlib import Path
 
 from experimental.preprocessor.heuristic_precompiler import precompile_heuristic
-from experimental.preprocessor.output_validation import (
-    is_safe_fallback_directive_rewrite,
-    validate_precompiler_output,
-)
+from experimental.preprocessor.output_validation import validate_precompiler_output
 
 _PRECOMPILER_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "precompiler"
 
@@ -37,17 +34,6 @@ def _normalize_result(message: str) -> dict[str, object]:
         assert validated["output"] is None
 
     return normalized
-
-
-def _fallback_validate_candidate(source_input: str, candidate_output: str) -> dict[str, object]:
-    validated = validate_precompiler_output(candidate_output)
-    if (
-        validated["classification"] == "directive"
-        and isinstance(validated["output"], str)
-        and not is_safe_fallback_directive_rewrite(source_input, validated["output"])
-    ):
-        return {"classification": "unknown", "output": None}
-    return validated
 
 
 def _derived_risky_rewrite_candidates(source_input: str) -> list[str]:
@@ -100,5 +86,5 @@ def test_engine_owned_near_misses_are_reject_only_for_fallback_rewrites() -> Non
             continue
 
         for candidate in _derived_risky_rewrite_candidates(input_text):
-            validated = _fallback_validate_candidate(input_text, candidate)
+            validated = validate_precompiler_output(candidate, source_input=input_text)
             assert validated["classification"] != "directive", fixture_name

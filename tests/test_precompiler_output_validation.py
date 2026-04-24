@@ -114,6 +114,23 @@ def test_parse_returns_validated_directive_only() -> None:
     assert parse_precompiler_output("set premise to concise replies") is None
 
 
+def test_parse_with_source_input_rejects_premise_near_miss_canonicalization() -> None:
+    assert (
+        parse_precompiler_output(
+            "set premise concise replies",
+            source_input="set premise to concise replies",
+        )
+        is None
+    )
+    assert (
+        parse_precompiler_output(
+            "change premise to concise replies",
+            source_input="change premise concise replies",
+        )
+        is None
+    )
+
+
 def test_fallback_rewrite_safety_rejects_premise_near_miss_canonicalization() -> None:
     assert not is_safe_fallback_directive_rewrite(
         "set premise to concise replies",
