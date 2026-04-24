@@ -25,7 +25,6 @@ from context_compiler import State, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
 from experimental.preprocessor import (
     PRECOMPILE_OUTCOME_DIRECTIVE,
-    PRECOMPILER_NO_DIRECTIVE_SENTINEL,
     parse_precompiler_output,
     precompile_heuristic,
     render_prompt,
@@ -178,8 +177,8 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
     except Exception:
         return None
 
-    parsed = parse_precompiler_output(raw_output)
-    if parsed is None or parsed == PRECOMPILER_NO_DIRECTIVE_SENTINEL:
+    parsed = parse_precompiler_output(raw_output, source_input=message)
+    if parsed is None:
         return None
     return parsed
 
@@ -195,7 +194,7 @@ def _precompile_user_input(message: str, state: State) -> str | None:
         ):
             parsed = parse_precompiler_output(heuristic_result["directive"])
             logger.debug("preprocessor: heuristic_directive=%r", heuristic_result["directive"])
-            if parsed is not None and parsed != PRECOMPILER_NO_DIRECTIVE_SENTINEL:
+            if parsed is not None:
                 return parsed
     except Exception:
         logger.debug("preprocessor: heuristic_exception", exc_info=True)

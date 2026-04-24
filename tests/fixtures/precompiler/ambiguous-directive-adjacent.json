@@ -1,0 +1,8 @@
+{
+  "name": "ambiguous-directive-adjacent",
+  "input": "could we maybe use uv later",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

@@ -58,6 +58,10 @@ _NEAR_MISS_ALIAS_CASES = {
     "use podman not docker",
     "wipe policies",
 }
+_ADMIN_NEAR_MISS_CASES = {
+    "reset policy",
+    "remove policies docker",
+}
 
 _REPORTING_BRACKET_MARKERS = (
     "in my notes",
@@ -65,8 +69,6 @@ _REPORTING_BRACKET_MARKERS = (
     "i wrote down",
 )
 
-_SET_PREMISE_TO_PATTERN = re.compile(r"^set premise to\s+(.+\S)\s*$")
-_CHANGE_PREMISE_MISSING_TO_PATTERN = re.compile(r"^change premise\s+(?!to\b)(.+\S)\s*$")
 _LIST_MARKER_PATTERN = re.compile(r"^\s*(?:\d+[.)]|[-*])\s+\S")
 _META_PREFIX_PATTERN = re.compile(
     r"^\s*(?:example:|for example\b|the command is\b|(?:i|he|she|they) said\b)"
@@ -77,6 +79,15 @@ _MULTI_SEGMENT_PATTERN = re.compile(
     r".*\b(?:because|then continue|and)\b"
 )
 _PUNCTUATION_TRIM_PATTERN = re.compile(r"[.!]+\s*$")
+_DIRECTIVE_CUE_PATTERN = re.compile(
+    r"\b(set premise|change premise|use|prohibit|remove policy|clear premise|"
+    r"reset policies|clear state)\b"
+)
+_MALFORMED_REPLACEMENT_PATTERN = re.compile(r"\buse\b.*\binstead\b")
+_MULTI_CANDIDATE_DIRECTIVE_PATTERN = re.compile(
+    r"(?:\band\b|\bthen\b|;|,)\s*(?:set premise\b|change premise\b|use\b|"
+    r"prohibit\b|remove policy\b|clear premise\b|reset policies\b|clear state\b)"
+)
 _WRAPPER_PAIRS = {
     ('"', '"'),
     ("'", "'"),
@@ -122,6 +133,13 @@ def _normalize_candidate(message: str) -> str:
     return re.sub(r"\s+", " ", unwrapped).strip().lower()
 
 
+def _is_quoted_or_backtick_wrapped(message: str) -> bool:
+    stripped = message.strip()
+    if len(stripped) < 2:
+        return False
+    return (stripped[0], stripped[-1]) in {('"', '"'), ("'", "'"), ("`", "`")}
+
+
 def precompile_heuristic(message: str) -> PrecompileResult:
     """Run the conservative structural heuristic precompile pass.
 
@@ -138,87 +156,95 @@ def precompile_heuristic(message: str) -> PrecompileResult:
         This pass is precision-first and intentionally narrow. It may abstain
         on ambiguous or mixed-intent inputs.
     """
-    # Precision-first hard rejection for question-like inputs.
-    if "?" in message:
-        return {
-            "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
-            "directive": None,
-            "rule_id": "reject.question_mark",
-        }
-
     if _LIST_MARKER_PATTERN.match(message):
         return {
-            "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.list_or_enumeration",
         }
 
     normalized = _normalized_for_match(message)
 
+    if "?" in message and _DIRECTIVE_CUE_PATTERN.search(normalized):
+        return {
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "directive": None,
+            "rule_id": "reject.question_form",
+        }
+
     if _META_PREFIX_PATTERN.match(normalized):
         return {
-            "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.meta_or_reporting",
         }
 
     if _MULTI_SEGMENT_PATTERN.match(normalized):
         return {
-            "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.multi_segment_or_mixed_prose",
         }
 
     if normalized in _MULTI_INSTRUCTION_CASES:
         return {
-            "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.multi_instruction",
         }
 
     if _contains_reporting_bracket_mention(message):
         return {
-            "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.quoted_reported_bracket",
         }
 
+    if _is_quoted_or_backtick_wrapped(message):
+        return {
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "directive": None,
+            "rule_id": "reject.quoted_exact",
+        }
+
     if normalized in _QUOTED_OR_REPORTED_CASES:
         return {
-            "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.quoted_reported",
         }
 
     normalized_candidate = _normalize_candidate(message)
 
-    set_premise_to_match = _SET_PREMISE_TO_PATTERN.fullmatch(normalized_candidate)
-    if set_premise_to_match is not None:
-        payload = set_premise_to_match.group(1).strip()
-        if payload:
-            return {
-                "outcome": PRECOMPILE_OUTCOME_DIRECTIVE,
-                "directive": f"set premise {payload}",
-                "rule_id": "canonical.structural_set_premise_to",
-            }
-
-    change_premise_missing_to_match = _CHANGE_PREMISE_MISSING_TO_PATTERN.fullmatch(
-        normalized_candidate
-    )
-    if change_premise_missing_to_match is not None:
-        payload = change_premise_missing_to_match.group(1).strip()
-        if payload:
-            return {
-                "outcome": PRECOMPILE_OUTCOME_DIRECTIVE,
-                "directive": f"change premise to {payload}",
-                "rule_id": "canonical.structural_change_premise_missing_to",
-            }
-
     if normalized in _NEAR_MISS_ALIAS_CASES:
         return {
-            "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.near_miss_alias",
+        }
+
+    if normalized in _ADMIN_NEAR_MISS_CASES:
+        return {
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "directive": None,
+            "rule_id": "reject.admin_near_miss_alias",
+        }
+
+    if (
+        _MALFORMED_REPLACEMENT_PATTERN.search(normalized_candidate)
+        and " instead of " not in normalized_candidate
+    ) or (" in stead of " in normalized_candidate):
+        return {
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "directive": None,
+            "rule_id": "reject.malformed_replacement_syntax",
+        }
+
+    if _MULTI_CANDIDATE_DIRECTIVE_PATTERN.search(normalized_candidate):
+        return {
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "directive": None,
+            "rule_id": "reject.multi_candidate_directive",
         }
 
     if normalized_candidate in CANONICAL_DIRECTIVE_EXACT:
@@ -236,4 +262,15 @@ def precompile_heuristic(message: str) -> PrecompileResult:
                 "rule_id": "canonical.full_match",
             }
 
-    return {"outcome": PRECOMPILE_OUTCOME_UNKNOWN, "directive": None, "rule_id": None}
+    if _DIRECTIVE_CUE_PATTERN.search(normalized_candidate):
+        return {
+            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "directive": None,
+            "rule_id": "reject.directive_adjacent_unsafe",
+        }
+
+    return {
+        "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+        "directive": None,
+        "rule_id": "reject.confident_non_directive",
+    }

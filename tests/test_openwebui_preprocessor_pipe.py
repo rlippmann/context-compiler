@@ -184,6 +184,32 @@ def test_preprocessor_fallback_uses_preprocessor_model_only(monkeypatch) -> None
     assert calls == ["prep-model", "base-model"]
 
 
+def test_preprocessor_fallback_rejects_premise_near_miss_rewrite(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_reject_premise_rewrite", monkeypatch)
+    pipe = module.Pipe()
+
+    async def _chat_completion(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        del payload
+        return {"choices": [{"message": {"content": "set premise concise replies"}}]}
+
+    module.generate_chat_completion = _chat_completion
+    module.render_prompt = lambda *_: "prompt"
+
+    directive, error = asyncio.run(
+        pipe._llm_fallback_precompile(
+            "set premise to concise replies",
+            {"premise": None, "policies": {}, "version": 2},
+            request=object(),
+            user_payload={"id": "u1"},
+            prompt_profile="default",
+            model_id="prep-model",
+        )
+    )
+
+    assert directive is None
+    assert error is None
+
+
 def test_recursion_guard_for_preprocessor_model(monkeypatch) -> None:
     module = _load_module_with_openwebui_stubs("owui_preproc_recursion", monkeypatch)
     pipe = module.Pipe()
@@ -317,7 +343,7 @@ def test_preprocessor_pipe_restore_and_persist_checkpoint_points(monkeypatch) ->
 
     monkeypatch.setattr(module, "create_engine", _create_engine)
     monkeypatch.setattr(module, "precompile_heuristic", lambda _text: {"outcome": "no_directive"})
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value: None)
+    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value, **_kwargs: None)
 
     pipe = module.Pipe()
     pipe.valves.BASE_MODEL_ID = "base-model"

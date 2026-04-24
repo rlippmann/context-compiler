@@ -24,10 +24,17 @@ than using repo-relative preprocessor paths.
 
 Public validator entry point:
 
-- `parse_precompiler_output(raw_output: object) -> str | None`
+- `parse_precompiler_output(raw_output: object, *, source_input: str | None = None) -> str | None`
+- `validate_precompiler_output(raw_output: object, *, source_input: str | None = None) -> dict`
 
 All preprocessor outputs (heuristic or LLM) must be validated with
 `parse_precompiler_output(...)` before being applied.
+
+`source_input` is optional at the API level for backward compatibility.
+For integration behavior, it is required for LLM fallback validation calls:
+pass `source_input=<original user text>` so source-aware reject rules can
+block unsafe rewrites (for example, engine-owned premise near-miss
+canonicalization).
 
 Raw preprocessor/LLM outputs must not be passed directly to the compiler.
 
@@ -37,7 +44,8 @@ Raw preprocessor/LLM outputs must not be passed directly to the compiler.
 2. If a heuristic candidate directive exists, validate it with
    `parse_precompiler_output(...)`.
 3. If no valid directive was produced, run LLM fallback precompile.
-4. Validate fallback output with `parse_precompiler_output(...)`.
+4. Validate fallback output with
+   `parse_precompiler_output(..., source_input=message)`.
 5. If a valid directive is produced, pass it through a normal compiler input path.
    For session-owned integrations, use `engine.step(...)`.
    For transcript-based integrations that receive full chat history each turn:

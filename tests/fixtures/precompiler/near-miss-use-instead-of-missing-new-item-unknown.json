@@ -1,0 +1,8 @@
+{
+  "name": "near-miss-use-instead-of-missing-new-item-unknown",
+  "input": "use instead of docker",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

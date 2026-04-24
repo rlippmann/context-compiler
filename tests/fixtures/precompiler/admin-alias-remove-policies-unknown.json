@@ -1,0 +1,8 @@
+{
+  "name": "admin-alias-remove-policies-unknown",
+  "input": "remove policies docker",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

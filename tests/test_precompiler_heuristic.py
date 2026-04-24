@@ -24,7 +24,7 @@ def test_heuristic_rejects_consistent_high_risk_non_directives() -> None:
 
     for message in cases:
         result = precompile_heuristic(message)
-        assert result["outcome"] == "no_directive"
+        assert result["outcome"] == "unknown"
         assert result["directive"] is None
         assert result["rule_id"] is not None
 
@@ -45,8 +45,6 @@ def test_heuristic_accepts_trailing_period_or_bang_for_whole_message_directives(
 
 def test_heuristic_allows_exact_full_message_wrappers_for_directives() -> None:
     cases = [
-        ("`use docker`", "use docker"),
-        ('"clear state"', "clear state"),
         ("(reset policies)", "reset policies"),
         ("[prohibit peanuts]", "prohibit peanuts"),
     ]
@@ -55,6 +53,20 @@ def test_heuristic_allows_exact_full_message_wrappers_for_directives() -> None:
             "outcome": "directive",
             "directive": expected,
             "rule_id": "canonical.full_match",
+        }
+
+
+def test_heuristic_rejects_quoted_or_backticked_exact_directives() -> None:
+    cases = [
+        "`use docker`",
+        '"clear state"',
+        "'reset policies'",
+    ]
+    for message in cases:
+        assert precompile_heuristic(message) == {
+            "outcome": "unknown",
+            "directive": None,
+            "rule_id": "reject.quoted_exact",
         }
 
 
@@ -72,18 +84,25 @@ def test_heuristic_case_normalizes_exact_command_shapes() -> None:
         }
 
 
-def test_heuristic_rejects_any_question_mark() -> None:
+def test_heuristic_question_mark_only_non_directive_is_confident() -> None:
+    assert precompile_heuristic("can you help with lunch?") == {
+        "outcome": "no_directive",
+        "directive": None,
+        "rule_id": "reject.confident_non_directive",
+    }
+
+
+def test_heuristic_rejects_directive_adjacent_question_mark_as_unknown() -> None:
     cases = [
         "use docker?",
         "clear state?",
         "can you use pytest instead of unittest?",
     ]
     for message in cases:
-        assert precompile_heuristic(message) == {
-            "outcome": "no_directive",
-            "directive": None,
-            "rule_id": "reject.question_mark",
-        }
+        result = precompile_heuristic(message)
+        assert result["outcome"] == "unknown"
+        assert result["directive"] is None
+        assert result["rule_id"] is not None
 
 
 def test_heuristic_rejects_meta_reporting_or_example_prefixes() -> None:
@@ -96,7 +115,7 @@ def test_heuristic_rejects_meta_reporting_or_example_prefixes() -> None:
     ]
     for message in cases:
         assert precompile_heuristic(message) == {
-            "outcome": "no_directive",
+            "outcome": "unknown",
             "directive": None,
             "rule_id": "reject.meta_or_reporting",
         }
@@ -110,7 +129,7 @@ def test_heuristic_rejects_list_or_enumeration_inputs() -> None:
     ]
     for message in cases:
         assert precompile_heuristic(message) == {
-            "outcome": "no_directive",
+            "outcome": "unknown",
             "directive": None,
             "rule_id": "reject.list_or_enumeration",
         }
@@ -124,9 +143,35 @@ def test_heuristic_rejects_multi_segment_or_mixed_prose_inputs() -> None:
     ]
     for message in cases:
         assert precompile_heuristic(message) == {
-            "outcome": "no_directive",
+            "outcome": "unknown",
             "directive": None,
             "rule_id": "reject.multi_segment_or_mixed_prose",
+        }
+
+
+def test_heuristic_rejects_malformed_replacement_syntax() -> None:
+    cases = [
+        "use podman instead docker",
+        "use podman in stead of docker",
+    ]
+    for message in cases:
+        assert precompile_heuristic(message) == {
+            "outcome": "unknown",
+            "directive": None,
+            "rule_id": "reject.malformed_replacement_syntax",
+        }
+
+
+def test_heuristic_rejects_admin_near_miss_aliases() -> None:
+    cases = [
+        "reset policy",
+        "remove policies docker",
+    ]
+    for message in cases:
+        assert precompile_heuristic(message) == {
+            "outcome": "unknown",
+            "directive": None,
+            "rule_id": "reject.admin_near_miss_alias",
         }
 
 
@@ -138,7 +183,7 @@ def test_heuristic_rejects_notes_and_reporting_with_bracketed_mentions() -> None
     ]
     for message in cases:
         assert precompile_heuristic(message) == {
-            "outcome": "no_directive",
+            "outcome": "unknown",
             "directive": None,
             "rule_id": "reject.quoted_reported_bracket",
         }
@@ -152,16 +197,29 @@ def test_heuristic_accepts_bracket_wrapper_without_reporting_marker() -> None:
     }
 
 
-def test_heuristic_canonicalizes_set_premise_to_whole_message_only() -> None:
+def test_heuristic_set_premise_to_forms_are_unknown_not_rewritten() -> None:
     cases = [
-        ("set premise to concise replies", "set premise concise replies"),
-        ("set premise to formal tone", "set premise formal tone"),
+        "set premise to concise replies",
+        "set premise to formal tone",
     ]
-    for message, expected in cases:
+    for message in cases:
         assert precompile_heuristic(message) == {
-            "outcome": "directive",
-            "directive": expected,
-            "rule_id": "canonical.structural_set_premise_to",
+            "outcome": "unknown",
+            "directive": None,
+            "rule_id": "reject.directive_adjacent_unsafe",
+        }
+
+
+def test_heuristic_dont_use_forms_are_unknown_not_rewritten() -> None:
+    cases = [
+        "don't use peanuts",
+        "do not use peanuts",
+    ]
+    for message in cases:
+        assert precompile_heuristic(message) == {
+            "outcome": "unknown",
+            "directive": None,
+            "rule_id": "reject.directive_adjacent_unsafe",
         }
 
 
@@ -169,7 +227,7 @@ def test_heuristic_does_not_canonicalize_set_premise_to_with_empty_payload() -> 
     assert precompile_heuristic("set premise to   ") == {
         "outcome": "unknown",
         "directive": None,
-        "rule_id": None,
+        "rule_id": "reject.directive_adjacent_unsafe",
     }
 
 
@@ -177,20 +235,20 @@ def test_heuristic_does_not_canonicalize_set_premise_to_when_not_whole_message()
     assert precompile_heuristic("please set premise to concise replies") == {
         "outcome": "unknown",
         "directive": None,
-        "rule_id": None,
+        "rule_id": "reject.directive_adjacent_unsafe",
     }
 
 
-def test_heuristic_canonicalizes_change_premise_missing_to_whole_message_only() -> None:
+def test_heuristic_change_premise_missing_to_forms_are_unknown_not_rewritten() -> None:
     cases = [
-        ("change premise concise replies", "change premise to concise replies"),
-        ("change premise formal tone", "change premise to formal tone"),
+        "change premise concise replies",
+        "change premise formal tone",
     ]
-    for message, expected in cases:
+    for message in cases:
         assert precompile_heuristic(message) == {
-            "outcome": "directive",
-            "directive": expected,
-            "rule_id": "canonical.structural_change_premise_missing_to",
+            "outcome": "unknown",
+            "directive": None,
+            "rule_id": "reject.directive_adjacent_unsafe",
         }
 
 
@@ -198,7 +256,7 @@ def test_heuristic_does_not_canonicalize_change_premise_with_empty_payload() -> 
     assert precompile_heuristic("change premise   ") == {
         "outcome": "unknown",
         "directive": None,
-        "rule_id": None,
+        "rule_id": "reject.directive_adjacent_unsafe",
     }
 
 
@@ -206,7 +264,7 @@ def test_heuristic_does_not_canonicalize_change_premise_when_not_whole_message()
     assert precompile_heuristic("please change premise concise replies") == {
         "outcome": "unknown",
         "directive": None,
-        "rule_id": None,
+        "rule_id": "reject.directive_adjacent_unsafe",
     }
 
 
@@ -233,16 +291,26 @@ def test_heuristic_accepts_strict_canonical_directives() -> None:
 
 
 def test_heuristic_returns_unknown_for_unresolved_cases() -> None:
-    unresolved = [
-        "Could we maybe use uv later",
-        "not sure this is right",
-    ]
+    unresolved = ["Could we maybe use uv later"]
 
     for message in unresolved:
         assert precompile_heuristic(message) == {
             "outcome": "unknown",
             "directive": None,
-            "rule_id": None,
+            "rule_id": "reject.directive_adjacent_unsafe",
+        }
+
+
+def test_heuristic_returns_no_directive_for_ordinary_non_directive_content() -> None:
+    cases = [
+        "not sure this is right",
+        "thanks for the help",
+    ]
+    for message in cases:
+        assert precompile_heuristic(message) == {
+            "outcome": "no_directive",
+            "directive": None,
+            "rule_id": "reject.confident_non_directive",
         }
 
 

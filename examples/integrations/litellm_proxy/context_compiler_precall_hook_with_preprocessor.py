@@ -34,7 +34,6 @@ from context_compiler import (
 )
 from experimental.preprocessor import (
     PRECOMPILE_OUTCOME_DIRECTIVE,
-    PRECOMPILER_NO_DIRECTIVE_SENTINEL,
     parse_precompiler_output,
     precompile_heuristic,
     render_prompt,
@@ -181,8 +180,8 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
     except Exception:
         return None
 
-    parsed = parse_precompiler_output(raw_output)
-    if parsed is None or parsed == PRECOMPILER_NO_DIRECTIVE_SENTINEL:
+    parsed = parse_precompiler_output(raw_output, source_input=message)
+    if parsed is None:
         return None
     return parsed
 
@@ -205,7 +204,7 @@ def _precompile_last_user_message(message: str, state: State | None) -> str | No
             and heuristic_result["directive"]
         ):
             parsed = parse_precompiler_output(heuristic_result["directive"])
-            if parsed is not None and parsed != PRECOMPILER_NO_DIRECTIVE_SENTINEL:
+            if parsed is not None:
                 return parsed
     except Exception:
         logger.debug("litellm_proxy: heuristic_exception", exc_info=True)

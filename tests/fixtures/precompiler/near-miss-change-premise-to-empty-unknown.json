@@ -1,0 +1,8 @@
+{
+  "name": "near-miss-change-premise-to-empty-unknown",
+  "input": "change premise to",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}
