@@ -3,8 +3,10 @@ from pathlib import Path
 
 from context_compiler import compile_transcript, create_engine
 
-_STEP_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "v2" / "step"
-_TRANSCRIPT_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "v2" / "transcript"
+_STEP_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "conformance" / "step"
+_TRANSCRIPT_FIXTURES_DIR = (
+    Path(__file__).resolve().parent / "fixtures" / "conformance" / "transcript"
+)
 
 
 def _json_files(dir_path: Path) -> list[Path]:

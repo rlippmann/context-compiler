@@ -6,7 +6,9 @@ import pytest
 
 from context_compiler import create_engine
 
-_STRUCTURED_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "v3" / "structured"
+_STRUCTURED_FIXTURES_DIR = (
+    Path(__file__).resolve().parent / "fixtures" / "engine-regression" / "structured"
+)
 _SCENARIOS_DIR = _STRUCTURED_FIXTURES_DIR / "scenarios"
 _EXPECTED_DIR = _STRUCTURED_FIXTURES_DIR / "expected"
 

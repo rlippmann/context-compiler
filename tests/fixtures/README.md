@@ -4,10 +4,10 @@ These fixtures define the cross-language conformance contract for the Context Co
 
 ## Layout
 
-[`v2/`](v2/)
+[`conformance/`](conformance/)
 
-* [`step/`](v2/step/)
-* [`transcript/`](v2/transcript/)
+* [`step/`](conformance/step/)
+* [`transcript/`](conformance/transcript/)
 
 ## Step fixtures
 
