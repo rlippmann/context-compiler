@@ -1,9 +1,11 @@
+import sys
 from io import StringIO
+from typing import TextIO
 
 import pytest
 
 import context_compiler.repl as repl_module
-from context_compiler import create_engine
+from context_compiler import __version__, create_engine
 from context_compiler.repl import run_repl
 
 pytestmark = pytest.mark.contract
@@ -60,6 +62,71 @@ def _contains_subsequence(lines: list[str], expected: list[str]) -> bool:
     if window == 0 or window > len(lines):
         return False
     return any(lines[i : i + window] == expected for i in range(len(lines) - window + 1))
+
+
+def test_main_help_flag_prints_usage_and_exits_zero(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["context-compiler", "--help"])
+
+    result = repl_module.main()
+    captured = capsys.readouterr()
+
+    assert result == 0
+    assert captured.out == (
+        "Usage:\n"
+        "  context-compiler [--help] [--version]\n"
+        "\n"
+        "Options:\n"
+        "  --help      Show this help message and exit.\n"
+        "  --version   Show the installed context-compiler version and exit.\n"
+    )
+    assert captured.err == ""
+
+
+def test_main_version_flag_prints_installed_version_and_exits_zero(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["context-compiler", "--version"])
+
+    result = repl_module.main()
+    captured = capsys.readouterr()
+
+    assert result == 0
+    assert captured.out == f"{__version__}\n"
+    assert captured.err == ""
+
+
+def test_main_without_args_runs_repl_as_before(monkeypatch: pytest.MonkeyPatch) -> None:
+    called: dict[str, object] = {}
+
+    def _fake_run_repl(in_stream: TextIO, out_stream: TextIO) -> None:
+        called["in_stream"] = in_stream
+        called["out_stream"] = out_stream
+
+    monkeypatch.setattr(repl_module, "run_repl", _fake_run_repl)
+    monkeypatch.setattr(sys, "argv", ["context-compiler"])
+
+    result = repl_module.main()
+
+    assert result == 0
+    assert called["in_stream"] is sys.stdin
+    assert called["out_stream"] is sys.stdout
+
+
+def test_main_unknown_flag_prints_error_hint_and_exits_nonzero(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(sys, "argv", ["context-compiler", "--bogus"])
+
+    result = repl_module.main()
+    captured = capsys.readouterr()
+
+    assert result != 0
+    assert captured.out == ""
+    assert captured.err == (
+        "error: unknown option '--bogus'\nTry 'context-compiler --help' for usage.\n"
+    )
 
 
 def test_repl_update_flow() -> None:

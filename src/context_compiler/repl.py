@@ -1,12 +1,19 @@
 import sys
 from typing import TextIO
 
-from . import create_engine, get_policy_items, get_premise_value
+from . import __version__, create_engine, get_policy_items, get_premise_value
 from .engine import Decision, DecisionKind, State
 
 _EXIT_TOKENS = {"exit", "quit"}
 _HELP_TOKENS = {"help", "?"}
 _MULTI_COMMAND_PROMPT = "Multiple commands detected.\nEnter one command per line."
+_CLI_HELP_TEXT = """Usage:
+  context-compiler [--help] [--version]
+
+Options:
+  --help      Show this help message and exit.
+  --version   Show the installed context-compiler version and exit.
+"""
 
 
 def _is_interactive(in_stream: TextIO, out_stream: TextIO) -> bool:
@@ -127,8 +134,23 @@ def run_repl(in_stream: TextIO, out_stream: TextIO) -> None:
 
 
 def main() -> int:  # pragma: no cover
-    run_repl(sys.stdin, sys.stdout)
-    return 0
+    args = sys.argv[1:]
+    if not args:
+        run_repl(sys.stdin, sys.stdout)
+        return 0
+
+    if args == ["--help"]:
+        print(_CLI_HELP_TEXT, file=sys.stdout, end="")
+        return 0
+
+    if args == ["--version"]:
+        print(__version__, file=sys.stdout)
+        return 0
+
+    bad_arg = args[0]
+    print(f"error: unknown option '{bad_arg}'", file=sys.stderr)
+    print("Try 'context-compiler --help' for usage.", file=sys.stderr)
+    return 1
 
 
 if __name__ == "__main__":  # pragma: no cover
