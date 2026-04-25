@@ -63,6 +63,21 @@ The current authoritative state shape and directive semantics are defined in `Di
 
 After correcting or constraining the assistant once, the behavior remains consistent for the rest of the conversation.
 
+### 0.6.9 — Precompiler Hardening + REPL Opt-In (implemented)
+
+**Goal**
+Harden experimental precompiler behavior while preserving core engine semantics.
+
+**Deliverables:**
+
+- Reject-first precompiler classification behavior (`directive` / `no_directive` / `unknown`)
+- Portable precompiler conformance fixtures for cross-language runners (TS-ready shape)
+- REPL opt-in flag: `context-compiler --with-precompiler`
+- No directive grammar expansion and no engine semantic changes
+
+**User-visible outcome:**
+Safer precompiler behavior and explicit REPL opt-in without changing deterministic engine outcomes.
+
 ### M3 — Cross-Session Recall
 
 **Goal**

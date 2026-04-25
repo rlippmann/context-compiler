@@ -129,19 +129,20 @@ These files are importable integration references for host applications.
 - Basic: passes raw user input to `engine.step(...)`.
 - With preprocessor: runs heuristic precompiler first.
   - If heuristic returns a directive, that directive is passed to `engine.step(...)`.
-  - If heuristic does not resolve to a directive (`no_directive`), LLM fallback prompt conversion runs.
+  - If heuristic does not produce a directive (`no_directive` or `unknown`), LLM fallback prompt conversion runs.
   - If fallback yields nothing usable or errors, behavior safely remains equivalent to basic.
+  - Behavior is reject-first and does not expand directive grammar.
 
 ## Example checks
 
-- Near-miss canonicalization (`with_preprocessor.py`):
-  - `set premise to concise replies` -> precompiler can canonicalize to `set premise concise replies`.
+- Near-miss passthrough (`with_preprocessor.py`):
+  - `set premise to concise replies` is not rewritten by the precompiler and is passed through unchanged.
+  - Engine returns clarify (`Did you mean 'set premise concise replies'?`).
 - Lifecycle enforcement (both):
   - `change premise to formal tone` with no premise -> clarify (`set premise ...` first).
 - Conflict semantics (both):
   - `use docker` then `prohibit docker` -> conflict clarify.
 - Replacement precondition (both):
   - `use podman instead of docker` without prior `use docker` -> replacement clarify.
-- NL upgrade / abstain (`with_preprocessor.py`):
-  - `please use docker` may upgrade to `use docker`.
-  - `I usually use docker` should abstain (`no directive`).
+- Directive-adjacent abstain (`with_preprocessor.py`):
+  - `change premise concise replies` is classified as `unknown`, not rewritten, and handled by engine clarify.
