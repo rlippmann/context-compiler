@@ -1,3 +1,4 @@
+import subprocess
 import sys
 from io import StringIO
 from typing import TextIO
@@ -64,6 +65,16 @@ def _contains_subsequence(lines: list[str], expected: list[str]) -> bool:
     return any(lines[i : i + window] == expected for i in range(len(lines) - window + 1))
 
 
+def _run_repl_cli(*args: str, input_text: str = "") -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [sys.executable, "-m", "context_compiler.repl", *args],
+        input=input_text,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+
+
 def test_main_help_flag_prints_usage_and_exits_zero(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -80,7 +91,8 @@ def test_main_help_flag_prints_usage_and_exits_zero(
         "Options:\n"
         "  --help               Show this help message and exit.\n"
         "  --version            Show the installed context-compiler version and exit.\n"
-        "  --with-precompiler   Enable heuristic precompiler validation in the REPL loop.\n"
+        "  --with-precompiler   Enable precompiler before each REPL turn "
+        "(heuristic + validation only)\n"
     )
     assert captured.err == ""
 
@@ -152,6 +164,24 @@ def test_main_unknown_flag_prints_error_hint_and_exits_nonzero(
     assert captured.out == ""
     assert captured.err == (
         "error: unknown option '--bogus'\nTry 'context-compiler --help' for usage.\n"
+    )
+
+
+@pytest.mark.parametrize(
+    "args, expected_bad_arg",
+    [
+        (["--with-precompiler", "foo"], "--with-precompiler"),
+        (["--help", "--version"], "--help"),
+        (["--version", "--with-precompiler"], "--version"),
+    ],
+)
+def test_cli_rejects_non_single_flag_argument_forms(args: list[str], expected_bad_arg: str) -> None:
+    result = _run_repl_cli(*args)
+
+    assert result.returncode != 0
+    assert result.stdout == ""
+    assert result.stderr == (
+        f"error: unknown option '{expected_bad_arg}'\nTry 'context-compiler --help' for usage.\n"
     )
 
 
@@ -239,6 +269,15 @@ def test_repl_with_precompiler_non_directive_passthrough() -> None:
 
     lines = out.getvalue().splitlines()
     assert lines == ["passthrough"]
+
+
+def test_cli_with_precompiler_pipe_smoke_emits_clarify_without_update() -> None:
+    result = _run_repl_cli("--with-precompiler", input_text="set premise to concise replies\n")
+
+    assert result.returncode == 0
+    assert "Did you mean 'set premise concise replies'?" in result.stdout
+    assert "updated" not in result.stdout
+    assert result.stderr == ""
 
 
 def test_repl_with_precompiler_bypasses_parsing_while_pending(
