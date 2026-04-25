@@ -378,7 +378,7 @@ These demonstrate deterministic clarification, state enforcement, and conflict h
 
 ## Optional: LLM Preprocessor (Experimental)
 
-An optional host-side preprocessor can convert natural-language instructions
+An optional host-side preprocessor can conservatively convert some natural-language instructions
 into canonical directives before compilation.
 
 It is designed to be conservative and must be used with validation:
