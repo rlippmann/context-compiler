@@ -30,13 +30,30 @@ Public validator entry point:
 All preprocessor outputs (heuristic or LLM) must be validated with
 `parse_precompiler_output(...)` before being applied.
 
+Classification contract:
+
+- `directive`: safe, validated canonical directive (`output` is a directive string)
+- `no_directive`: confident ordinary content (`output` is `null`)
+- `unknown`: unsafe to rewrite (`output` is `null`)
+
+`unknown` is reject/abstain behavior. Malformed, ambiguous, mixed-intent,
+quoted/reported, unsupported, or unsafe outputs must not be rewritten.
+
+Only validated `directive` output may be used as rewritten compiler input.
+`no_directive` and `unknown` must fall back to original user input.
+
 `source_input` is optional at the API level for backward compatibility.
-For integration behavior, it is required for LLM fallback validation calls:
+For integration behavior, it is REQUIRED for LLM fallback validation calls:
 pass `source_input=<original user text>` so source-aware reject rules can
-block unsafe rewrites (for example, engine-owned premise near-miss
-canonicalization).
+block unsafe rewrites.
+
+Engine-owned near-misses are reject cases (for example `set premise to X`,
+`change premise X`) and must remain `unknown` (not rewritten).
 
 Raw preprocessor/LLM outputs must not be passed directly to the compiler.
+
+The precompiler does not expand directive grammar. It may emit only validated
+canonical directives accepted by the compiler.
 
 ## Safe usage pattern
 

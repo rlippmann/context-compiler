@@ -99,16 +99,16 @@ Validate clarify short-circuit, passthrough forwarding, update injection with on
 
 **Case 4**
 
-- prompt(s): `clear state` → `set premise to concise replies` → `set premise formal tone`
-- base model: accepts both as conversational style requests
-- basic pipe: `Did you mean 'set premise concise replies'?` then conversational formal-tone rewrite
-- preprocessor pipe: `Premise set: Concise replies.` then `Premise already exists...`
-- why this is a real win: preprocessor canonicalizes near-miss form and preserves premise-slot semantics end-to-end.
+- prompt(s): `clear state` → `set premise to concise replies`
+- base model: accepts conversational style phrasing
+- basic pipe: `Did you mean 'set premise concise replies'?`
+- preprocessor pipe: same clarify (near-miss is not rewritten)
+- why this is a real win: precompiler stays reject-first and preserves engine-owned clarify behavior.
 
 **Case 5**
 
 - prompt(s): `clear state` → `change premise concise replies`
 - base model: generic “please clarify changes” response
 - basic pipe: `Did you mean 'change premise to concise replies'?`
-- preprocessor pipe: `No premise exists yet. Use 'set premise ...' first.`
-- why this is a real win: preprocessor upgrades near-miss form and reaches the correct lifecycle clarify state instead of stopping at syntax clarify.
+- preprocessor pipe: same clarify (near-miss is passed through unchanged)
+- why this is a real win: near-miss inputs are not canonicalized, so directive semantics stay engine-owned.

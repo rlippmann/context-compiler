@@ -19,7 +19,15 @@ The model performs reasoning and generation while the compiler manages premise a
 ```bash
 pip install context-compiler
 context-compiler
+context-compiler --with-precompiler
 ```
+
+`context-compiler` launches the interactive REPL.
+
+`--with-precompiler` enables the experimental precompiler before each REPL turn
+(heuristic + validation only). Near-miss inputs are not rewritten and are
+passed through to the engine, which continues to return clarify behavior for
+those forms.
 
 Or in code:
 ```python
@@ -375,8 +383,9 @@ into canonical directives before compilation.
 
 It is designed to be conservative and must be used with validation:
 
-- heuristic-first, with LLM fallback when needed
+- reject-first; directive-adjacent unsafe forms abstain instead of rewriting
 - all outputs must be validated with `parse_precompiler_output(...)`
+- no directive grammar expansion
 - raw outputs must not be passed directly to the compiler
 
 See [LLM preprocessor](docs/llm-preprocessor.md) and
