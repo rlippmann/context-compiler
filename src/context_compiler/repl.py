@@ -15,7 +15,7 @@ _CLI_HELP_TEXT = """Usage:
 Options:
   --help               Show this help message and exit.
   --version            Show the installed context-compiler version and exit.
-  --with-precompiler   Enable heuristic precompiler validation in the REPL loop.
+  --with-precompiler   Enable precompiler before each REPL turn (heuristic + validation only)
 """
 
 
