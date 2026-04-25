@@ -228,3 +228,24 @@ def test_pipe_normalizes_model_not_found_exception(monkeypatch) -> None:
     assert result == (
         "Context Compiler pipe misconfigured: BASE_MODEL_ID was not found in Open WebUI models."
     )
+
+
+def test_pipe_supports_async_user_lookup(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_async_user_lookup", monkeypatch)
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+
+    async def _get_user_by_id(user_id: object) -> dict[str, object]:
+        return {"id": user_id}
+
+    monkeypatch.setattr(module.Users, "get_user_by_id", _get_user_by_id)
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+        )
+    )
+
+    assert isinstance(result, dict)

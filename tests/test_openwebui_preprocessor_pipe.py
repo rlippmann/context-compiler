@@ -115,6 +115,27 @@ def test_preprocessor_model_can_be_overridden(monkeypatch) -> None:
     assert pipe._resolve_preprocessor_model_id("base-model") == "prep-model"
 
 
+def test_preprocessor_pipe_supports_async_user_lookup(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_async_user_lookup", monkeypatch)
+    pipe = module.Pipe()
+
+    async def _get_user_by_id(user_id: object) -> dict[str, object]:
+        return {"id": user_id}
+
+    monkeypatch.setattr(module.Users, "get_user_by_id", _get_user_by_id)
+
+    error = asyncio.run(
+        pipe._validate_configured_model_ids(
+            request=object(),
+            user_payload={"id": "u1"},
+            base_model_id="base-model",
+            preprocessor_model_id="prep-model",
+        )
+    )
+
+    assert error is None
+
+
 def test_invalid_preprocessor_model_is_normalized(monkeypatch) -> None:
     module = _load_module_with_openwebui_stubs("owui_preproc_invalid", monkeypatch)
     pipe = module.Pipe()

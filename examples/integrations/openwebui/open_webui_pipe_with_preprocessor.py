@@ -3,8 +3,8 @@ title: Context Compiler Preprocessor Pipe
 author: rlippmann
 author_url: https://github.com/rlippmann/context-compiler
 funding_url: https://github.com/rlippmann/context-compiler
-version: 0.3
-requirements: context-compiler[experimental]>=0.6.7
+version: 0.4
+requirements: context-compiler[experimental]>=0.6.10
 
 Open WebUI integration with Context Compiler preprocessor.
 
@@ -17,6 +17,7 @@ This example extends `open_webui_pipe.py` by inserting a preprocessing step:
 Core decision handling remains the same as the base integration.
 """
 
+import inspect
 import logging
 from importlib.resources import as_file, files
 from importlib.resources.abc import Traversable
@@ -266,6 +267,8 @@ class Pipe:
         # If model discovery fails, preserve runtime behavior and rely on call-path
         # normalization below.
         user = Users.get_user_by_id(user_payload["id"])
+        if inspect.isawaitable(user):
+            user = await user
         try:
             models = await get_all_models(request, user=user)
         except Exception:
@@ -316,6 +319,8 @@ class Pipe:
             ],
         }
         user = Users.get_user_by_id(user_payload["id"])
+        if inspect.isawaitable(user):
+            user = await user
         try:
             response = await generate_chat_completion(request, payload, user)
         except Exception as exc:
@@ -376,6 +381,8 @@ class Pipe:
         payload = {**body}
         payload["model"] = base_model_id
         user = Users.get_user_by_id(user_payload["id"])
+        if inspect.isawaitable(user):
+            user = await user
         try:
             response = await generate_chat_completion(request, payload, user)
         except Exception as exc:
@@ -412,6 +419,8 @@ class Pipe:
         )
 
         user = Users.get_user_by_id(user_payload["id"])
+        if inspect.isawaitable(user):
+            user = await user
         try:
             response = await generate_chat_completion(request, payload, user)
         except Exception as exc:
