@@ -63,38 +63,86 @@ The current authoritative state shape and directive semantics are defined in `Di
 
 After correcting or constraining the assistant once, the behavior remains consistent for the rest of the conversation.
 
-### 0.6.9 — Precompiler Hardening + REPL Opt-In (implemented)
-
-**Goal**
-Harden experimental precompiler behavior while preserving core engine semantics.
-
-**Deliverables:**
-
-- Reject-first precompiler classification behavior (`directive` / `no_directive` / `unknown`)
-- Portable precompiler conformance fixtures for cross-language runners (TS-ready shape)
-- REPL opt-in flag: `context-compiler --with-precompiler`
-- No directive grammar expansion and no engine semantic changes
-
-**User-visible outcome:**
-Safer precompiler behavior and explicit REPL opt-in without changing deterministic engine outcomes.
-
-### M3 — Cross-Session Recall
+### M3 — Cross-Session Recall (implemented, engine-level / host-enabled)
 
 **Goal**
 Extend host-level workflows around persisted exported state safely and intentionally.
 
 **Core capability:**
 
-- Export the current authoritative state
-- Initialize a new engine from previously exported state
-- Ensure restored state behaves identically to live state
-- Support serialized continuation checkpoints for restoring both authoritative state and pending confirmation-required continuation state
+- Export current authoritative state
+- Initialize a new engine from previously exported authoritative state
+- Ensure restored authoritative state behaves identically to live state
+- Support serialized continuation checkpoints for restoring both:
+  - authoritative state
+  - pending confirmation-required continuation state
 
 **Deliverables:**
 
 - Host-side storage/recovery patterns built on the existing import/export API
-- Host-side storage/recovery patterns for checkpoint object/JSON continuation restore
+- Host-side storage/recovery patterns for checkpoint object/checkpoint JSON continuation restore
 
 **User-visible outcome:**
 
 Assistant remembers decisions across sessions without resurrecting contradictions.
+Pending confirmation-required flows can be resumed when the host persists checkpoints.
+
+`export_json()` / `import_json()` remain authoritative-state only.
+Checkpoint APIs are separate and represent runtime continuation.
+Long-term memory remains a host persistence responsibility, not an engine-owned store.
+
+### 0.6.x
+
+The 0.6.x line completed checkpoint support, precompiler boundary hardening, and
+regression/conformance surfaces that prepare the project for the next milestone.
+
+### 0.7 — Auditability & Boundary Hardening
+
+**Goal**
+Make engine behavior inspectable and externally controllable without guessing.
+
+**Core capability:**
+
+- State inspection
+- Deterministic dry-run / preview
+- Structural state diff
+- Thin controller layer around step / preview / replay behavior
+- Machine-readable REPL JSON output containing:
+  - `decision`
+  - `prompt_to_user`
+  - `state`
+- JSON input for initial state only:
+  - `--initial-state-json`
+  - `--initial-state-file`
+- REPL LLM fallback as explicit optional mode:
+  - `--with-llm-fallback`
+  - requires `--with-precompiler`
+  - never implicit
+  - inspectable via preview / JSON output
+- Explicit precompiler policy for multi-line, multi-sentence, and conversational-prefix input
+  (for example `ok. prohibit peanuts`, `sure - use docker`, mixed conversational + directive content)
+  that is rule-based, fixture-covered, and inspectable
+
+**Constraints:**
+
+- No expansion of authoritative state model
+- No implicit behavior
+- No heuristic-heavy parsing
+- Preserve separation between engine, precompiler, and host/controller layers
+
+### Post-0.7 Direction
+
+- Profile commands and workflow conveniences
+- Additional tooling built on auditability surfaces
+- Broader heuristic responsibility remains default-avoid unless tightly justified
+
+### 1.0 Target
+
+Conceptual completion is a stable minimal contract, not feature accumulation.
+
+- Stable minimal engine contract
+- Deterministic and inspectable behavior
+- Strict compiler / precompiler / host separation
+- No implicit behavior
+- No authoritative state-model expansion
+- Cross-language consistency with Python as source of truth
