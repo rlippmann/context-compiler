@@ -48,6 +48,8 @@ print(handle_turn("set premise to concise replies", engine))
 PY
 ```
 
+This near-miss input is expected to clarify rather than be canonicalized.
+
 ## Environment configuration
 
 Required (normal `openai` mode):
