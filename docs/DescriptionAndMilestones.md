@@ -122,6 +122,9 @@ Make engine behavior inspectable and externally controllable without guessing.
 - Explicit precompiler policy for multi-line, multi-sentence, and conversational-prefix input
   (for example `ok. prohibit peanuts`, `sure - use docker`, mixed conversational + directive content)
   that is rule-based, fixture-covered, and inspectable
+- Define policy for directive-adjacent mixed-intent payloads
+  (for example `use docker and explain why containers matter`),
+  ensuring explicit, inspectable behavior without implicit interpretation
 
 **Constraints:**
 
