@@ -3,8 +3,8 @@ title: Context Compiler Pipe
 author: rlippmann
 author_url: https://github.com/rlippmann/context-compiler
 funding_url: https://github.com/rlippmann/context-compiler
-version: 0.3
-requirements: context-compiler>=0.6.7
+version: 0.4
+requirements: context-compiler>=0.6.10
 
 Minimal Open WebUI Pipe integration for Context Compiler.
 
@@ -17,6 +17,7 @@ Scope is intentionally limited:
 - No persistence, no multi-worker coordination, no external storage.
 """
 
+import inspect
 import logging
 from typing import Any
 
@@ -213,6 +214,8 @@ class Pipe:
         payload = {**body}
         payload["model"] = self.valves.BASE_MODEL_ID
         user = Users.get_user_by_id(user_payload["id"])
+        if inspect.isawaitable(user):
+            user = await user
         try:
             response = await generate_chat_completion(request, payload, user)
         except Exception as exc:
@@ -252,6 +255,8 @@ class Pipe:
         )
 
         user = Users.get_user_by_id(user_payload["id"])
+        if inspect.isawaitable(user):
+            user = await user
         try:
             response = await generate_chat_completion(request, payload, user)
         except Exception as exc:
