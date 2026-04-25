@@ -1,18 +1,21 @@
 import sys
 from typing import TextIO
 
+from experimental.preprocessor.output_validation import parse_precompiler_output
+
 from . import __version__, create_engine, get_policy_items, get_premise_value
-from .engine import Decision, DecisionKind, State
+from .engine import Decision, DecisionKind, Engine, State
 
 _EXIT_TOKENS = {"exit", "quit"}
 _HELP_TOKENS = {"help", "?"}
 _MULTI_COMMAND_PROMPT = "Multiple commands detected.\nEnter one command per line."
 _CLI_HELP_TEXT = """Usage:
-  context-compiler [--help] [--version]
+  context-compiler [--help] [--version] [--with-precompiler]
 
 Options:
-  --help      Show this help message and exit.
-  --version   Show the installed context-compiler version and exit.
+  --help               Show this help message and exit.
+  --version            Show the installed context-compiler version and exit.
+  --with-precompiler   Enable heuristic precompiler validation in the REPL loop.
 """
 
 
@@ -94,7 +97,21 @@ def _print_decision_lines(decision: Decision, out_stream: TextIO, *, leading_bla
         print(line, file=out_stream)
 
 
-def run_repl(in_stream: TextIO, out_stream: TextIO) -> None:
+def _has_pending_clarification(engine: Engine) -> bool:
+    checkpoint = engine.export_checkpoint()
+    return checkpoint["pending"] is not None
+
+
+def _compile_input(raw_input: str, engine: Engine, *, use_precompiler: bool) -> str:
+    if not use_precompiler:
+        return raw_input
+    if _has_pending_clarification(engine):
+        return raw_input
+    parsed = parse_precompiler_output(raw_input, source_input=raw_input)
+    return parsed if parsed is not None else raw_input
+
+
+def run_repl(in_stream: TextIO, out_stream: TextIO, *, use_precompiler: bool = False) -> None:
     engine = create_engine()
 
     if _is_interactive(in_stream, out_stream):
@@ -118,7 +135,8 @@ def run_repl(in_stream: TextIO, out_stream: TextIO) -> None:
                 _print_interactive_help(out_stream)
                 continue
 
-            decision = engine.step(user_input)
+            compile_input = _compile_input(user_input, engine, use_precompiler=use_precompiler)
+            decision = engine.step(compile_input)
             _print_decision_lines(decision, out_stream, leading_blank=True)
         return
 
@@ -129,7 +147,8 @@ def run_repl(in_stream: TextIO, out_stream: TextIO) -> None:
         user_input = line.rstrip("\n")
         if user_input.strip().lower() in _EXIT_TOKENS:
             return
-        decision = engine.step(user_input)
+        compile_input = _compile_input(user_input, engine, use_precompiler=use_precompiler)
+        decision = engine.step(compile_input)
         _print_decision_lines(decision, out_stream, leading_blank=False)
 
 
@@ -145,6 +164,10 @@ def main() -> int:  # pragma: no cover
 
     if args == ["--version"]:
         print(__version__, file=sys.stdout)
+        return 0
+
+    if args == ["--with-precompiler"]:
+        run_repl(sys.stdin, sys.stdout, use_precompiler=True)
         return 0
 
     bad_arg = args[0]

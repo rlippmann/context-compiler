@@ -75,11 +75,12 @@ def test_main_help_flag_prints_usage_and_exits_zero(
     assert result == 0
     assert captured.out == (
         "Usage:\n"
-        "  context-compiler [--help] [--version]\n"
+        "  context-compiler [--help] [--version] [--with-precompiler]\n"
         "\n"
         "Options:\n"
-        "  --help      Show this help message and exit.\n"
-        "  --version   Show the installed context-compiler version and exit.\n"
+        "  --help               Show this help message and exit.\n"
+        "  --version            Show the installed context-compiler version and exit.\n"
+        "  --with-precompiler   Enable heuristic precompiler validation in the REPL loop.\n"
     )
     assert captured.err == ""
 
@@ -100,9 +101,12 @@ def test_main_version_flag_prints_installed_version_and_exits_zero(
 def test_main_without_args_runs_repl_as_before(monkeypatch: pytest.MonkeyPatch) -> None:
     called: dict[str, object] = {}
 
-    def _fake_run_repl(in_stream: TextIO, out_stream: TextIO) -> None:
+    def _fake_run_repl(
+        in_stream: TextIO, out_stream: TextIO, *, use_precompiler: bool = False
+    ) -> None:
         called["in_stream"] = in_stream
         called["out_stream"] = out_stream
+        called["use_precompiler"] = use_precompiler
 
     monkeypatch.setattr(repl_module, "run_repl", _fake_run_repl)
     monkeypatch.setattr(sys, "argv", ["context-compiler"])
@@ -112,6 +116,28 @@ def test_main_without_args_runs_repl_as_before(monkeypatch: pytest.MonkeyPatch) 
     assert result == 0
     assert called["in_stream"] is sys.stdin
     assert called["out_stream"] is sys.stdout
+    assert called["use_precompiler"] is False
+
+
+def test_main_with_precompiler_flag_runs_repl_with_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+    called: dict[str, object] = {}
+
+    def _fake_run_repl(
+        in_stream: TextIO, out_stream: TextIO, *, use_precompiler: bool = False
+    ) -> None:
+        called["in_stream"] = in_stream
+        called["out_stream"] = out_stream
+        called["use_precompiler"] = use_precompiler
+
+    monkeypatch.setattr(repl_module, "run_repl", _fake_run_repl)
+    monkeypatch.setattr(sys, "argv", ["context-compiler", "--with-precompiler"])
+
+    result = repl_module.main()
+
+    assert result == 0
+    assert called["in_stream"] is sys.stdin
+    assert called["out_stream"] is sys.stdout
+    assert called["use_precompiler"] is True
 
 
 def test_main_unknown_flag_prints_error_hint_and_exits_nonzero(
@@ -182,6 +208,74 @@ def test_repl_interactive_help_commands() -> None:
 def test_repl_non_interactive_uses_human_readable_output() -> None:
     out = StringIO()
     run_repl(StringIO("hello\nquit\n"), out)
+
+    lines = out.getvalue().splitlines()
+    assert lines == ["passthrough"]
+
+
+def test_repl_with_precompiler_parses_directive_before_engine_step() -> None:
+    out = StringIO()
+    run_repl(
+        StringIO('{"classification":"directive","output":"prohibit peanuts"}\nquit\n'),
+        out,
+        use_precompiler=True,
+    )
+
+    lines = out.getvalue().splitlines()
+    assert lines == ["updated", "premise: (none)", "policies:", "- prohibit peanuts"]
+
+
+def test_repl_with_precompiler_near_miss_passes_through_and_clarifies() -> None:
+    out = StringIO()
+    run_repl(StringIO("set premise to concise replies\nquit\n"), out, use_precompiler=True)
+
+    lines = out.getvalue().splitlines()
+    assert lines == ["confirm: Did you mean 'set premise concise replies'?"]
+
+
+def test_repl_with_precompiler_non_directive_passthrough() -> None:
+    out = StringIO()
+    run_repl(StringIO("what is a simple curry recipe?\nquit\n"), out, use_precompiler=True)
+
+    lines = out.getvalue().splitlines()
+    assert lines == ["passthrough"]
+
+
+def test_repl_with_precompiler_bypasses_parsing_while_pending(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    seen: list[tuple[object, str | None]] = []
+
+    def _parse(raw_output: object, *, source_input: str | None = None) -> str | None:
+        seen.append((raw_output, source_input))
+        if raw_output == "use podman instead of docker":
+            return "use podman instead of docker"
+        raise AssertionError("parse_precompiler_output should be bypassed while pending")
+
+    monkeypatch.setattr(repl_module, "parse_precompiler_output", _parse)
+
+    out = StringIO()
+    run_repl(
+        StringIO("use podman instead of docker\nyes\nquit\n"),
+        out,
+        use_precompiler=True,
+    )
+
+    assert seen == [("use podman instead of docker", "use podman instead of docker")]
+    lines = out.getvalue().splitlines()
+    assert _contains_subsequence(lines, ['confirm: Did you mean to use "podman" instead?'])
+    assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use podman"])
+
+
+def test_repl_without_precompiler_does_not_parse_inputs(monkeypatch: pytest.MonkeyPatch) -> None:
+    def _fail_parse(_raw: object, *, source_input: str | None = None) -> str | None:
+        del source_input
+        raise AssertionError("parse_precompiler_output should not be called")
+
+    monkeypatch.setattr(repl_module, "parse_precompiler_output", _fail_parse)
+
+    out = StringIO()
+    run_repl(StringIO('{"classification":"directive","output":"prohibit peanuts"}\nquit\n'), out)
 
     lines = out.getvalue().splitlines()
     assert lines == ["passthrough"]
