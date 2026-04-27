@@ -205,7 +205,9 @@ def test_pipe_normalizes_model_not_found_response(monkeypatch) -> None:
     )
 
     assert result == (
-        "Context Compiler pipe misconfigured: BASE_MODEL_ID was not found in Open WebUI models."
+        "Context Compiler pipe misconfigured: BASE_MODEL_ID is invalid or not "
+        "configured in Open WebUI. Configure a valid model id in "
+        "Admin Panel → Settings → Models."
     )
 
 
@@ -236,7 +238,9 @@ def test_pipe_normalizes_model_not_found_exception(monkeypatch) -> None:
     )
 
     assert result == (
-        "Context Compiler pipe misconfigured: BASE_MODEL_ID was not found in Open WebUI models."
+        "Context Compiler pipe misconfigured: BASE_MODEL_ID is invalid or not "
+        "configured in Open WebUI. Configure a valid model id in "
+        "Admin Panel → Settings → Models."
     )
 
 

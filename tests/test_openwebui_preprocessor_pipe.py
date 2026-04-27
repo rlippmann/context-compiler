@@ -274,8 +274,9 @@ def test_pipe_normalizes_preprocessor_model_not_found_response(monkeypatch) -> N
     )
 
     assert result == (
-        "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID was not found "
-        "in Open WebUI models."
+        "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID is invalid or "
+        "not configured in Open WebUI. Configure a valid model id in "
+        "Admin Panel → Settings → Models."
     )
 
 
@@ -309,8 +310,9 @@ def test_pipe_normalizes_preprocessor_model_not_found_exception(monkeypatch) -> 
     )
 
     assert result == (
-        "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID was not found "
-        "in Open WebUI models."
+        "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID is invalid or "
+        "not configured in Open WebUI. Configure a valid model id in "
+        "Admin Panel → Settings → Models."
     )
 
 
