@@ -1,7 +1,10 @@
+from typing import Any
+
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
 import host_support.confirmation as _confirmation
+from context_compiler import create_engine
 
 _EXPECTED_CONFIRMATION_TOKENS = frozenset(
     {
@@ -111,3 +114,80 @@ def test_non_token_strings_are_rejected(value: str) -> None:
     normalized = _confirmation.normalize_confirmation_text(value)
     assume(normalized not in _confirmation.CONFIRMATION_TOKENS)
     assert not _confirmation.is_confirmation_text(value)
+
+
+def _create_engine_with_pending_confirmation() -> tuple[Any, dict[str, object], str]:
+    engine = create_engine()
+    pre_pending_state = engine.state
+    first = engine.step("use docker instead of kubectl")
+    assert first["kind"] == "clarify"
+    pending_prompt = first["prompt_to_user"]
+    assert isinstance(pending_prompt, str)
+    checkpoint = engine.export_checkpoint()
+    assert checkpoint["pending"] is not None
+    return engine, pre_pending_state, pending_prompt
+
+
+def test_engine_host_confirmation_parity_for_required_candidates() -> None:
+    candidates = [
+        "yes",
+        "yes please",
+        "yep",
+        "yeah",
+        "sure",
+        "ok",
+        "okay",
+        "no",
+        "nope",
+        "no thanks",
+        "YES!",
+        " yes please ",
+        "no thanks.",
+        "y",
+        "n",
+        "yes but explain",
+        "okay now answer",
+        "sure, explain",
+        "",
+        " \t\n ",
+    ]
+
+    for candidate in candidates:
+        host_accepts = _confirmation.is_confirmation_text(candidate)
+        engine, pre_pending_state, pending_prompt = _create_engine_with_pending_confirmation()
+
+        decision = engine.step(candidate)
+        checkpoint = engine.export_checkpoint()
+
+        if host_accepts:
+            assert decision["kind"] == "update"
+            assert checkpoint["pending"] is None
+        else:
+            assert decision["kind"] == "clarify"
+            assert decision["prompt_to_user"] == pending_prompt
+            assert engine.state == pre_pending_state
+            assert checkpoint["pending"] is not None
+
+
+@given(
+    st.text(
+        alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,!?\t\n\r",
+        min_size=0,
+        max_size=40,
+    )
+)
+def test_engine_host_confirmation_parity_property(value: str) -> None:
+    host_accepts = _confirmation.is_confirmation_text(value)
+    engine, pre_pending_state, pending_prompt = _create_engine_with_pending_confirmation()
+
+    decision = engine.step(value)
+    checkpoint = engine.export_checkpoint()
+    engine_resolved = decision["kind"] == "update"
+
+    assert engine_resolved == host_accepts
+    if host_accepts:
+        assert checkpoint["pending"] is None
+    else:
+        assert decision["prompt_to_user"] == pending_prompt
+        assert engine.state == pre_pending_state
+        assert checkpoint["pending"] is not None
