@@ -401,6 +401,73 @@ def test_preprocessor_pipe_restore_and_persist_checkpoint_points(monkeypatch) ->
     assert module._CHECKPOINTS_BY_CHAT_KEY["chat-2"] == "ckpt-keep"
 
 
+def test_preprocessor_pipe_normal_update_forwards_and_persists_checkpoint(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_update_forward", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    monkeypatch.setattr(
+        module,
+        "precompile_heuristic",
+        lambda _text: {
+            "outcome": module.PRECOMPILE_OUTCOME_DIRECTIVE,
+            "directive": "prohibit peanuts",
+        },
+    )
+    monkeypatch.setattr(module, "parse_precompiler_output", lambda value, **_kwargs: value)
+
+    forwarded_payloads: list[dict[str, object]] = []
+
+    async def _chat_completion(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        forwarded_payloads.append(payload)
+        return {"ok": True}
+
+    monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+    chat_key = "chat-preproc-update"
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "please disallow peanuts"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_key,
+        )
+    )
+
+    assert result == {"ok": True}
+    assert len(forwarded_payloads) == 1
+
+    payload = forwarded_payloads[0]
+    assert payload["model"] == "base-model"
+    messages = payload.get("messages")
+    assert isinstance(messages, list)
+    state_messages = [
+        msg
+        for msg in messages
+        if isinstance(msg, dict)
+        and msg.get("role") == "system"
+        and isinstance(msg.get("content"), str)
+        and msg["content"].startswith("[[cc_state]]")
+    ]
+    assert len(state_messages) == 1
+    state_block = state_messages[0]["content"]
+    assert isinstance(state_block, str)
+    assert "Prohibit: peanuts" in state_block
+
+    checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
+    assert checkpoint["pending"] is None
+    assert checkpoint["authoritative_state"]["policies"] == {"peanuts": "prohibit"}
+
+
 @pytest.mark.parametrize(
     ("confirmation", "expected_response"),
     [
