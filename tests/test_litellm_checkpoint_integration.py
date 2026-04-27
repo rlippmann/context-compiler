@@ -239,3 +239,62 @@ def test_litellm_with_preprocessor_checkpoint_resume_yes_no_end_to_end(
     finally:
         module._call_litellm = call_litellm
         module._precompile_user_input = precompile_user_input
+
+
+@pytest.mark.parametrize(
+    ("confirmation", "expected_policies"),
+    [
+        ("yes", {"docker": "use"}),
+        ("YES!", {"docker": "use"}),
+        (" yes please ", {"docker": "use"}),
+        ("no thanks.", {}),
+    ],
+)
+def test_litellm_basic_confirmation_update_returns_ack_without_downstream_model_call(
+    confirmation: str, expected_policies: dict[str, str]
+) -> None:
+    module = _load_module(
+        "litellm_basic_confirmation_ack",
+        Path("examples/integrations/litellm/basic.py"),
+    )
+    checkpoints = cast(dict[str, str], module._CHECKPOINTS_BY_SESSION_KEY)
+    restored = cast(dict[str, int], module._RESTORED_ENGINE_BY_SESSION_KEY)
+    checkpoints.clear()
+    restored.clear()
+
+    call_litellm = cast(Any, module._call_litellm)
+    litellm_calls = 0
+
+    def _track_litellm(_messages: list[dict[str, str]]) -> str:
+        nonlocal litellm_calls
+        litellm_calls += 1
+        raise AssertionError("downstream model should not be called")
+
+    module._call_litellm = _track_litellm
+    session_key = "basic-confirmation-ack"
+
+    try:
+        first_engine = create_engine()
+        clarify = module.handle_turn(
+            "use docker instead of kubectl",
+            first_engine,
+            session_key=session_key,
+        )
+        assert clarify == 'Did you mean to use "docker" instead?'
+        assert session_key in checkpoints
+        first_checkpoint = json.loads(checkpoints[session_key])
+        assert first_checkpoint["pending"] is not None
+
+        second_engine = create_engine()
+        resumed = module.handle_turn(confirmation, second_engine, session_key=session_key)
+        assert resumed == "State updated."
+        assert litellm_calls == 0
+        assert second_engine.state == {
+            "premise": None,
+            "policies": expected_policies,
+            "version": 2,
+        }
+        resumed_checkpoint = json.loads(checkpoints[session_key])
+        assert resumed_checkpoint["pending"] is None
+    finally:
+        module._call_litellm = call_litellm
