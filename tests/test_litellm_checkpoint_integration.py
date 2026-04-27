@@ -108,8 +108,16 @@ def test_litellm_with_preprocessor_checkpoint_restore_and_persist_points() -> No
     _assert_checkpoint_behavior(module)
 
 
-@pytest.mark.parametrize("confirmation", ["yes", "no"])
-def test_litellm_with_preprocessor_bypasses_precompile_while_pending(confirmation: str) -> None:
+@pytest.mark.parametrize(
+    ("confirmation", "expected_response"),
+    [
+        ("yes", "State updated: Use kubectl."),
+        ("no", "State unchanged."),
+    ],
+)
+def test_litellm_with_preprocessor_bypasses_precompile_while_pending(
+    confirmation: str, expected_response: str
+) -> None:
     module = _load_module(
         "litellm_with_preprocessor_pending_bypass",
         Path("examples/integrations/litellm/with_preprocessor.py"),
@@ -150,7 +158,14 @@ def test_litellm_with_preprocessor_bypasses_precompile_while_pending(confirmatio
     def _fail_precompile(_text: str, _state: dict[str, object]) -> None:
         raise AssertionError("should not precompile")
 
-    module._call_litellm = lambda _messages: "ok"
+    litellm_calls = 0
+
+    def _track_litellm(_messages: list[dict[str, str]]) -> str:
+        nonlocal litellm_calls
+        litellm_calls += 1
+        return "ok"
+
+    module._call_litellm = _track_litellm
     module._precompile_user_input = _fail_precompile
     try:
         engine = _PendingEngine()
@@ -159,19 +174,20 @@ def test_litellm_with_preprocessor_bypasses_precompile_while_pending(confirmatio
         module._call_litellm = call_litellm
         module._precompile_user_input = precompile_user_input
 
-    assert result == "ok"
+    assert result == expected_response
     assert engine.step_inputs == [confirmation]
+    assert litellm_calls == 0
 
 
 @pytest.mark.parametrize(
-    ("confirmation", "expected_policies"),
+    ("confirmation", "expected_policies", "expected_response"),
     [
-        ("yes", {"kubectl": "use"}),
-        ("no", {}),
+        ("yes", {"kubectl": "use"}, "State updated: Use kubectl."),
+        ("no", {}, "State unchanged."),
     ],
 )
 def test_litellm_with_preprocessor_checkpoint_resume_yes_no_end_to_end(
-    confirmation: str, expected_policies: dict[str, str]
+    confirmation: str, expected_policies: dict[str, str], expected_response: str
 ) -> None:
     module = _load_module(
         "litellm_with_preprocessor_checkpoint_resume_e2e",
@@ -194,7 +210,14 @@ def test_litellm_with_preprocessor_checkpoint_resume_yes_no_end_to_end(
     def _fail_precompile(_text: str, _state: dict[str, object]) -> None:
         raise AssertionError("precompile should be bypassed while pending is restored")
 
-    module._call_litellm = lambda _messages: "ok"
+    litellm_calls = 0
+
+    def _track_litellm(_messages: list[dict[str, str]]) -> str:
+        nonlocal litellm_calls
+        litellm_calls += 1
+        return "ok"
+
+    module._call_litellm = _track_litellm
     module._precompile_user_input = _precompile_before_pending
     session_key = "resume-e2e"
 
@@ -212,7 +235,68 @@ def test_litellm_with_preprocessor_checkpoint_resume_yes_no_end_to_end(
         module._precompile_user_input = _fail_precompile
         second_engine = create_engine()
         resumed = module.handle_turn(confirmation, second_engine, session_key=session_key)
-        assert resumed == "ok"
+        assert resumed == expected_response
+        assert second_engine.state == {
+            "premise": None,
+            "policies": expected_policies,
+            "version": 2,
+        }
+        resumed_checkpoint = json.loads(checkpoints[session_key])
+        assert resumed_checkpoint["pending"] is None
+        assert litellm_calls == 0
+    finally:
+        module._call_litellm = call_litellm
+        module._precompile_user_input = precompile_user_input
+
+
+@pytest.mark.parametrize(
+    ("confirmation", "expected_policies", "expected_response"),
+    [
+        ("yes", {"docker": "use"}, "State updated: Use docker."),
+        ("YES!", {"docker": "use"}, "State updated: Use docker."),
+        (" yes please ", {"docker": "use"}, "State updated: Use docker."),
+        ("no thanks.", {}, "State unchanged."),
+    ],
+)
+def test_litellm_basic_confirmation_update_returns_ack_without_downstream_model_call(
+    confirmation: str, expected_policies: dict[str, str], expected_response: str
+) -> None:
+    module = _load_module(
+        "litellm_basic_confirmation_ack",
+        Path("examples/integrations/litellm/basic.py"),
+    )
+    checkpoints = cast(dict[str, str], module._CHECKPOINTS_BY_SESSION_KEY)
+    restored = cast(dict[str, int], module._RESTORED_ENGINE_BY_SESSION_KEY)
+    checkpoints.clear()
+    restored.clear()
+
+    call_litellm = cast(Any, module._call_litellm)
+    litellm_calls = 0
+
+    def _track_litellm(_messages: list[dict[str, str]]) -> str:
+        nonlocal litellm_calls
+        litellm_calls += 1
+        raise AssertionError("downstream model should not be called")
+
+    module._call_litellm = _track_litellm
+    session_key = "basic-confirmation-ack"
+
+    try:
+        first_engine = create_engine()
+        clarify = module.handle_turn(
+            "use docker instead of kubectl",
+            first_engine,
+            session_key=session_key,
+        )
+        assert clarify == 'Did you mean to use "docker" instead?'
+        assert session_key in checkpoints
+        first_checkpoint = json.loads(checkpoints[session_key])
+        assert first_checkpoint["pending"] is not None
+
+        second_engine = create_engine()
+        resumed = module.handle_turn(confirmation, second_engine, session_key=session_key)
+        assert resumed == expected_response
+        assert litellm_calls == 0
         assert second_engine.state == {
             "premise": None,
             "policies": expected_policies,
@@ -222,4 +306,127 @@ def test_litellm_with_preprocessor_checkpoint_resume_yes_no_end_to_end(
         assert resumed_checkpoint["pending"] is None
     finally:
         module._call_litellm = call_litellm
-        module._precompile_user_input = precompile_user_input
+
+
+def test_litellm_basic_confirmation_summary_true_replacement() -> None:
+    module = _load_module(
+        "litellm_basic_confirmation_replace_summary",
+        Path("examples/integrations/litellm/basic.py"),
+    )
+    checkpoints = cast(dict[str, str], module._CHECKPOINTS_BY_SESSION_KEY)
+    restored = cast(dict[str, int], module._RESTORED_ENGINE_BY_SESSION_KEY)
+    checkpoints.clear()
+    restored.clear()
+
+    call_litellm = cast(Any, module._call_litellm)
+    module._call_litellm = lambda _messages: "ok"
+    session_key = "basic-replace-summary"
+
+    try:
+        engine = create_engine()
+        assert module.handle_turn("use podman", engine, session_key=session_key) == "ok"
+        assert module.handle_turn("prohibit docker", engine, session_key=session_key) == "ok"
+        clarify = module.handle_turn(
+            "use docker instead of podman", engine, session_key=session_key
+        )
+        assert (
+            clarify == '"docker" is currently prohibited. '
+            'Did you mean to remove "podman" and use "docker" instead?'
+        )
+
+        resumed = module.handle_turn("yes", create_engine(), session_key=session_key)
+        assert resumed == "State updated: Replaced podman with docker."
+    finally:
+        module._call_litellm = call_litellm
+
+
+def test_litellm_basic_confirmation_summary_prohibited_old_replacement() -> None:
+    module = _load_module(
+        "litellm_basic_confirmation_prohibited_old_summary",
+        Path("examples/integrations/litellm/basic.py"),
+    )
+    checkpoints = cast(dict[str, str], module._CHECKPOINTS_BY_SESSION_KEY)
+    restored = cast(dict[str, int], module._RESTORED_ENGINE_BY_SESSION_KEY)
+    checkpoints.clear()
+    restored.clear()
+
+    call_litellm = cast(Any, module._call_litellm)
+    module._call_litellm = lambda _messages: "ok"
+    session_key = "basic-prohibited-old-summary"
+
+    try:
+        engine = create_engine()
+        assert module.handle_turn("prohibit docker", engine, session_key=session_key) == "ok"
+        clarify = module.handle_turn(
+            "use podman instead of docker", engine, session_key=session_key
+        )
+        assert (
+            clarify == '"docker" is currently prohibited. '
+            'Did you mean to remove it and use "podman" instead?'
+        )
+
+        resumed = module.handle_turn("yes", create_engine(), session_key=session_key)
+        assert resumed == "State updated: Removed prohibition on docker; use podman."
+    finally:
+        module._call_litellm = call_litellm
+
+
+def test_litellm_basic_confirmation_summary_falls_back_for_unknown_pending_shape() -> None:
+    module = _load_module(
+        "litellm_basic_confirmation_summary_fallback",
+        Path("examples/integrations/litellm/basic.py"),
+    )
+
+    class _FallbackPendingEngine:
+        def __init__(self) -> None:
+            self.state: dict[str, object] = {"premise": None, "policies": {}, "version": 2}
+            self._pending = {
+                "kind": "replacement",
+                "replacement": {
+                    "kind": "unknown_kind",
+                    "new_item": "docker",
+                    "old_item": "podman",
+                },
+                "prompt_to_user": "confirm?",
+            }
+
+        def export_checkpoint(self) -> dict[str, object]:
+            return {
+                "checkpoint_version": 1,
+                "authoritative_state": self.state,
+                "pending": self._pending,
+            }
+
+        def export_checkpoint_json(self) -> str:
+            return "ckpt-fallback"
+
+        def step(self, _text: str) -> dict[str, object]:
+            self._pending = None
+            return {"kind": "update", "state": self.state}
+
+    checkpoints = cast(dict[str, str], module._CHECKPOINTS_BY_SESSION_KEY)
+    restored = cast(dict[str, int], module._RESTORED_ENGINE_BY_SESSION_KEY)
+    checkpoints.clear()
+    restored.clear()
+
+    call_litellm = cast(Any, module._call_litellm)
+    litellm_calls = 0
+
+    def _track_litellm(_messages: list[dict[str, str]]) -> str:
+        nonlocal litellm_calls
+        litellm_calls += 1
+        return "ok"
+
+    module._call_litellm = _track_litellm
+    try:
+        result = module.handle_turn(
+            "yes",
+            _FallbackPendingEngine(),
+            session_key="basic-summary-fallback",
+        )
+    finally:
+        module._call_litellm = call_litellm
+
+    assert result == "State updated."
+    assert litellm_calls == 0
+    assert checkpoints["basic-summary-fallback"] == "ckpt-fallback"

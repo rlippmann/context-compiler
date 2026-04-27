@@ -1,9 +1,12 @@
 import asyncio
 import builtins
 import importlib.util
+import json
 import sys
 import types
 from pathlib import Path
+
+import pytest
 
 MODULE_PATH = Path("examples/integrations/openwebui/open_webui_pipe.py")
 
@@ -90,6 +93,13 @@ def test_pipe_restore_and_persist_checkpoint_points(monkeypatch) -> None:
         def export_checkpoint_json(self) -> str:
             self.export_calls += 1
             return self._checkpoint_out
+
+        def export_checkpoint(self) -> dict[str, object]:
+            return {
+                "checkpoint_version": 1,
+                "authoritative_state": self.state,
+                "pending": None,
+            }
 
         def step(self, _text: str) -> dict[str, object]:
             if self.kind == "clarify":
@@ -249,3 +259,132 @@ def test_pipe_supports_async_user_lookup(monkeypatch) -> None:
     )
 
     assert isinstance(result, dict)
+
+
+def test_pipe_normal_update_forwards_and_persists_checkpoint(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_update_forward", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    forwarded_payloads: list[dict[str, object]] = []
+
+    async def _chat_completion(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        forwarded_payloads.append(payload)
+        return {"ok": True}
+
+    module.generate_chat_completion = _chat_completion
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    chat_key = "chat-normal-update"
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "prohibit peanuts"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_key,
+        )
+    )
+
+    assert result == {"ok": True}
+    assert len(forwarded_payloads) == 1
+
+    payload = forwarded_payloads[0]
+    assert payload["model"] == "base-model"
+    messages = payload.get("messages")
+    assert isinstance(messages, list)
+    state_messages = [
+        msg
+        for msg in messages
+        if isinstance(msg, dict)
+        and msg.get("role") == "system"
+        and isinstance(msg.get("content"), str)
+        and msg["content"].startswith("[[cc_state]]")
+    ]
+    assert len(state_messages) == 1
+    state_block = state_messages[0]["content"]
+    assert isinstance(state_block, str)
+    assert "Prohibit: peanuts" in state_block
+
+    checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
+    assert checkpoint["pending"] is None
+    assert checkpoint["authoritative_state"]["policies"] == {"peanuts": "prohibit"}
+
+
+@pytest.mark.parametrize(
+    ("confirmation", "expected_policies", "expected_response"),
+    [
+        ("yes", {"docker": "use"}, "State updated: Use docker."),
+        ("YES!", {"docker": "use"}, "State updated: Use docker."),
+        (" yes please ", {"docker": "use"}, "State updated: Use docker."),
+        ("no thanks.", {}, "State unchanged."),
+    ],
+)
+def test_pipe_confirmation_update_returns_ack_without_downstream_model_call(
+    monkeypatch,
+    confirmation: str,
+    expected_policies: dict[str, str],
+    expected_response: str,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_confirmation_ack", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    downstream_calls = 0
+
+    async def _track_downstream(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        nonlocal downstream_calls
+        downstream_calls += 1
+        raise AssertionError(f"downstream model should not be called: {payload.get('model')}")
+
+    module.generate_chat_completion = _track_downstream
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    chat_key = "chat-confirm-ack"
+
+    clarify = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "use docker instead of kubectl"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_key,
+        )
+    )
+    assert clarify == 'Did you mean to use "docker" instead?'
+    first_checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
+    assert first_checkpoint["pending"] is not None
+
+    resumed = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": confirmation}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_key,
+        )
+    )
+    assert resumed == expected_response
+    assert downstream_calls == 0
+
+    resumed_engine = module._ENGINES_BY_CHAT_KEY[chat_key]
+    assert resumed_engine.state == {
+        "premise": None,
+        "policies": expected_policies,
+        "version": 2,
+    }
+    resumed_checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
+    assert resumed_checkpoint["pending"] is None
