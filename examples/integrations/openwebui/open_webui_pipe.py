@@ -19,7 +19,8 @@ Scope is intentionally limited:
 
 import inspect
 import logging
-from typing import Any
+import re
+from typing import Any, cast
 
 from fastapi import Request  # type: ignore[import-not-found]
 from open_webui.models.users import Users  # type: ignore[import-not-found]
@@ -41,9 +42,9 @@ except ModuleNotFoundError:
         return default
 
 
+import host_support.confirmation as _confirmation
 from context_compiler import State, create_engine, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
-from host_support.confirmation import is_confirmation_text
 
 logger = logging.getLogger(__name__)
 
@@ -54,6 +55,8 @@ _ENGINES_BY_CHAT_KEY: dict[str, Engine] = {}
 # Real deployments should persist checkpoints externally (DB/Redis/etc.),
 # or restart continuity for pending flows will be lost.
 _CHECKPOINTS_BY_CHAT_KEY: dict[str, str] = {}
+_NEGATIVE_CONFIRMATION_TOKENS = {"no", "nope", "no thanks"}
+_TRAILING_CONFIRM_PUNCT_RE = re.compile(r"[.,!?]+$")
 
 
 def _resolve_chat_key(
@@ -155,6 +158,58 @@ def _replace_compiler_system_message(
         compiler_message,
         *filtered_messages[insert_at:],
     ]
+
+
+def _normalize_confirmation_for_summary(value: str) -> str:
+    normalized = value.strip().lower()
+    normalized = re.sub(r"\s+", " ", normalized)
+    normalized = _TRAILING_CONFIRM_PUNCT_RE.sub("", normalized).strip()
+    return re.sub(r"\s+", " ", normalized)
+
+
+def _render_item_label(value: str) -> str:
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def _summarize_confirmation_update(user_input: str, pending: object) -> str:
+    summarize_fn = getattr(_confirmation, "summarize_confirmation_update", None)
+    if callable(summarize_fn):
+        return cast(str, summarize_fn(user_input, pending))
+
+    normalized = _normalize_confirmation_for_summary(user_input)
+    if normalized in _NEGATIVE_CONFIRMATION_TOKENS:
+        return "State unchanged."
+    if not isinstance(pending, dict):
+        return "State updated."
+
+    replacement = pending.get("replacement")
+    if not isinstance(replacement, dict):
+        return "State updated."
+
+    kind = replacement.get("kind")
+    new_item = replacement.get("new_item")
+    old_item = replacement.get("old_item")
+    if kind == "use_only" and isinstance(new_item, str):
+        new_label = _render_item_label(new_item)
+        if new_label:
+            return f"State updated: Use {new_label}."
+        return "State updated."
+
+    if kind == "replace_use" and isinstance(new_item, str) and isinstance(old_item, str):
+        new_label = _render_item_label(new_item)
+        old_label = _render_item_label(old_item)
+        if not new_label or not old_label:
+            return "State updated."
+        prompt = pending.get("prompt_to_user")
+        prohibited_old_prompt = (
+            f'"{old_item}" is currently prohibited. '
+            f'Did you mean to remove it and use "{new_item}" instead?'
+        )
+        if prompt == prohibited_old_prompt:
+            return f"State updated: Removed prohibition on {old_label}; use {new_label}."
+        return f"State updated: Replaced {old_label} with {new_label}."
+
+    return "State updated."
 
 
 class Pipe:
@@ -318,6 +373,8 @@ class Pipe:
                 engine.import_checkpoint_json(checkpoint)
             _ENGINES_BY_CHAT_KEY[chat_key] = engine
 
+        checkpoint_before = engine.export_checkpoint()
+        pending_before = checkpoint_before.get("pending")
         logger.debug("pipe: engine_input=%r", latest_user_text)
         decision = engine.step(latest_user_text)
         kind = decision["kind"]
@@ -330,8 +387,8 @@ class Pipe:
             return await self._forward_passthrough(body, __user__, __request__)
         if kind == "update":
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
-            if is_confirmation_text(latest_user_text):
-                return "State updated."
+            if _confirmation.is_confirmation_text(latest_user_text) and pending_before is not None:
+                return _summarize_confirmation_update(latest_user_text, pending_before)
             return await self._forward_update(body, __user__, __request__, engine.state)
 
         return await self._forward_passthrough(body, __user__, __request__)

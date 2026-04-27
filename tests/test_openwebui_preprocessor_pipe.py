@@ -401,9 +401,15 @@ def test_preprocessor_pipe_restore_and_persist_checkpoint_points(monkeypatch) ->
     assert module._CHECKPOINTS_BY_CHAT_KEY["chat-2"] == "ckpt-keep"
 
 
-@pytest.mark.parametrize("confirmation", ["yes", "no"])
+@pytest.mark.parametrize(
+    ("confirmation", "expected_response"),
+    [
+        ("yes", "State updated: Use kubectl."),
+        ("no", "State unchanged."),
+    ],
+)
 def test_preprocessor_pipe_bypasses_precompile_while_pending(
-    monkeypatch, confirmation: str
+    monkeypatch, confirmation: str, expected_response: str
 ) -> None:
     module = _load_module_with_openwebui_stubs("owui_preproc_pending_bypass", monkeypatch)
     module._ENGINES_BY_CHAT_KEY.clear()
@@ -469,20 +475,23 @@ def test_preprocessor_pipe_bypasses_precompile_while_pending(
         )
     )
 
-    assert result == "State updated."
+    assert result == expected_response
     assert engine.step_inputs == [confirmation]
     assert module._CHECKPOINTS_BY_CHAT_KEY["chat-pending"] == "ckpt-out"
 
 
 @pytest.mark.parametrize(
-    ("confirmation", "expected_policies"),
+    ("confirmation", "expected_policies", "expected_response"),
     [
-        ("yes", {"kubectl": "use"}),
-        ("no", {}),
+        ("yes", {"kubectl": "use"}, "State updated: Use kubectl."),
+        ("no", {}, "State unchanged."),
     ],
 )
 def test_preprocessor_pipe_checkpoint_resume_yes_no_end_to_end(
-    monkeypatch, confirmation: str, expected_policies: dict[str, str]
+    monkeypatch,
+    confirmation: str,
+    expected_policies: dict[str, str],
+    expected_response: str,
 ) -> None:
     module = _load_module_with_openwebui_stubs("owui_preproc_resume_e2e", monkeypatch)
     module._ENGINES_BY_CHAT_KEY.clear()
@@ -538,7 +547,7 @@ def test_preprocessor_pipe_checkpoint_resume_yes_no_end_to_end(
             __chat_id__=chat_key,
         )
     )
-    assert resumed == "State updated."
+    assert resumed == expected_response
     resumed_engine = cast(Any, module._ENGINES_BY_CHAT_KEY[chat_key])
     assert resumed_engine.state == {
         "premise": None,

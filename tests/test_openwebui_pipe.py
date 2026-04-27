@@ -94,6 +94,13 @@ def test_pipe_restore_and_persist_checkpoint_points(monkeypatch) -> None:
             self.export_calls += 1
             return self._checkpoint_out
 
+        def export_checkpoint(self) -> dict[str, object]:
+            return {
+                "checkpoint_version": 1,
+                "authoritative_state": self.state,
+                "pending": None,
+            }
+
         def step(self, _text: str) -> dict[str, object]:
             if self.kind == "clarify":
                 return {"kind": "clarify", "prompt_to_user": "confirm?", "state": None}
@@ -255,16 +262,19 @@ def test_pipe_supports_async_user_lookup(monkeypatch) -> None:
 
 
 @pytest.mark.parametrize(
-    ("confirmation", "expected_policies"),
+    ("confirmation", "expected_policies", "expected_response"),
     [
-        ("yes", {"docker": "use"}),
-        ("YES!", {"docker": "use"}),
-        (" yes please ", {"docker": "use"}),
-        ("no thanks.", {}),
+        ("yes", {"docker": "use"}, "State updated: Use docker."),
+        ("YES!", {"docker": "use"}, "State updated: Use docker."),
+        (" yes please ", {"docker": "use"}, "State updated: Use docker."),
+        ("no thanks.", {}, "State unchanged."),
     ],
 )
 def test_pipe_confirmation_update_returns_ack_without_downstream_model_call(
-    monkeypatch, confirmation: str, expected_policies: dict[str, str]
+    monkeypatch,
+    confirmation: str,
+    expected_policies: dict[str, str],
+    expected_response: str,
 ) -> None:
     module = _load_module_with_openwebui_stubs("owui_pipe_confirmation_ack", monkeypatch)
     module._ENGINES_BY_CHAT_KEY.clear()
@@ -311,7 +321,7 @@ def test_pipe_confirmation_update_returns_ack_without_downstream_model_call(
             __chat_id__=chat_key,
         )
     )
-    assert resumed == "State updated."
+    assert resumed == expected_response
     assert downstream_calls == 0
 
     resumed_engine = module._ENGINES_BY_CHAT_KEY[chat_key]
