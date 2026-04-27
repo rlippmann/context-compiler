@@ -449,6 +449,13 @@ def test_preprocessor_pipe_bypasses_precompile_while_pending(
 
     monkeypatch.setattr(module, "precompile_heuristic", _fail_precompile)
 
+    async def _fail_downstream_model(
+        _: object, payload: dict[str, Any], __: object
+    ) -> dict[str, object]:
+        raise AssertionError(f"downstream model should not be called: {payload.get('model')}")
+
+    monkeypatch.setattr(module, "generate_chat_completion", _fail_downstream_model)
+
     pipe = module.Pipe()
     pipe.valves.BASE_MODEL_ID = "base-model"
     pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
@@ -462,8 +469,9 @@ def test_preprocessor_pipe_bypasses_precompile_while_pending(
         )
     )
 
-    assert isinstance(result, dict)
+    assert result == "State updated."
     assert engine.step_inputs == [confirmation]
+    assert module._CHECKPOINTS_BY_CHAT_KEY["chat-pending"] == "ckpt-out"
 
 
 @pytest.mark.parametrize(
@@ -511,6 +519,14 @@ def test_preprocessor_pipe_checkpoint_resume_yes_no_end_to_end(
     assert heuristic_inputs == ["use kubectl instead of docker"]
 
     module._ENGINES_BY_CHAT_KEY.clear()
+
+    async def _fail_downstream_model(
+        _: object, payload: dict[str, Any], __: object
+    ) -> dict[str, object]:
+        raise AssertionError(f"downstream model should not be called: {payload.get('model')}")
+
+    monkeypatch.setattr(module, "generate_chat_completion", _fail_downstream_model)
+
     resumed = asyncio.run(
         pipe.pipe(
             {
@@ -522,7 +538,7 @@ def test_preprocessor_pipe_checkpoint_resume_yes_no_end_to_end(
             __chat_id__=chat_key,
         )
     )
-    assert isinstance(resumed, dict)
+    assert resumed == "State updated."
     resumed_engine = cast(Any, module._ENGINES_BY_CHAT_KEY[chat_key])
     assert resumed_engine.state == {
         "premise": None,

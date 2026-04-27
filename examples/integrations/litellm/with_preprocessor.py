@@ -29,6 +29,7 @@ from experimental.preprocessor import (
     precompile_heuristic,
     render_prompt,
 )
+from host_support.confirmation import is_confirmation_text
 from host_support.provider_mode import print_startup_config, resolve_provider_config
 
 logger = logging.getLogger(__name__)
@@ -256,6 +257,8 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
         _persist_session_checkpoint_if_needed(engine, kind, session_key)
         return decision["prompt_to_user"] or ""
     _persist_session_checkpoint_if_needed(engine, kind, session_key)
+    if kind == "update" and is_confirmation_text(user_input):
+        return "State updated."
 
     compiled_state = decision["state"] if decision["state"] is not None else engine.state
     messages = _build_messages(user_input, compiled_state)

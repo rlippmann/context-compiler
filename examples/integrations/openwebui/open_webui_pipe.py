@@ -43,6 +43,7 @@ except ModuleNotFoundError:
 
 from context_compiler import State, create_engine, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
+from host_support.confirmation import is_confirmation_text
 
 logger = logging.getLogger(__name__)
 
@@ -329,6 +330,8 @@ class Pipe:
             return await self._forward_passthrough(body, __user__, __request__)
         if kind == "update":
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
+            if is_confirmation_text(latest_user_text):
+                return "State updated."
             return await self._forward_update(body, __user__, __request__, engine.state)
 
         return await self._forward_passthrough(body, __user__, __request__)

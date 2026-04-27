@@ -52,6 +52,7 @@ from experimental.preprocessor import (
     precompile_heuristic,
     render_prompt,
 )
+from host_support.confirmation import is_confirmation_text
 
 logger = logging.getLogger(__name__)
 
@@ -537,6 +538,8 @@ class Pipe:
             )
         if kind == "update":
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
+            if is_confirmation_text(latest_user_text):
+                return "State updated."
             return await self._forward_update(
                 body,
                 __user__,

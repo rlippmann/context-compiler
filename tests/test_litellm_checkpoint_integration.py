@@ -150,7 +150,14 @@ def test_litellm_with_preprocessor_bypasses_precompile_while_pending(confirmatio
     def _fail_precompile(_text: str, _state: dict[str, object]) -> None:
         raise AssertionError("should not precompile")
 
-    module._call_litellm = lambda _messages: "ok"
+    litellm_calls = 0
+
+    def _track_litellm(_messages: list[dict[str, str]]) -> str:
+        nonlocal litellm_calls
+        litellm_calls += 1
+        return "ok"
+
+    module._call_litellm = _track_litellm
     module._precompile_user_input = _fail_precompile
     try:
         engine = _PendingEngine()
@@ -159,8 +166,9 @@ def test_litellm_with_preprocessor_bypasses_precompile_while_pending(confirmatio
         module._call_litellm = call_litellm
         module._precompile_user_input = precompile_user_input
 
-    assert result == "ok"
+    assert result == "State updated."
     assert engine.step_inputs == [confirmation]
+    assert litellm_calls == 0
 
 
 @pytest.mark.parametrize(
@@ -194,7 +202,14 @@ def test_litellm_with_preprocessor_checkpoint_resume_yes_no_end_to_end(
     def _fail_precompile(_text: str, _state: dict[str, object]) -> None:
         raise AssertionError("precompile should be bypassed while pending is restored")
 
-    module._call_litellm = lambda _messages: "ok"
+    litellm_calls = 0
+
+    def _track_litellm(_messages: list[dict[str, str]]) -> str:
+        nonlocal litellm_calls
+        litellm_calls += 1
+        return "ok"
+
+    module._call_litellm = _track_litellm
     module._precompile_user_input = _precompile_before_pending
     session_key = "resume-e2e"
 
@@ -212,7 +227,7 @@ def test_litellm_with_preprocessor_checkpoint_resume_yes_no_end_to_end(
         module._precompile_user_input = _fail_precompile
         second_engine = create_engine()
         resumed = module.handle_turn(confirmation, second_engine, session_key=session_key)
-        assert resumed == "ok"
+        assert resumed == "State updated."
         assert second_engine.state == {
             "premise": None,
             "policies": expected_policies,
@@ -220,6 +235,7 @@ def test_litellm_with_preprocessor_checkpoint_resume_yes_no_end_to_end(
         }
         resumed_checkpoint = json.loads(checkpoints[session_key])
         assert resumed_checkpoint["pending"] is None
+        assert litellm_calls == 0
     finally:
         module._call_litellm = call_litellm
         module._precompile_user_input = precompile_user_input
