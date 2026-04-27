@@ -223,7 +223,11 @@ class Pipe:
     class Valves(BaseModel):
         BASE_MODEL_ID: str = Field(
             default="",
-            description="Open WebUI model id used as the base model for forwarding.",
+            description=(
+                "Required Open WebUI model id used for forwarding. Must exactly match a "
+                "configured model id in Open WebUI (not arbitrary text), for example: "
+                "llama3.1:8b."
+            ),
         )
 
     def __init__(self) -> None:
@@ -246,8 +250,9 @@ class Pipe:
     def _normalize_forward_error(self, response: Any) -> str | None:
         if self._contains_model_not_found(response):
             return (
-                "Context Compiler pipe misconfigured: BASE_MODEL_ID was not found "
-                "in Open WebUI models."
+                "Context Compiler pipe misconfigured: BASE_MODEL_ID is invalid or not "
+                "configured in Open WebUI. Configure a valid model id in "
+                "Admin Panel → Settings → Models."
             )
         return None
 
@@ -255,8 +260,9 @@ class Pipe:
         detail = getattr(exc, "detail", None)
         if self._contains_model_not_found(detail) or self._contains_model_not_found(str(exc)):
             return (
-                "Context Compiler pipe misconfigured: BASE_MODEL_ID was not found "
-                "in Open WebUI models."
+                "Context Compiler pipe misconfigured: BASE_MODEL_ID is invalid or not "
+                "configured in Open WebUI. Configure a valid model id in "
+                "Admin Panel → Settings → Models."
             )
         return None
 

@@ -29,6 +29,14 @@ Note: The `PROVIDER` environment contract used in LiteLLM examples/demos does no
 
 Checkpoint continuation in these examples requires `context-compiler>=0.6.10`.
 
+### Model configuration
+
+- Open: `http://localhost:3000/admin/functions`
+- Verify `BASE_MODEL_ID` matches an existing Open WebUI model id exactly.
+- Example:
+  - `BASE_MODEL_ID = llama3.1:8b`
+- Model ids are configured in: `Admin Panel → Settings → Models`
+
 If using `open_webui_pipe_with_preprocessor.py`:
 - Install preprocessor support in the Open WebUI environment:
   - `pip install "context-compiler[experimental]"`
