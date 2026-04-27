@@ -20,7 +20,7 @@ CONFIRMATION_TOKENS: frozenset[str] = (
 )
 
 
-def normalize_confirmation_text(value: str) -> str:
+def _normalize_confirmation_text(value: str) -> str:
     """Normalize confirmation text using directive grammar confirmation rules."""
     normalized = value.strip().lower()
     normalized = re.sub(r"\s+", " ", normalized)
@@ -30,4 +30,4 @@ def normalize_confirmation_text(value: str) -> str:
 
 def is_confirmation_text(value: str) -> bool:
     """Return whether input is a recognized confirmation token."""
-    return normalize_confirmation_text(value) in CONFIRMATION_TOKENS
+    return _normalize_confirmation_text(value) in CONFIRMATION_TOKENS

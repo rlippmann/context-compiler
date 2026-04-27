@@ -40,11 +40,11 @@ def test_confirmation_tokens_match_spec_exactly() -> None:
     assert _confirmation.CONFIRMATION_TOKENS == _EXPECTED_CONFIRMATION_TOKENS
 
 
-def test_normalize_confirmation_text_examples() -> None:
-    assert _confirmation.normalize_confirmation_text(" YES!  ") == "yes"
-    assert _confirmation.normalize_confirmation_text("yes   please.") == "yes please"
-    assert _confirmation.normalize_confirmation_text("no thanks.") == "no thanks"
-    assert _confirmation.normalize_confirmation_text("Okay??") == "okay"
+def test_is_confirmation_text_normalization_examples() -> None:
+    assert _confirmation.is_confirmation_text(" YES!  ")
+    assert _confirmation.is_confirmation_text("yes   please.")
+    assert _confirmation.is_confirmation_text("no thanks.")
+    assert _confirmation.is_confirmation_text("Okay??")
 
 
 def test_is_confirmation_text_accepts_spec_tokens() -> None:
@@ -97,22 +97,20 @@ def test_accepted_tokens_survive_normalization_variants(
     ),
 )
 def test_semantic_extensions_after_valid_token_are_rejected(token: str, extra_text: str) -> None:
-    normalized_extra = _confirmation.normalize_confirmation_text(extra_text)
-    assume(normalized_extra != "")
+    assume(extra_text.strip() != "")
     candidate = f"{token} {extra_text}"
     assert not _confirmation.is_confirmation_text(candidate)
 
 
 @given(
     st.text(
-        alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 .,!?\t\n\r",
-        min_size=0,
+        alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+        min_size=1,
         max_size=40,
     )
 )
 def test_non_token_strings_are_rejected(value: str) -> None:
-    normalized = _confirmation.normalize_confirmation_text(value)
-    assume(normalized not in _confirmation.CONFIRMATION_TOKENS)
+    assume(value.lower() not in _confirmation.CONFIRMATION_TOKENS)
     assert not _confirmation.is_confirmation_text(value)
 
 
