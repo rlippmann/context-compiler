@@ -3,7 +3,7 @@ title: Context Compiler Pipe
 author: rlippmann
 author_url: https://github.com/rlippmann/context-compiler
 funding_url: https://github.com/rlippmann/context-compiler
-version: 0.5
+version: 0.6
 requirements: context-compiler>=0.6.11
 
 Minimal Open WebUI Pipe integration for Context Compiler.
@@ -171,6 +171,36 @@ def _render_item_label(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip()
 
 
+def _summarize_update_from_input(user_input: str) -> str:
+    normalized = re.sub(r"\s+", " ", user_input.strip())
+    lower = normalized.lower()
+
+    if lower == "clear state":
+        return "State cleared."
+    if lower == "reset policies":
+        return "Policies reset."
+
+    use_match = re.match(r"^use\s+(.+)$", normalized, flags=re.IGNORECASE)
+    if use_match is not None:
+        item = _render_item_label(use_match.group(1).rstrip(" .!?"))
+        if item:
+            return f"State updated: Use {item}."
+
+    prohibit_match = re.match(r"^prohibit\s+(.+)$", normalized, flags=re.IGNORECASE)
+    if prohibit_match is not None:
+        item = _render_item_label(prohibit_match.group(1).rstrip(" .!?"))
+        if item:
+            return f"State updated: Prohibit {item}."
+
+    remove_policy_match = re.match(r"^remove\s+policy\s+(.+)$", normalized, flags=re.IGNORECASE)
+    if remove_policy_match is not None:
+        item = _render_item_label(remove_policy_match.group(1).rstrip(" .!?"))
+        if item:
+            return f"State updated: Removed policy {item}."
+
+    return "State updated."
+
+
 def _summarize_confirmation_update(user_input: str, pending: object) -> str:
     summarize_fn = getattr(_confirmation, "summarize_confirmation_update", None)
     if callable(summarize_fn):
@@ -217,7 +247,7 @@ class Pipe:
 
     - ``clarify`` returns plain text and skips model forwarding.
     - ``passthrough`` forwards with minimal mutation.
-    - ``update`` injects one compiler-owned system message and forwards.
+    - ``update`` returns deterministic acknowledgment text.
     """
 
     class Valves(BaseModel):
@@ -395,6 +425,6 @@ class Pipe:
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
             if _confirmation.is_confirmation_text(latest_user_text) and pending_before is not None:
                 return _summarize_confirmation_update(latest_user_text, pending_before)
-            return await self._forward_update(body, __user__, __request__, engine.state)
+            return _summarize_update_from_input(latest_user_text)
 
         return await self._forward_passthrough(body, __user__, __request__)
