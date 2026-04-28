@@ -80,7 +80,9 @@ Use the Open WebUI model picker/list to copy exact model ids for `BASE_MODEL_ID`
 
 ## Manual Validation
 
-Validate clarify short-circuit, passthrough forwarding, update injection with one `[[cc_state]]`, no accumulation across repeated updates, chat isolation with real chat ids, restart state loss, and non-text bypass behavior.
+Validate clarify short-circuit, passthrough forwarding, deterministic update acknowledgments with no downstream forward, chat isolation with real chat ids, restart state loss, and non-text bypass behavior.
+
+Note: In the OpenWebUI example pipes, update decisions are rendered deterministically and do not call the downstream LLM. This makes state transitions explicit. Production hosts may choose different rendering behavior.
 
 ## Behavioral comparisons
 

@@ -258,6 +258,7 @@ class Pipe:
 
     This variant adds a precompiler stage before ``engine.step(...)``:
     heuristic first, then Open WebUI-native LLM fallback.
+    Update decisions return deterministic acknowledgment text.
     """
 
     class Valves(BaseModel):
