@@ -265,7 +265,7 @@ def test_pipe_supports_async_user_lookup(monkeypatch) -> None:
     assert isinstance(result, dict)
 
 
-def test_pipe_normal_update_forwards_and_persists_checkpoint(monkeypatch) -> None:
+def test_pipe_normal_update_returns_deterministic_ack_and_persists_checkpoint(monkeypatch) -> None:
     module = _load_module_with_openwebui_stubs("owui_pipe_update_forward", monkeypatch)
     module._ENGINES_BY_CHAT_KEY.clear()
     module._CHECKPOINTS_BY_CHAT_KEY.clear()
@@ -296,29 +296,31 @@ def test_pipe_normal_update_forwards_and_persists_checkpoint(monkeypatch) -> Non
         )
     )
 
-    assert result == {"ok": True}
-    assert len(forwarded_payloads) == 1
-
-    payload = forwarded_payloads[0]
-    assert payload["model"] == "base-model"
-    messages = payload.get("messages")
-    assert isinstance(messages, list)
-    state_messages = [
-        msg
-        for msg in messages
-        if isinstance(msg, dict)
-        and msg.get("role") == "system"
-        and isinstance(msg.get("content"), str)
-        and msg["content"].startswith("[[cc_state]]")
-    ]
-    assert len(state_messages) == 1
-    state_block = state_messages[0]["content"]
-    assert isinstance(state_block, str)
-    assert "Prohibit: peanuts" in state_block
+    assert result == "State updated: Prohibit peanuts."
+    assert len(forwarded_payloads) == 0
 
     checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
     assert checkpoint["pending"] is None
     assert checkpoint["authoritative_state"]["policies"] == {"peanuts": "prohibit"}
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "remove policy peanuts"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_key,
+        )
+    )
+
+    assert result == "State updated: Removed policy peanuts."
+    assert len(forwarded_payloads) == 0
+
+    checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
+    assert checkpoint["pending"] is None
+    assert checkpoint["authoritative_state"]["policies"] == {}
 
 
 @pytest.mark.parametrize(
