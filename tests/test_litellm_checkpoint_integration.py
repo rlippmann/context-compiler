@@ -61,7 +61,14 @@ def _assert_checkpoint_behavior(module: object) -> None:
     restored.clear()
 
     call_litellm = cast(Any, module._call_litellm)
-    module._call_litellm = lambda _messages: "ok"
+    litellm_calls = 0
+
+    def _track_litellm(_messages: list[dict[str, str]]) -> str:
+        nonlocal litellm_calls
+        litellm_calls += 1
+        return "ok"
+
+    module._call_litellm = _track_litellm
     if hasattr(module, "_precompile_user_input"):
         module._precompile_user_input = lambda _text, _state: None
 
@@ -70,13 +77,15 @@ def _assert_checkpoint_behavior(module: object) -> None:
         passthrough_engine = _FakeEngine("passthrough", "ckpt-passthrough")
         result = module.handle_turn("hello", passthrough_engine, session_key="s1")
         assert result == "ok"
+        assert litellm_calls == 1
         assert passthrough_engine.imported == ["ckpt-in"]
         assert passthrough_engine.export_calls == 0
         assert checkpoints["s1"] == "ckpt-in"
 
         update_engine = _FakeEngine("update", "ckpt-update")
         result = module.handle_turn("use docker", update_engine, session_key="s1")
-        assert result == "ok"
+        assert result == "State updated: Use docker."
+        assert litellm_calls == 1
         assert update_engine.imported == ["ckpt-in"]
         assert update_engine.export_calls == 1
         assert checkpoints["s1"] == "ckpt-update"
@@ -86,6 +95,7 @@ def _assert_checkpoint_behavior(module: object) -> None:
             "use kubectl instead of docker", clarify_engine, session_key="s1"
         )
         assert result == "confirm?"
+        assert litellm_calls == 1
         assert clarify_engine.imported == ["ckpt-update"]
         assert clarify_engine.export_calls == 1
         assert checkpoints["s1"] == "ckpt-clarify"
@@ -324,8 +334,14 @@ def test_litellm_basic_confirmation_summary_true_replacement() -> None:
 
     try:
         engine = create_engine()
-        assert module.handle_turn("use podman", engine, session_key=session_key) == "ok"
-        assert module.handle_turn("prohibit docker", engine, session_key=session_key) == "ok"
+        assert (
+            module.handle_turn("use podman", engine, session_key=session_key)
+            == "State updated: Use podman."
+        )
+        assert (
+            module.handle_turn("prohibit docker", engine, session_key=session_key)
+            == "State updated: Prohibit docker."
+        )
         clarify = module.handle_turn(
             "use docker instead of podman", engine, session_key=session_key
         )
@@ -356,7 +372,10 @@ def test_litellm_basic_confirmation_summary_prohibited_old_replacement() -> None
 
     try:
         engine = create_engine()
-        assert module.handle_turn("prohibit docker", engine, session_key=session_key) == "ok"
+        assert (
+            module.handle_turn("prohibit docker", engine, session_key=session_key)
+            == "State updated: Prohibit docker."
+        )
         clarify = module.handle_turn(
             "use podman instead of docker", engine, session_key=session_key
         )
