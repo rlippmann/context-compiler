@@ -11,7 +11,11 @@ from context_compiler import create_engine
 class _FakeEngine:
     def __init__(self, kind: str, checkpoint_out: str, *, has_pending: bool = False) -> None:
         self.kind = kind
-        self.state: dict[str, object] = {"premise": None, "policies": {}, "version": 2}
+        self.state: dict[str, object] = {
+            "premise": None,
+            "policies": {"peanuts": "prohibit"},
+            "version": 2,
+        }
         self._checkpoint_out = checkpoint_out
         self._has_pending = has_pending
         self.imported: list[str] = []
@@ -61,7 +65,14 @@ def _assert_checkpoint_behavior(module: object) -> None:
     restored.clear()
 
     call_litellm = cast(Any, module._call_litellm)
-    module._call_litellm = lambda _messages: "ok"
+    litellm_calls = 0
+
+    def _track_litellm(_messages: list[dict[str, str]]) -> str:
+        nonlocal litellm_calls
+        litellm_calls += 1
+        return "ok"
+
+    module._call_litellm = _track_litellm
     if hasattr(module, "_precompile_user_input"):
         module._precompile_user_input = lambda _text, _state: None
 
@@ -70,23 +81,34 @@ def _assert_checkpoint_behavior(module: object) -> None:
         passthrough_engine = _FakeEngine("passthrough", "ckpt-passthrough")
         result = module.handle_turn("hello", passthrough_engine, session_key="s1")
         assert result == "ok"
+        assert litellm_calls == 1
         assert passthrough_engine.imported == ["ckpt-in"]
         assert passthrough_engine.export_calls == 0
         assert checkpoints["s1"] == "ckpt-in"
 
         update_engine = _FakeEngine("update", "ckpt-update")
         result = module.handle_turn("use docker", update_engine, session_key="s1")
-        assert result == "ok"
+        assert result == "State updated: Use docker."
+        assert litellm_calls == 1
         assert update_engine.imported == ["ckpt-in"]
         assert update_engine.export_calls == 1
         assert checkpoints["s1"] == "ckpt-update"
+
+        remove_policy_engine = _FakeEngine("update", "ckpt-remove-policy")
+        result = module.handle_turn("remove policy peanuts", remove_policy_engine, session_key="s1")
+        assert result == "State updated: Removed policy peanuts."
+        assert litellm_calls == 1
+        assert remove_policy_engine.imported == ["ckpt-update"]
+        assert remove_policy_engine.export_calls == 1
+        assert checkpoints["s1"] == "ckpt-remove-policy"
 
         clarify_engine = _FakeEngine("clarify", "ckpt-clarify")
         result = module.handle_turn(
             "use kubectl instead of docker", clarify_engine, session_key="s1"
         )
         assert result == "confirm?"
-        assert clarify_engine.imported == ["ckpt-update"]
+        assert litellm_calls == 1
+        assert clarify_engine.imported == ["ckpt-remove-policy"]
         assert clarify_engine.export_calls == 1
         assert checkpoints["s1"] == "ckpt-clarify"
     finally:
@@ -324,8 +346,14 @@ def test_litellm_basic_confirmation_summary_true_replacement() -> None:
 
     try:
         engine = create_engine()
-        assert module.handle_turn("use podman", engine, session_key=session_key) == "ok"
-        assert module.handle_turn("prohibit docker", engine, session_key=session_key) == "ok"
+        assert (
+            module.handle_turn("use podman", engine, session_key=session_key)
+            == "State updated: Use podman."
+        )
+        assert (
+            module.handle_turn("prohibit docker", engine, session_key=session_key)
+            == "State updated: Prohibit docker."
+        )
         clarify = module.handle_turn(
             "use docker instead of podman", engine, session_key=session_key
         )
@@ -356,7 +384,10 @@ def test_litellm_basic_confirmation_summary_prohibited_old_replacement() -> None
 
     try:
         engine = create_engine()
-        assert module.handle_turn("prohibit docker", engine, session_key=session_key) == "ok"
+        assert (
+            module.handle_turn("prohibit docker", engine, session_key=session_key)
+            == "State updated: Prohibit docker."
+        )
         clarify = module.handle_turn(
             "use podman instead of docker", engine, session_key=session_key
         )

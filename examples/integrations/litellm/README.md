@@ -118,6 +118,8 @@ These files are importable integration references for host applications.
   continuity requires external persistence (DB/Redis/etc.).
 - Display the returned assistant text.
 
+Note: In these LiteLLM example integrations, update decisions are rendered deterministically and do not call the downstream LLM. This makes state transitions explicit. Production hosts may choose different rendering behavior.
+
 ## Troubleshooting
 
 - `litellm is required`: install `context-compiler[integrations]` (or `context-compiler[experimental]` for preprocessor).

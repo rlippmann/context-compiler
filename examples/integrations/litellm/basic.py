@@ -3,7 +3,8 @@
 Flow:
 1. Call engine.step(user_input)
 2. clarify -> return prompt_to_user (no model call)
-3. passthrough/update -> call LiteLLM with compiled state + user input
+3. update -> return deterministic acknowledgment text (no model call)
+4. passthrough -> call LiteLLM with compiled state + user input
 
 Intended host usage:
 - collect user input
@@ -193,6 +194,36 @@ def _summarize_confirmation_update(user_input: str, pending: object) -> str:
     return "State updated."
 
 
+def _summarize_update_from_input(user_input: str) -> str:
+    normalized = re.sub(r"\s+", " ", user_input.strip())
+    lower = normalized.lower()
+
+    if lower == "clear state":
+        return "State cleared."
+    if lower == "reset policies":
+        return "Policies reset."
+
+    use_match = re.match(r"^use\s+(.+)$", normalized, flags=re.IGNORECASE)
+    if use_match is not None:
+        item = _render_item_label(use_match.group(1).rstrip(" .!?"))
+        if item:
+            return f"State updated: Use {item}."
+
+    prohibit_match = re.match(r"^prohibit\s+(.+)$", normalized, flags=re.IGNORECASE)
+    if prohibit_match is not None:
+        item = _render_item_label(prohibit_match.group(1).rstrip(" .!?"))
+        if item:
+            return f"State updated: Prohibit {item}."
+
+    remove_policy_match = re.match(r"^remove\s+policy\s+(.+)$", normalized, flags=re.IGNORECASE)
+    if remove_policy_match is not None:
+        item = _render_item_label(remove_policy_match.group(1).rstrip(" .!?"))
+        if item:
+            return f"State updated: Removed policy {item}."
+
+    return "State updated."
+
+
 def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = None) -> str:
     _restore_session_checkpoint_if_needed(engine, session_key)
     checkpoint_before = engine.export_checkpoint()
@@ -212,6 +243,8 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
         and pending_before is not None
     ):
         return _summarize_confirmation_update(user_input, pending_before)
+    if kind == "update":
+        return _summarize_update_from_input(user_input)
 
     compiled_state = decision["state"] if decision["state"] is not None else engine.state
     messages = _build_messages(user_input, compiled_state)
