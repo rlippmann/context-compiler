@@ -18,10 +18,21 @@ from collections.abc import Callable, Mapping, Sequence
 from importlib import import_module
 from typing import TypedDict, cast
 
-import host_support.confirmation as _confirmation
 from context_compiler import State, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
-from host_support.provider_mode import print_startup_config, resolve_provider_config
+
+try:
+    from host_support import is_confirmation_text, summarize_confirmation_update
+except ImportError:
+    import host_support.confirmation as _confirmation
+
+    is_confirmation_text = _confirmation.is_confirmation_text
+    summarize_confirmation_update = _confirmation.summarize_confirmation_update
+
+try:
+    from host_support import print_startup_config, resolve_provider_config
+except ImportError:
+    from host_support.provider_mode import print_startup_config, resolve_provider_config
 
 logger = logging.getLogger(__name__)
 # Example-only in-memory checkpoint store.
@@ -154,9 +165,9 @@ def _render_item_label(value: str) -> str:
 
 
 def _summarize_confirmation_update(user_input: str, pending: object) -> str:
-    summarize_fn = getattr(_confirmation, "summarize_confirmation_update", None)
+    summarize_fn = summarize_confirmation_update
     if callable(summarize_fn):
-        return cast(str, summarize_fn(user_input, pending))
+        return summarize_fn(user_input, pending)
 
     normalized = _normalize_confirmation_for_summary(user_input)
     if normalized in _NEGATIVE_CONFIRMATION_TOKENS:
@@ -237,11 +248,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
         _persist_session_checkpoint_if_needed(engine, kind, session_key)
         return decision["prompt_to_user"] or ""
     _persist_session_checkpoint_if_needed(engine, kind, session_key)
-    if (
-        kind == "update"
-        and _confirmation.is_confirmation_text(user_input)
-        and pending_before is not None
-    ):
+    if kind == "update" and is_confirmation_text(user_input) and pending_before is not None:
         return _summarize_confirmation_update(user_input, pending_before)
     if kind == "update":
         return _summarize_update_from_input(user_input)

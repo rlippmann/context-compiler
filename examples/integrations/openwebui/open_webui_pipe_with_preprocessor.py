@@ -4,7 +4,7 @@ author: rlippmann
 author_url: https://github.com/rlippmann/context-compiler
 funding_url: https://github.com/rlippmann/context-compiler
 version: 0.6
-requirements: context-compiler[experimental]>=0.6.11
+requirements: context-compiler[experimental]>=0.6.12
 
 Open WebUI integration with Context Compiler preprocessor.
 
@@ -22,7 +22,7 @@ import logging
 import re
 from importlib.resources import as_file, files
 from importlib.resources.abc import Traversable
-from typing import Any, Literal, cast
+from typing import Any, Literal
 
 from fastapi import Request  # type: ignore[import-not-found]
 from open_webui.models.users import Users  # type: ignore[import-not-found]
@@ -45,7 +45,6 @@ except ModuleNotFoundError:
         return default
 
 
-import host_support.confirmation as _confirmation
 from context_compiler import State, create_engine, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
 from experimental.preprocessor import (
@@ -54,6 +53,14 @@ from experimental.preprocessor import (
     precompile_heuristic,
     render_prompt,
 )
+
+try:
+    from host_support import is_confirmation_text, summarize_confirmation_update
+except ImportError:
+    import host_support.confirmation as _confirmation
+
+    is_confirmation_text = _confirmation.is_confirmation_text
+    summarize_confirmation_update = _confirmation.summarize_confirmation_update
 
 logger = logging.getLogger(__name__)
 
@@ -190,9 +197,9 @@ def _summarize_update_from_input(user_input: str) -> str:
 
 
 def _summarize_confirmation_update(user_input: str, pending: object) -> str:
-    summarize_fn = getattr(_confirmation, "summarize_confirmation_update", None)
+    summarize_fn = summarize_confirmation_update
     if callable(summarize_fn):
-        return cast(str, summarize_fn(user_input, pending))
+        return summarize_fn(user_input, pending)
 
     normalized = _normalize_confirmation_for_summary(user_input)
     if normalized in _NEGATIVE_CONFIRMATION_TOKENS:
@@ -631,7 +638,7 @@ class Pipe:
             )
         if kind == "update":
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
-            if _confirmation.is_confirmation_text(latest_user_text) and pending_before is not None:
+            if is_confirmation_text(latest_user_text) and pending_before is not None:
                 return _summarize_confirmation_update(latest_user_text, pending_before)
             return _summarize_update_from_input(compile_input)
 
