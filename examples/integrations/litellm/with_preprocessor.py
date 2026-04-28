@@ -5,7 +5,9 @@ Flow:
 2. Run heuristic precompiler
 3. If no directive, run LLM fallback precompiler using prompt files
 4. Pass directive (or original input) to engine.step(...)
-5. Handle clarify/passthrough/update like the basic integration
+5. clarify -> return prompt_to_user (no model call)
+6. update -> return deterministic acknowledgment text (no model call)
+7. passthrough -> call LiteLLM with compiled state + user input
 
 Intended host usage:
 - collect user input
