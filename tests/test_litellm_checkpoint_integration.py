@@ -11,7 +11,11 @@ from context_compiler import create_engine
 class _FakeEngine:
     def __init__(self, kind: str, checkpoint_out: str, *, has_pending: bool = False) -> None:
         self.kind = kind
-        self.state: dict[str, object] = {"premise": None, "policies": {}, "version": 2}
+        self.state: dict[str, object] = {
+            "premise": None,
+            "policies": {"peanuts": "prohibit"},
+            "version": 2,
+        }
         self._checkpoint_out = checkpoint_out
         self._has_pending = has_pending
         self.imported: list[str] = []
@@ -90,13 +94,21 @@ def _assert_checkpoint_behavior(module: object) -> None:
         assert update_engine.export_calls == 1
         assert checkpoints["s1"] == "ckpt-update"
 
+        remove_policy_engine = _FakeEngine("update", "ckpt-remove-policy")
+        result = module.handle_turn("remove policy peanuts", remove_policy_engine, session_key="s1")
+        assert result == "State updated: Removed policy peanuts."
+        assert litellm_calls == 1
+        assert remove_policy_engine.imported == ["ckpt-update"]
+        assert remove_policy_engine.export_calls == 1
+        assert checkpoints["s1"] == "ckpt-remove-policy"
+
         clarify_engine = _FakeEngine("clarify", "ckpt-clarify")
         result = module.handle_turn(
             "use kubectl instead of docker", clarify_engine, session_key="s1"
         )
         assert result == "confirm?"
         assert litellm_calls == 1
-        assert clarify_engine.imported == ["ckpt-update"]
+        assert clarify_engine.imported == ["ckpt-remove-policy"]
         assert clarify_engine.export_calls == 1
         assert checkpoints["s1"] == "ckpt-clarify"
     finally:
