@@ -517,6 +517,10 @@ def test_litellm_literal_replacement_update_summary_uses_new_item_only(
             == "State updated: Use kubectl."
         )
 
+        engine_premise = create_engine()
+        assert module.handle_turn("set premise concise answers", engine_premise) == "State updated."
+        assert module.handle_turn("clear premise", engine_premise) == "Premise cleared."
+
         engine_noop = create_engine()
         assert module.handle_turn("use docker", engine_noop) == "State updated: Use docker."
         assert (

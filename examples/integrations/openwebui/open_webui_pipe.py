@@ -184,6 +184,8 @@ def _summarize_update_from_input(user_input: str) -> str:
 
     if lower == "clear state":
         return "State cleared."
+    if lower == "clear premise":
+        return "Premise cleared."
     if lower == "reset policies":
         return "Policies reset."
 

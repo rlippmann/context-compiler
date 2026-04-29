@@ -405,6 +405,29 @@ def test_pipe_literal_replacement_update_summary_uses_new_item_only(monkeypatch)
         pipe.pipe(
             {
                 "model": "pipe-model",
+                "messages": [{"role": "user", "content": "set premise concise answers"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-premise",
+        )
+    )
+    assert result == "State updated."
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "clear premise"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-premise",
+        )
+    )
+    assert result == "Premise cleared."
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
                 "messages": [{"role": "user", "content": "use docker instead of docker"}],
             },
             __user__={"id": "u1"},
