@@ -481,6 +481,125 @@ def test_preprocessor_pipe_normal_update_returns_deterministic_ack_and_persists_
     assert checkpoint["authoritative_state"]["policies"] == {}
 
 
+def test_preprocessor_pipe_literal_replacement_update_summary_uses_new_item_only(
+    monkeypatch,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_literal_replace_summary", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    downstream_calls = 0
+
+    async def _track_downstream(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        nonlocal downstream_calls
+        downstream_calls += 1
+        raise AssertionError(f"downstream model should not be called: {payload.get('model')}")
+
+    monkeypatch.setattr(module, "generate_chat_completion", _track_downstream)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "use   DOCKER"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-use",
+        )
+    )
+    assert result == "State updated: Use docker."
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "prohibit DOCKER"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-prohibit",
+        )
+    )
+    assert result == "State updated: Prohibit docker."
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "remove policy DOCKER"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-remove",
+        )
+    )
+    assert result == "State updated: Removed policy docker."
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "use docker"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-replace",
+        )
+    )
+    assert result == "State updated: Use docker."
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "use KUBECTL instead of DOCKER"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-replace",
+        )
+    )
+    assert result == "State updated: Use kubectl."
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "set premise concise answers"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-premise",
+        )
+    )
+    assert result == "State updated."
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "clear premise"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-premise",
+        )
+    )
+    assert result == "Premise cleared."
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "use docker instead of docker"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-replace-noop",
+        )
+    )
+    assert result == "State updated: Use docker."
+    assert downstream_calls == 0
+
+
 @pytest.mark.parametrize(
     ("confirmation", "expected_response"),
     [
@@ -636,3 +755,160 @@ def test_preprocessor_pipe_checkpoint_resume_yes_no_end_to_end(
     }
     resumed_checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
     assert resumed_checkpoint["pending"] is None
+
+
+@pytest.mark.parametrize(
+    ("user_input", "expected"),
+    [
+        (
+            "use",
+            "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value.",
+        ),
+        (
+            "prohibit",
+            "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value.",
+        ),
+        (
+            "remove policy",
+            "Policy item cannot be empty.\nUse 'remove policy <item>' with a non-empty value.",
+        ),
+        (
+            "use docker instead of",
+            "Replacement requires both new and old items.\n"
+            "Use 'use <new item> instead of <old item>' with non-empty values.",
+        ),
+        (
+            "use instead of docker",
+            "Replacement requires both new and old items.\n"
+            "Use 'use <new item> instead of <old item>' with non-empty values.",
+        ),
+    ],
+)
+def test_preprocessor_pipe_skips_fallback_for_directive_shaped_malformed_inputs(
+    monkeypatch,
+    user_input: str,
+    expected: str,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_skip_fallback_malformed", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    monkeypatch.setattr(
+        module,
+        "precompile_heuristic",
+        lambda _text: {"outcome": "no_directive", "directive": None},
+    )
+
+    fallback_calls = 0
+
+    async def _fallback(
+        self,
+        message: str,
+        state: dict[str, object],
+        *,
+        request: object,
+        user_payload: dict[str, object],
+        prompt_profile: str,
+        model_id: str,
+    ) -> tuple[str | None, str | None]:
+        nonlocal fallback_calls
+        del self, message, state, request, user_payload, prompt_profile, model_id
+        fallback_calls += 1
+        raise AssertionError("fallback should not be called for directive-shaped malformed input")
+
+    downstream_calls = 0
+
+    async def _downstream(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        nonlocal downstream_calls
+        downstream_calls += 1
+        raise AssertionError(f"downstream model should not be called: {payload.get('model')}")
+
+    monkeypatch.setattr(module.Pipe, "_llm_fallback_precompile", _fallback)
+    monkeypatch.setattr(module, "generate_chat_completion", _downstream)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": user_input}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-malformed",
+        )
+    )
+
+    assert result == expected
+    assert fallback_calls == 0
+    assert downstream_calls == 0
+
+
+def test_preprocessor_pipe_near_miss_directives_return_deterministic_clarify_without_model_calls(
+    monkeypatch,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_near_miss_clarify", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    monkeypatch.setattr(
+        module,
+        "precompile_heuristic",
+        lambda _text: {"outcome": "no_directive", "directive": None},
+    )
+
+    fallback_calls = 0
+
+    async def _fallback(
+        self,
+        message: str,
+        state: dict[str, object],
+        *,
+        request: object,
+        user_payload: dict[str, object],
+        prompt_profile: str,
+        model_id: str,
+    ) -> tuple[str | None, str | None]:
+        nonlocal fallback_calls
+        del self, message, state, request, user_payload, prompt_profile, model_id
+        fallback_calls += 1
+        raise AssertionError("fallback should not be called for near-miss directive input")
+
+    downstream_calls = 0
+
+    async def _downstream(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        nonlocal downstream_calls
+        downstream_calls += 1
+        raise AssertionError(f"downstream model should not be called: {payload.get('model')}")
+
+    monkeypatch.setattr(module.Pipe, "_llm_fallback_precompile", _fallback)
+    monkeypatch.setattr(module, "generate_chat_completion", _downstream)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+
+    cases = [
+        ("reset premise", "Unknown directive.\nUse 'clear premise' or 'reset policies'."),
+        ("reset premises", "Unknown directive.\nUse 'clear premise' or 'reset policies'."),
+        ("clear premises", "Unknown directive.\nUse 'clear premise' or 'reset policies'."),
+        ("set premise to concise answers", "Invalid premise syntax.\nUse 'set premise <value>'."),
+        (
+            "change premise formal tone",
+            "Invalid premise syntax.\nUse 'change premise to <value>'.",
+        ),
+    ]
+
+    for idx, (user_input, expected) in enumerate(cases):
+        result = asyncio.run(
+            pipe.pipe(
+                {"model": "pipe-model", "messages": [{"role": "user", "content": user_input}]},
+                __user__={"id": "u1"},
+                __request__=object(),
+                __chat_id__=f"chat-near-miss-{idx}",
+            )
+        )
+        assert result == expected
+
+    assert fallback_calls == 0
+    assert downstream_calls == 0

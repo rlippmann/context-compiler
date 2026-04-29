@@ -461,3 +461,190 @@ def test_litellm_basic_confirmation_summary_falls_back_for_unknown_pending_shape
     assert result == "State updated."
     assert litellm_calls == 0
     assert checkpoints["basic-summary-fallback"] == "ckpt-fallback"
+
+
+@pytest.mark.parametrize(
+    ("module_name", "path"),
+    [
+        ("litellm_basic_literal_replace_summary", Path("examples/integrations/litellm/basic.py")),
+        (
+            "litellm_with_preprocessor_literal_replace_summary",
+            Path("examples/integrations/litellm/with_preprocessor.py"),
+        ),
+    ],
+)
+def test_litellm_literal_replacement_update_summary_uses_new_item_only(
+    module_name: str, path: Path
+) -> None:
+    module = _load_module(module_name, path)
+    checkpoints = cast(dict[str, str], module._CHECKPOINTS_BY_SESSION_KEY)
+    restored = cast(dict[str, int], module._RESTORED_ENGINE_BY_SESSION_KEY)
+    checkpoints.clear()
+    restored.clear()
+
+    call_litellm = cast(Any, module._call_litellm)
+    litellm_calls = 0
+
+    def _track_litellm(_messages: list[dict[str, str]]) -> str:
+        nonlocal litellm_calls
+        litellm_calls += 1
+        raise AssertionError("downstream model should not be called for update summaries")
+
+    if hasattr(module, "_llm_fallback_precompile"):
+        module._llm_fallback_precompile = lambda _message, _state: None
+
+    module._call_litellm = _track_litellm
+    try:
+        engine_use = create_engine()
+        assert module.handle_turn("use   DOCKER", engine_use) == "State updated: Use docker."
+
+        engine_prohibit = create_engine()
+        assert (
+            module.handle_turn("prohibit DOCKER", engine_prohibit)
+            == "State updated: Prohibit docker."
+        )
+
+        engine_remove = create_engine()
+        assert (
+            module.handle_turn("remove policy DOCKER", engine_remove)
+            == "State updated: Removed policy docker."
+        )
+
+        engine_replace = create_engine()
+        assert module.handle_turn("use docker", engine_replace) == "State updated: Use docker."
+        assert (
+            module.handle_turn("use KUBECTL instead of DOCKER", engine_replace)
+            == "State updated: Use kubectl."
+        )
+
+        engine_premise = create_engine()
+        assert module.handle_turn("set premise concise answers", engine_premise) == "State updated."
+        assert module.handle_turn("clear premise", engine_premise) == "Premise cleared."
+
+        engine_noop = create_engine()
+        assert module.handle_turn("use docker", engine_noop) == "State updated: Use docker."
+        assert (
+            module.handle_turn("use docker instead of docker", engine_noop)
+            == "State updated: Use docker."
+        )
+    finally:
+        module._call_litellm = call_litellm
+
+    assert litellm_calls == 0
+
+
+@pytest.mark.parametrize(
+    ("module_name", "path"),
+    [
+        ("litellm_basic_update_responses_no_llm", Path("examples/integrations/litellm/basic.py")),
+        (
+            "litellm_with_preprocessor_update_responses_no_llm",
+            Path("examples/integrations/litellm/with_preprocessor.py"),
+        ),
+    ],
+)
+def test_litellm_update_responses_are_deterministic_and_skip_downstream_model(
+    module_name: str, path: Path
+) -> None:
+    module = _load_module(module_name, path)
+    checkpoints = cast(dict[str, str], module._CHECKPOINTS_BY_SESSION_KEY)
+    restored = cast(dict[str, int], module._RESTORED_ENGINE_BY_SESSION_KEY)
+    checkpoints.clear()
+    restored.clear()
+
+    call_litellm = cast(Any, module._call_litellm)
+    litellm_calls = 0
+
+    def _track_litellm(_messages: list[dict[str, str]]) -> str:
+        nonlocal litellm_calls
+        litellm_calls += 1
+        raise AssertionError("downstream model should not be called for update summaries")
+
+    module._call_litellm = _track_litellm
+
+    try:
+        engine = create_engine()
+        assert module.handle_turn("set premise concise replies", engine) == "State updated."
+        assert module.handle_turn("use docker", engine) == "State updated: Use docker."
+        assert module.handle_turn("prohibit peanuts", engine) == "State updated: Prohibit peanuts."
+        assert (
+            module.handle_turn("remove policy peanuts", engine)
+            == "State updated: Removed policy peanuts."
+        )
+        assert module.handle_turn("reset policies", engine) == "Policies reset."
+        assert module.handle_turn("clear state", engine) == "State cleared."
+    finally:
+        module._call_litellm = call_litellm
+
+    assert litellm_calls == 0
+
+
+@pytest.mark.parametrize(
+    ("module_name", "path"),
+    [
+        ("litellm_basic_near_miss_clarify", Path("examples/integrations/litellm/basic.py")),
+        (
+            "litellm_with_preprocessor_near_miss_clarify",
+            Path("examples/integrations/litellm/with_preprocessor.py"),
+        ),
+    ],
+)
+def test_litellm_near_miss_directives_return_deterministic_clarify_without_downstream(
+    module_name: str, path: Path
+) -> None:
+    module = _load_module(module_name, path)
+    checkpoints = cast(dict[str, str], module._CHECKPOINTS_BY_SESSION_KEY)
+    restored = cast(dict[str, int], module._RESTORED_ENGINE_BY_SESSION_KEY)
+    checkpoints.clear()
+    restored.clear()
+
+    call_litellm = cast(Any, module._call_litellm)
+    litellm_calls = 0
+
+    def _track_litellm(_messages: list[dict[str, str]]) -> str:
+        nonlocal litellm_calls
+        litellm_calls += 1
+        raise AssertionError("downstream model should not be called for near-miss clarify")
+
+    fallback_calls = 0
+    fallback_original = None
+    if hasattr(module, "_llm_fallback_precompile"):
+        fallback_original = module._llm_fallback_precompile
+
+        def _track_fallback(_message: str, _state: dict[str, object]) -> None:
+            nonlocal fallback_calls
+            fallback_calls += 1
+            raise AssertionError("fallback should not be called for near-miss directive input")
+
+        module._llm_fallback_precompile = _track_fallback
+
+    module._call_litellm = _track_litellm
+    try:
+        engine = create_engine()
+        assert (
+            module.handle_turn("reset premise", engine)
+            == "Unknown directive.\nUse 'clear premise' or 'reset policies'."
+        )
+        assert (
+            module.handle_turn("reset premises", engine)
+            == "Unknown directive.\nUse 'clear premise' or 'reset policies'."
+        )
+        assert (
+            module.handle_turn("clear premises", engine)
+            == "Unknown directive.\nUse 'clear premise' or 'reset policies'."
+        )
+        assert (
+            module.handle_turn("set premise to concise answers", engine)
+            == "Invalid premise syntax.\nUse 'set premise <value>'."
+        )
+        assert (
+            module.handle_turn("change premise formal tone", engine)
+            == "Invalid premise syntax.\nUse 'change premise to <value>'."
+        )
+    finally:
+        module._call_litellm = call_litellm
+        if fallback_original is not None:
+            module._llm_fallback_precompile = fallback_original
+
+    assert litellm_calls == 0
+    assert fallback_calls == 0

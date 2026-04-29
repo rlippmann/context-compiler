@@ -3,7 +3,7 @@ title: Context Compiler Pipe
 author: rlippmann
 author_url: https://github.com/rlippmann/context-compiler
 funding_url: https://github.com/rlippmann/context-compiler
-version: 0.6
+version: 0.7
 requirements: context-compiler>=0.6.12
 
 Minimal Open WebUI Pipe integration for Context Compiler.
@@ -175,7 +175,20 @@ def _normalize_confirmation_for_summary(value: str) -> str:
 
 
 def _render_item_label(value: str) -> str:
-    return re.sub(r"\s+", " ", value).strip()
+    return re.sub(r"\s+", " ", value).strip().lower()
+
+
+def _near_miss_directive_clarify(value: str) -> str | None:
+    normalized = re.sub(r"\s+", " ", value.strip())
+    lower = normalized.lower()
+
+    if lower in {"reset premise", "reset premises", "clear premises"}:
+        return "Unknown directive.\nUse 'clear premise' or 'reset policies'."
+    if lower.startswith("set premise to "):
+        return "Invalid premise syntax.\nUse 'set premise <value>'."
+    if lower.startswith("change premise ") and not lower.startswith("change premise to "):
+        return "Invalid premise syntax.\nUse 'change premise to <value>'."
+    return None
 
 
 def _summarize_update_from_input(user_input: str) -> str:
@@ -184,8 +197,18 @@ def _summarize_update_from_input(user_input: str) -> str:
 
     if lower == "clear state":
         return "State cleared."
+    if lower == "clear premise":
+        return "Premise cleared."
     if lower == "reset policies":
         return "Policies reset."
+
+    replacement_match = re.match(
+        r"^use\s+(.+?)\s+instead\s+of\s+(.+)$", normalized, flags=re.IGNORECASE
+    )
+    if replacement_match is not None:
+        item = _render_item_label(replacement_match.group(1).rstrip(" .!?"))
+        if item:
+            return f"State updated: Use {item}."
 
     use_match = re.match(r"^use\s+(.+)$", normalized, flags=re.IGNORECASE)
     if use_match is not None:
@@ -422,10 +445,13 @@ class Pipe:
         decision = engine.step(latest_user_text)
         kind = decision["kind"]
         logger.debug("pipe: decision=%s", kind)
+        near_miss_prompt = _near_miss_directive_clarify(latest_user_text)
 
         if kind == "clarify":
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
-            return decision["prompt_to_user"] or ""
+            return near_miss_prompt or decision["prompt_to_user"] or ""
+        if near_miss_prompt is not None and kind == "passthrough":
+            return near_miss_prompt
         if kind == "passthrough":
             return await self._forward_passthrough(body, __user__, __request__)
         if kind == "update":
