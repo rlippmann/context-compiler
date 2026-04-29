@@ -495,11 +495,26 @@ def test_litellm_literal_replacement_update_summary_uses_new_item_only(
 
     module._call_litellm = _track_litellm
     try:
-        engine = create_engine()
-        assert module.handle_turn("use docker", engine) == "State updated: Use docker."
+        engine_use = create_engine()
+        assert module.handle_turn("use   DOCKER", engine_use) == "State updated: Use docker."
+
+        engine_prohibit = create_engine()
         assert (
-            module.handle_turn("use podman instead of docker", engine)
-            == "State updated: Use podman."
+            module.handle_turn("prohibit DOCKER", engine_prohibit)
+            == "State updated: Prohibit docker."
+        )
+
+        engine_remove = create_engine()
+        assert (
+            module.handle_turn("remove policy DOCKER", engine_remove)
+            == "State updated: Removed policy docker."
+        )
+
+        engine_replace = create_engine()
+        assert module.handle_turn("use docker", engine_replace) == "State updated: Use docker."
+        assert (
+            module.handle_turn("use KUBECTL instead of DOCKER", engine_replace)
+            == "State updated: Use kubectl."
         )
 
         engine_noop = create_engine()

@@ -344,6 +344,42 @@ def test_pipe_literal_replacement_update_summary_uses_new_item_only(monkeypatch)
 
     result = asyncio.run(
         pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "use   DOCKER"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-use",
+        )
+    )
+    assert result == "State updated: Use docker."
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "prohibit DOCKER"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-prohibit",
+        )
+    )
+    assert result == "State updated: Prohibit docker."
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "remove policy DOCKER"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-remove",
+        )
+    )
+    assert result == "State updated: Removed policy docker."
+
+    result = asyncio.run(
+        pipe.pipe(
             {"model": "pipe-model", "messages": [{"role": "user", "content": "use docker"}]},
             __user__={"id": "u1"},
             __request__=object(),
@@ -356,14 +392,14 @@ def test_pipe_literal_replacement_update_summary_uses_new_item_only(monkeypatch)
         pipe.pipe(
             {
                 "model": "pipe-model",
-                "messages": [{"role": "user", "content": "use podman instead of docker"}],
+                "messages": [{"role": "user", "content": "use KUBECTL instead of DOCKER"}],
             },
             __user__={"id": "u1"},
             __request__=object(),
             __chat_id__="chat-replace",
         )
     )
-    assert result == "State updated: Use podman."
+    assert result == "State updated: Use kubectl."
 
     result = asyncio.run(
         pipe.pipe(

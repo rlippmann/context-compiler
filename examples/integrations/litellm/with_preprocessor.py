@@ -256,7 +256,7 @@ def _normalize_confirmation_for_summary(value: str) -> str:
 
 
 def _render_item_label(value: str) -> str:
-    return re.sub(r"\s+", " ", value).strip()
+    return re.sub(r"\s+", " ", value).strip().lower()
 
 
 def _summarize_confirmation_update(user_input: str, pending: object) -> str:
