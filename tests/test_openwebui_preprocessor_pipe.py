@@ -732,3 +732,90 @@ def test_preprocessor_pipe_checkpoint_resume_yes_no_end_to_end(
     }
     resumed_checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
     assert resumed_checkpoint["pending"] is None
+
+
+@pytest.mark.parametrize(
+    ("user_input", "expected"),
+    [
+        (
+            "use",
+            "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value.",
+        ),
+        (
+            "prohibit",
+            "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value.",
+        ),
+        (
+            "remove policy",
+            "Policy item cannot be empty.\nUse 'remove policy <item>' with a non-empty value.",
+        ),
+        (
+            "use docker instead of",
+            "Replacement requires both new and old items.\n"
+            "Use 'use <new item> instead of <old item>' with non-empty values.",
+        ),
+        (
+            "use instead of docker",
+            "Replacement requires both new and old items.\n"
+            "Use 'use <new item> instead of <old item>' with non-empty values.",
+        ),
+    ],
+)
+def test_preprocessor_pipe_skips_fallback_for_directive_shaped_malformed_inputs(
+    monkeypatch,
+    user_input: str,
+    expected: str,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_skip_fallback_malformed", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    monkeypatch.setattr(
+        module,
+        "precompile_heuristic",
+        lambda _text: {"outcome": "no_directive", "directive": None},
+    )
+
+    fallback_calls = 0
+
+    async def _fallback(
+        self,
+        message: str,
+        state: dict[str, object],
+        *,
+        request: object,
+        user_payload: dict[str, object],
+        prompt_profile: str,
+        model_id: str,
+    ) -> tuple[str | None, str | None]:
+        nonlocal fallback_calls
+        del self, message, state, request, user_payload, prompt_profile, model_id
+        fallback_calls += 1
+        raise AssertionError("fallback should not be called for directive-shaped malformed input")
+
+    downstream_calls = 0
+
+    async def _downstream(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        nonlocal downstream_calls
+        downstream_calls += 1
+        raise AssertionError(f"downstream model should not be called: {payload.get('model')}")
+
+    monkeypatch.setattr(module.Pipe, "_llm_fallback_precompile", _fallback)
+    monkeypatch.setattr(module, "generate_chat_completion", _downstream)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": user_input}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-malformed",
+        )
+    )
+
+    assert result == expected
+    assert fallback_calls == 0
+    assert downstream_calls == 0

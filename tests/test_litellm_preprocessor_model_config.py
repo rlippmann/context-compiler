@@ -4,6 +4,8 @@ import types
 from pathlib import Path
 from typing import Any
 
+from context_compiler import create_engine
+
 LITELLM_WITH_PREPROC_PATH = Path("examples/integrations/litellm/with_preprocessor.py")
 LITELLM_PROXY_WITH_PREPROC_PATH = Path(
     "examples/integrations/litellm_proxy/context_compiler_precall_hook_with_preprocessor.py"
@@ -169,3 +171,62 @@ def test_litellm_proxy_fallback_rejects_premise_near_miss_rewrite(monkeypatch):
 
     result = module._llm_fallback_precompile("change premise concise replies", None)
     assert result is None
+
+
+def test_litellm_precompile_skips_fallback_for_directive_shaped_malformed_inputs(monkeypatch):
+    module = _load_module("litellm_with_preproc_skip_fallback_malformed", LITELLM_WITH_PREPROC_PATH)
+
+    monkeypatch.setattr(
+        module,
+        "precompile_heuristic",
+        lambda _text: {"outcome": "no_directive", "directive": None},
+    )
+
+    fallback_calls = 0
+
+    def _fallback(_message: str, _state: dict[str, object]) -> None:
+        nonlocal fallback_calls
+        fallback_calls += 1
+        raise AssertionError("fallback should not be called for directive-shaped malformed input")
+
+    downstream_calls = 0
+
+    def _downstream(_messages: list[dict[str, str]]) -> str:
+        nonlocal downstream_calls
+        downstream_calls += 1
+        raise AssertionError("downstream should not be called for clarify output")
+
+    monkeypatch.setattr(module, "_llm_fallback_precompile", _fallback)
+    monkeypatch.setattr(module, "_call_litellm", _downstream)
+
+    cases = [
+        (
+            "use",
+            "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value.",
+        ),
+        (
+            "prohibit",
+            "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value.",
+        ),
+        (
+            "remove policy",
+            "Policy item cannot be empty.\nUse 'remove policy <item>' with a non-empty value.",
+        ),
+        (
+            "use docker instead of",
+            "Replacement requires both new and old items.\n"
+            "Use 'use <new item> instead of <old item>' with non-empty values.",
+        ),
+        (
+            "use instead of docker",
+            "Replacement requires both new and old items.\n"
+            "Use 'use <new item> instead of <old item>' with non-empty values.",
+        ),
+    ]
+
+    for text, expected in cases:
+        engine = create_engine()
+        assert module.handle_turn(text, engine) == expected
+
+    assert fallback_calls == 0
+    assert downstream_calls == 0

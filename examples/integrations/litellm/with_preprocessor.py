@@ -59,6 +59,19 @@ _NEGATIVE_CONFIRMATION_TOKENS = {"no", "nope", "no thanks"}
 _TRAILING_CONFIRM_PUNCT_RE = re.compile(r"[.,!?]+$")
 
 
+def _is_directive_shaped_input(message: str) -> bool:
+    normalized = re.sub(r"\s+", " ", message.strip()).lower()
+    return (
+        normalized.startswith("use")
+        or normalized.startswith("prohibit")
+        or normalized.startswith("remove policy")
+        or normalized.startswith("set premise")
+        or normalized.startswith("change premise")
+        or normalized.startswith("clear")
+        or normalized.startswith("reset")
+    )
+
+
 class _LiteLLMCallKwargs(TypedDict, total=False):
     model: str
     messages: list[dict[str, str]]
@@ -215,6 +228,9 @@ def _precompile_user_input(message: str, state: State) -> str | None:
                 return parsed
     except Exception:
         logger.debug("preprocessor: heuristic_exception", exc_info=True)
+
+    if _is_directive_shaped_input(message):
+        return None
 
     try:
         fallback_directive = _llm_fallback_precompile(message, state)

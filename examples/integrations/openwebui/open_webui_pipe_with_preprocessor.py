@@ -76,6 +76,19 @@ _NEGATIVE_CONFIRMATION_TOKENS = {"no", "nope", "no thanks"}
 _TRAILING_CONFIRM_PUNCT_RE = re.compile(r"[.,!?]+$")
 
 
+def _is_directive_shaped_input(message: str) -> bool:
+    normalized = re.sub(r"\s+", " ", message.strip()).lower()
+    return (
+        normalized.startswith("use")
+        or normalized.startswith("prohibit")
+        or normalized.startswith("remove policy")
+        or normalized.startswith("set premise")
+        or normalized.startswith("change premise")
+        or normalized.startswith("clear")
+        or normalized.startswith("reset")
+    )
+
+
 def _prompt_file_path(profile: str) -> Traversable:
     # Runtime prompt selection for fallback precompilation:
     # - default: most instruction-following models
@@ -466,6 +479,9 @@ class Pipe:
             parsed = parse_precompiler_output(heuristic_result["directive"])
             if parsed is not None:
                 return parsed, None
+
+        if _is_directive_shaped_input(message):
+            return None, None
 
         return await self._llm_fallback_precompile(
             message,
