@@ -461,3 +461,49 @@ def test_litellm_basic_confirmation_summary_falls_back_for_unknown_pending_shape
     assert result == "State updated."
     assert litellm_calls == 0
     assert checkpoints["basic-summary-fallback"] == "ckpt-fallback"
+
+
+@pytest.mark.parametrize(
+    ("module_name", "path"),
+    [
+        ("litellm_basic_update_responses_no_llm", Path("examples/integrations/litellm/basic.py")),
+        (
+            "litellm_with_preprocessor_update_responses_no_llm",
+            Path("examples/integrations/litellm/with_preprocessor.py"),
+        ),
+    ],
+)
+def test_litellm_update_responses_are_deterministic_and_skip_downstream_model(
+    module_name: str, path: Path
+) -> None:
+    module = _load_module(module_name, path)
+    checkpoints = cast(dict[str, str], module._CHECKPOINTS_BY_SESSION_KEY)
+    restored = cast(dict[str, int], module._RESTORED_ENGINE_BY_SESSION_KEY)
+    checkpoints.clear()
+    restored.clear()
+
+    call_litellm = cast(Any, module._call_litellm)
+    litellm_calls = 0
+
+    def _track_litellm(_messages: list[dict[str, str]]) -> str:
+        nonlocal litellm_calls
+        litellm_calls += 1
+        raise AssertionError("downstream model should not be called for update summaries")
+
+    module._call_litellm = _track_litellm
+
+    try:
+        engine = create_engine()
+        assert module.handle_turn("set premise concise replies", engine) == "State updated."
+        assert module.handle_turn("use docker", engine) == "State updated: Use docker."
+        assert module.handle_turn("prohibit peanuts", engine) == "State updated: Prohibit peanuts."
+        assert (
+            module.handle_turn("remove policy peanuts", engine)
+            == "State updated: Removed policy peanuts."
+        )
+        assert module.handle_turn("reset policies", engine) == "Policies reset."
+        assert module.handle_turn("clear state", engine) == "State cleared."
+    finally:
+        module._call_litellm = call_litellm
+
+    assert litellm_calls == 0
