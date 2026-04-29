@@ -842,3 +842,73 @@ def test_preprocessor_pipe_skips_fallback_for_directive_shaped_malformed_inputs(
     assert result == expected
     assert fallback_calls == 0
     assert downstream_calls == 0
+
+
+def test_preprocessor_pipe_near_miss_directives_return_deterministic_clarify_without_model_calls(
+    monkeypatch,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_near_miss_clarify", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    monkeypatch.setattr(
+        module,
+        "precompile_heuristic",
+        lambda _text: {"outcome": "no_directive", "directive": None},
+    )
+
+    fallback_calls = 0
+
+    async def _fallback(
+        self,
+        message: str,
+        state: dict[str, object],
+        *,
+        request: object,
+        user_payload: dict[str, object],
+        prompt_profile: str,
+        model_id: str,
+    ) -> tuple[str | None, str | None]:
+        nonlocal fallback_calls
+        del self, message, state, request, user_payload, prompt_profile, model_id
+        fallback_calls += 1
+        raise AssertionError("fallback should not be called for near-miss directive input")
+
+    downstream_calls = 0
+
+    async def _downstream(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        nonlocal downstream_calls
+        downstream_calls += 1
+        raise AssertionError(f"downstream model should not be called: {payload.get('model')}")
+
+    monkeypatch.setattr(module.Pipe, "_llm_fallback_precompile", _fallback)
+    monkeypatch.setattr(module, "generate_chat_completion", _downstream)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+
+    cases = [
+        ("reset premise", "Unknown directive.\nUse 'clear premise' or 'reset policies'."),
+        ("reset premises", "Unknown directive.\nUse 'clear premise' or 'reset policies'."),
+        ("clear premises", "Unknown directive.\nUse 'clear premise' or 'reset policies'."),
+        ("set premise to concise answers", "Invalid premise syntax.\nUse 'set premise <value>'."),
+        (
+            "change premise formal tone",
+            "Invalid premise syntax.\nUse 'change premise to <value>'.",
+        ),
+    ]
+
+    for idx, (user_input, expected) in enumerate(cases):
+        result = asyncio.run(
+            pipe.pipe(
+                {"model": "pipe-model", "messages": [{"role": "user", "content": user_input}]},
+                __user__={"id": "u1"},
+                __request__=object(),
+                __chat_id__=f"chat-near-miss-{idx}",
+            )
+        )
+        assert result == expected
+
+    assert fallback_calls == 0
+    assert downstream_calls == 0

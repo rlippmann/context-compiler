@@ -577,3 +577,74 @@ def test_litellm_update_responses_are_deterministic_and_skip_downstream_model(
         module._call_litellm = call_litellm
 
     assert litellm_calls == 0
+
+
+@pytest.mark.parametrize(
+    ("module_name", "path"),
+    [
+        ("litellm_basic_near_miss_clarify", Path("examples/integrations/litellm/basic.py")),
+        (
+            "litellm_with_preprocessor_near_miss_clarify",
+            Path("examples/integrations/litellm/with_preprocessor.py"),
+        ),
+    ],
+)
+def test_litellm_near_miss_directives_return_deterministic_clarify_without_downstream(
+    module_name: str, path: Path
+) -> None:
+    module = _load_module(module_name, path)
+    checkpoints = cast(dict[str, str], module._CHECKPOINTS_BY_SESSION_KEY)
+    restored = cast(dict[str, int], module._RESTORED_ENGINE_BY_SESSION_KEY)
+    checkpoints.clear()
+    restored.clear()
+
+    call_litellm = cast(Any, module._call_litellm)
+    litellm_calls = 0
+
+    def _track_litellm(_messages: list[dict[str, str]]) -> str:
+        nonlocal litellm_calls
+        litellm_calls += 1
+        raise AssertionError("downstream model should not be called for near-miss clarify")
+
+    fallback_calls = 0
+    fallback_original = None
+    if hasattr(module, "_llm_fallback_precompile"):
+        fallback_original = module._llm_fallback_precompile
+
+        def _track_fallback(_message: str, _state: dict[str, object]) -> None:
+            nonlocal fallback_calls
+            fallback_calls += 1
+            raise AssertionError("fallback should not be called for near-miss directive input")
+
+        module._llm_fallback_precompile = _track_fallback
+
+    module._call_litellm = _track_litellm
+    try:
+        engine = create_engine()
+        assert (
+            module.handle_turn("reset premise", engine)
+            == "Unknown directive.\nUse 'clear premise' or 'reset policies'."
+        )
+        assert (
+            module.handle_turn("reset premises", engine)
+            == "Unknown directive.\nUse 'clear premise' or 'reset policies'."
+        )
+        assert (
+            module.handle_turn("clear premises", engine)
+            == "Unknown directive.\nUse 'clear premise' or 'reset policies'."
+        )
+        assert (
+            module.handle_turn("set premise to concise answers", engine)
+            == "Invalid premise syntax.\nUse 'set premise <value>'."
+        )
+        assert (
+            module.handle_turn("change premise formal tone", engine)
+            == "Invalid premise syntax.\nUse 'change premise to <value>'."
+        )
+    finally:
+        module._call_litellm = call_litellm
+        if fallback_original is not None:
+            module._llm_fallback_precompile = fallback_original
+
+    assert litellm_calls == 0
+    assert fallback_calls == 0

@@ -439,6 +439,52 @@ def test_pipe_literal_replacement_update_summary_uses_new_item_only(monkeypatch)
     assert downstream_calls == 0
 
 
+def test_pipe_near_miss_directives_return_deterministic_clarify_without_downstream(
+    monkeypatch,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_near_miss_clarify", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    downstream_calls = 0
+
+    async def _track_downstream(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        nonlocal downstream_calls
+        downstream_calls += 1
+        raise AssertionError(f"downstream model should not be called: {payload.get('model')}")
+
+    module.generate_chat_completion = _track_downstream
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+
+    cases = [
+        ("reset premise", "Unknown directive.\nUse 'clear premise' or 'reset policies'."),
+        ("reset premises", "Unknown directive.\nUse 'clear premise' or 'reset policies'."),
+        ("clear premises", "Unknown directive.\nUse 'clear premise' or 'reset policies'."),
+        ("set premise to concise answers", "Invalid premise syntax.\nUse 'set premise <value>'."),
+        (
+            "change premise formal tone",
+            "Invalid premise syntax.\nUse 'change premise to <value>'.",
+        ),
+    ]
+
+    for idx, (user_input, expected) in enumerate(cases):
+        result = asyncio.run(
+            pipe.pipe(
+                {"model": "pipe-model", "messages": [{"role": "user", "content": user_input}]},
+                __user__={"id": "u1"},
+                __request__=object(),
+                __chat_id__=f"chat-near-miss-{idx}",
+            )
+        )
+        assert result == expected
+
+    assert downstream_calls == 0
+
+
 @pytest.mark.parametrize(
     ("confirmation", "expected_policies", "expected_response"),
     [

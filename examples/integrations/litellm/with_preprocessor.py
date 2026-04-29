@@ -275,6 +275,19 @@ def _render_item_label(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip().lower()
 
 
+def _near_miss_directive_clarify(value: str) -> str | None:
+    normalized = re.sub(r"\s+", " ", value.strip())
+    lower = normalized.lower()
+
+    if lower in {"reset premise", "reset premises", "clear premises"}:
+        return "Unknown directive.\nUse 'clear premise' or 'reset policies'."
+    if lower.startswith("set premise to "):
+        return "Invalid premise syntax.\nUse 'set premise <value>'."
+    if lower.startswith("change premise ") and not lower.startswith("change premise to "):
+        return "Invalid premise syntax.\nUse 'change premise to <value>'."
+    return None
+
+
 def _summarize_confirmation_update(user_input: str, pending: object) -> str:
     summarize_fn = summarize_confirmation_update
     if callable(summarize_fn):
@@ -374,10 +387,13 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
     decision = engine.step(compile_input)
     kind = cast(str, decision["kind"])
     logger.debug("preprocessor: decision=%s", kind)
+    near_miss_prompt = _near_miss_directive_clarify(user_input)
 
     if kind == "clarify":
         _persist_session_checkpoint_if_needed(engine, kind, session_key)
-        return decision["prompt_to_user"] or ""
+        return near_miss_prompt or decision["prompt_to_user"] or ""
+    if near_miss_prompt is not None and kind == "passthrough":
+        return near_miss_prompt
     _persist_session_checkpoint_if_needed(engine, kind, session_key)
     if kind == "update" and is_confirmation_text(user_input) and pending_before is not None:
         return _summarize_confirmation_update(user_input, pending_before)
