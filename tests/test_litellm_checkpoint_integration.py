@@ -466,6 +466,57 @@ def test_litellm_basic_confirmation_summary_falls_back_for_unknown_pending_shape
 @pytest.mark.parametrize(
     ("module_name", "path"),
     [
+        ("litellm_basic_literal_replace_summary", Path("examples/integrations/litellm/basic.py")),
+        (
+            "litellm_with_preprocessor_literal_replace_summary",
+            Path("examples/integrations/litellm/with_preprocessor.py"),
+        ),
+    ],
+)
+def test_litellm_literal_replacement_update_summary_uses_new_item_only(
+    module_name: str, path: Path
+) -> None:
+    module = _load_module(module_name, path)
+    checkpoints = cast(dict[str, str], module._CHECKPOINTS_BY_SESSION_KEY)
+    restored = cast(dict[str, int], module._RESTORED_ENGINE_BY_SESSION_KEY)
+    checkpoints.clear()
+    restored.clear()
+
+    call_litellm = cast(Any, module._call_litellm)
+    litellm_calls = 0
+
+    def _track_litellm(_messages: list[dict[str, str]]) -> str:
+        nonlocal litellm_calls
+        litellm_calls += 1
+        raise AssertionError("downstream model should not be called for update summaries")
+
+    if hasattr(module, "_llm_fallback_precompile"):
+        module._llm_fallback_precompile = lambda _message, _state: None
+
+    module._call_litellm = _track_litellm
+    try:
+        engine = create_engine()
+        assert module.handle_turn("use docker", engine) == "State updated: Use docker."
+        assert (
+            module.handle_turn("use podman instead of docker", engine)
+            == "State updated: Use podman."
+        )
+
+        engine_noop = create_engine()
+        assert module.handle_turn("use docker", engine_noop) == "State updated: Use docker."
+        assert (
+            module.handle_turn("use docker instead of docker", engine_noop)
+            == "State updated: Use docker."
+        )
+    finally:
+        module._call_litellm = call_litellm
+
+    assert litellm_calls == 0
+
+
+@pytest.mark.parametrize(
+    ("module_name", "path"),
+    [
         ("litellm_basic_update_responses_no_llm", Path("examples/integrations/litellm/basic.py")),
         (
             "litellm_with_preprocessor_update_responses_no_llm",

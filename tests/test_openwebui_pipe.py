@@ -323,6 +323,63 @@ def test_pipe_normal_update_returns_deterministic_ack_and_persists_checkpoint(mo
     assert checkpoint["authoritative_state"]["policies"] == {}
 
 
+def test_pipe_literal_replacement_update_summary_uses_new_item_only(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_literal_replace_summary", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    downstream_calls = 0
+
+    async def _track_downstream(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        nonlocal downstream_calls
+        downstream_calls += 1
+        raise AssertionError(f"downstream model should not be called: {payload.get('model')}")
+
+    module.generate_chat_completion = _track_downstream
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "use docker"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-replace",
+        )
+    )
+    assert result == "State updated: Use docker."
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "use podman instead of docker"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-replace",
+        )
+    )
+    assert result == "State updated: Use podman."
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "use docker instead of docker"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-replace-noop",
+        )
+    )
+    assert result == "State updated: Use docker."
+    assert downstream_calls == 0
+
+
 @pytest.mark.parametrize(
     ("confirmation", "expected_policies", "expected_response"),
     [

@@ -175,6 +175,14 @@ def _summarize_update_from_input(user_input: str) -> str:
     if lower == "reset policies":
         return "Policies reset."
 
+    replacement_match = re.match(
+        r"^use\s+(.+?)\s+instead\s+of\s+(.+)$", normalized, flags=re.IGNORECASE
+    )
+    if replacement_match is not None:
+        item = _render_item_label(replacement_match.group(1).rstrip(" .!?"))
+        if item:
+            return f"State updated: Use {item}."
+
     use_match = re.match(r"^use\s+(.+)$", normalized, flags=re.IGNORECASE)
     if use_match is not None:
         item = _render_item_label(use_match.group(1).rstrip(" .!?"))
