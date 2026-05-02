@@ -303,6 +303,18 @@ def _normalize_model_id(value: str | None) -> str | None:
     return value or None
 
 
+def _is_truthy_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "on"}:
+            return True
+        if normalized in {"false", "0", "off"}:
+            return False
+    return False
+
+
 class Pipe:
     """Map Context Compiler decisions into Open WebUI pipe behavior.
 
@@ -337,6 +349,9 @@ class Pipe:
 
     def __init__(self) -> None:
         self.valves = self.Valves()
+
+    def _allow_missing_base_model_for_debug(self) -> bool:
+        return _is_truthy_bool(getattr(self.valves, "ALLOW_MISSING_BASE_MODEL_FOR_DEBUG", False))
 
     def _is_model_not_found_text(self, value: object) -> bool:
         if not isinstance(value, str):
@@ -402,6 +417,8 @@ class Pipe:
         base_model_id: str | None,
         preprocessor_model_id: str | None,
     ) -> str | None:
+        base_model_id = _normalize_model_id(base_model_id)
+        preprocessor_model_id = _normalize_model_id(preprocessor_model_id)
         # Best-effort preflight: fail closed only for clear missing-model mismatches.
         # If model discovery fails, preserve runtime behavior and rely on call-path
         # normalization below.
@@ -506,6 +523,12 @@ class Pipe:
         if _is_directive_shaped_input(message):
             return None, None
 
+        # In debug mode with missing base/preprocessor model ids, skip fallback
+        # precompile entirely so we never attempt an empty-model LLM call.
+        model_id = _normalize_model_id(model_id)
+        if model_id is None:
+            return None, None
+
         return await self._llm_fallback_precompile(
             message,
             state,
@@ -524,6 +547,11 @@ class Pipe:
         base_model_id: str | None,
     ) -> Any:
         if base_model_id is None:
+            if self._allow_missing_base_model_for_debug():
+                return (
+                    "Context Compiler debug mode: BASE_MODEL_ID is empty; "
+                    "skipping model passthrough."
+                )
             return (
                 "Context Compiler pipe misconfigured: BASE_MODEL_ID is required "
                 "(or set ALLOW_MISSING_BASE_MODEL_FOR_DEBUG=true for testing)."
@@ -555,6 +583,11 @@ class Pipe:
         base_model_id: str | None,
     ) -> Any:
         if base_model_id is None:
+            if self._allow_missing_base_model_for_debug():
+                return (
+                    "Context Compiler debug mode: BASE_MODEL_ID is empty; "
+                    "skipping model passthrough."
+                )
             return (
                 "Context Compiler pipe misconfigured: BASE_MODEL_ID is required "
                 "(or set ALLOW_MISSING_BASE_MODEL_FOR_DEBUG=true for testing)."
@@ -612,7 +645,7 @@ class Pipe:
         effective_preprocessor_model = preprocessor_model_id or base_model_id
         current_model_id = str(body.get("model", "")).strip()
 
-        if not base_model_id and not self.valves.ALLOW_MISSING_BASE_MODEL_FOR_DEBUG:
+        if not base_model_id and not self._allow_missing_base_model_for_debug():
             return (
                 "Context Compiler pipe misconfigured: BASE_MODEL_ID is required "
                 "(or set ALLOW_MISSING_BASE_MODEL_FOR_DEBUG=true for testing)."
