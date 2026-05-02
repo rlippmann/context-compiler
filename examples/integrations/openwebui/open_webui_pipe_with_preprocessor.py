@@ -296,6 +296,13 @@ def _extract_completion_content(response: object) -> str | None:
     return None
 
 
+def _normalize_model_id(value: str | None) -> str | None:
+    if value is None:
+        return None
+    value = value.strip()
+    return value or None
+
+
 class Pipe:
     """Map Context Compiler decisions into Open WebUI pipe behavior.
 
@@ -313,8 +320,8 @@ class Pipe:
                 "llama3.1:8b."
             ),
         )
-        PREPROCESSOR_MODEL_ID: str = Field(
-            default="",
+        PREPROCESSOR_MODEL_ID: str | None = Field(
+            default=None,
             description=(
                 "Optional model id for fallback precompilation (defaults to BASE_MODEL_ID)."
             ),
@@ -383,19 +390,17 @@ class Pipe:
             )
         return None
 
-    def _resolve_preprocessor_model_id(self, base_model_id: str) -> str:
-        preprocessor_model_id = self.valves.PREPROCESSOR_MODEL_ID.strip()
-        if preprocessor_model_id:
-            return preprocessor_model_id
-        return base_model_id
+    def _resolve_preprocessor_model_id(self, base_model_id: str | None) -> str | None:
+        preprocessor_model_id = _normalize_model_id(self.valves.PREPROCESSOR_MODEL_ID)
+        return preprocessor_model_id or base_model_id
 
     async def _validate_configured_model_ids(
         self,
         request: Request,
         user_payload: dict[str, Any],
         *,
-        base_model_id: str,
-        preprocessor_model_id: str,
+        base_model_id: str | None,
+        preprocessor_model_id: str | None,
     ) -> str | None:
         # Best-effort preflight: fail closed only for clear missing-model mismatches.
         # If model discovery fails, preserve runtime behavior and rely on call-path
@@ -437,8 +442,11 @@ class Pipe:
         request: Request,
         user_payload: dict[str, Any],
         prompt_profile: str,
-        model_id: str,
+        model_id: str | None,
     ) -> tuple[str | None, str | None]:
+        model_id = _normalize_model_id(model_id)
+        if model_id is None:
+            return None, None
         with as_file(_prompt_file_path(prompt_profile)) as prompt_path:
             prompt = render_prompt(prompt_path, state)
         if prompt is None:
@@ -481,7 +489,7 @@ class Pipe:
         request: Request,
         user_payload: dict[str, Any],
         prompt_profile: str,
-        model_id: str,
+        model_id: str | None,
     ) -> tuple[str | None, str | None]:
         # Heuristic first for precision, determinism, and low latency.
         # If heuristic does not produce a directive, try Open WebUI-native fallback.
@@ -513,8 +521,13 @@ class Pipe:
         user_payload: dict[str, Any],
         request: Request,
         *,
-        base_model_id: str,
+        base_model_id: str | None,
     ) -> Any:
+        if base_model_id is None:
+            return (
+                "Context Compiler pipe misconfigured: BASE_MODEL_ID is required "
+                "(or set ALLOW_MISSING_BASE_MODEL_FOR_DEBUG=true for testing)."
+            )
         payload = {**body}
         payload["model"] = base_model_id
         user = Users.get_user_by_id(user_payload["id"])
@@ -539,8 +552,13 @@ class Pipe:
         request: Request,
         state: State,
         *,
-        base_model_id: str,
+        base_model_id: str | None,
     ) -> Any:
+        if base_model_id is None:
+            return (
+                "Context Compiler pipe misconfigured: BASE_MODEL_ID is required "
+                "(or set ALLOW_MISSING_BASE_MODEL_FOR_DEBUG=true for testing)."
+            )
         payload = {**body}
         payload["model"] = base_model_id
 
@@ -589,8 +607,9 @@ class Pipe:
             if isinstance(raw_messages, list)
             else []
         )
-        base_model_id = self.valves.BASE_MODEL_ID.strip()
-        preprocessor_model_id = self._resolve_preprocessor_model_id(base_model_id)
+        base_model_id = _normalize_model_id(self.valves.BASE_MODEL_ID)
+        preprocessor_model_id = _normalize_model_id(self.valves.PREPROCESSOR_MODEL_ID)
+        effective_preprocessor_model = preprocessor_model_id or base_model_id
         current_model_id = str(body.get("model", "")).strip()
 
         if not base_model_id and not self.valves.ALLOW_MISSING_BASE_MODEL_FOR_DEBUG:
@@ -603,7 +622,11 @@ class Pipe:
                 "Context Compiler pipe misconfigured: BASE_MODEL_ID must not match "
                 "the selected pipe model id to avoid recursive routing."
             )
-        if preprocessor_model_id and current_model_id and preprocessor_model_id == current_model_id:
+        if (
+            effective_preprocessor_model
+            and current_model_id
+            and effective_preprocessor_model == current_model_id
+        ):
             return (
                 "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID must not "
                 "match the selected pipe model id to avoid recursive routing."
@@ -613,7 +636,7 @@ class Pipe:
             __request__,
             __user__,
             base_model_id=base_model_id,
-            preprocessor_model_id=preprocessor_model_id,
+            preprocessor_model_id=effective_preprocessor_model,
         )
         if preflight_error is not None:
             return preflight_error
@@ -650,7 +673,7 @@ class Pipe:
                 request=__request__,
                 user_payload=__user__,
                 prompt_profile=self.valves.PREPROCESSOR_PROMPT_PROFILE,
-                model_id=preprocessor_model_id,
+                model_id=effective_preprocessor_model,
             )
             if precompile_error is not None:
                 return precompile_error
