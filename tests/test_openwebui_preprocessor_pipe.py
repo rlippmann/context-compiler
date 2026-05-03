@@ -12,6 +12,20 @@ import pytest
 MODULE_PATH = Path("examples/integrations/openwebui/open_webui_pipe_with_preprocessor.py")
 
 
+class DummyValves:
+    def __init__(
+        self,
+        base_model_id: str | None,
+        preprocessor_model_id: str | None,
+        allow_missing_base: bool = False,
+    ) -> None:
+        self.BASE_MODEL_ID = base_model_id
+        self.PREPROCESSOR_MODEL_ID = preprocessor_model_id
+        self.ALLOW_MISSING_BASE_MODEL_FOR_DEBUG = allow_missing_base
+        self.PREPROCESSOR_PROMPT_PROFILE = "default"
+        self.SHOW_CONTEXT_COMPILER_TRACE = False
+
+
 def _load_module_with_openwebui_stubs(
     module_name: str, monkeypatch, *, block_pydantic: bool = True
 ):
@@ -80,8 +94,15 @@ def _load_module_with_openwebui_stubs(
 def test_preprocessor_model_defaults_to_base_model(monkeypatch) -> None:
     module = _load_module_with_openwebui_stubs("owui_preproc_defaults", monkeypatch)
     pipe = module.Pipe()
-    pipe.valves.BASE_MODEL_ID = "base-model"
-    pipe.valves.PREPROCESSOR_MODEL_ID = ""
+    pipe.valves = DummyValves("base-model", None)
+
+    assert pipe._resolve_preprocessor_model_id("base-model") == "base-model"
+
+
+def test_preprocessor_model_empty_string_defaults_to_base_model(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_defaults_empty", monkeypatch)
+    pipe = module.Pipe()
+    pipe.valves = DummyValves("base-model", "")
 
     assert pipe._resolve_preprocessor_model_id("base-model") == "base-model"
 
@@ -89,8 +110,7 @@ def test_preprocessor_model_defaults_to_base_model(monkeypatch) -> None:
 def test_pipe_requires_base_model_id_when_debug_disabled(monkeypatch) -> None:
     module = _load_module_with_openwebui_stubs("owui_preproc_requires_base", monkeypatch)
     pipe = module.Pipe()
-    pipe.valves.BASE_MODEL_ID = ""
-    pipe.valves.ALLOW_MISSING_BASE_MODEL_FOR_DEBUG = False
+    pipe.valves = DummyValves("", None, allow_missing_base=False)
 
     result = asyncio.run(
         pipe.pipe(
@@ -109,10 +129,155 @@ def test_pipe_requires_base_model_id_when_debug_disabled(monkeypatch) -> None:
 def test_preprocessor_model_can_be_overridden(monkeypatch) -> None:
     module = _load_module_with_openwebui_stubs("owui_preproc_override", monkeypatch)
     pipe = module.Pipe()
-    pipe.valves.BASE_MODEL_ID = "base-model"
-    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+    pipe.valves = DummyValves("base-model", "prep-model")
 
     assert pipe._resolve_preprocessor_model_id("base-model") == "prep-model"
+
+
+def test_pipe_debug_false_missing_base_blocks_without_llm_calls(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_debug_false_blocked", monkeypatch)
+    pipe = module.Pipe()
+    pipe.valves = DummyValves(None, None, allow_missing_base=False)
+
+    llm_calls = 0
+
+    async def _chat_completion(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        del payload
+        nonlocal llm_calls
+        llm_calls += 1
+        return {"ok": True}
+
+    module.generate_chat_completion = _chat_completion
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hi"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+        )
+    )
+
+    assert result == (
+        "Context Compiler pipe misconfigured: BASE_MODEL_ID is required "
+        "(or set ALLOW_MISSING_BASE_MODEL_FOR_DEBUG=true for testing)."
+    )
+    assert llm_calls == 0
+
+
+def test_pipe_debug_true_missing_base_allows_update_without_llm_calls(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_debug_true_allowed", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+    pipe = module.Pipe()
+    pipe.valves = DummyValves(None, None, allow_missing_base=True)
+
+    llm_calls = 0
+
+    async def _chat_completion(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        del payload
+        nonlocal llm_calls
+        llm_calls += 1
+        return {"ok": True}
+
+    module.generate_chat_completion = _chat_completion
+    module.precompile_heuristic = lambda _text: {
+        "outcome": module.PRECOMPILE_OUTCOME_DIRECTIVE,
+        "directive": "use docker",
+    }
+    module.parse_precompiler_output = lambda value, **_kwargs: value
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "please use docker"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-missing-base-debug",
+        )
+    )
+
+    assert result == "State updated: Use docker."
+    assert llm_calls == 0
+
+
+def test_pipe_debug_true_missing_base_hello_returns_base_misconfig_without_llm_calls(
+    monkeypatch,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_debug_true_hello_safe", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+    pipe = module.Pipe()
+    pipe.valves = DummyValves(None, None, allow_missing_base=True)
+
+    llm_calls = 0
+
+    async def _chat_completion(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        del payload
+        nonlocal llm_calls
+        llm_calls += 1
+        return {"ok": True}
+
+    module.generate_chat_completion = _chat_completion
+    module.precompile_heuristic = lambda _text: {
+        "outcome": "no_directive",
+        "directive": None,
+    }
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-missing-base-debug-hello",
+        )
+    )
+
+    assert result == (
+        "Context Compiler debug mode: BASE_MODEL_ID is empty; skipping model passthrough."
+    )
+    assert llm_calls == 0
+
+
+@pytest.mark.parametrize(
+    "flag_value",
+    ["true", "1", "on", True],
+)
+def test_pipe_debug_true_like_values_missing_base_hello_uses_debug_passthrough_message(
+    monkeypatch, flag_value
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_debug_truthy_values", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+    pipe = module.Pipe()
+    pipe.valves = DummyValves(None, None, allow_missing_base=False)
+    pipe.valves.ALLOW_MISSING_BASE_MODEL_FOR_DEBUG = flag_value
+
+    llm_calls = 0
+
+    async def _chat_completion(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        del payload
+        nonlocal llm_calls
+        llm_calls += 1
+        return {"ok": True}
+
+    module.generate_chat_completion = _chat_completion
+    module.precompile_heuristic = lambda _text: {
+        "outcome": "no_directive",
+        "directive": None,
+    }
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-missing-base-debug-truthy",
+        )
+    )
+
+    assert result == (
+        "Context Compiler debug mode: BASE_MODEL_ID is empty; skipping model passthrough."
+    )
+    assert llm_calls == 0
 
 
 def test_preprocessor_pipe_supports_async_user_lookup(monkeypatch) -> None:
@@ -912,3 +1077,74 @@ def test_preprocessor_pipe_near_miss_directives_return_deterministic_clarify_wit
 
     assert fallback_calls == 0
     assert downstream_calls == 0
+
+
+def test_preprocessor_pipe_trace_off_keeps_existing_response_shape(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_trace_off_shape", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    async def _chat_completion(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        if payload.get("model") == "prep-model":
+            return {"choices": [{"message": {"content": "no_directive"}}]}
+        return {"choices": [{"message": {"content": "downstream"}}]}
+
+    monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
+    monkeypatch.setattr(module, "precompile_heuristic", lambda _text: {"outcome": "no_directive"})
+    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value, **_kwargs: None)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = False
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-preproc-trace-off",
+        )
+    )
+    assert result == {"choices": [{"message": {"content": "downstream"}}]}
+
+
+def test_preprocessor_pipe_trace_on_appends_trace_to_user_visible_output(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_trace_on", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    async def _chat_completion(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        del payload
+        return {"choices": [{"message": {"content": "downstream"}}]}
+
+    monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
+    monkeypatch.setattr(
+        module,
+        "precompile_heuristic",
+        lambda _text: {
+            "outcome": module.PRECOMPILE_OUTCOME_DIRECTIVE,
+            "directive": "prohibit peanuts",
+        },
+    )
+    monkeypatch.setattr(module, "parse_precompiler_output", lambda value, **_kwargs: value)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "please use docker"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-preproc-trace-on",
+        )
+    )
+    assert isinstance(result, str)
+    assert "State updated: Prohibit peanuts." in result
+    assert "Context Compiler trace" in result
+    assert "decision kind: update" in result
+    assert "preprocessor output: prohibit peanuts" in result
+    assert "downstream LLM call: no" in result

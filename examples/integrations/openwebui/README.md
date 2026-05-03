@@ -18,7 +18,7 @@ These examples support both sync (`0.8.x`) and async (`0.9.x`) user lookup.
 The minimal pipe path below is the easiest first-run flow and was runtime-validated in Docker via API flow with a real backend model.
 
 1. Import `open_webui_pipe.py` (recommended/default) as a Function by URL.
-2. Open WebUI installs `context-compiler>=0.6.10` from the function frontmatter requirements.
+2. Open WebUI installs `context-compiler>=0.6.14` from the function frontmatter requirements.
 3. Enable the function.
 4. Set `BASE_MODEL_ID` to a valid Open WebUI model id (required).
 5. Select the pipe model in chat.
@@ -27,7 +27,7 @@ Open WebUI is host-provided runtime infrastructure and must already be installed
 Open WebUI also needs at least one real backend model/provider configured (for example Ollama or OpenAI) so `BASE_MODEL_ID` resolves to an actual model.
 Note: The `PROVIDER` environment contract used in LiteLLM examples/demos does not apply to OpenWebUI. OpenWebUI manages providers via its own connection settings and model IDs.
 
-Checkpoint continuation in these examples requires `context-compiler>=0.6.10`.
+Checkpoint continuation in these examples requires `context-compiler>=0.6.14`.
 
 ### Model configuration
 
@@ -60,8 +60,8 @@ If frontmatter dependency installs are disabled, offline, or unavailable:
 1. Open a shell in the Open WebUI container:
    - `docker exec -it <openwebui-container> sh`
 2. Install the package manually:
-   - Minimal pipe: `pip install "context-compiler>=0.6.10"`
-   - Preprocessor pipe: `pip install "context-compiler[experimental]>=0.6.10"`
+   - Minimal pipe: `pip install "context-compiler>=0.6.14"`
+   - Preprocessor pipe: `pip install "context-compiler[experimental]>=0.6.14"`
 3. Import and enable the function in Open WebUI, then configure valves.
 
 ### Finding valid model ids

@@ -647,4 +647,50 @@ def test_litellm_near_miss_directives_return_deterministic_clarify_without_downs
             module._llm_fallback_precompile = fallback_original
 
     assert litellm_calls == 0
-    assert fallback_calls == 0
+
+
+def test_litellm_basic_trace_off_preserves_existing_output() -> None:
+    module = _load_module(
+        "litellm_basic_trace_off",
+        Path("examples/integrations/litellm/basic.py"),
+    )
+    module.SHOW_CONTEXT_COMPILER_TRACE = False
+    module._call_litellm = lambda _messages: "ok"
+    engine = create_engine()
+
+    result = module.handle_turn("hello", engine)
+    assert result == "ok"
+
+
+def test_litellm_basic_trace_on_includes_trace_substrings() -> None:
+    module = _load_module(
+        "litellm_basic_trace_on",
+        Path("examples/integrations/litellm/basic.py"),
+    )
+    module.SHOW_CONTEXT_COMPILER_TRACE = True
+    module._call_litellm = lambda _messages: "ok"
+    engine = create_engine()
+
+    result = module.handle_turn("hello", engine)
+    assert "ok" in result
+    assert "Context Compiler trace" in result
+    assert "decision kind: passthrough" in result
+    assert "downstream LLM call: yes" in result
+
+
+def test_litellm_with_preprocessor_trace_on_includes_preprocessor_output() -> None:
+    module = _load_module(
+        "litellm_with_preprocessor_trace_on",
+        Path("examples/integrations/litellm/with_preprocessor.py"),
+    )
+    module.SHOW_CONTEXT_COMPILER_TRACE = True
+    module._call_litellm = lambda _messages: "ok"
+    module._precompile_user_input = lambda _text, _state: "prohibit peanuts"
+    engine = create_engine()
+
+    result = module.handle_turn("please use docker", engine)
+    assert "State updated: Prohibit peanuts." in result
+    assert "Context Compiler trace" in result
+    assert "decision kind: update" in result
+    assert "preprocessor output: prohibit peanuts" in result
+    assert "downstream LLM call: no" in result

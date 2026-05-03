@@ -556,3 +556,61 @@ def test_pipe_confirmation_update_returns_ack_without_downstream_model_call(
     }
     resumed_checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
     assert resumed_checkpoint["pending"] is None
+
+
+def test_pipe_trace_off_keeps_existing_response_shape(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_trace_off_shape", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    async def _chat_completion(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        del payload
+        return {"choices": [{"message": {"content": "downstream"}}]}
+
+    module.generate_chat_completion = _chat_completion
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = False
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-trace-off",
+        )
+    )
+    assert result == {"choices": [{"message": {"content": "downstream"}}]}
+
+
+def test_pipe_trace_on_appends_trace_to_user_visible_output(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_trace_on", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    async def _chat_completion(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        del payload
+        return {"choices": [{"message": {"content": "downstream"}}]}
+
+    module.generate_chat_completion = _chat_completion
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-trace-on",
+        )
+    )
+    content = result["choices"][0]["message"]["content"]
+    assert "downstream" in content
+    assert "Context Compiler trace" in content
+    assert "decision kind: passthrough" in content
+    assert "downstream LLM call: yes" in content

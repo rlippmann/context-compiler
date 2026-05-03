@@ -3,8 +3,8 @@ title: Context Compiler Preprocessor Pipe
 author: rlippmann
 author_url: https://github.com/rlippmann/context-compiler
 funding_url: https://github.com/rlippmann/context-compiler
-version: 0.7
-requirements: context-compiler[experimental]>=0.6.12
+version: 0.8
+requirements: context-compiler[experimental]>=0.6.14
 
 Open WebUI integration with Context Compiler preprocessor.
 
@@ -61,6 +61,34 @@ except ImportError:
 
     is_confirmation_text = _confirmation.is_confirmation_text
     summarize_confirmation_update = _confirmation.summarize_confirmation_update
+try:
+    from host_support import build_trace
+except ImportError:
+    try:
+        from host_support.observability import build_trace
+    except ImportError:
+
+        def build_trace(
+            *,
+            original_input: str,
+            compiler_input: str,
+            decision: object,
+            state_before: object,
+            state_after: object,
+            preprocessor_output: str | None = None,
+            llm_called: bool = False,
+        ) -> str:
+            del (
+                original_input,
+                compiler_input,
+                decision,
+                state_before,
+                state_after,
+                preprocessor_output,
+                llm_called,
+            )
+            return ""
+
 
 logger = logging.getLogger(__name__)
 
@@ -296,6 +324,25 @@ def _extract_completion_content(response: object) -> str | None:
     return None
 
 
+def _normalize_model_id(value: str | None) -> str | None:
+    if value is None:
+        return None
+    value = value.strip()
+    return value or None
+
+
+def _is_truthy_bool(value: object) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"true", "1", "on"}:
+            return True
+        if normalized in {"false", "0", "off"}:
+            return False
+    return False
+
+
 class Pipe:
     """Map Context Compiler decisions into Open WebUI pipe behavior.
 
@@ -313,8 +360,8 @@ class Pipe:
                 "llama3.1:8b."
             ),
         )
-        PREPROCESSOR_MODEL_ID: str = Field(
-            default="",
+        PREPROCESSOR_MODEL_ID: str | None = Field(
+            default=None,
             description=(
                 "Optional model id for fallback precompilation (defaults to BASE_MODEL_ID)."
             ),
@@ -327,9 +374,60 @@ class Pipe:
             default=False,
             description="Allow missing BASE_MODEL_ID for debug/testing only.",
         )
+        SHOW_CONTEXT_COMPILER_TRACE: bool = Field(
+            default=False,
+            description="Include concise Context Compiler trace text in responses.",
+        )
 
     def __init__(self) -> None:
         self.valves = self.Valves()
+
+    def _allow_missing_base_model_for_debug(self) -> bool:
+        return _is_truthy_bool(getattr(self.valves, "ALLOW_MISSING_BASE_MODEL_FOR_DEBUG", False))
+
+    def _trace_enabled(self) -> bool:
+        return bool(getattr(self.valves, "SHOW_CONTEXT_COMPILER_TRACE", False))
+
+    def _append_trace_to_response(self, response: Any, trace_text: str) -> Any:
+        if isinstance(response, str):
+            return f"{response}\n\n{trace_text}"
+        if isinstance(response, dict):
+            choices = response.get("choices")
+            if isinstance(choices, list) and choices:
+                first = choices[0]
+                if isinstance(first, dict):
+                    message = first.get("message")
+                    if isinstance(message, dict):
+                        content = message.get("content")
+                        if isinstance(content, str):
+                            message["content"] = f"{content}\n\n{trace_text}"
+                            return response
+        return response
+
+    def _with_trace(
+        self,
+        response: Any,
+        *,
+        original_input: str,
+        compiler_input: str,
+        decision: object,
+        state_before: object,
+        state_after: object,
+        llm_called: bool,
+        preprocessor_output: str | None = None,
+    ) -> Any:
+        if not self._trace_enabled():
+            return response
+        trace_text = build_trace(
+            original_input=original_input,
+            compiler_input=compiler_input,
+            decision=decision,
+            state_before=state_before,
+            state_after=state_after,
+            preprocessor_output=preprocessor_output,
+            llm_called=llm_called,
+        )
+        return self._append_trace_to_response(response, trace_text)
 
     def _is_model_not_found_text(self, value: object) -> bool:
         if not isinstance(value, str):
@@ -383,20 +481,20 @@ class Pipe:
             )
         return None
 
-    def _resolve_preprocessor_model_id(self, base_model_id: str) -> str:
-        preprocessor_model_id = self.valves.PREPROCESSOR_MODEL_ID.strip()
-        if preprocessor_model_id:
-            return preprocessor_model_id
-        return base_model_id
+    def _resolve_preprocessor_model_id(self, base_model_id: str | None) -> str | None:
+        preprocessor_model_id = _normalize_model_id(self.valves.PREPROCESSOR_MODEL_ID)
+        return preprocessor_model_id or base_model_id
 
     async def _validate_configured_model_ids(
         self,
         request: Request,
         user_payload: dict[str, Any],
         *,
-        base_model_id: str,
-        preprocessor_model_id: str,
+        base_model_id: str | None,
+        preprocessor_model_id: str | None,
     ) -> str | None:
+        base_model_id = _normalize_model_id(base_model_id)
+        preprocessor_model_id = _normalize_model_id(preprocessor_model_id)
         # Best-effort preflight: fail closed only for clear missing-model mismatches.
         # If model discovery fails, preserve runtime behavior and rely on call-path
         # normalization below.
@@ -437,8 +535,11 @@ class Pipe:
         request: Request,
         user_payload: dict[str, Any],
         prompt_profile: str,
-        model_id: str,
+        model_id: str | None,
     ) -> tuple[str | None, str | None]:
+        model_id = _normalize_model_id(model_id)
+        if model_id is None:
+            return None, None
         with as_file(_prompt_file_path(prompt_profile)) as prompt_path:
             prompt = render_prompt(prompt_path, state)
         if prompt is None:
@@ -481,7 +582,7 @@ class Pipe:
         request: Request,
         user_payload: dict[str, Any],
         prompt_profile: str,
-        model_id: str,
+        model_id: str | None,
     ) -> tuple[str | None, str | None]:
         # Heuristic first for precision, determinism, and low latency.
         # If heuristic does not produce a directive, try Open WebUI-native fallback.
@@ -496,6 +597,12 @@ class Pipe:
                 return parsed, None
 
         if _is_directive_shaped_input(message):
+            return None, None
+
+        # In debug mode with missing base/preprocessor model ids, skip fallback
+        # precompile entirely so we never attempt an empty-model LLM call.
+        model_id = _normalize_model_id(model_id)
+        if model_id is None:
             return None, None
 
         return await self._llm_fallback_precompile(
@@ -513,8 +620,18 @@ class Pipe:
         user_payload: dict[str, Any],
         request: Request,
         *,
-        base_model_id: str,
+        base_model_id: str | None,
     ) -> Any:
+        if base_model_id is None:
+            if self._allow_missing_base_model_for_debug():
+                return (
+                    "Context Compiler debug mode: BASE_MODEL_ID is empty; "
+                    "skipping model passthrough."
+                )
+            return (
+                "Context Compiler pipe misconfigured: BASE_MODEL_ID is required "
+                "(or set ALLOW_MISSING_BASE_MODEL_FOR_DEBUG=true for testing)."
+            )
         payload = {**body}
         payload["model"] = base_model_id
         user = Users.get_user_by_id(user_payload["id"])
@@ -539,8 +656,18 @@ class Pipe:
         request: Request,
         state: State,
         *,
-        base_model_id: str,
+        base_model_id: str | None,
     ) -> Any:
+        if base_model_id is None:
+            if self._allow_missing_base_model_for_debug():
+                return (
+                    "Context Compiler debug mode: BASE_MODEL_ID is empty; "
+                    "skipping model passthrough."
+                )
+            return (
+                "Context Compiler pipe misconfigured: BASE_MODEL_ID is required "
+                "(or set ALLOW_MISSING_BASE_MODEL_FOR_DEBUG=true for testing)."
+            )
         payload = {**body}
         payload["model"] = base_model_id
 
@@ -589,11 +716,12 @@ class Pipe:
             if isinstance(raw_messages, list)
             else []
         )
-        base_model_id = self.valves.BASE_MODEL_ID.strip()
-        preprocessor_model_id = self._resolve_preprocessor_model_id(base_model_id)
+        base_model_id = _normalize_model_id(self.valves.BASE_MODEL_ID)
+        preprocessor_model_id = _normalize_model_id(self.valves.PREPROCESSOR_MODEL_ID)
+        effective_preprocessor_model = preprocessor_model_id or base_model_id
         current_model_id = str(body.get("model", "")).strip()
 
-        if not base_model_id and not self.valves.ALLOW_MISSING_BASE_MODEL_FOR_DEBUG:
+        if not base_model_id and not self._allow_missing_base_model_for_debug():
             return (
                 "Context Compiler pipe misconfigured: BASE_MODEL_ID is required "
                 "(or set ALLOW_MISSING_BASE_MODEL_FOR_DEBUG=true for testing)."
@@ -603,7 +731,11 @@ class Pipe:
                 "Context Compiler pipe misconfigured: BASE_MODEL_ID must not match "
                 "the selected pipe model id to avoid recursive routing."
             )
-        if preprocessor_model_id and current_model_id and preprocessor_model_id == current_model_id:
+        if (
+            effective_preprocessor_model
+            and current_model_id
+            and effective_preprocessor_model == current_model_id
+        ):
             return (
                 "Context Compiler pipe misconfigured: PREPROCESSOR_MODEL_ID must not "
                 "match the selected pipe model id to avoid recursive routing."
@@ -613,7 +745,7 @@ class Pipe:
             __request__,
             __user__,
             base_model_id=base_model_id,
-            preprocessor_model_id=preprocessor_model_id,
+            preprocessor_model_id=effective_preprocessor_model,
         )
         if preflight_error is not None:
             return preflight_error
@@ -650,7 +782,7 @@ class Pipe:
                 request=__request__,
                 user_payload=__user__,
                 prompt_profile=self.valves.PREPROCESSOR_PROMPT_PROFILE,
-                model_id=preprocessor_model_id,
+                model_id=effective_preprocessor_model,
             )
             if precompile_error is not None:
                 return precompile_error
@@ -665,28 +797,81 @@ class Pipe:
         kind = decision["kind"]
         logger.debug("preprocessor: decision=%s", kind)
         near_miss_prompt = _near_miss_directive_clarify(latest_user_text)
+        state_before = checkpoint_before.get("authoritative_state")
+        state_after = decision.get("state") if isinstance(decision, dict) else None
+        if state_after is None:
+            state_after = engine.state
 
         if kind == "clarify":
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
-            return near_miss_prompt or decision["prompt_to_user"] or ""
+            return self._with_trace(
+                near_miss_prompt or decision["prompt_to_user"] or "",
+                original_input=latest_user_text,
+                compiler_input=compile_input,
+                decision=decision,
+                state_before=state_before,
+                state_after=state_after,
+                preprocessor_output=precompiled,
+                llm_called=False,
+            )
         if near_miss_prompt is not None and kind == "passthrough":
-            return near_miss_prompt
+            return self._with_trace(
+                near_miss_prompt,
+                original_input=latest_user_text,
+                compiler_input=compile_input,
+                decision={"kind": "clarify", "prompt_to_user": near_miss_prompt},
+                state_before=state_before,
+                state_after=state_after,
+                preprocessor_output=precompiled,
+                llm_called=False,
+            )
         if kind == "passthrough":
-            return await self._forward_passthrough(
+            response = await self._forward_passthrough(
                 body,
                 __user__,
                 __request__,
                 base_model_id=base_model_id,
             )
+            return self._with_trace(
+                response,
+                original_input=latest_user_text,
+                compiler_input=compile_input,
+                decision=decision,
+                state_before=state_before,
+                state_after=state_after,
+                preprocessor_output=precompiled,
+                llm_called=base_model_id is not None,
+            )
         if kind == "update":
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
             if is_confirmation_text(latest_user_text) and pending_before is not None:
-                return _summarize_confirmation_update(latest_user_text, pending_before)
-            return _summarize_update_from_input(compile_input)
+                result = _summarize_confirmation_update(latest_user_text, pending_before)
+            else:
+                result = _summarize_update_from_input(compile_input)
+            return self._with_trace(
+                result,
+                original_input=latest_user_text,
+                compiler_input=compile_input,
+                decision=decision,
+                state_before=state_before,
+                state_after=state_after,
+                preprocessor_output=precompiled,
+                llm_called=False,
+            )
 
-        return await self._forward_passthrough(
+        response = await self._forward_passthrough(
             body,
             __user__,
             __request__,
             base_model_id=base_model_id,
+        )
+        return self._with_trace(
+            response,
+            original_input=latest_user_text,
+            compiler_input=compile_input,
+            decision=decision,
+            state_before=state_before,
+            state_after=state_after,
+            preprocessor_output=precompiled,
+            llm_called=base_model_id is not None,
         )

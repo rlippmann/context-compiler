@@ -28,6 +28,34 @@ except ImportError:
 
     is_confirmation_text = _confirmation.is_confirmation_text
     summarize_confirmation_update = _confirmation.summarize_confirmation_update
+try:
+    from host_support import build_trace
+except ImportError:
+    try:
+        from host_support.observability import build_trace
+    except ImportError:
+
+        def build_trace(
+            *,
+            original_input: str,
+            compiler_input: str,
+            decision: object,
+            state_before: object,
+            state_after: object,
+            preprocessor_output: str | None = None,
+            llm_called: bool = False,
+        ) -> str:
+            del (
+                original_input,
+                compiler_input,
+                decision,
+                state_before,
+                state_after,
+                preprocessor_output,
+                llm_called,
+            )
+            return ""
+
 
 try:
     from host_support import print_startup_config, resolve_provider_config
@@ -43,6 +71,7 @@ _CHECKPOINTS_BY_SESSION_KEY: dict[str, str] = {}
 _RESTORED_ENGINE_BY_SESSION_KEY: dict[str, int] = {}
 _NEGATIVE_CONFIRMATION_TOKENS = {"no", "nope", "no thanks"}
 _TRAILING_CONFIRM_PUNCT_RE = re.compile(r"[.,!?]+$")
+SHOW_CONTEXT_COMPILER_TRACE = False
 
 
 class _LiteLLMCallKwargs(TypedDict, total=False):
@@ -258,6 +287,29 @@ def _summarize_update_from_input(user_input: str) -> str:
     return "State updated."
 
 
+def _append_trace(
+    response_text: str,
+    *,
+    original_input: str,
+    compiler_input: str,
+    decision: object,
+    state_before: object,
+    state_after: object,
+    llm_called: bool,
+) -> str:
+    if not SHOW_CONTEXT_COMPILER_TRACE:
+        return response_text
+    trace_text = build_trace(
+        original_input=original_input,
+        compiler_input=compiler_input,
+        decision=decision,
+        state_before=state_before,
+        state_after=state_after,
+        llm_called=llm_called,
+    )
+    return f"{response_text}\n\n{trace_text}"
+
+
 def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = None) -> str:
     _restore_session_checkpoint_if_needed(engine, session_key)
     checkpoint_before = engine.export_checkpoint()
@@ -270,15 +322,59 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
 
     if kind == "clarify":
         _persist_session_checkpoint_if_needed(engine, kind, session_key)
-        return near_miss_prompt or decision["prompt_to_user"] or ""
+        response_text = near_miss_prompt or decision["prompt_to_user"] or ""
+        return _append_trace(
+            response_text,
+            original_input=user_input,
+            compiler_input=user_input,
+            decision=decision,
+            state_before=checkpoint_before.get("authoritative_state"),
+            state_after=engine.state,
+            llm_called=False,
+        )
     if near_miss_prompt is not None and kind == "passthrough":
-        return near_miss_prompt
+        return _append_trace(
+            near_miss_prompt,
+            original_input=user_input,
+            compiler_input=user_input,
+            decision={"kind": "clarify", "prompt_to_user": near_miss_prompt},
+            state_before=checkpoint_before.get("authoritative_state"),
+            state_after=engine.state,
+            llm_called=False,
+        )
     _persist_session_checkpoint_if_needed(engine, kind, session_key)
     if kind == "update" and is_confirmation_text(user_input) and pending_before is not None:
-        return _summarize_confirmation_update(user_input, pending_before)
+        response_text = _summarize_confirmation_update(user_input, pending_before)
+        return _append_trace(
+            response_text,
+            original_input=user_input,
+            compiler_input=user_input,
+            decision=decision,
+            state_before=checkpoint_before.get("authoritative_state"),
+            state_after=engine.state,
+            llm_called=False,
+        )
     if kind == "update":
-        return _summarize_update_from_input(user_input)
+        response_text = _summarize_update_from_input(user_input)
+        return _append_trace(
+            response_text,
+            original_input=user_input,
+            compiler_input=user_input,
+            decision=decision,
+            state_before=checkpoint_before.get("authoritative_state"),
+            state_after=engine.state,
+            llm_called=False,
+        )
 
     compiled_state = decision["state"] if decision["state"] is not None else engine.state
     messages = _build_messages(user_input, compiled_state)
-    return _call_litellm(messages)
+    response_text = _call_litellm(messages)
+    return _append_trace(
+        response_text,
+        original_input=user_input,
+        compiler_input=user_input,
+        decision=decision,
+        state_before=checkpoint_before.get("authoritative_state"),
+        state_after=compiled_state,
+        llm_called=True,
+    )

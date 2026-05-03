@@ -62,6 +62,32 @@ def test_resolve_provider_config_openai_compatible_requires_base_url(
         _provider.resolve_provider_config()
 
 
+def test_resolve_provider_config_openai_requires_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("PROVIDER", "openai")
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    with pytest.raises(RuntimeError, match="OPENAI_API_KEY is required in openai mode."):
+        _provider.resolve_provider_config()
+
+
+def test_resolve_provider_config_ollama_mode_returns_expected_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("PROVIDER", "ollama")
+    monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("MODEL", "openai/custom-ollama-model")
+
+    config = _provider.resolve_provider_config(default_model="ignored")
+
+    assert config.mode == "ollama"
+    assert config.source == "PROVIDER"
+    assert config.base_url == "http://localhost:11434/v1"
+    assert config.model == "openai/custom-ollama-model"
+    assert config.api_key is None
+
+
 def test_print_startup_config_logs_once(monkeypatch: pytest.MonkeyPatch, caplog) -> None:
     monkeypatch.setenv("OPENAI_BASE_URL", "http://localhost:11434/v1")
     monkeypatch.setenv("MODEL", "openai/demo-model")
