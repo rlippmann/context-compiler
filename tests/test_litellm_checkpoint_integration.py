@@ -694,3 +694,20 @@ def test_litellm_with_preprocessor_trace_on_includes_preprocessor_output() -> No
     assert "decision kind: update" in result
     assert "preprocessor output: prohibit peanuts" in result
     assert "downstream LLM call: no" in result
+
+
+def test_litellm_with_preprocessor_trace_on_passthrough_includes_trace() -> None:
+    module = _load_module(
+        "litellm_with_preprocessor_trace_on_passthrough",
+        Path("examples/integrations/litellm/with_preprocessor.py"),
+    )
+    module.SHOW_CONTEXT_COMPILER_TRACE = True
+    module._call_litellm = lambda _messages: "ok"
+    module._precompile_user_input = lambda _text, _state: None
+    engine = create_engine()
+
+    result = module.handle_turn("hello", engine)
+    assert "ok" in result
+    assert "Context Compiler trace" in result
+    assert "decision kind: passthrough" in result
+    assert "downstream LLM call: yes" in result

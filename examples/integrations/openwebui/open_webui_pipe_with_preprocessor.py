@@ -3,7 +3,7 @@ title: Context Compiler Preprocessor Pipe
 author: rlippmann
 author_url: https://github.com/rlippmann/context-compiler
 funding_url: https://github.com/rlippmann/context-compiler
-version: 0.8
+version: 0.8.1
 requirements: context-compiler[experimental]>=0.6.14
 
 Open WebUI integration with Context Compiler preprocessor.
@@ -20,9 +20,10 @@ Core decision handling remains the same as the base integration.
 import inspect
 import logging
 import re
+from collections.abc import AsyncIterator
 from importlib.resources import as_file, files
 from importlib.resources.abc import Traversable
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from fastapi import Request  # type: ignore[import-not-found]
 from open_webui.models.users import Users  # type: ignore[import-not-found]
@@ -389,6 +390,9 @@ class Pipe:
         return bool(getattr(self.valves, "SHOW_CONTEXT_COMPILER_TRACE", False))
 
     def _append_trace_to_response(self, response: Any, trace_text: str) -> Any:
+        aiter = getattr(response, "__aiter__", None)
+        if callable(aiter):
+            return self._append_trace_to_stream(cast(AsyncIterator[object], response), trace_text)
         if isinstance(response, str):
             return f"{response}\n\n{trace_text}"
         if isinstance(response, dict):
@@ -403,6 +407,26 @@ class Pipe:
                             message["content"] = f"{content}\n\n{trace_text}"
                             return response
         return response
+
+    def _append_trace_to_stream(
+        self, stream: AsyncIterator[object], trace_text: str
+    ) -> AsyncIterator[object]:
+        async def _wrapped() -> AsyncIterator[object]:
+            chunk_type: type[str] | type[bytes] | None = None
+            async for chunk in stream:
+                if chunk_type is None:
+                    if isinstance(chunk, bytes):
+                        chunk_type = bytes
+                    elif isinstance(chunk, str):
+                        chunk_type = str
+                yield chunk
+            suffix = f"\n\n{trace_text}"
+            if chunk_type is bytes:
+                yield suffix.encode("utf-8")
+            else:
+                yield suffix
+
+        return _wrapped()
 
     def _with_trace(
         self,
