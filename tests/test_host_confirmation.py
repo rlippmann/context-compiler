@@ -1,5 +1,6 @@
 from typing import Any
 
+import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
@@ -64,6 +65,86 @@ def test_is_confirmation_text_rejects_required_near_misses() -> None:
     ]
     for value in rejected:
         assert not _confirmation.is_confirmation_text(value)
+
+
+def test_summarize_confirmation_update_use_only_summary_with_label_normalization() -> None:
+    pending = {
+        "replacement": {"kind": "use_only", "new_item": "  Docker   Compose  ", "old_item": None}
+    }
+    result = _confirmation.summarize_confirmation_update("yes", pending)
+    assert result == "State updated: Use Docker Compose."
+
+
+def test_summarize_confirmation_update_replace_use_summary() -> None:
+    pending = {
+        "replacement": {"kind": "replace_use", "new_item": "podman", "old_item": "docker"},
+        "prompt_to_user": 'Did you mean to replace "docker" with "podman"?',
+    }
+    result = _confirmation.summarize_confirmation_update("yes", pending)
+    assert result == "State updated: Replaced docker with podman."
+
+
+def test_summarize_confirmation_update_replace_use_prohibited_old_prompt_summary() -> None:
+    pending = {
+        "replacement": {"kind": "replace_use", "new_item": "podman", "old_item": "docker"},
+        "prompt_to_user": (
+            '"docker" is currently prohibited. Did you mean to remove it and use "podman" instead?'
+        ),
+    }
+    result = _confirmation.summarize_confirmation_update("yes", pending)
+    assert result == "State updated: Removed prohibition on docker; use podman."
+
+
+def test_summarize_confirmation_update_declined_returns_state_unchanged() -> None:
+    pending = {
+        "replacement": {"kind": "use_only", "new_item": "docker", "old_item": None},
+    }
+    result = _confirmation.summarize_confirmation_update("no thanks.", pending)
+    assert result == "State unchanged."
+
+
+def test_summarize_confirmation_update_unexpected_shape_falls_back_safely() -> None:
+    pending = {"replacement": {"kind": "replace_use", "new_item": None, "old_item": "docker"}}
+    result = _confirmation.summarize_confirmation_update("yes", pending)
+    assert result == "State updated."
+
+
+def test_summarize_confirmation_update_affirmative_pending_not_dict_falls_back() -> None:
+    result = _confirmation.summarize_confirmation_update("yes", ["not-a-dict"])
+    assert "State updated." in result
+
+
+def test_summarize_confirmation_update_replacement_not_dict_falls_back() -> None:
+    pending = {"replacement": "not-a-dict"}
+    result = _confirmation.summarize_confirmation_update("yes", pending)
+    assert "State updated." in result
+
+
+def test_summarize_confirmation_update_unrecognized_replacement_shape_falls_back() -> None:
+    pending = {"replacement": {"kind": "unknown_kind", "new_item": "docker", "old_item": None}}
+    result = _confirmation.summarize_confirmation_update("yes", pending)
+    assert "State updated." in result
+
+
+def test_summarize_confirmation_update_use_only_empty_new_item_falls_back() -> None:
+    pending = {"replacement": {"kind": "use_only", "new_item": "   ", "old_item": None}}
+    result = _confirmation.summarize_confirmation_update("yes", pending)
+    assert "State updated." in result
+
+
+@pytest.mark.parametrize(
+    ("new_item", "old_item"),
+    [
+        ("   ", "docker"),
+        ("podman", "   "),
+    ],
+)
+def test_summarize_confirmation_update_replace_use_empty_items_falls_back(
+    new_item: str, old_item: str
+) -> None:
+    pending = {"replacement": {"kind": "replace_use", "new_item": new_item, "old_item": old_item}}
+    result = _confirmation.summarize_confirmation_update("yes", pending)
+    assert "State updated." in result
 
 
 @given(
