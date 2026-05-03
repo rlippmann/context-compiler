@@ -1,8 +1,10 @@
 import importlib.util
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 MODULE_PATH = Path("host_support/observability.py")
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _load_module():
@@ -18,6 +20,11 @@ def _load_module():
 class _DecisionObject:
     kind: str
     prompt_to_user: str | None = None
+
+
+class _VeryLongRepr:
+    def __repr__(self) -> str:
+        return "x" * 250
 
 
 def test_build_trace_passthrough_without_preprocessor_output() -> None:
@@ -99,3 +106,143 @@ def test_build_trace_handles_none_states_defensively() -> None:
 
     assert "state change: none -> none" in output
     assert "downstream LLM call: no" in output
+
+
+def test_build_trace_uses_unknown_kind_when_missing() -> None:
+    module = _load_module()
+    output = module.build_trace(
+        original_input="hello",
+        compiler_input="hello",
+        decision={},
+        state_before={},
+        state_after={},
+    )
+
+    assert "decision kind: unknown" in output
+
+
+def test_build_trace_uses_unknown_kind_when_invalid_object_kind() -> None:
+    module = _load_module()
+    output = module.build_trace(
+        original_input="hello",
+        compiler_input="hello",
+        decision={"kind": 42},
+        state_before={},
+        state_after={},
+    )
+
+    assert "decision kind: unknown" in output
+
+
+def test_build_trace_reports_added_mapping_keys() -> None:
+    module = _load_module()
+    output = module.build_trace(
+        original_input="hello",
+        compiler_input="hello",
+        decision={"kind": "update"},
+        state_before={"a": 1},
+        state_after={"a": 1, "b": 2},
+    )
+
+    assert "state change:" in output
+    assert "added=['b']" in output
+
+
+def test_build_trace_reports_removed_mapping_keys() -> None:
+    module = _load_module()
+    output = module.build_trace(
+        original_input="hello",
+        compiler_input="hello",
+        decision={"kind": "update"},
+        state_before={"a": 1, "b": 2},
+        state_after={"a": 1},
+    )
+
+    assert "state change:" in output
+    assert "removed=['b']" in output
+
+
+def test_build_trace_suppresses_whitespace_only_preprocessor_output() -> None:
+    module = _load_module()
+    output = module.build_trace(
+        original_input="hello",
+        compiler_input="hello",
+        preprocessor_output="   \n\t  ",
+        decision={"kind": "passthrough"},
+        state_before={},
+        state_after={},
+    )
+
+    assert "preprocessor output:" not in output
+
+
+def test_build_trace_non_mapping_states_render_safely() -> None:
+    module = _load_module()
+    output = module.build_trace(
+        original_input="hello",
+        compiler_input="hello",
+        decision={"kind": "passthrough"},
+        state_before=["docker"],
+        state_after=["docker", "kubectl"],
+    )
+
+    assert "state change:" in output
+    assert "->" in output
+    assert "['docker']" in output
+    assert "['docker', 'kubectl']" in output
+
+
+def test_host_support_exports_build_trace() -> None:
+    sys.path.insert(0, str(REPO_ROOT))
+    sys.modules.pop("host_support", None)
+    from host_support import build_trace
+
+    output = build_trace(
+        original_input="hello",
+        compiler_input="hello",
+        decision={"kind": "passthrough"},
+        state_before={},
+        state_after={},
+    )
+
+    assert "Context Compiler trace" in output
+
+
+def test_build_trace_state_summary_uses_none_fallback_path() -> None:
+    module = _load_module()
+    output = module.build_trace(
+        original_input="hello",
+        compiler_input="hello",
+        decision={"kind": "passthrough"},
+        state_before=None,
+        state_after=["docker"],
+    )
+
+    assert "state change: none -> ['docker']" in output
+
+
+def test_build_trace_state_summary_uses_mapping_fallback_path() -> None:
+    module = _load_module()
+    output = module.build_trace(
+        original_input="hello",
+        compiler_input="hello",
+        decision={"kind": "passthrough"},
+        state_before={"b": 2, "a": 1},
+        state_after=["docker"],
+    )
+
+    assert "state change: dict keys=['a', 'b'] -> ['docker']" in output
+
+
+def test_build_trace_state_summary_truncates_very_long_repr() -> None:
+    module = _load_module()
+    output = module.build_trace(
+        original_input="hello",
+        compiler_input="hello",
+        decision={"kind": "passthrough"},
+        state_before=_VeryLongRepr(),
+        state_after=["docker"],
+    )
+
+    assert "state change:" in output
+    assert "..." in output
