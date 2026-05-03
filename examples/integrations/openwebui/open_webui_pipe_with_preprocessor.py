@@ -61,6 +61,34 @@ except ImportError:
 
     is_confirmation_text = _confirmation.is_confirmation_text
     summarize_confirmation_update = _confirmation.summarize_confirmation_update
+try:
+    from host_support import build_trace
+except ImportError:
+    try:
+        from host_support.observability import build_trace
+    except ImportError:
+
+        def build_trace(
+            *,
+            original_input: str,
+            compiler_input: str,
+            decision: object,
+            state_before: object,
+            state_after: object,
+            preprocessor_output: str | None = None,
+            llm_called: bool = False,
+        ) -> str:
+            del (
+                original_input,
+                compiler_input,
+                decision,
+                state_before,
+                state_after,
+                preprocessor_output,
+                llm_called,
+            )
+            return ""
+
 
 logger = logging.getLogger(__name__)
 
@@ -346,12 +374,60 @@ class Pipe:
             default=False,
             description="Allow missing BASE_MODEL_ID for debug/testing only.",
         )
+        SHOW_CONTEXT_COMPILER_TRACE: bool = Field(
+            default=False,
+            description="Include concise Context Compiler trace text in responses.",
+        )
 
     def __init__(self) -> None:
         self.valves = self.Valves()
 
     def _allow_missing_base_model_for_debug(self) -> bool:
         return _is_truthy_bool(getattr(self.valves, "ALLOW_MISSING_BASE_MODEL_FOR_DEBUG", False))
+
+    def _trace_enabled(self) -> bool:
+        return bool(getattr(self.valves, "SHOW_CONTEXT_COMPILER_TRACE", False))
+
+    def _append_trace_to_response(self, response: Any, trace_text: str) -> Any:
+        if isinstance(response, str):
+            return f"{response}\n\n{trace_text}"
+        if isinstance(response, dict):
+            choices = response.get("choices")
+            if isinstance(choices, list) and choices:
+                first = choices[0]
+                if isinstance(first, dict):
+                    message = first.get("message")
+                    if isinstance(message, dict):
+                        content = message.get("content")
+                        if isinstance(content, str):
+                            message["content"] = f"{content}\n\n{trace_text}"
+                            return response
+        return response
+
+    def _with_trace(
+        self,
+        response: Any,
+        *,
+        original_input: str,
+        compiler_input: str,
+        decision: object,
+        state_before: object,
+        state_after: object,
+        llm_called: bool,
+        preprocessor_output: str | None = None,
+    ) -> Any:
+        if not self._trace_enabled():
+            return response
+        trace_text = build_trace(
+            original_input=original_input,
+            compiler_input=compiler_input,
+            decision=decision,
+            state_before=state_before,
+            state_after=state_after,
+            preprocessor_output=preprocessor_output,
+            llm_called=llm_called,
+        )
+        return self._append_trace_to_response(response, trace_text)
 
     def _is_model_not_found_text(self, value: object) -> bool:
         if not isinstance(value, str):
@@ -721,28 +797,81 @@ class Pipe:
         kind = decision["kind"]
         logger.debug("preprocessor: decision=%s", kind)
         near_miss_prompt = _near_miss_directive_clarify(latest_user_text)
+        state_before = checkpoint_before.get("authoritative_state")
+        state_after = decision.get("state") if isinstance(decision, dict) else None
+        if state_after is None:
+            state_after = engine.state
 
         if kind == "clarify":
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
-            return near_miss_prompt or decision["prompt_to_user"] or ""
+            return self._with_trace(
+                near_miss_prompt or decision["prompt_to_user"] or "",
+                original_input=latest_user_text,
+                compiler_input=compile_input,
+                decision=decision,
+                state_before=state_before,
+                state_after=state_after,
+                preprocessor_output=precompiled,
+                llm_called=False,
+            )
         if near_miss_prompt is not None and kind == "passthrough":
-            return near_miss_prompt
+            return self._with_trace(
+                near_miss_prompt,
+                original_input=latest_user_text,
+                compiler_input=compile_input,
+                decision={"kind": "clarify", "prompt_to_user": near_miss_prompt},
+                state_before=state_before,
+                state_after=state_after,
+                preprocessor_output=precompiled,
+                llm_called=False,
+            )
         if kind == "passthrough":
-            return await self._forward_passthrough(
+            response = await self._forward_passthrough(
                 body,
                 __user__,
                 __request__,
                 base_model_id=base_model_id,
             )
+            return self._with_trace(
+                response,
+                original_input=latest_user_text,
+                compiler_input=compile_input,
+                decision=decision,
+                state_before=state_before,
+                state_after=state_after,
+                preprocessor_output=precompiled,
+                llm_called=base_model_id is not None,
+            )
         if kind == "update":
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
             if is_confirmation_text(latest_user_text) and pending_before is not None:
-                return _summarize_confirmation_update(latest_user_text, pending_before)
-            return _summarize_update_from_input(compile_input)
+                result = _summarize_confirmation_update(latest_user_text, pending_before)
+            else:
+                result = _summarize_update_from_input(compile_input)
+            return self._with_trace(
+                result,
+                original_input=latest_user_text,
+                compiler_input=compile_input,
+                decision=decision,
+                state_before=state_before,
+                state_after=state_after,
+                preprocessor_output=precompiled,
+                llm_called=False,
+            )
 
-        return await self._forward_passthrough(
+        response = await self._forward_passthrough(
             body,
             __user__,
             __request__,
             base_model_id=base_model_id,
+        )
+        return self._with_trace(
+            response,
+            original_input=latest_user_text,
+            compiler_input=compile_input,
+            decision=decision,
+            state_before=state_before,
+            state_after=state_after,
+            preprocessor_output=precompiled,
+            llm_called=base_model_id is not None,
         )

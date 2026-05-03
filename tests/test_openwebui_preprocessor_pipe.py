@@ -23,6 +23,7 @@ class DummyValves:
         self.PREPROCESSOR_MODEL_ID = preprocessor_model_id
         self.ALLOW_MISSING_BASE_MODEL_FOR_DEBUG = allow_missing_base
         self.PREPROCESSOR_PROMPT_PROFILE = "default"
+        self.SHOW_CONTEXT_COMPILER_TRACE = False
 
 
 def _load_module_with_openwebui_stubs(
@@ -1076,3 +1077,74 @@ def test_preprocessor_pipe_near_miss_directives_return_deterministic_clarify_wit
 
     assert fallback_calls == 0
     assert downstream_calls == 0
+
+
+def test_preprocessor_pipe_trace_off_keeps_existing_response_shape(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_trace_off_shape", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    async def _chat_completion(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        if payload.get("model") == "prep-model":
+            return {"choices": [{"message": {"content": "no_directive"}}]}
+        return {"choices": [{"message": {"content": "downstream"}}]}
+
+    monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
+    monkeypatch.setattr(module, "precompile_heuristic", lambda _text: {"outcome": "no_directive"})
+    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value, **_kwargs: None)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = False
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-preproc-trace-off",
+        )
+    )
+    assert result == {"choices": [{"message": {"content": "downstream"}}]}
+
+
+def test_preprocessor_pipe_trace_on_appends_trace_to_user_visible_output(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_trace_on", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    async def _chat_completion(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        del payload
+        return {"choices": [{"message": {"content": "downstream"}}]}
+
+    monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
+    monkeypatch.setattr(
+        module,
+        "precompile_heuristic",
+        lambda _text: {
+            "outcome": module.PRECOMPILE_OUTCOME_DIRECTIVE,
+            "directive": "prohibit peanuts",
+        },
+    )
+    monkeypatch.setattr(module, "parse_precompiler_output", lambda value, **_kwargs: value)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "please use docker"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-preproc-trace-on",
+        )
+    )
+    assert isinstance(result, str)
+    assert "State updated: Prohibit peanuts." in result
+    assert "Context Compiler trace" in result
+    assert "decision kind: update" in result
+    assert "preprocessor output: prohibit peanuts" in result
+    assert "downstream LLM call: no" in result
