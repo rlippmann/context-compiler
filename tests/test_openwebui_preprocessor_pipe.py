@@ -1182,3 +1182,51 @@ def test_preprocessor_pipe_trace_on_passthrough_appends_trace_to_llm_content(mon
     assert "Context Compiler trace" in content
     assert "decision kind: passthrough" in content
     assert "downstream LLM call: yes" in content
+
+
+def test_preprocessor_pipe_trace_on_passthrough_stream_appends_trace_after_chunks(
+    monkeypatch,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_trace_on_stream", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    async def _streaming_response() -> Any:
+        for part in ("down", "stream"):
+            yield part
+
+    async def _chat_completion(_: object, payload: dict[str, Any], __: object) -> Any:
+        if payload.get("model") == "prep-model":
+            return {"choices": [{"message": {"content": "no_directive"}}]}
+        return _streaming_response()
+
+    monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
+    monkeypatch.setattr(module, "precompile_heuristic", lambda _text: {"outcome": "no_directive"})
+    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value, **_kwargs: None)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-preproc-trace-on-stream",
+        )
+    )
+
+    async def _collect() -> str:
+        parts: list[str] = []
+        async for chunk in result:
+            assert isinstance(chunk, str)
+            parts.append(chunk)
+        return "".join(parts)
+
+    content = asyncio.run(_collect())
+    assert content.startswith("downstream")
+    assert "Context Compiler trace" in content
+    assert "decision kind: passthrough" in content
+    assert "downstream LLM call: yes" in content

@@ -614,3 +614,44 @@ def test_pipe_trace_on_appends_trace_to_user_visible_output(monkeypatch) -> None
     assert "Context Compiler trace" in content
     assert "decision kind: passthrough" in content
     assert "downstream LLM call: yes" in content
+
+
+def test_pipe_trace_on_passthrough_stream_appends_trace_after_chunks(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_trace_on_stream", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    async def _streaming_response() -> object:
+        for part in ("down", "stream"):
+            yield part
+
+    async def _chat_completion(_: object, payload: dict[str, object], __: object) -> object:
+        del payload
+        return _streaming_response()
+
+    module.generate_chat_completion = _chat_completion
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-trace-on-stream",
+        )
+    )
+
+    async def _collect() -> str:
+        parts: list[str] = []
+        async for chunk in result:
+            assert isinstance(chunk, str)
+            parts.append(chunk)
+        return "".join(parts)
+
+    content = asyncio.run(_collect())
+    assert content.startswith("downstream")
+    assert "Context Compiler trace" in content
+    assert "decision kind: passthrough" in content
+    assert "downstream LLM call: yes" in content
