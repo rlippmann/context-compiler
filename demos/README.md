@@ -58,6 +58,8 @@ export PROVIDER=ollama
 export MODEL=ollama/llama3.1:8b
 ```
 
+Ollama mode uses a direct base URL of `http://localhost:11434`.
+
 Explicit openai_compatible mode:
 
 ```bash
