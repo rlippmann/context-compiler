@@ -18,7 +18,10 @@ def _load_demo_module(filename: str):
 
 DEMO02 = _load_demo_module("02_llm_constraint_guardrail.py")
 DEMO03 = _load_demo_module("03_llm_premise_guardrail.py")
+DEMO04 = _load_demo_module("04_llm_tool_denylist_guardrail.py")
 DEMO05 = _load_demo_module("05_llm_prompt_drift_vs_state.py")
+DEMO07 = _load_demo_module("07_llm_prompt_vs_state.py")
+COMMON = _load_demo_module("common.py")
 
 
 @given(
@@ -174,3 +177,62 @@ def test_demo05_non_veg_detection_flags_unnegated_non_veg(line: str) -> None:
 def test_demo05_non_veg_detection_ignores_negated_non_veg(line: str) -> None:
     output = f"PREMISE: vegetarian curry\n{line}"
     assert not DEMO05.plan_includes_non_vegetarian_item(output)
+
+
+@given(
+    tag=st.sampled_from(["ACTION", "action", " Action "]),
+    value=st.sampled_from(["clarify", "proceed"]),
+    pre=st.sampled_from(["", " ", "\t"]),
+    post=st.sampled_from(["", " ", "\t"]),
+)
+def test_common_extract_tag_value_is_case_and_whitespace_tolerant(
+    tag: str, value: str, pre: str, post: str
+) -> None:
+    output = f"{tag}:{pre}{value}{post}"
+    parsed = COMMON.extract_tag_value(output, "ACTION")
+    assert parsed is not None
+    assert parsed.lower() == value
+
+
+@given(
+    line=st.sampled_from(
+        [
+            "TOOL: docker.",
+            "TOOL: kubectl!",
+            'TOOL: "docker"',
+            "TOOL: 'kubectl'",
+            "TOOL: Docker?",
+        ]
+    )
+)
+def test_demo04_selected_tool_accepts_harmless_tag_punctuation_or_quotes(line: str) -> None:
+    tool = DEMO04.selected_tool(line)
+    assert tool in {"docker", "kubectl"}
+
+
+@given(
+    line=st.sampled_from(
+        [
+            "Use docker now",
+            "I recommend kubectl for this deployment",
+            "choose docker",
+            "run kubectl",
+        ]
+    )
+)
+def test_demo04_selected_tool_ignores_non_structured_free_text(line: str) -> None:
+    # Demo 04 intentionally restricts fallback parsing to tagged/list-like lines
+    # so incidental prose does not get interpreted as authoritative tool selection.
+    assert DEMO04.selected_tool(line) is None
+
+
+@given(
+    value=st.sampled_from(["vegan curry", "VEGAN CURRY", " vegan   curry "]),
+    punct=st.sampled_from(["", ".", "!", "?"]),
+    quote=st.sampled_from(["", '"', "'", "“", "”"]),
+)
+def test_demo07_premise_match_accepts_case_whitespace_and_trailing_punctuation(
+    value: str, punct: str, quote: str
+) -> None:
+    output = f"PREMISE: {quote}{value}{quote}{punct}\n- list item"
+    assert DEMO07.premise_matches_expected(output)

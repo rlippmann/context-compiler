@@ -57,7 +57,9 @@ def premise_matches_expected(output: str, expected_premise: str = EXPECTED_PREMI
     premise = extract_tag_value(output, "PREMISE")
     if premise is None:
         return False
-    return _normalize_text(premise) == _normalize_text(expected_premise)
+    normalized_premise = premise.strip().strip("\"'`“”‘’")
+    normalized_premise = normalized_premise.rstrip(".!?").strip().strip("\"'`“”‘’")
+    return _normalize_text(normalized_premise) == _normalize_text(expected_premise)
 
 
 def build_weak_messages(user_inputs: list[str]) -> list[Message]:
