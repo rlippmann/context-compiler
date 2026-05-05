@@ -134,6 +134,35 @@ def test_demo_02_reports_persistent_prohibition(
     assert "compiler+compact: PASS" in output
 
 
+def test_demo_02_accepts_safe_alternative_without_explicit_refusal_phrase(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    module = _load_demo_module("02_llm_constraint_guardrail.py")
+    monkeypatch.setattr(
+        module,
+        "complete_messages",
+        _sequenced_outputs(
+            [
+                "Ingredients:\n- peanuts\n- coconut milk\nSteps:\n1. Cook peanuts.",
+                "Here is a peanut-free curry alternative with chickpeas and coconut milk.",
+                "Use a peanut-free curry recipe with chickpeas instead.",
+            ]
+        ),
+    )
+
+    module.main()
+    output = capsys.readouterr().out
+    report = consume_last_report()
+
+    assert report is not None
+    assert report["name"].startswith("02_constraint_drift")
+    assert report["baseline_pass"] is False
+    assert report["compiler_pass"] is True
+    assert report["compiler_compact_pass"] is True
+    assert report["demo_pass"] is True
+    assert "compiler: PASS" in output
+
+
 def test_demo_02_compact_clarify_branch_skips_compact_llm_call(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

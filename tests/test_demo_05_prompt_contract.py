@@ -31,3 +31,28 @@ def test_demo_05_applies_same_output_format_contract_to_all_three_paths(
         assert messages
         assert messages[0]["role"] == "system"
         assert "First line must be exactly PREMISE:<value>." in messages[0]["content"]
+
+
+def test_demo_05_compact_path_injects_premise_anchor_when_directive_is_compacted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    captured_messages: list[list[dict[str, str]]] = []
+
+    def fake_complete_messages(messages: list[dict[str, str]]) -> str:
+        captured_messages.append(messages)
+        return "PREMISE:vegetarian curry\n- vegetables\n- coconut milk\n- simmer"
+
+    import demos.llm_client as llm_client
+
+    monkeypatch.setattr(llm_client, "complete_messages", fake_complete_messages)
+
+    demo_path = REPO_ROOT / "demos" / "05_llm_prompt_drift_vs_state.py"
+    monkeypatch.setattr("sys.argv", [str(demo_path)])
+    runpy.run_path(str(demo_path), run_name="__main__")
+
+    assert len(captured_messages) == 3
+    compact_messages = captured_messages[2]
+    assert any(
+        message["role"] == "user" and message["content"] == "Premise reminder: vegetarian curry."
+        for message in compact_messages
+    )
