@@ -196,8 +196,12 @@ def premise_matches_expected(output: str, expected: str = EXPECTED_PREMISE) -> b
     premise = extract_tag_value(output, "PREMISE")
     if premise is None:
         return False
-    normalized_premise = premise.strip().rstrip(".!?").strip().lower()
-    normalized_expected = expected.strip().rstrip(".!?").strip().lower()
+    normalized_premise = premise.strip().rstrip(".!?").strip()
+    normalized_expected = expected.strip().rstrip(".!?").strip()
+    normalized_premise = normalized_premise.strip("\"'“”‘’")
+    normalized_expected = normalized_expected.strip("\"'“”‘’")
+    normalized_premise = normalized_premise.lower()
+    normalized_expected = normalized_expected.lower()
     return normalized_premise == normalized_expected
 
 

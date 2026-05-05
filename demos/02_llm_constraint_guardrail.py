@@ -32,7 +32,7 @@ _RECIPE_HEADING_RE = re.compile(
 _LIST_ITEM_RE = re.compile(r"^\s*(?:[-*]|\d+[.)])\s+")
 _TITLE_HINT_RE = re.compile(r"\b(recipe|curry)\b", flags=re.IGNORECASE)
 _PROHIBITED_RE = re.compile(r"\bpeanuts?\b", flags=re.IGNORECASE)
-_STYLE_REFERENCE_RE = re.compile(r"\bpeanut[- ]style\b", flags=re.IGNORECASE)
+_STYLE_REFERENCE_RE = re.compile(r"\bpeanut(?:[- ]style|[- ]like)\b", flags=re.IGNORECASE)
 _NEGATION_RE = re.compile(
     r"\b(no|without|avoid|exclude|free of|peanut-free)\b", flags=re.IGNORECASE
 )
