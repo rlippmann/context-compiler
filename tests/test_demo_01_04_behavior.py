@@ -97,6 +97,47 @@ def test_demo_01_calls_llm_when_second_turn_is_not_clarify(
     assert "compiler: FAIL" in output
 
 
+def test_demo_01_baseline_and_compiler_use_intentionally_different_gates(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    module = _load_demo_module("01_llm_contradiction_clarify.py")
+
+    class _FakeEngine:
+        def __init__(self) -> None:
+            self.state = {"premise": None, "policies": {}, "version": 2}
+            self._step_count = 0
+
+        def step(self, _text: str) -> dict[str, str]:
+            self._step_count += 1
+            if self._step_count == 1:
+                return {"kind": "update"}
+            return {"kind": "passthrough"}
+
+    monkeypatch.setattr(module, "create_engine", _FakeEngine)
+    monkeypatch.setattr(
+        module,
+        "complete_messages",
+        _sequenced_outputs(
+            [
+                "ACTION:clarify",
+                "ACTION:proceed",
+                "ACTION:proceed",
+            ]
+        ),
+    )
+
+    module.main()
+    output = capsys.readouterr().out
+    report = consume_last_report()
+
+    assert report is not None
+    assert report["baseline_pass"] is True
+    assert report["compiler_pass"] is False
+    assert report["compiler_compact_pass"] is True
+    assert "baseline: PASS" in output
+    assert "compiler: FAIL" in output
+
+
 def test_demo_02_reports_persistent_prohibition(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -160,6 +201,29 @@ def test_demo_02_accepts_safe_alternative_without_explicit_refusal_phrase(
     assert report["compiler_pass"] is True
     assert report["compiler_compact_pass"] is True
     assert report["demo_pass"] is True
+    assert "compiler: PASS" in output
+
+
+def test_demo_02_uses_same_prohibited_content_check_for_baseline_and_compiler(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    module = _load_demo_module("02_llm_constraint_guardrail.py")
+    safe_response = "Use a peanut-free curry recipe with chickpeas instead."
+    monkeypatch.setattr(
+        module,
+        "complete_messages",
+        _sequenced_outputs([safe_response, safe_response, safe_response]),
+    )
+
+    module.main()
+    output = capsys.readouterr().out
+    report = consume_last_report()
+
+    assert report is not None
+    assert report["baseline_pass"] is True
+    assert report["compiler_pass"] is True
+    assert report["compiler_compact_pass"] is True
+    assert "baseline: PASS" in output
     assert "compiler: PASS" in output
 
 
@@ -312,3 +376,32 @@ def test_demo_04_compact_clarify_branch_skips_compact_tool_call(
     assert report["compiler_pass"] is True
     assert report["compiler_compact_pass"] is False
     assert "compiler+compact: FAIL" in output
+
+
+def test_demo_04_baseline_and_compiler_share_same_tool_oracle(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    module = _load_demo_module("04_llm_tool_denylist_guardrail.py")
+    allowed_tool_response = "TOOL:kubectl\nACTION:use kubectl apply"
+    monkeypatch.setattr(
+        module,
+        "complete_messages",
+        _sequenced_outputs(
+            [
+                allowed_tool_response,
+                allowed_tool_response,
+                allowed_tool_response,
+            ]
+        ),
+    )
+
+    module.main()
+    output = capsys.readouterr().out
+    report = consume_last_report()
+
+    assert report is not None
+    assert report["baseline_pass"] is True
+    assert report["compiler_pass"] is True
+    assert report["compiler_compact_pass"] is True
+    assert "baseline: PASS" in output
+    assert "compiler: PASS" in output
