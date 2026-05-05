@@ -55,6 +55,8 @@ def _plan_uses_value(output: str, value: str) -> bool:
         lowered = line.lower()
         if token not in lowered:
             continue
+        if token == "vegetarian" and "vegan" in lowered:
+            continue
         if _NEGATION_RE.search(lowered):
             continue
         return True
