@@ -196,7 +196,9 @@ def premise_matches_expected(output: str, expected: str = EXPECTED_PREMISE) -> b
     premise = extract_tag_value(output, "PREMISE")
     if premise is None:
         return False
-    return premise.strip().lower() == expected.strip().lower()
+    normalized_premise = premise.strip().rstrip(".!?").strip().lower()
+    normalized_expected = expected.strip().rstrip(".!?").strip().lower()
+    return normalized_premise == normalized_expected
 
 
 def _run_demo(turns: int = _DEFAULT_TURNS) -> None:
@@ -242,7 +244,7 @@ def _run_demo(turns: int = _DEFAULT_TURNS) -> None:
             and _ORIGINAL_DIRECTIVE not in compacted_turns
             and any("that premise" in turn.lower() for turn in compacted_turns)
         ):
-            compacted_turns = [f"Premise reminder: {premise_value}.", *compacted_turns]
+            compacted_turns = [f"Premise reminder: {premise_value}", *compacted_turns]
         compact_messages = build_mediated_messages_from_transcript(
             compacted_state,
             compacted_turns,

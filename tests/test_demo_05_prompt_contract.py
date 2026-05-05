@@ -1,3 +1,4 @@
+import importlib.util
 import runpy
 import sys
 from pathlib import Path
@@ -53,6 +54,18 @@ def test_demo_05_compact_path_injects_premise_anchor_when_directive_is_compacted
     assert len(captured_messages) == 3
     compact_messages = captured_messages[2]
     assert any(
-        message["role"] == "user" and message["content"] == "Premise reminder: vegetarian curry."
+        message["role"] == "user" and message["content"] == "Premise reminder: vegetarian curry"
         for message in compact_messages
     )
+
+
+def test_demo_05_premise_match_ignores_trailing_sentence_punctuation() -> None:
+    demo_path = REPO_ROOT / "demos" / "05_llm_prompt_drift_vs_state.py"
+    spec = importlib.util.spec_from_file_location("demo_05_for_premise_match", demo_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    assert module.premise_matches_expected("PREMISE: vegetarian curry.\nDinner Plan:\n- tofu")
+    assert module.premise_matches_expected("PREMISE: vegetarian curry!\nDinner Plan:\n- tofu")
+    assert not module.premise_matches_expected("PREMISE: vegan curry.\nDinner Plan:\n- tofu")
