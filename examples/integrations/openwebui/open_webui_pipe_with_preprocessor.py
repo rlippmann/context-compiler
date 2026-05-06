@@ -197,6 +197,21 @@ def _replace_compiler_system_message(
     ]
 
 
+def _summarize_payload_messages_for_trace(messages: list[dict[str, Any]]) -> str:
+    if not messages:
+        return "[]"
+    parts: list[str] = []
+    for message in messages:
+        role = message.get("role")
+        content = message.get("content")
+        if isinstance(content, str):
+            content_preview = f"{content[:57]}..." if len(content) > 60 else content
+        else:
+            content_preview = repr(content)
+        parts.append(f"{role}:{content_preview!r}")
+    return "[" + ", ".join(parts) + "]"
+
+
 def _normalize_confirmation_for_summary(value: str) -> str:
     normalized = value.strip().lower()
     normalized = re.sub(r"\s+", " ", normalized)
@@ -349,7 +364,7 @@ class Pipe:
 
     This variant adds a precompiler stage before ``engine.step(...)``:
     heuristic first, then Open WebUI-native LLM fallback.
-    Update decisions return deterministic acknowledgment text.
+    Update decisions forward with compiler-owned state injection.
     """
 
     class Valves(BaseModel):
@@ -439,6 +454,7 @@ class Pipe:
         state_after: object,
         llm_called: bool,
         preprocessor_output: str | None = None,
+        trace_details: list[str] | None = None,
     ) -> Any:
         if not self._trace_enabled():
             return response
@@ -451,6 +467,8 @@ class Pipe:
             preprocessor_output=preprocessor_output,
             llm_called=llm_called,
         )
+        if trace_details:
+            trace_text = "\n".join([trace_text, *trace_details])
         return self._append_trace_to_response(response, trace_text)
 
     def _is_model_not_found_text(self, value: object) -> bool:
@@ -837,6 +855,10 @@ class Pipe:
                 state_after=state_after,
                 preprocessor_output=precompiled,
                 llm_called=False,
+                trace_details=[
+                    f"- current state: {state_after!r}",
+                    "- downstream payload messages: not sent (clarify)",
+                ],
             )
         if near_miss_prompt is not None and kind == "passthrough":
             return self._with_trace(
@@ -848,12 +870,47 @@ class Pipe:
                 state_after=state_after,
                 preprocessor_output=precompiled,
                 llm_called=False,
+                trace_details=[
+                    f"- current state: {state_after!r}",
+                    "- downstream payload messages: not sent (clarify)",
+                ],
             )
         if kind == "passthrough":
             response = await self._forward_passthrough(
                 body,
                 __user__,
                 __request__,
+                base_model_id=base_model_id,
+            )
+            payload_messages = [dict(msg) for msg in messages]
+            return self._with_trace(
+                response,
+                original_input=latest_user_text,
+                compiler_input=compile_input,
+                decision=decision,
+                state_before=state_before,
+                state_after=state_after,
+                preprocessor_output=precompiled,
+                llm_called=base_model_id is not None,
+                trace_details=[
+                    f"- current state: {state_after!r}",
+                    "- payload state injection: no",
+                    "- downstream payload messages: "
+                    f"{_summarize_payload_messages_for_trace(payload_messages)}",
+                ],
+            )
+        if kind == "update":
+            _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
+            injected_state_block = _render_compiler_state_block(state_after)
+            payload_messages = _replace_compiler_system_message(
+                [dict(msg) for msg in messages],
+                injected_state_block,
+            )
+            response = await self._forward_update(
+                body,
+                __user__,
+                __request__,
+                state_after,
                 base_model_id=base_model_id,
             )
             return self._with_trace(
@@ -865,22 +922,13 @@ class Pipe:
                 state_after=state_after,
                 preprocessor_output=precompiled,
                 llm_called=base_model_id is not None,
-            )
-        if kind == "update":
-            _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
-            if is_confirmation_text(latest_user_text) and pending_before is not None:
-                result = _summarize_confirmation_update(latest_user_text, pending_before)
-            else:
-                result = _summarize_update_from_input(compile_input)
-            return self._with_trace(
-                result,
-                original_input=latest_user_text,
-                compiler_input=compile_input,
-                decision=decision,
-                state_before=state_before,
-                state_after=state_after,
-                preprocessor_output=precompiled,
-                llm_called=False,
+                trace_details=[
+                    f"- current state: {state_after!r}",
+                    f"- injected [[cc_state]] block: {injected_state_block!r}",
+                    "- payload state injection: yes",
+                    "- downstream payload messages: "
+                    f"{_summarize_payload_messages_for_trace(payload_messages)}",
+                ],
             )
 
         response = await self._forward_passthrough(

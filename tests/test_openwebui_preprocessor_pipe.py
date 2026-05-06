@@ -164,7 +164,7 @@ def test_pipe_debug_false_missing_base_blocks_without_llm_calls(monkeypatch) -> 
     assert llm_calls == 0
 
 
-def test_pipe_debug_true_missing_base_allows_update_without_llm_calls(monkeypatch) -> None:
+def test_pipe_debug_true_missing_base_skips_update_forwarding_call(monkeypatch) -> None:
     module = _load_module_with_openwebui_stubs("owui_preproc_debug_true_allowed", monkeypatch)
     module._ENGINES_BY_CHAT_KEY.clear()
     module._CHECKPOINTS_BY_CHAT_KEY.clear()
@@ -195,7 +195,9 @@ def test_pipe_debug_true_missing_base_allows_update_without_llm_calls(monkeypatc
         )
     )
 
-    assert result == "State updated: Use docker."
+    assert result == (
+        "Context Compiler debug mode: BASE_MODEL_ID is empty; skipping model passthrough."
+    )
     assert llm_calls == 0
 
 
@@ -568,7 +570,7 @@ def test_preprocessor_pipe_restore_and_persist_checkpoint_points(monkeypatch) ->
     assert module._CHECKPOINTS_BY_CHAT_KEY["chat-2"] == "ckpt-keep"
 
 
-def test_preprocessor_pipe_normal_update_returns_deterministic_ack_and_persists_checkpoint(
+def test_preprocessor_pipe_normal_update_forwards_with_state_and_persists_checkpoint(
     monkeypatch,
 ) -> None:
     module = _load_module_with_openwebui_stubs("owui_preproc_update_forward", monkeypatch)
@@ -619,8 +621,11 @@ def test_preprocessor_pipe_normal_update_returns_deterministic_ack_and_persists_
         )
     )
 
-    assert result == "State updated: Prohibit peanuts."
-    assert len(forwarded_payloads) == 0
+    assert result == {"ok": True}
+    assert len(forwarded_payloads) == 1
+    first_messages = forwarded_payloads[0]["messages"]
+    assert isinstance(first_messages, list)
+    assert first_messages[0] == {"role": "system", "content": "[[cc_state]]\nProhibit: peanuts"}
 
     checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
     assert checkpoint["pending"] is None
@@ -638,29 +643,31 @@ def test_preprocessor_pipe_normal_update_returns_deterministic_ack_and_persists_
         )
     )
 
-    assert result == "State updated: Removed policy peanuts."
-    assert len(forwarded_payloads) == 0
+    assert result == {"ok": True}
+    assert len(forwarded_payloads) == 2
+    second_messages = forwarded_payloads[1]["messages"]
+    assert isinstance(second_messages, list)
+    assert second_messages[0] == {"role": "system", "content": "[[cc_state]]"}
 
     checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
     assert checkpoint["pending"] is None
     assert checkpoint["authoritative_state"]["policies"] == {}
 
 
-def test_preprocessor_pipe_literal_replacement_update_summary_uses_new_item_only(
+def test_preprocessor_pipe_update_forwarding_injects_state_across_directive_shapes(
     monkeypatch,
 ) -> None:
-    module = _load_module_with_openwebui_stubs("owui_preproc_literal_replace_summary", monkeypatch)
+    module = _load_module_with_openwebui_stubs("owui_preproc_update_shapes", monkeypatch)
     module._ENGINES_BY_CHAT_KEY.clear()
     module._CHECKPOINTS_BY_CHAT_KEY.clear()
 
-    downstream_calls = 0
+    forwarded_payloads: list[dict[str, object]] = []
 
     async def _track_downstream(
         _: object, payload: dict[str, object], __: object
     ) -> dict[str, object]:
-        nonlocal downstream_calls
-        downstream_calls += 1
-        raise AssertionError(f"downstream model should not be called: {payload.get('model')}")
+        forwarded_payloads.append(payload)
+        return {"ok": True}
 
     monkeypatch.setattr(module, "generate_chat_completion", _track_downstream)
 
@@ -676,7 +683,7 @@ def test_preprocessor_pipe_literal_replacement_update_summary_uses_new_item_only
             __chat_id__="chat-use",
         )
     )
-    assert result == "State updated: Use docker."
+    assert result == {"ok": True}
 
     result = asyncio.run(
         pipe.pipe(
@@ -689,7 +696,7 @@ def test_preprocessor_pipe_literal_replacement_update_summary_uses_new_item_only
             __chat_id__="chat-prohibit",
         )
     )
-    assert result == "State updated: Prohibit docker."
+    assert result == {"ok": True}
 
     result = asyncio.run(
         pipe.pipe(
@@ -702,7 +709,7 @@ def test_preprocessor_pipe_literal_replacement_update_summary_uses_new_item_only
             __chat_id__="chat-remove",
         )
     )
-    assert result == "State updated: Removed policy docker."
+    assert result == {"ok": True}
 
     result = asyncio.run(
         pipe.pipe(
@@ -712,7 +719,7 @@ def test_preprocessor_pipe_literal_replacement_update_summary_uses_new_item_only
             __chat_id__="chat-replace",
         )
     )
-    assert result == "State updated: Use docker."
+    assert result == {"ok": True}
 
     result = asyncio.run(
         pipe.pipe(
@@ -725,7 +732,7 @@ def test_preprocessor_pipe_literal_replacement_update_summary_uses_new_item_only
             __chat_id__="chat-replace",
         )
     )
-    assert result == "State updated: Use kubectl."
+    assert result == {"ok": True}
 
     result = asyncio.run(
         pipe.pipe(
@@ -738,7 +745,7 @@ def test_preprocessor_pipe_literal_replacement_update_summary_uses_new_item_only
             __chat_id__="chat-premise",
         )
     )
-    assert result == "State updated."
+    assert result == {"ok": True}
 
     result = asyncio.run(
         pipe.pipe(
@@ -748,7 +755,7 @@ def test_preprocessor_pipe_literal_replacement_update_summary_uses_new_item_only
             __chat_id__="chat-premise",
         )
     )
-    assert result == "Premise cleared."
+    assert result == {"ok": True}
 
     result = asyncio.run(
         pipe.pipe(
@@ -761,19 +768,27 @@ def test_preprocessor_pipe_literal_replacement_update_summary_uses_new_item_only
             __chat_id__="chat-replace-noop",
         )
     )
-    assert result == "State updated: Use docker."
-    assert downstream_calls == 0
+    assert result == {"ok": True}
+    assert len(forwarded_payloads) == 8
+    assert all(
+        isinstance(payload.get("messages"), list)
+        and isinstance(payload["messages"][0], dict)
+        and payload["messages"][0].get("role") == "system"
+        and isinstance(payload["messages"][0].get("content"), str)
+        and payload["messages"][0]["content"].startswith("[[cc_state]]")
+        for payload in forwarded_payloads
+    )
 
 
 @pytest.mark.parametrize(
-    ("confirmation", "expected_response"),
+    ("confirmation",),
     [
-        ("yes", "State updated: Use kubectl."),
-        ("no", "State unchanged."),
+        ("yes",),
+        ("no",),
     ],
 )
 def test_preprocessor_pipe_bypasses_precompile_while_pending(
-    monkeypatch, confirmation: str, expected_response: str
+    monkeypatch, confirmation: str
 ) -> None:
     module = _load_module_with_openwebui_stubs("owui_preproc_pending_bypass", monkeypatch)
     module._ENGINES_BY_CHAT_KEY.clear()
@@ -819,12 +834,15 @@ def test_preprocessor_pipe_bypasses_precompile_while_pending(
 
     monkeypatch.setattr(module, "precompile_heuristic", _fail_precompile)
 
-    async def _fail_downstream_model(
+    forwarded_payloads: list[dict[str, Any]] = []
+
+    async def _track_downstream_model(
         _: object, payload: dict[str, Any], __: object
     ) -> dict[str, object]:
-        raise AssertionError(f"downstream model should not be called: {payload.get('model')}")
+        forwarded_payloads.append(payload)
+        return {"ok": True}
 
-    monkeypatch.setattr(module, "generate_chat_completion", _fail_downstream_model)
+    monkeypatch.setattr(module, "generate_chat_completion", _track_downstream_model)
 
     pipe = module.Pipe()
     pipe.valves.BASE_MODEL_ID = "base-model"
@@ -839,23 +857,29 @@ def test_preprocessor_pipe_bypasses_precompile_while_pending(
         )
     )
 
-    assert result == expected_response
+    assert result == {"ok": True}
     assert engine.step_inputs == [confirmation]
     assert module._CHECKPOINTS_BY_CHAT_KEY["chat-pending"] == "ckpt-out"
+    assert len(forwarded_payloads) == 1
+    first_messages = forwarded_payloads[0]["messages"]
+    assert isinstance(first_messages, list)
+    assert isinstance(first_messages[0], dict)
+    assert first_messages[0].get("role") == "system"
+    assert isinstance(first_messages[0].get("content"), str)
+    assert first_messages[0]["content"].startswith("[[cc_state]]")
 
 
 @pytest.mark.parametrize(
-    ("confirmation", "expected_policies", "expected_response"),
+    ("confirmation", "expected_policies"),
     [
-        ("yes", {"kubectl": "use"}, "State updated: Use kubectl."),
-        ("no", {}, "State unchanged."),
+        ("yes", {"kubectl": "use"}),
+        ("no", {}),
     ],
 )
 def test_preprocessor_pipe_checkpoint_resume_yes_no_end_to_end(
     monkeypatch,
     confirmation: str,
     expected_policies: dict[str, str],
-    expected_response: str,
 ) -> None:
     module = _load_module_with_openwebui_stubs("owui_preproc_resume_e2e", monkeypatch)
     module._ENGINES_BY_CHAT_KEY.clear()
@@ -893,12 +917,15 @@ def test_preprocessor_pipe_checkpoint_resume_yes_no_end_to_end(
 
     module._ENGINES_BY_CHAT_KEY.clear()
 
-    async def _fail_downstream_model(
+    forwarded_payloads: list[dict[str, Any]] = []
+
+    async def _track_downstream_model(
         _: object, payload: dict[str, Any], __: object
     ) -> dict[str, object]:
-        raise AssertionError(f"downstream model should not be called: {payload.get('model')}")
+        forwarded_payloads.append(payload)
+        return {"ok": True}
 
-    monkeypatch.setattr(module, "generate_chat_completion", _fail_downstream_model)
+    monkeypatch.setattr(module, "generate_chat_completion", _track_downstream_model)
 
     resumed = asyncio.run(
         pipe.pipe(
@@ -911,7 +938,7 @@ def test_preprocessor_pipe_checkpoint_resume_yes_no_end_to_end(
             __chat_id__=chat_key,
         )
     )
-    assert resumed == expected_response
+    assert resumed == {"ok": True}
     resumed_engine = cast(Any, module._ENGINES_BY_CHAT_KEY[chat_key])
     assert resumed_engine.state == {
         "premise": None,
@@ -920,6 +947,13 @@ def test_preprocessor_pipe_checkpoint_resume_yes_no_end_to_end(
     }
     resumed_checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
     assert resumed_checkpoint["pending"] is None
+    assert len(forwarded_payloads) == 1
+    resumed_messages = forwarded_payloads[0]["messages"]
+    assert isinstance(resumed_messages, list)
+    assert isinstance(resumed_messages[0], dict)
+    assert resumed_messages[0].get("role") == "system"
+    assert isinstance(resumed_messages[0].get("content"), str)
+    assert resumed_messages[0]["content"].startswith("[[cc_state]]")
 
 
 @pytest.mark.parametrize(
@@ -1142,12 +1176,18 @@ def test_preprocessor_pipe_trace_on_appends_trace_to_user_visible_output(monkeyp
             __chat_id__="chat-preproc-trace-on",
         )
     )
-    assert isinstance(result, str)
-    assert "State updated: Prohibit peanuts." in result
-    assert "Context Compiler trace" in result
-    assert "decision kind: update" in result
-    assert "preprocessor output: prohibit peanuts" in result
-    assert "downstream LLM call: no" in result
+    assert isinstance(result, dict)
+    content = result["choices"][0]["message"]["content"]
+    assert "downstream" in content
+    assert "Context Compiler trace" in content
+    assert "decision kind: update" in content
+    assert "preprocessor output: prohibit peanuts" in content
+    assert "downstream LLM call: yes" in content
+    assert "current state:" in content
+    assert "injected [[cc_state]] block: '[[cc_state]]\\nProhibit: peanuts'" in content
+    assert "payload state injection: yes" in content
+    assert "downstream payload messages:" in content
+    assert "[[cc_state]]\\nProhibit: peanuts" in content
 
 
 def test_preprocessor_pipe_trace_on_passthrough_appends_trace_to_llm_content(monkeypatch) -> None:
@@ -1182,6 +1222,8 @@ def test_preprocessor_pipe_trace_on_passthrough_appends_trace_to_llm_content(mon
     assert "Context Compiler trace" in content
     assert "decision kind: passthrough" in content
     assert "downstream LLM call: yes" in content
+    assert "payload state injection: no" in content
+    assert "downstream payload messages:" in content
 
 
 def test_preprocessor_pipe_trace_on_passthrough_stream_appends_trace_after_chunks(
@@ -1230,3 +1272,53 @@ def test_preprocessor_pipe_trace_on_passthrough_stream_appends_trace_after_chunk
     assert "Context Compiler trace" in content
     assert "decision kind: passthrough" in content
     assert "downstream LLM call: yes" in content
+    assert "payload state injection: no" in content
+    assert "downstream payload messages:" in content
+
+
+def test_preprocessor_pipe_trace_on_clarify_shows_prompt_and_no_downstream_call(
+    monkeypatch,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_trace_clarify", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    monkeypatch.setattr(
+        module,
+        "precompile_heuristic",
+        lambda _text: {"outcome": "no_directive", "directive": None},
+    )
+
+    downstream_calls = 0
+
+    async def _downstream(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        nonlocal downstream_calls
+        downstream_calls += 1
+        del payload
+        return {"choices": [{"message": {"content": "downstream"}}]}
+
+    monkeypatch.setattr(module, "generate_chat_completion", _downstream)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "set premise to concise answers"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-preproc-trace-clarify",
+        )
+    )
+    assert isinstance(result, str)
+    assert "decision kind: clarify" in result
+    assert "current state:" in result
+    assert "clarification prompt:" in result
+    assert "downstream LLM call: no" in result
+    assert "downstream payload messages: not sent (clarify)" in result
+    assert downstream_calls == 0
