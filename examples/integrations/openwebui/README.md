@@ -49,6 +49,10 @@ If using `open_webui_pipe_with_preprocessor.py`:
 - Optional: set `PREPROCESSOR_MODEL_ID` to route fallback precompilation through
   a separate model. If unset, fallback uses `BASE_MODEL_ID`.
 - Fallback routing is Open WebUI-native (no LiteLLM dependency for this pipe).
+- The heuristic precompiler is intentionally conservative/high-precision and
+  may abstain on mixed-prose natural language (for example, `i think we should
+  use docker`). In those cases, behavior may remain passthrough unless fallback
+  precompilation returns a validated canonical directive.
 - Invalid configured model ids return explicit runtime misconfiguration errors:
   - `BASE_MODEL_ID` not found in Open WebUI models
   - `PREPROCESSOR_MODEL_ID` not found in Open WebUI models

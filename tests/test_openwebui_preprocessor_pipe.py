@@ -1700,7 +1700,7 @@ def test_preprocessor_pipe_clear_state_strips_preexisting_contradictory_trace_fr
     assert "downstream LLM call: yes" not in second_content
 
 
-def test_preprocessor_pipe_natural_language_directive_update_trace_and_injection(
+def test_preprocessor_pipe_update_trace_and_injection_when_heuristic_emits_directive(
     monkeypatch,
 ) -> None:
     module = _load_module_with_openwebui_stubs("owui_preproc_nl_use_docker", monkeypatch)
@@ -1762,7 +1762,7 @@ def test_preprocessor_pipe_natural_language_directive_update_trace_and_injection
     )
 
 
-def test_preprocessor_pipe_natural_language_replacement_update_trace_and_injection(
+def test_preprocessor_pipe_replacement_update_trace_and_injection_when_heuristic_emits_directive(
     monkeypatch,
 ) -> None:
     module = _load_module_with_openwebui_stubs("owui_preproc_nl_replace", monkeypatch)
@@ -1887,6 +1887,51 @@ def test_preprocessor_pipe_ambiguous_text_passthrough_trace_streaming(monkeypatc
     assert "decision kind: passthrough" in content
     assert "downstream LLM call: yes" in content
     assert "downstream LLM call: no" not in content
+    assert "state injected: no" in content
+
+
+def test_preprocessor_pipe_natural_language_abstention_can_passthrough_with_trace(
+    monkeypatch,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_nl_abstention", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    # Use the real heuristic behavior for this phrase (unknown/no_directive),
+    # and force fallback to abstain so runtime stays conservative.
+    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value, **_kwargs: None)
+
+    async def _chat_completion(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        if payload.get("model") == "prep-model":
+            return {"choices": [{"message": {"content": "no_directive"}}]}
+        return {"choices": [{"message": {"content": "downstream"}}]}
+
+    monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "i think we should use docker"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-preproc-nl-abstention",
+        )
+    )
+    assert isinstance(result, dict)
+    content = result["choices"][0]["message"]["content"]
+    assert content.count("Context Compiler trace") == 1
+    assert "decision kind: passthrough" in content
+    assert "active state: none" in content
+    assert "downstream LLM call: yes" in content
     assert "state injected: no" in content
 
 
