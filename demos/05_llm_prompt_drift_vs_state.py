@@ -4,7 +4,7 @@ import argparse
 import re
 
 import demos.llm_client as llm_client
-from context_compiler import create_engine
+from context_compiler import create_engine, get_premise_value
 from demos.common import (
     build_baseline_messages,
     build_mediated_messages_from_transcript,
@@ -30,7 +30,10 @@ _NON_VEG_RE = re.compile(
     r"\b(chicken|beef|pork|bacon|ham|sausage|fish|salmon|tuna|shrimp|lamb|turkey)\b",
     flags=re.IGNORECASE,
 )
-_NEGATION_RE = re.compile(r"\b(no|without|avoid|exclude|instead of)\b", flags=re.IGNORECASE)
+_NEGATION_RE = re.compile(
+    r"\b(no|without|avoid(?:s|ed|ing)?|exclud(?:e|es|ed|ing)|instead of|\w+-free)\b",
+    flags=re.IGNORECASE,
+)
 
 _ORIGINAL_DIRECTIVE = "set premise vegetarian curry"
 EXPECTED_PREMISE = "vegetarian curry"
@@ -196,7 +199,13 @@ def premise_matches_expected(output: str, expected: str = EXPECTED_PREMISE) -> b
     premise = extract_tag_value(output, "PREMISE")
     if premise is None:
         return False
-    return premise.strip().lower() == expected.strip().lower()
+    normalized_premise = premise.strip().rstrip(".!?").strip()
+    normalized_expected = expected.strip().rstrip(".!?").strip()
+    normalized_premise = normalized_premise.strip("\"'“”‘’")
+    normalized_expected = normalized_expected.strip("\"'“”‘’")
+    normalized_premise = normalized_premise.lower()
+    normalized_expected = normalized_expected.lower()
+    return normalized_premise == normalized_expected
 
 
 def _run_demo(turns: int = _DEFAULT_TURNS) -> None:
@@ -236,6 +245,13 @@ def _run_demo(turns: int = _DEFAULT_TURNS) -> None:
         compact_output = f"[no call] clarification required: {compacted_prompt}"
         print_model_output("Compiler-mediated + compact", compact_output)
     else:
+        premise_value = get_premise_value(compacted_state)
+        if (
+            premise_value is not None
+            and _ORIGINAL_DIRECTIVE not in compacted_turns
+            and any("that premise" in turn.lower() for turn in compacted_turns)
+        ):
+            compacted_turns = [f"Premise reminder: {premise_value}", *compacted_turns]
         compact_messages = build_mediated_messages_from_transcript(
             compacted_state,
             compacted_turns,

@@ -83,7 +83,7 @@ def test_resolve_provider_config_ollama_mode_returns_expected_config(
 
     assert config.mode == "ollama"
     assert config.source == "PROVIDER"
-    assert config.base_url == "http://localhost:11434/v1"
+    assert config.base_url == "http://localhost:11434"
     assert config.model == "openai/custom-ollama-model"
     assert config.api_key is None
 

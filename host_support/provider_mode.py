@@ -61,7 +61,7 @@ def resolve_provider_config(default_model: str = "openai/gpt-4o-mini") -> Provid
         return ProviderConfig(
             mode=mode,
             source=source,
-            base_url="http://localhost:11434/v1",
+            base_url="http://localhost:11434",
             model=model,
             api_key=api_key,
         )

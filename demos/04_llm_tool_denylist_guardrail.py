@@ -26,14 +26,20 @@ _ACTION_TOOL_RE = re.compile(
 _LIST_ITEM_RE = re.compile(r"^\s*(?:[-*]|\d+[.)])\s+")
 
 
+def _normalize_tool_value(value: str) -> str:
+    return value.strip().strip("\"'`“”‘’").rstrip(".!?").strip().lower()
+
+
 def selected_tool(output: str) -> str | None:
     tagged = extract_tag_value(output, "TOOL")
-    if tagged is not None and tagged.lower() in {"docker", "kubectl"}:
-        return tagged.lower()
+    if tagged is not None:
+        normalized = _normalize_tool_value(tagged)
+        if normalized in {"docker", "kubectl"}:
+            return normalized
 
     tag_match = _TOOL_TAG_RE.search(output)
     if tag_match is not None:
-        return tag_match.group(1).lower()
+        return _normalize_tool_value(tag_match.group(1))
 
     for line in output.splitlines():
         stripped = line.strip()

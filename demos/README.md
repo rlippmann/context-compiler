@@ -58,6 +58,8 @@ export PROVIDER=ollama
 export MODEL=ollama/llama3.1:8b
 ```
 
+Ollama mode uses a direct base URL of `http://localhost:11434`.
+
 Explicit openai_compatible mode:
 
 ```bash
@@ -86,6 +88,36 @@ Run all demos with detailed traces:
 ```bash
 uv run python -m demos.run_demo all --verbose
 ```
+
+## Results
+
+The canonical cross-model results matrix is maintained in [docs/demos-results.md](../docs/demos-results.md).
+
+Notes:
+- There are **6 scored demos** (`01`–`05`, `07`). `06_context_compaction` is informational and excluded from PASS/FAIL totals.
+- Anthropic runs in this repo are executed through the `openai_compatible` provider path.
+- `PASS` means the demo-specific oracle/checker for that path succeeded; `FAIL` means it did not.
+
+### Demo 05 example (prompt drift under longer context)
+
+Demo 05 measures prompt drift versus authoritative compiled state on a longer transcript.
+Representative run: `PROVIDER=ollama MODEL='ollama/llama3.1:8b' uv run python demos/05_llm_prompt_drift_vs_state.py --turns 30`
+
+```text
+05_prompt_drift — preserve premise across long transcript
+Final user request:
+Now give me a dinner plan. First line must be PREMISE:<value>. Keep the plan consistent with that premise.
+
+Compiler-mediated output:
+PREMISE:vegetarian curry
+Here's a short dinner plan:
+
+baseline: FAIL
+compiler: PASS
+compiler+compact: PASS
+```
+
+The baseline drifted under the longer transcript, while both compiler-mediated paths preserved the authoritative premise.
 
 ## Provider throttling
 

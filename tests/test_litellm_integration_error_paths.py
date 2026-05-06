@@ -172,7 +172,7 @@ def test_call_litellm_ollama_mode_allows_missing_api_key(
 
     result = module._call_litellm([{"role": "user", "content": "hello"}])
     assert result == "ok"
-    assert seen["api_base"] == "http://localhost:11434/v1"
+    assert seen["api_base"] == "http://localhost:11434"
     assert "api_key" not in seen
 
 

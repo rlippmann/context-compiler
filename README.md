@@ -14,6 +14,17 @@ The **Context Compiler** introduces a deterministic state layer that governs aut
 
 The model performs reasoning and generation while the compiler manages premise and policies. Once accepted, directives remain authoritative until explicitly corrected or reset.
 
+## Does it work?
+
+Yes, on the current scored demo set.
+
+- Scope: evaluated across **7 models** and **3 provider paths** (`ollama`, `openai`, `openai_compatible`).
+- Scored checks (**6 demos per model**; Demo 6 excluded): baseline **26 / 42**, compiler **42 / 42**, compiler+compact **42 / 42**.
+- Across tested models, compiler-mediated paths pass all scored scenarios; baseline behavior is model-dependent.
+
+→ [Full results and demo output](demos/README.md)  
+Canonical matrix: [docs/demos-results.md](docs/demos-results.md)
+
 ## Quickstart
 
 ```bash
@@ -347,32 +358,6 @@ For full directive grammar and edge-case behavior, see [DirectiveGrammarSpec.md]
 These invariants are verified through behavioral tests and Hypothesis-based property tests.
 
 ---
-
-## Evidence
-
-### Behavioral correctness (key examples)
-
-Concrete behavioral comparisons (base model vs compiler) are available here:
-
-- [Open WebUI integration README](examples/integrations/openwebui/README.md)
-
-These demonstrate deterministic clarification, state enforcement, and conflict handling.
-
-### Cross-model evaluation
-
-- Models tested: `llama3.1:8b`, `gpt-4o-mini`, `gpt-4.1`, `gpt-5`, `claude-sonnet-4`, `claude-opus-4`
-- Pass-rate summary: baseline (LLM only) `2–4 / 6`; with compiler `6 / 6`; with compiler + compaction `6 / 6`.
-
-### Efficiency
-
-- Context reduction in long conversations: up to `99%`
-- Prompt size reduction: about `50%`
-
-### Additional results
-
-- [SWE curated results (compiler vs baseline)](evals/swe-bench/README.md) — cross-model evaluation on 6 tasks showing mostly positive deltas
-
-
 ---
 
 

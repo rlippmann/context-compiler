@@ -88,7 +88,7 @@ Operational behavior by mode:
   - default `base_url`: `https://api.openai.com/v1`
   - requires `OPENAI_API_KEY`
 - `ollama`
-  - default `base_url`: `http://localhost:11434/v1`
+  - default `base_url`: `http://localhost:11434`
   - API key optional
 - `openai_compatible`
   - requires `OPENAI_BASE_URL` when explicitly selected with `PROVIDER`
