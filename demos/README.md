@@ -117,7 +117,7 @@ compiler: PASS
 compiler+compact: PASS
 ```
 
-This is one representative scored demo behind the aggregate results matrix above.
+The baseline drifted under the longer transcript, while both compiler-mediated paths preserved the authoritative premise.
 
 ## Provider throttling
 
