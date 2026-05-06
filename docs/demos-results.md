@@ -39,6 +39,12 @@ Primary command:
 uv run python -m demos.run_demo all
 ```
 
+## Run metadata
+
+- Date: 2026-05-06
+- Context Compiler: 0.6.15
+- Command: `uv run python -m demos.run_demo all`
+
 Provider/model selection is done via environment variables:
 
 - `PROVIDER` (`openai`, `ollama`, `openai_compatible`)
