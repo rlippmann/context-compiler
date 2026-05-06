@@ -98,19 +98,23 @@ Notes:
 - Anthropic runs in this repo are executed through the `openai_compatible` provider path.
 - `PASS` means the demo-specific oracle/checker for that path succeeded; `FAIL` means it did not.
 
-### Demo 05 example (real run excerpt)
+### Demo 05 example (prompt drift under longer context)
 
 Demo 05 measures prompt drift versus authoritative compiled state on a longer transcript.
-Representative output excerpt from a local run (`ollama/qwen2.5:14b-instruct`):
+Representative run: `PROVIDER=ollama MODEL='ollama/llama3.1:8b' uv run python demos/05_llm_prompt_drift_vs_state.py --turns 30`
 
 ```text
 05_prompt_drift — preserve premise across long transcript
-baseline: PASS
+Final user request:
+Now give me a dinner plan. First line must be PREMISE:<value>. Keep the plan consistent with that premise.
+
+Compiler-mediated output:
+PREMISE:vegetarian curry
+Here's a short dinner plan:
+
+baseline: FAIL
 compiler: PASS
 compiler+compact: PASS
-expected: compiler-mediated should preserve the authoritative premise and keep the plan consistent
-actual: all three paths preserved premise-consistent plan
-result: premise consistency preserved
 ```
 
 This is one representative scored demo behind the aggregate results matrix above.
