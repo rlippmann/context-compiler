@@ -98,10 +98,21 @@ Notes:
 - Anthropic runs in this repo are executed through the `openai_compatible` provider path.
 - `PASS` means the demo-specific oracle/checker for that path succeeded; `FAIL` means it did not.
 
-### Demo 05 example summary
+### Demo 05 example (real run excerpt)
 
 Demo 05 measures prompt drift versus authoritative compiled state on a longer transcript.
-In current matrix runs, baseline is model-sensitive while both compiler paths remain stable.
+Representative output excerpt from a local run (`ollama/qwen2.5:14b-instruct`):
+
+```text
+05_prompt_drift — preserve premise across long transcript
+baseline: PASS
+compiler: PASS
+compiler+compact: PASS
+expected: compiler-mediated should preserve the authoritative premise and keep the plan consistent
+actual: all three paths preserved premise-consistent plan
+result: premise consistency preserved
+```
+
 This is one representative scored demo behind the aggregate results matrix above.
 
 ## Provider throttling
