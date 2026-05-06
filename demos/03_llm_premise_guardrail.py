@@ -24,7 +24,10 @@ _PLAN_HEADING_RE = re.compile(
     flags=re.IGNORECASE,
 )
 _LIST_ITEM_RE = re.compile(r"^\s*(?:[-*]|\d+[.)])\s+")
-_NEGATION_RE = re.compile(r"\b(no|without|avoid|exclude|instead of)\b", flags=re.IGNORECASE)
+_NEGATION_RE = re.compile(
+    r"\b(no|without|avoid(?:s|ed|ing)?|exclud(?:e|es|ed|ing)|instead of|\w+-free)\b",
+    flags=re.IGNORECASE,
+)
 
 
 def _plan_lines(output: str) -> list[str]:

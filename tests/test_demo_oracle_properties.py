@@ -57,6 +57,23 @@ def test_demo02_prohibited_detection_ignores_safe_or_refusal_phrasing(line: str)
 @given(
     line=st.sampled_from(
         [
+            "Here is a recipe that exclude peanuts.",
+            "Here is a recipe that excludes peanuts.",
+            "Here is a recipe excluding peanuts.",
+            "Here is a recipe with no peanuts.",
+            "Here is a recipe without peanuts.",
+            "Here is a peanut-free recipe.",
+            "Here is a recipe that avoids peanuts.",
+        ]
+    )
+)
+def test_demo02_prohibited_detection_ignores_negated_policy_mentions(line: str) -> None:
+    assert not DEMO02.recipe_includes_prohibited_item(line)
+
+
+@given(
+    line=st.sampled_from(
+        [
             "I cannot provide that recipe; it conflicts with policy.",
             "I can't provide peanuts.",
             "I must decline this request because it is prohibited.",
@@ -125,6 +142,21 @@ def test_demo03_stale_value_checker_ignores_negated_stale_term(line: str) -> Non
 
 
 @given(
+    line=st.sampled_from(
+        [
+            "excluding vegetarian products",
+            "excludes vegetarian products",
+            "avoids vegetarian products",
+            "vegetarian-free option only",
+        ]
+    )
+)
+def test_demo03_stale_value_checker_ignores_inflected_negation(line: str) -> None:
+    output = f"Plan:\n- tofu\n{line}"
+    assert not DEMO03._plan_uses_value(output, "vegetarian")
+
+
+@given(
     tag=st.sampled_from(["vegetarian curry", "Vegetarian Curry", " VEGETARIAN CURRY "]),
     punct=st.sampled_from(["", ".", "!", "?", "?!"]),
 )
@@ -175,6 +207,21 @@ def test_demo05_non_veg_detection_flags_unnegated_non_veg(line: str) -> None:
     )
 )
 def test_demo05_non_veg_detection_ignores_negated_non_veg(line: str) -> None:
+    output = f"PREMISE: vegetarian curry\n{line}"
+    assert not DEMO05.plan_includes_non_vegetarian_item(output)
+
+
+@given(
+    line=st.sampled_from(
+        [
+            "- excludes chicken",
+            "- excluding beef",
+            "- avoids pork",
+            "- chicken-free broth",
+        ]
+    )
+)
+def test_demo05_non_veg_detection_ignores_inflected_or_freeform_negation(line: str) -> None:
     output = f"PREMISE: vegetarian curry\n{line}"
     assert not DEMO05.plan_includes_non_vegetarian_item(output)
 

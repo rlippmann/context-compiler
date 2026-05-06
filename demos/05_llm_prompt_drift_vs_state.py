@@ -30,7 +30,10 @@ _NON_VEG_RE = re.compile(
     r"\b(chicken|beef|pork|bacon|ham|sausage|fish|salmon|tuna|shrimp|lamb|turkey)\b",
     flags=re.IGNORECASE,
 )
-_NEGATION_RE = re.compile(r"\b(no|without|avoid|exclude|instead of)\b", flags=re.IGNORECASE)
+_NEGATION_RE = re.compile(
+    r"\b(no|without|avoid(?:s|ed|ing)?|exclud(?:e|es|ed|ing)|instead of|\w+-free)\b",
+    flags=re.IGNORECASE,
+)
 
 _ORIGINAL_DIRECTIVE = "set premise vegetarian curry"
 EXPECTED_PREMISE = "vegetarian curry"
