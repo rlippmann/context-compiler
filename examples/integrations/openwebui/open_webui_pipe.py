@@ -244,6 +244,35 @@ def _build_compact_trace_text(
     return "\n".join(lines)
 
 
+def _strip_trace_block_from_text(content: str) -> str:
+    marker = "Context Compiler trace"
+    index = content.find(marker)
+    if index < 0:
+        return content
+    return content[:index].rstrip()
+
+
+def _strip_trace_blocks_from_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    cleaned: list[dict[str, Any]] = []
+    for message in messages:
+        msg = dict(message)
+        content = msg.get("content")
+        if isinstance(content, str):
+            msg["content"] = _strip_trace_block_from_text(content)
+        cleaned.append(msg)
+    return cleaned
+
+
+def _strip_existing_trace_from_chunk(chunk: object) -> object:
+    if isinstance(chunk, str):
+        return _strip_trace_block_from_text(chunk)
+    if isinstance(chunk, bytes):
+        decoded = chunk.decode("utf-8", errors="ignore")
+        cleaned = _strip_trace_block_from_text(decoded)
+        return cleaned.encode("utf-8")
+    return chunk
+
+
 def _render_item_label(value: str) -> str:
     return re.sub(r"\s+", " ", value).strip().lower()
 
@@ -373,7 +402,8 @@ class Pipe:
         if callable(aiter):
             return self._append_trace_to_stream(cast(AsyncIterator[object], response), trace_text)
         if isinstance(response, str):
-            return f"{response}\n\n{trace_text}"
+            cleaned = _strip_trace_block_from_text(response)
+            return f"{cleaned}\n\n{trace_text}"
         if isinstance(response, dict):
             choices = response.get("choices")
             if isinstance(choices, list) and choices:
@@ -383,7 +413,8 @@ class Pipe:
                     if isinstance(message, dict):
                         content = message.get("content")
                         if isinstance(content, str):
-                            message["content"] = f"{content}\n\n{trace_text}"
+                            cleaned = _strip_trace_block_from_text(content)
+                            message["content"] = f"{cleaned}\n\n{trace_text}"
                             return response
         choices_attr = getattr(response, "choices", None)
         if isinstance(choices_attr, list) and choices_attr:
@@ -391,7 +422,8 @@ class Pipe:
             message_attr = getattr(first_choice, "message", None)
             content_attr = getattr(message_attr, "content", None)
             if message_attr is not None and isinstance(content_attr, str):
-                message_attr.content = f"{content_attr}\n\n{trace_text}"
+                cleaned = _strip_trace_block_from_text(content_attr)
+                message_attr.content = f"{cleaned}\n\n{trace_text}"
                 return response
         return response
 
@@ -426,7 +458,7 @@ class Pipe:
                     yield trace_event
                     yield chunk
                     continue
-                yield chunk
+                yield _strip_existing_trace_from_chunk(chunk)
             if saw_done:
                 return
             suffix = f"\n\n{trace_text}"
@@ -471,6 +503,11 @@ class Pipe:
         """Forward with a shallow body copy and model override only."""
         payload = {**body}
         payload["model"] = self.valves.BASE_MODEL_ID
+        raw_messages = body.get("messages")
+        if isinstance(raw_messages, list):
+            payload["messages"] = _strip_trace_blocks_from_messages(
+                [msg for msg in raw_messages if isinstance(msg, dict)]
+            )
         user = Users.get_user_by_id(user_payload["id"])
         if inspect.isawaitable(user):
             user = await user
@@ -503,7 +540,9 @@ class Pipe:
 
         raw_messages = body.get("messages")
         messages = (
-            [dict(msg) for msg in raw_messages if isinstance(msg, dict)]
+            _strip_trace_blocks_from_messages(
+                [msg for msg in raw_messages if isinstance(msg, dict)]
+            )
             if isinstance(raw_messages, list)
             else []
         )

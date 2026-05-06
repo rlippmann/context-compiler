@@ -894,3 +894,191 @@ def test_pipe_trace_appends_on_streaming_response_wrapper_passthrough_and_update
         and payload["messages"][0]["content"].startswith("[[cc_state]]")
         for payload in forwarded_payloads
     )
+
+
+@pytest.mark.parametrize(
+    ("steps", "expected_state_injected"),
+    [
+        (
+            ["use docker", "clear state"],
+            "none",
+        ),
+        (
+            ["set premise concise replies", "clear premise"],
+            "none",
+        ),
+        (
+            ["use docker", "use pytest", "reset policies"],
+            "none",
+        ),
+        (
+            ["use docker", "remove policy docker"],
+            "none",
+        ),
+    ],
+)
+def test_pipe_trace_update_clear_reset_paths_single_and_consistent(
+    monkeypatch,
+    steps: list[str],
+    expected_state_injected: str,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_trace_clear_reset", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    async def _chat_completion(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        del payload
+        return {"choices": [{"message": {"content": "downstream"}}]}
+
+    module.generate_chat_completion = _chat_completion
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+
+    result: object = ""
+    for idx, user_input in enumerate(steps):
+        result = asyncio.run(
+            pipe.pipe(
+                {"model": "pipe-model", "messages": [{"role": "user", "content": user_input}]},
+                __user__={"id": "u1"},
+                __request__=object(),
+                __chat_id__=f"chat-trace-clear-reset-{hash(tuple(steps))}",
+            )
+        )
+        if idx < len(steps) - 1:
+            continue
+
+    assert isinstance(result, dict)
+    content = result["choices"][0]["message"]["content"]
+    assert content.count("Context Compiler trace") == 1
+    assert "decision kind: update" in content
+    assert "downstream LLM call: yes" in content
+    assert "downstream LLM call: no" not in content
+    assert "active state: none" in content
+    assert f"state injected: {expected_state_injected}" in content
+
+
+def test_pipe_clear_state_trace_not_duplicated_when_model_echoes_history(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_trace_echo_dedupe", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    async def _chat_completion(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        messages = payload.get("messages")
+        echoed = ""
+        if isinstance(messages, list):
+            assistant_contents = [
+                str(msg.get("content", ""))
+                for msg in messages
+                if isinstance(msg, dict) and msg.get("role") == "assistant"
+            ]
+            echoed = "\n".join(assistant_contents)
+        content = "downstream"
+        if echoed:
+            content += f"\n{echoed}"
+        return {"choices": [{"message": {"content": content}}]}
+
+    module.generate_chat_completion = _chat_completion
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+    chat_id = "chat-trace-echo-dedupe"
+
+    first = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "use docker"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_id,
+        )
+    )
+    assert isinstance(first, dict)
+    first_content = first["choices"][0]["message"]["content"]
+    assert first_content.count("Context Compiler trace") == 1
+
+    second = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [
+                    {"role": "assistant", "content": first_content},
+                    {"role": "user", "content": "clear state"},
+                ],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_id,
+        )
+    )
+    assert isinstance(second, dict)
+    second_content = second["choices"][0]["message"]["content"]
+    assert second_content.count("Context Compiler trace") == 1
+    assert "decision kind: update" in second_content
+    assert "downstream LLM call: yes" in second_content
+    assert "downstream LLM call: no" not in second_content
+    assert "active state: none" in second_content
+    assert "state injected: none" in second_content
+
+
+def test_pipe_clear_state_strips_preexisting_contradictory_trace_from_model_output(
+    monkeypatch,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_trace_strip_contradiction", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    old_trace = (
+        "Context Compiler trace\n\n"
+        "decision kind: update\n"
+        "active state: none\n"
+        "downstream LLM call: no\n"
+        "\n"
+        "state injected: none"
+    )
+
+    call_count = 0
+
+    async def _chat_completion(
+        _: object,
+        payload: dict[str, object],
+        __: object,
+    ) -> dict[str, object]:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return {"choices": [{"message": {"content": "downstream"}}]}
+        del payload
+        return {"choices": [{"message": {"content": f"downstream\n{old_trace}"}}]}
+
+    module.generate_chat_completion = _chat_completion
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+    chat_id = "chat-trace-strip-contradiction"
+
+    _ = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "use docker"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_id,
+        )
+    )
+
+    second = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "clear state"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_id,
+        )
+    )
+    assert isinstance(second, dict)
+    second_content = second["choices"][0]["message"]["content"]
+    assert second_content.count("Context Compiler trace") == 1
+    assert "downstream LLM call: yes" in second_content
+    assert "downstream LLM call: no" not in second_content
