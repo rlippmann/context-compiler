@@ -421,6 +421,14 @@ class Pipe:
                         if isinstance(content, str):
                             message["content"] = f"{content}\n\n{trace_text}"
                             return response
+        choices_attr = getattr(response, "choices", None)
+        if isinstance(choices_attr, list) and choices_attr:
+            first_choice = choices_attr[0]
+            message_attr = getattr(first_choice, "message", None)
+            content_attr = getattr(message_attr, "content", None)
+            if message_attr is not None and isinstance(content_attr, str):
+                message_attr.content = f"{content_attr}\n\n{trace_text}"
+                return response
         return response
 
     def _append_trace_to_stream(

@@ -1322,3 +1322,79 @@ def test_preprocessor_pipe_trace_on_clarify_shows_prompt_and_no_downstream_call(
     assert "downstream LLM call: no" in result
     assert "downstream payload messages: not sent (clarify)" in result
     assert downstream_calls == 0
+
+
+def test_preprocessor_pipe_trace_appends_on_object_response_for_passthrough_and_update(
+    monkeypatch,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_trace_object_response", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    class _Message:
+        def __init__(self, content: str) -> None:
+            self.content = content
+
+    class _Choice:
+        def __init__(self, content: str) -> None:
+            self.message = _Message(content)
+
+    class _Response:
+        def __init__(self, content: str) -> None:
+            self.choices = [_Choice(content)]
+
+    def _heuristic(text: str) -> dict[str, object]:
+        if "use docker" in text.lower():
+            return {"outcome": module.PRECOMPILE_OUTCOME_DIRECTIVE, "directive": "use docker"}
+        return {"outcome": "no_directive", "directive": None}
+
+    monkeypatch.setattr(module, "precompile_heuristic", _heuristic)
+    monkeypatch.setattr(module, "parse_precompiler_output", lambda value, **_kwargs: value)
+
+    forwarded_payloads: list[dict[str, object]] = []
+
+    async def _chat_completion(_: object, payload: dict[str, object], __: object) -> object:
+        forwarded_payloads.append(payload)
+        return _Response("downstream")
+
+    monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+
+    passthrough = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-preproc-object-passthrough",
+        )
+    )
+    passthrough_content = passthrough.choices[0].message.content
+    assert "Context Compiler trace" in passthrough_content
+    assert "decision kind: passthrough" in passthrough_content
+    assert "downstream LLM call: yes" in passthrough_content
+
+    update = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "use docker"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-preproc-object-update",
+        )
+    )
+    update_content = update.choices[0].message.content
+    assert "Context Compiler trace" in update_content
+    assert "decision kind: update" in update_content
+    assert "downstream LLM call: yes" in update_content
+    assert "injected [[cc_state]] block:" in update_content
+    assert "[[cc_state]]" in update_content
+    assert any(
+        isinstance(payload.get("messages"), list)
+        and isinstance(payload["messages"][0], dict)
+        and isinstance(payload["messages"][0].get("content"), str)
+        and payload["messages"][0]["content"].startswith("[[cc_state]]")
+        for payload in forwarded_payloads
+    )
