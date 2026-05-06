@@ -25,11 +25,11 @@ Canonical reference for the current LLM demo matrix and methodology.
 - Scored demos per run: `6`
 - Aggregate scored checks per path: `42`
 
-Aggregate pass/fail totals:
+Aggregate pass totals:
 
-- Baseline: `26 / 16`
-- Compiler: `42 / 0`
-- Compiler+compact: `42 / 0`
+- Baseline: `26 / 42`
+- Compiler: `42 / 42`
+- Compiler+compact: `42 / 42`
 
 ## Methodology
 
