@@ -3,7 +3,7 @@ title: Context Compiler Pipe
 author: rlippmann
 author_url: https://github.com/rlippmann/context-compiler
 funding_url: https://github.com/rlippmann/context-compiler
-version: 0.8.1
+version: 0.8.2
 requirements: context-compiler>=0.6.14
 
 Minimal Open WebUI Pipe integration for Context Compiler.
