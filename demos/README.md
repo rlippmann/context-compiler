@@ -89,6 +89,21 @@ Run all demos with detailed traces:
 uv run python -m demos.run_demo all --verbose
 ```
 
+## Results
+
+The canonical cross-model results matrix is maintained in [docs/demos-results.md](../docs/demos-results.md).
+
+Notes:
+- There are **6 scored demos** (`01`–`05`, `07`). `06_context_compaction` is informational and excluded from PASS/FAIL totals.
+- Anthropic runs in this repo are executed through the `openai_compatible` provider path.
+- `PASS` means the demo-specific oracle/checker for that path succeeded; `FAIL` means it did not.
+
+### Demo 05 example summary
+
+Demo 05 measures prompt drift versus authoritative compiled state on a longer transcript.
+In current matrix runs, baseline is model-sensitive while both compiler paths remain stable.
+This is one representative scored demo behind the aggregate results matrix above.
+
 ## Provider throttling
 
 The demos make multiple LLM requests and may trigger rate limits on very
