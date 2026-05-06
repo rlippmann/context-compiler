@@ -643,11 +643,8 @@ def test_preprocessor_pipe_normal_update_forwards_with_state_and_persists_checkp
         )
     )
 
-    assert result == {"ok": True}
-    assert len(forwarded_payloads) == 2
-    second_messages = forwarded_payloads[1]["messages"]
-    assert isinstance(second_messages, list)
-    assert second_messages[0] == {"role": "system", "content": "[[cc_state]]"}
+    assert result == "State updated: Removed policy peanuts."
+    assert len(forwarded_payloads) == 1
 
     checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
     assert checkpoint["pending"] is None
@@ -700,20 +697,20 @@ def test_preprocessor_pipe_update_forwarding_injects_state_across_directive_shap
 
     result = asyncio.run(
         pipe.pipe(
-            {
-                "model": "pipe-model",
-                "messages": [{"role": "user", "content": "remove policy DOCKER"}],
-            },
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "use docker"}]},
             __user__={"id": "u1"},
             __request__=object(),
-            __chat_id__="chat-remove",
+            __chat_id__="chat-idempotent",
         )
     )
     assert result == {"ok": True}
 
     result = asyncio.run(
         pipe.pipe(
-            {"model": "pipe-model", "messages": [{"role": "user", "content": "use docker"}]},
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "use docker"}],
+            },
             __user__={"id": "u1"},
             __request__=object(),
             __chat_id__="chat-replace",
@@ -749,10 +746,10 @@ def test_preprocessor_pipe_update_forwarding_injects_state_across_directive_shap
 
     result = asyncio.run(
         pipe.pipe(
-            {"model": "pipe-model", "messages": [{"role": "user", "content": "clear premise"}]},
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "use docker"}]},
             __user__={"id": "u1"},
             __request__=object(),
-            __chat_id__="chat-premise",
+            __chat_id__="chat-idempotent",
         )
     )
     assert result == {"ok": True}
@@ -1478,30 +1475,30 @@ def test_preprocessor_pipe_trace_appends_on_streaming_response_wrapper_passthrou
 
 
 @pytest.mark.parametrize(
-    ("steps", "expected_state_injected"),
+    ("steps", "expected_ack"),
     [
         (
             ["use docker", "clear state"],
-            "none",
+            "State cleared.",
         ),
         (
             ["set premise concise replies", "clear premise"],
-            "none",
+            "Premise cleared.",
         ),
         (
             ["use docker", "use pytest", "reset policies"],
-            "none",
+            "Policies reset.",
         ),
         (
             ["use docker", "remove policy docker"],
-            "none",
+            "State updated: Removed policy docker.",
         ),
     ],
 )
 def test_preprocessor_pipe_trace_update_clear_reset_paths_single_and_consistent(
     monkeypatch,
     steps: list[str],
-    expected_state_injected: str,
+    expected_ack: str,
 ) -> None:
     module = _load_module_with_openwebui_stubs("owui_preproc_trace_clear_reset", monkeypatch)
     module._ENGINES_BY_CHAT_KEY.clear()
@@ -1514,11 +1511,15 @@ def test_preprocessor_pipe_trace_update_clear_reset_paths_single_and_consistent(
     )
     monkeypatch.setattr(module, "parse_precompiler_output", lambda _value, **_kwargs: None)
 
+    downstream_calls = 0
+
     async def _chat_completion(
         _: object, payload: dict[str, object], __: object
     ) -> dict[str, object]:
+        nonlocal downstream_calls
         if payload.get("model") == "prep-model":
             return {"choices": [{"message": {"content": "no_directive"}}]}
+        downstream_calls += 1
         return {"choices": [{"message": {"content": "downstream"}}]}
 
     monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
@@ -1541,14 +1542,16 @@ def test_preprocessor_pipe_trace_update_clear_reset_paths_single_and_consistent(
         if idx < len(steps) - 1:
             continue
 
-    assert isinstance(result, dict)
-    content = result["choices"][0]["message"]["content"]
+    assert isinstance(result, str)
+    assert result.startswith(expected_ack)
+    content = result
     assert content.count("Context Compiler trace") == 1
     assert "decision kind: update" in content
-    assert "downstream LLM call: yes" in content
-    assert "downstream LLM call: no" not in content
+    assert "downstream LLM call: no" in content
+    assert "downstream LLM call: yes" not in content
     assert "active state: none" in content
-    assert f"state injected: {expected_state_injected}" in content
+    assert "state injected: no" in content
+    assert downstream_calls == len(steps) - 1
 
 
 def test_preprocessor_pipe_clear_state_trace_not_duplicated_when_model_echoes_history(
@@ -1616,14 +1619,14 @@ def test_preprocessor_pipe_clear_state_trace_not_duplicated_when_model_echoes_hi
             __chat_id__=chat_id,
         )
     )
-    assert isinstance(second, dict)
-    second_content = second["choices"][0]["message"]["content"]
+    assert isinstance(second, str)
+    second_content = second
     assert second_content.count("Context Compiler trace") == 1
     assert "decision kind: update" in second_content
-    assert "downstream LLM call: yes" in second_content
-    assert "downstream LLM call: no" not in second_content
+    assert "downstream LLM call: no" in second_content
+    assert "downstream LLM call: yes" not in second_content
     assert "active state: none" in second_content
-    assert "state injected: none" in second_content
+    assert "state injected: no" in second_content
 
 
 def test_preprocessor_pipe_clear_state_strips_preexisting_contradictory_trace_from_model_output(
@@ -1690,11 +1693,11 @@ def test_preprocessor_pipe_clear_state_strips_preexisting_contradictory_trace_fr
             __chat_id__=chat_id,
         )
     )
-    assert isinstance(second, dict)
-    second_content = second["choices"][0]["message"]["content"]
+    assert isinstance(second, str)
+    second_content = second
     assert second_content.count("Context Compiler trace") == 1
-    assert "downstream LLM call: yes" in second_content
-    assert "downstream LLM call: no" not in second_content
+    assert "downstream LLM call: no" in second_content
+    assert "downstream LLM call: yes" not in second_content
 
 
 def test_preprocessor_pipe_natural_language_directive_update_trace_and_injection(

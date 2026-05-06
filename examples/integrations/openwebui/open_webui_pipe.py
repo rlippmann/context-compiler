@@ -330,6 +330,16 @@ def _summarize_update_from_input(user_input: str) -> str:
     return "State updated."
 
 
+def _is_administrative_update_input(user_input: str) -> bool:
+    normalized = re.sub(r"\s+", " ", user_input.strip()).lower()
+    return (
+        normalized == "clear state"
+        or normalized == "clear premise"
+        or normalized == "reset policies"
+        or normalized.startswith("remove policy ")
+    )
+
+
 class Pipe:
     """Map Context Compiler decisions into Open WebUI pipe behavior.
 
@@ -659,6 +669,16 @@ class Pipe:
             )
         if kind == "update":
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
+            if _is_administrative_update_input(latest_user_text):
+                return self._with_trace(
+                    _summarize_update_from_input(latest_user_text),
+                    original_input=latest_user_text,
+                    compiler_input=latest_user_text,
+                    decision=decision,
+                    state_before=state_before,
+                    state_after=state_after,
+                    llm_called=False,
+                )
             response = await self._forward_update(
                 body,
                 __user__,
