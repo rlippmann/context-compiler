@@ -1181,13 +1181,12 @@ def test_preprocessor_pipe_trace_on_appends_trace_to_user_visible_output(monkeyp
     assert "downstream" in content
     assert "Context Compiler trace" in content
     assert "decision kind: update" in content
-    assert "preprocessor output: prohibit peanuts" in content
+    assert "preprocessor output:" not in content
     assert "downstream LLM call: yes" in content
-    assert "current state:" in content
-    assert "injected [[cc_state]] block: '[[cc_state]]\\nProhibit: peanuts'" in content
-    assert "payload state injection: yes" in content
-    assert "downstream payload messages:" in content
-    assert "[[cc_state]]\\nProhibit: peanuts" in content
+    assert "state change:" in content
+    assert "active state:" in content
+    assert "state injected: prohibit peanuts" in content
+    assert "\n\nstate injected: prohibit peanuts" in content
 
 
 def test_preprocessor_pipe_trace_on_passthrough_appends_trace_to_llm_content(monkeypatch) -> None:
@@ -1222,8 +1221,8 @@ def test_preprocessor_pipe_trace_on_passthrough_appends_trace_to_llm_content(mon
     assert "Context Compiler trace" in content
     assert "decision kind: passthrough" in content
     assert "downstream LLM call: yes" in content
-    assert "payload state injection: no" in content
-    assert "downstream payload messages:" in content
+    assert "active state:" in content
+    assert "state injected: no" in content
 
 
 def test_preprocessor_pipe_trace_on_passthrough_stream_appends_trace_after_chunks(
@@ -1272,8 +1271,8 @@ def test_preprocessor_pipe_trace_on_passthrough_stream_appends_trace_after_chunk
     assert "Context Compiler trace" in content
     assert "decision kind: passthrough" in content
     assert "downstream LLM call: yes" in content
-    assert "payload state injection: no" in content
-    assert "downstream payload messages:" in content
+    assert "active state:" in content
+    assert "state injected: no" in content
 
 
 def test_preprocessor_pipe_trace_on_clarify_shows_prompt_and_no_downstream_call(
@@ -1317,10 +1316,10 @@ def test_preprocessor_pipe_trace_on_clarify_shows_prompt_and_no_downstream_call(
     )
     assert isinstance(result, str)
     assert "decision kind: clarify" in result
-    assert "current state:" in result
+    assert "active state:" in result
     assert "clarification prompt:" in result
     assert "downstream LLM call: no" in result
-    assert "downstream payload messages: not sent (clarify)" in result
+    assert "state injected: no" in result
     assert downstream_calls == 0
 
 
@@ -1389,8 +1388,86 @@ def test_preprocessor_pipe_trace_appends_on_object_response_for_passthrough_and_
     assert "Context Compiler trace" in update_content
     assert "decision kind: update" in update_content
     assert "downstream LLM call: yes" in update_content
-    assert "injected [[cc_state]] block:" in update_content
-    assert "[[cc_state]]" in update_content
+    assert "state injected:" in update_content
+    assert any(
+        isinstance(payload.get("messages"), list)
+        and isinstance(payload["messages"][0], dict)
+        and isinstance(payload["messages"][0].get("content"), str)
+        and payload["messages"][0]["content"].startswith("[[cc_state]]")
+        for payload in forwarded_payloads
+    )
+
+
+def test_preprocessor_pipe_trace_appends_on_streaming_response_wrapper_passthrough_and_update(
+    monkeypatch,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_trace_streaming_wrapper", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    class _StreamingResponse:
+        def __init__(self, parts: tuple[str, ...]) -> None:
+            async def _iter() -> object:
+                for part in parts:
+                    yield part
+
+            self.body_iterator = _iter()
+
+    def _heuristic(text: str) -> dict[str, object]:
+        if "use docker" in text.lower():
+            return {"outcome": module.PRECOMPILE_OUTCOME_DIRECTIVE, "directive": "use docker"}
+        return {"outcome": "no_directive", "directive": None}
+
+    monkeypatch.setattr(module, "precompile_heuristic", _heuristic)
+    monkeypatch.setattr(module, "parse_precompiler_output", lambda value, **_kwargs: value)
+
+    forwarded_payloads: list[dict[str, object]] = []
+
+    async def _chat_completion(_: object, payload: dict[str, object], __: object) -> object:
+        forwarded_payloads.append(payload)
+        return _StreamingResponse(("data: stub\n\n", "data: [DONE]\n\n"))
+
+    monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+
+    passthrough = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-preproc-stream-wrapper-passthrough",
+        )
+    )
+
+    async def _collect_stream(wrapper: object) -> str:
+        parts: list[str] = []
+        async for chunk in wrapper.body_iterator:
+            assert isinstance(chunk, str)
+            parts.append(chunk)
+        return "".join(parts)
+
+    passthrough_stream = asyncio.run(_collect_stream(passthrough))
+    assert "data: [DONE]" in passthrough_stream
+    assert "Context Compiler trace" in passthrough_stream
+    assert "decision kind: passthrough" in passthrough_stream
+
+    update = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "use docker"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-preproc-stream-wrapper-update",
+        )
+    )
+    update_stream = asyncio.run(_collect_stream(update))
+    assert "data: [DONE]" in update_stream
+    assert "Context Compiler trace" in update_stream
+    assert "decision kind: update" in update_stream
+    assert "state injected:" in update_stream
     assert any(
         isinstance(payload.get("messages"), list)
         and isinstance(payload["messages"][0], dict)
