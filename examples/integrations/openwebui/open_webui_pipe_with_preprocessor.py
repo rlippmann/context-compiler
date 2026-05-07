@@ -3,7 +3,7 @@ title: Context Compiler Preprocessor Pipe
 author: rlippmann
 author_url: https://github.com/rlippmann/context-compiler
 funding_url: https://github.com/rlippmann/context-compiler
-version: 0.8.1
+version: 0.8.2
 requirements: context-compiler[experimental]>=0.6.14
 
 Open WebUI integration with Context Compiler preprocessor.
@@ -18,6 +18,7 @@ Core decision handling remains the same as the base integration.
 """
 
 import inspect
+import json
 import logging
 import re
 from collections.abc import AsyncIterator
@@ -55,42 +56,6 @@ from experimental.preprocessor import (
     render_prompt,
 )
 
-try:
-    from host_support import is_confirmation_text, summarize_confirmation_update
-except ImportError:
-    import host_support.confirmation as _confirmation
-
-    is_confirmation_text = _confirmation.is_confirmation_text
-    summarize_confirmation_update = _confirmation.summarize_confirmation_update
-try:
-    from host_support import build_trace
-except ImportError:
-    try:
-        from host_support.observability import build_trace
-    except ImportError:
-
-        def build_trace(
-            *,
-            original_input: str,
-            compiler_input: str,
-            decision: object,
-            state_before: object,
-            state_after: object,
-            preprocessor_output: str | None = None,
-            llm_called: bool = False,
-        ) -> str:
-            del (
-                original_input,
-                compiler_input,
-                decision,
-                state_before,
-                state_after,
-                preprocessor_output,
-                llm_called,
-            )
-            return ""
-
-
 logger = logging.getLogger(__name__)
 
 _CC_MARKER = "[[cc_state]]"
@@ -101,8 +66,6 @@ _ENGINES_BY_CHAT_KEY: dict[str, Engine] = {}
 # or restart continuity for pending flows will be lost.
 _CHECKPOINTS_BY_CHAT_KEY: dict[str, str] = {}
 _PROMPTS_DIR = files("experimental.preprocessor").joinpath("prompts")
-_NEGATIVE_CONFIRMATION_TOKENS = {"no", "nope", "no thanks"}
-_TRAILING_CONFIRM_PUNCT_RE = re.compile(r"[.,!?]+$")
 
 
 def _is_directive_shaped_input(message: str) -> bool:
@@ -197,11 +160,118 @@ def _replace_compiler_system_message(
     ]
 
 
-def _normalize_confirmation_for_summary(value: str) -> str:
-    normalized = value.strip().lower()
-    normalized = re.sub(r"\s+", " ", normalized)
-    normalized = _TRAILING_CONFIRM_PUNCT_RE.sub("", normalized).strip()
-    return re.sub(r"\s+", " ", normalized)
+def _normalize_state(value: object) -> State:
+    if isinstance(value, dict):
+        return cast(State, value)
+    return {"premise": None, "policies": {}, "version": 2}
+
+
+def _active_state_summary(state: object) -> str:
+    normalized = _normalize_state(state)
+    premise = get_premise_value(normalized)
+    use_items = sorted(get_policy_items(normalized, "use"))
+    prohibit_items = sorted(get_policy_items(normalized, "prohibit"))
+    parts: list[str] = []
+    if premise is not None:
+        parts.append(f'premise="{premise}"')
+    if use_items:
+        parts.append("use " + ", ".join(use_items))
+    if prohibit_items:
+        parts.append("prohibit " + ", ".join(prohibit_items))
+    return "; ".join(parts) if parts else "none"
+
+
+def _compact_state_change(before: object, after: object) -> str:
+    before_state = _normalize_state(before)
+    after_state = _normalize_state(after)
+    before_premise = get_premise_value(before_state)
+    after_premise = get_premise_value(after_state)
+    before_use = set(get_policy_items(before_state, "use"))
+    after_use = set(get_policy_items(after_state, "use"))
+    before_prohibit = set(get_policy_items(before_state, "prohibit"))
+    after_prohibit = set(get_policy_items(after_state, "prohibit"))
+
+    parts: list[str] = []
+    if before_premise != after_premise:
+        if after_premise is None:
+            parts.append("-premise")
+        elif before_premise is None:
+            parts.append(f'+premise "{after_premise}"')
+        else:
+            parts.append(f'~premise "{after_premise}"')
+    for item in sorted(after_use - before_use):
+        parts.append(f"+use {item}")
+    for item in sorted(before_use - after_use):
+        parts.append(f"-use {item}")
+    for item in sorted(after_prohibit - before_prohibit):
+        parts.append(f"+prohibit {item}")
+    for item in sorted(before_prohibit - after_prohibit):
+        parts.append(f"-prohibit {item}")
+    return ", ".join(parts) if parts else "none"
+
+
+def _build_compact_trace_text(
+    *,
+    decision: object,
+    state_before: object,
+    state_after: object,
+    llm_called: bool,
+    state_injected: str,
+) -> str:
+    kind_obj = decision.get("kind") if isinstance(decision, dict) else None
+    kind = kind_obj if isinstance(kind_obj, str) else "unknown"
+    lines = ["Context Compiler trace", "", f"decision kind: {kind}"]
+
+    if kind == "update":
+        lines.append(f"state change: {_compact_state_change(state_before, state_after)}")
+        lines.append(f"active state: {_active_state_summary(state_after)}")
+        lines.append(f"downstream LLM call: {'yes' if llm_called else 'no'}")
+        lines.append("")
+        lines.append(f"state injected: {state_injected}")
+        return "\n".join(lines)
+
+    if kind == "clarify":
+        prompt_obj = decision.get("prompt_to_user") if isinstance(decision, dict) else None
+        prompt = prompt_obj if isinstance(prompt_obj, str) else ""
+        lines.append(f"clarification prompt: {prompt}")
+        lines.append(f"active state: {_active_state_summary(state_after)}")
+        lines.append(f"downstream LLM call: {'yes' if llm_called else 'no'}")
+        lines.append("state injected: no")
+        return "\n".join(lines)
+
+    lines.append(f"active state: {_active_state_summary(state_after)}")
+    lines.append(f"downstream LLM call: {'yes' if llm_called else 'no'}")
+    lines.append("state injected: no")
+    return "\n".join(lines)
+
+
+def _strip_trace_block_from_text(content: str) -> str:
+    marker = "Context Compiler trace"
+    index = content.find(marker)
+    if index < 0:
+        return content
+    return content[:index].rstrip()
+
+
+def _strip_trace_blocks_from_messages(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    cleaned: list[dict[str, Any]] = []
+    for message in messages:
+        msg = dict(message)
+        content = msg.get("content")
+        if isinstance(content, str):
+            msg["content"] = _strip_trace_block_from_text(content)
+        cleaned.append(msg)
+    return cleaned
+
+
+def _strip_existing_trace_from_chunk(chunk: object) -> object:
+    if isinstance(chunk, str):
+        return _strip_trace_block_from_text(chunk)
+    if isinstance(chunk, bytes):
+        decoded = chunk.decode("utf-8", errors="ignore")
+        cleaned = _strip_trace_block_from_text(decoded)
+        return cleaned.encode("utf-8")
+    return chunk
 
 
 def _render_item_label(value: str) -> str:
@@ -261,45 +331,14 @@ def _summarize_update_from_input(user_input: str) -> str:
     return "State updated."
 
 
-def _summarize_confirmation_update(user_input: str, pending: object) -> str:
-    summarize_fn = summarize_confirmation_update
-    if callable(summarize_fn):
-        return summarize_fn(user_input, pending)
-
-    normalized = _normalize_confirmation_for_summary(user_input)
-    if normalized in _NEGATIVE_CONFIRMATION_TOKENS:
-        return "State unchanged."
-    if not isinstance(pending, dict):
-        return "State updated."
-
-    replacement = pending.get("replacement")
-    if not isinstance(replacement, dict):
-        return "State updated."
-
-    kind = replacement.get("kind")
-    new_item = replacement.get("new_item")
-    old_item = replacement.get("old_item")
-    if kind == "use_only" and isinstance(new_item, str):
-        new_label = _render_item_label(new_item)
-        if new_label:
-            return f"State updated: Use {new_label}."
-        return "State updated."
-
-    if kind == "replace_use" and isinstance(new_item, str) and isinstance(old_item, str):
-        new_label = _render_item_label(new_item)
-        old_label = _render_item_label(old_item)
-        if not new_label or not old_label:
-            return "State updated."
-        prompt = pending.get("prompt_to_user")
-        prohibited_old_prompt = (
-            f'"{old_item}" is currently prohibited. '
-            f'Did you mean to remove it and use "{new_item}" instead?'
-        )
-        if prompt == prohibited_old_prompt:
-            return f"State updated: Removed prohibition on {old_label}; use {new_label}."
-        return f"State updated: Replaced {old_label} with {new_label}."
-
-    return "State updated."
+def _is_administrative_update_input(user_input: str) -> bool:
+    normalized = re.sub(r"\s+", " ", user_input.strip()).lower()
+    return (
+        normalized == "clear state"
+        or normalized == "clear premise"
+        or normalized == "reset policies"
+        or normalized.startswith("remove policy ")
+    )
 
 
 def _extract_completion_content(response: object) -> str | None:
@@ -349,7 +388,7 @@ class Pipe:
 
     This variant adds a precompiler stage before ``engine.step(...)``:
     heuristic first, then Open WebUI-native LLM fallback.
-    Update decisions return deterministic acknowledgment text.
+    Update decisions forward with compiler-owned state injection.
     """
 
     class Valves(BaseModel):
@@ -390,11 +429,18 @@ class Pipe:
         return bool(getattr(self.valves, "SHOW_CONTEXT_COMPILER_TRACE", False))
 
     def _append_trace_to_response(self, response: Any, trace_text: str) -> Any:
+        body_iterator = getattr(response, "body_iterator", None)
+        if body_iterator is not None and callable(getattr(body_iterator, "__aiter__", None)):
+            response.body_iterator = self._append_trace_to_stream(
+                cast(AsyncIterator[object], body_iterator), trace_text
+            )
+            return response
         aiter = getattr(response, "__aiter__", None)
         if callable(aiter):
             return self._append_trace_to_stream(cast(AsyncIterator[object], response), trace_text)
         if isinstance(response, str):
-            return f"{response}\n\n{trace_text}"
+            cleaned = _strip_trace_block_from_text(response)
+            return f"{cleaned}\n\n{trace_text}"
         if isinstance(response, dict):
             choices = response.get("choices")
             if isinstance(choices, list) and choices:
@@ -404,8 +450,18 @@ class Pipe:
                     if isinstance(message, dict):
                         content = message.get("content")
                         if isinstance(content, str):
-                            message["content"] = f"{content}\n\n{trace_text}"
+                            cleaned = _strip_trace_block_from_text(content)
+                            message["content"] = f"{cleaned}\n\n{trace_text}"
                             return response
+        choices_attr = getattr(response, "choices", None)
+        if isinstance(choices_attr, list) and choices_attr:
+            first_choice = choices_attr[0]
+            message_attr = getattr(first_choice, "message", None)
+            content_attr = getattr(message_attr, "content", None)
+            if message_attr is not None and isinstance(content_attr, str):
+                cleaned = _strip_trace_block_from_text(content_attr)
+                message_attr.content = f"{cleaned}\n\n{trace_text}"
+                return response
         return response
 
     def _append_trace_to_stream(
@@ -413,13 +469,35 @@ class Pipe:
     ) -> AsyncIterator[object]:
         async def _wrapped() -> AsyncIterator[object]:
             chunk_type: type[str] | type[bytes] | None = None
+            saw_done = False
+            trace_json = json.dumps({"choices": [{"delta": {"content": f"\n\n{trace_text}"}}]})
+            trace_event = f"data: {trace_json}\n\n"
+
+            def _matches_done(value: str) -> bool:
+                normalized = value.strip()
+                return normalized == "data: [DONE]" or normalized == "[DONE]"
+
             async for chunk in stream:
                 if chunk_type is None:
                     if isinstance(chunk, bytes):
                         chunk_type = bytes
                     elif isinstance(chunk, str):
                         chunk_type = str
-                yield chunk
+                if isinstance(chunk, bytes):
+                    decoded = chunk.decode("utf-8", errors="ignore")
+                    if _matches_done(decoded):
+                        saw_done = True
+                        yield trace_event.encode("utf-8")
+                        yield chunk
+                        continue
+                elif isinstance(chunk, str) and _matches_done(chunk):
+                    saw_done = True
+                    yield trace_event
+                    yield chunk
+                    continue
+                yield _strip_existing_trace_from_chunk(chunk)
+            if saw_done:
+                return
             suffix = f"\n\n{trace_text}"
             if chunk_type is bytes:
                 yield suffix.encode("utf-8")
@@ -439,17 +517,17 @@ class Pipe:
         state_after: object,
         llm_called: bool,
         preprocessor_output: str | None = None,
+        state_injected: str = "no",
     ) -> Any:
         if not self._trace_enabled():
             return response
-        trace_text = build_trace(
-            original_input=original_input,
-            compiler_input=compiler_input,
+        del original_input, compiler_input, preprocessor_output
+        trace_text = _build_compact_trace_text(
             decision=decision,
             state_before=state_before,
             state_after=state_after,
-            preprocessor_output=preprocessor_output,
             llm_called=llm_called,
+            state_injected=state_injected,
         )
         return self._append_trace_to_response(response, trace_text)
 
@@ -658,6 +736,11 @@ class Pipe:
             )
         payload = {**body}
         payload["model"] = base_model_id
+        raw_messages = body.get("messages")
+        if isinstance(raw_messages, list):
+            payload["messages"] = _strip_trace_blocks_from_messages(
+                [msg for msg in raw_messages if isinstance(msg, dict)]
+            )
         user = Users.get_user_by_id(user_payload["id"])
         if inspect.isawaitable(user):
             user = await user
@@ -697,7 +780,9 @@ class Pipe:
 
         raw_messages = body.get("messages")
         messages = (
-            [dict(msg) for msg in raw_messages if isinstance(msg, dict)]
+            _strip_trace_blocks_from_messages(
+                [msg for msg in raw_messages if isinstance(msg, dict)]
+            )
             if isinstance(raw_messages, list)
             else []
         )
@@ -868,19 +953,34 @@ class Pipe:
             )
         if kind == "update":
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
-            if is_confirmation_text(latest_user_text) and pending_before is not None:
-                result = _summarize_confirmation_update(latest_user_text, pending_before)
-            else:
-                result = _summarize_update_from_input(compile_input)
+            if _is_administrative_update_input(compile_input):
+                return self._with_trace(
+                    _summarize_update_from_input(compile_input),
+                    original_input=latest_user_text,
+                    compiler_input=compile_input,
+                    decision=decision,
+                    state_before=state_before,
+                    state_after=state_after,
+                    preprocessor_output=precompiled,
+                    llm_called=False,
+                )
+            response = await self._forward_update(
+                body,
+                __user__,
+                __request__,
+                state_after,
+                base_model_id=base_model_id,
+            )
             return self._with_trace(
-                result,
+                response,
                 original_input=latest_user_text,
                 compiler_input=compile_input,
                 decision=decision,
                 state_before=state_before,
                 state_after=state_after,
                 preprocessor_output=precompiled,
-                llm_called=False,
+                llm_called=base_model_id is not None,
+                state_injected=_active_state_summary(state_after),
             )
 
         response = await self._forward_passthrough(

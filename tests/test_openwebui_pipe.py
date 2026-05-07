@@ -265,7 +265,7 @@ def test_pipe_supports_async_user_lookup(monkeypatch) -> None:
     assert isinstance(result, dict)
 
 
-def test_pipe_normal_update_returns_deterministic_ack_and_persists_checkpoint(monkeypatch) -> None:
+def test_pipe_normal_update_forwards_with_state_and_persists_checkpoint(monkeypatch) -> None:
     module = _load_module_with_openwebui_stubs("owui_pipe_update_forward", monkeypatch)
     module._ENGINES_BY_CHAT_KEY.clear()
     module._CHECKPOINTS_BY_CHAT_KEY.clear()
@@ -296,8 +296,11 @@ def test_pipe_normal_update_returns_deterministic_ack_and_persists_checkpoint(mo
         )
     )
 
-    assert result == "State updated: Prohibit peanuts."
-    assert len(forwarded_payloads) == 0
+    assert result == {"ok": True}
+    assert len(forwarded_payloads) == 1
+    first_messages = forwarded_payloads[0]["messages"]
+    assert isinstance(first_messages, list)
+    assert first_messages[0] == {"role": "system", "content": "[[cc_state]]\nProhibit: peanuts"}
 
     checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
     assert checkpoint["pending"] is None
@@ -316,26 +319,25 @@ def test_pipe_normal_update_returns_deterministic_ack_and_persists_checkpoint(mo
     )
 
     assert result == "State updated: Removed policy peanuts."
-    assert len(forwarded_payloads) == 0
+    assert len(forwarded_payloads) == 1
 
     checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
     assert checkpoint["pending"] is None
     assert checkpoint["authoritative_state"]["policies"] == {}
 
 
-def test_pipe_literal_replacement_update_summary_uses_new_item_only(monkeypatch) -> None:
-    module = _load_module_with_openwebui_stubs("owui_pipe_literal_replace_summary", monkeypatch)
+def test_pipe_update_forwarding_injects_state_across_directive_shapes(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_update_shapes", monkeypatch)
     module._ENGINES_BY_CHAT_KEY.clear()
     module._CHECKPOINTS_BY_CHAT_KEY.clear()
 
-    downstream_calls = 0
+    forwarded_payloads: list[dict[str, object]] = []
 
     async def _track_downstream(
         _: object, payload: dict[str, object], __: object
     ) -> dict[str, object]:
-        nonlocal downstream_calls
-        downstream_calls += 1
-        raise AssertionError(f"downstream model should not be called: {payload.get('model')}")
+        forwarded_payloads.append(payload)
+        return {"ok": True}
 
     module.generate_chat_completion = _track_downstream
 
@@ -350,7 +352,7 @@ def test_pipe_literal_replacement_update_summary_uses_new_item_only(monkeypatch)
             __chat_id__="chat-use",
         )
     )
-    assert result == "State updated: Use docker."
+    assert result == {"ok": True}
 
     result = asyncio.run(
         pipe.pipe(
@@ -363,30 +365,30 @@ def test_pipe_literal_replacement_update_summary_uses_new_item_only(monkeypatch)
             __chat_id__="chat-prohibit",
         )
     )
-    assert result == "State updated: Prohibit docker."
-
-    result = asyncio.run(
-        pipe.pipe(
-            {
-                "model": "pipe-model",
-                "messages": [{"role": "user", "content": "remove policy DOCKER"}],
-            },
-            __user__={"id": "u1"},
-            __request__=object(),
-            __chat_id__="chat-remove",
-        )
-    )
-    assert result == "State updated: Removed policy docker."
+    assert result == {"ok": True}
 
     result = asyncio.run(
         pipe.pipe(
             {"model": "pipe-model", "messages": [{"role": "user", "content": "use docker"}]},
             __user__={"id": "u1"},
             __request__=object(),
+            __chat_id__="chat-idempotent",
+        )
+    )
+    assert result == {"ok": True}
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "use docker"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
             __chat_id__="chat-replace",
         )
     )
-    assert result == "State updated: Use docker."
+    assert result == {"ok": True}
 
     result = asyncio.run(
         pipe.pipe(
@@ -399,7 +401,7 @@ def test_pipe_literal_replacement_update_summary_uses_new_item_only(monkeypatch)
             __chat_id__="chat-replace",
         )
     )
-    assert result == "State updated: Use kubectl."
+    assert result == {"ok": True}
 
     result = asyncio.run(
         pipe.pipe(
@@ -412,7 +414,7 @@ def test_pipe_literal_replacement_update_summary_uses_new_item_only(monkeypatch)
             __chat_id__="chat-premise",
         )
     )
-    assert result == "State updated."
+    assert result == {"ok": True}
 
     result = asyncio.run(
         pipe.pipe(
@@ -435,8 +437,16 @@ def test_pipe_literal_replacement_update_summary_uses_new_item_only(monkeypatch)
             __chat_id__="chat-replace-noop",
         )
     )
-    assert result == "State updated: Use docker."
-    assert downstream_calls == 0
+    assert result == {"ok": True}
+    assert len(forwarded_payloads) == 7
+    assert all(
+        isinstance(payload.get("messages"), list)
+        and isinstance(payload["messages"][0], dict)
+        and payload["messages"][0].get("role") == "system"
+        and isinstance(payload["messages"][0].get("content"), str)
+        and payload["messages"][0]["content"].startswith("[[cc_state]]")
+        for payload in forwarded_payloads
+    )
 
 
 def test_pipe_near_miss_directives_return_deterministic_clarify_without_downstream(
@@ -486,32 +496,30 @@ def test_pipe_near_miss_directives_return_deterministic_clarify_without_downstre
 
 
 @pytest.mark.parametrize(
-    ("confirmation", "expected_policies", "expected_response"),
+    ("confirmation", "expected_policies"),
     [
-        ("yes", {"docker": "use"}, "State updated: Use docker."),
-        ("YES!", {"docker": "use"}, "State updated: Use docker."),
-        (" yes please ", {"docker": "use"}, "State updated: Use docker."),
-        ("no thanks.", {}, "State unchanged."),
+        ("yes", {"docker": "use"}),
+        ("YES!", {"docker": "use"}),
+        (" yes please ", {"docker": "use"}),
+        ("no thanks.", {}),
     ],
 )
-def test_pipe_confirmation_update_returns_ack_without_downstream_model_call(
+def test_pipe_confirmation_update_forwards_with_state(
     monkeypatch,
     confirmation: str,
     expected_policies: dict[str, str],
-    expected_response: str,
 ) -> None:
     module = _load_module_with_openwebui_stubs("owui_pipe_confirmation_ack", monkeypatch)
     module._ENGINES_BY_CHAT_KEY.clear()
     module._CHECKPOINTS_BY_CHAT_KEY.clear()
 
-    downstream_calls = 0
+    forwarded_payloads: list[dict[str, object]] = []
 
     async def _track_downstream(
         _: object, payload: dict[str, object], __: object
     ) -> dict[str, object]:
-        nonlocal downstream_calls
-        downstream_calls += 1
-        raise AssertionError(f"downstream model should not be called: {payload.get('model')}")
+        forwarded_payloads.append(payload)
+        return {"ok": True}
 
     module.generate_chat_completion = _track_downstream
 
@@ -545,8 +553,14 @@ def test_pipe_confirmation_update_returns_ack_without_downstream_model_call(
             __chat_id__=chat_key,
         )
     )
-    assert resumed == expected_response
-    assert downstream_calls == 0
+    assert resumed == {"ok": True}
+    assert len(forwarded_payloads) == 1
+    resumed_messages = forwarded_payloads[0]["messages"]
+    assert isinstance(resumed_messages, list)
+    assert isinstance(resumed_messages[0], dict)
+    assert resumed_messages[0].get("role") == "system"
+    assert isinstance(resumed_messages[0].get("content"), str)
+    assert resumed_messages[0]["content"].startswith("[[cc_state]]")
 
     resumed_engine = module._ENGINES_BY_CHAT_KEY[chat_key]
     assert resumed_engine.state == {
@@ -614,6 +628,8 @@ def test_pipe_trace_on_appends_trace_to_user_visible_output(monkeypatch) -> None
     assert "Context Compiler trace" in content
     assert "decision kind: passthrough" in content
     assert "downstream LLM call: yes" in content
+    assert "active state:" in content
+    assert "state injected: no" in content
 
 
 def test_pipe_trace_on_passthrough_stream_appends_trace_after_chunks(monkeypatch) -> None:
@@ -655,3 +671,417 @@ def test_pipe_trace_on_passthrough_stream_appends_trace_after_chunks(monkeypatch
     assert "Context Compiler trace" in content
     assert "decision kind: passthrough" in content
     assert "downstream LLM call: yes" in content
+    assert "active state:" in content
+    assert "state injected: no" in content
+
+
+def test_pipe_trace_on_update_shows_state_payload_and_downstream_call(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_trace_update", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    downstream_calls = 0
+
+    async def _track_downstream(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        nonlocal downstream_calls
+        downstream_calls += 1
+        del payload
+        return {"choices": [{"message": {"content": "downstream"}}]}
+
+    module.generate_chat_completion = _track_downstream
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "prohibit peanuts"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-trace-update",
+        )
+    )
+    assert isinstance(result, dict)
+    content = result["choices"][0]["message"]["content"]
+    assert "downstream" in content
+    assert "Context Compiler trace" in content
+    assert "decision kind: update" in content
+    assert "downstream LLM call: yes" in content
+    assert "state change:" in content
+    assert "active state:" in content
+    assert "state injected: prohibit peanuts" in content
+    assert "\n\ndecision kind: update" in content
+    assert "\n\nstate injected: prohibit peanuts" in content
+    assert downstream_calls == 1
+
+
+def test_pipe_trace_on_clarify_shows_prompt_and_no_downstream_call(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_trace_clarify", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    downstream_calls = 0
+
+    async def _track_downstream(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        nonlocal downstream_calls
+        downstream_calls += 1
+        del payload
+        return {"choices": [{"message": {"content": "downstream"}}]}
+
+    module.generate_chat_completion = _track_downstream
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "set premise to concise answers"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-trace-clarify",
+        )
+    )
+    assert isinstance(result, str)
+    assert "decision kind: clarify" in result
+    assert "active state:" in result
+    assert "clarification prompt:" in result
+    assert "downstream LLM call: no" in result
+    assert "state injected: no" in result
+    assert downstream_calls == 0
+
+
+def test_pipe_trace_appends_on_object_response_for_passthrough_and_update(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_trace_object_response", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    class _Message:
+        def __init__(self, content: str) -> None:
+            self.content = content
+
+    class _Choice:
+        def __init__(self, content: str) -> None:
+            self.message = _Message(content)
+
+    class _Response:
+        def __init__(self, content: str) -> None:
+            self.choices = [_Choice(content)]
+
+    forwarded_payloads: list[dict[str, object]] = []
+
+    async def _chat_completion(_: object, payload: dict[str, object], __: object) -> object:
+        forwarded_payloads.append(payload)
+        return _Response("downstream")
+
+    module.generate_chat_completion = _chat_completion
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+
+    passthrough = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-object-passthrough",
+        )
+    )
+    assert hasattr(passthrough, "choices")
+    passthrough_content = passthrough.choices[0].message.content
+    assert "Context Compiler trace" in passthrough_content
+    assert "decision kind: passthrough" in passthrough_content
+    assert "downstream LLM call: yes" in passthrough_content
+
+    update = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "use docker"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-object-update",
+        )
+    )
+    assert hasattr(update, "choices")
+    update_content = update.choices[0].message.content
+    assert "Context Compiler trace" in update_content
+    assert "decision kind: update" in update_content
+    assert "downstream LLM call: yes" in update_content
+    assert "state injected:" in update_content
+    assert any(
+        isinstance(payload.get("messages"), list)
+        and isinstance(payload["messages"][0], dict)
+        and isinstance(payload["messages"][0].get("content"), str)
+        and payload["messages"][0]["content"].startswith("[[cc_state]]")
+        for payload in forwarded_payloads
+    )
+
+
+def test_pipe_trace_appends_on_streaming_response_wrapper_passthrough_and_update(
+    monkeypatch,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_trace_streaming_wrapper", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    class _StreamingResponse:
+        def __init__(self, parts: tuple[str, ...]) -> None:
+            async def _iter() -> object:
+                for part in parts:
+                    yield part
+
+            self.body_iterator = _iter()
+
+    forwarded_payloads: list[dict[str, object]] = []
+
+    async def _chat_completion(_: object, payload: dict[str, object], __: object) -> object:
+        forwarded_payloads.append(payload)
+        return _StreamingResponse(("data: stub\n\n", "data: [DONE]\n\n"))
+
+    module.generate_chat_completion = _chat_completion
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+
+    passthrough = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "hello"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-stream-wrapper-passthrough",
+        )
+    )
+
+    async def _collect_stream(wrapper: object) -> str:
+        parts: list[str] = []
+        async for chunk in wrapper.body_iterator:
+            assert isinstance(chunk, str)
+            parts.append(chunk)
+        return "".join(parts)
+
+    passthrough_stream = asyncio.run(_collect_stream(passthrough))
+    assert "data: [DONE]" in passthrough_stream
+    assert "Context Compiler trace" in passthrough_stream
+    assert "decision kind: passthrough" in passthrough_stream
+
+    update = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "use docker"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-stream-wrapper-update",
+        )
+    )
+    update_stream = asyncio.run(_collect_stream(update))
+    assert "data: [DONE]" in update_stream
+    assert "Context Compiler trace" in update_stream
+    assert "decision kind: update" in update_stream
+    assert "state injected:" in update_stream
+    assert any(
+        isinstance(payload.get("messages"), list)
+        and isinstance(payload["messages"][0], dict)
+        and isinstance(payload["messages"][0].get("content"), str)
+        and payload["messages"][0]["content"].startswith("[[cc_state]]")
+        for payload in forwarded_payloads
+    )
+
+
+@pytest.mark.parametrize(
+    ("steps", "expected_ack"),
+    [
+        (
+            ["use docker", "clear state"],
+            "State cleared.",
+        ),
+        (
+            ["set premise concise replies", "clear premise"],
+            "Premise cleared.",
+        ),
+        (
+            ["use docker", "use pytest", "reset policies"],
+            "Policies reset.",
+        ),
+        (
+            ["use docker", "remove policy docker"],
+            "State updated: Removed policy docker.",
+        ),
+    ],
+)
+def test_pipe_trace_update_clear_reset_paths_single_and_consistent(
+    monkeypatch,
+    steps: list[str],
+    expected_ack: str,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_trace_clear_reset", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    downstream_calls = 0
+
+    async def _chat_completion(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        nonlocal downstream_calls
+        downstream_calls += 1
+        del payload
+        return {"choices": [{"message": {"content": "downstream"}}]}
+
+    module.generate_chat_completion = _chat_completion
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+
+    result: object = ""
+    for idx, user_input in enumerate(steps):
+        result = asyncio.run(
+            pipe.pipe(
+                {"model": "pipe-model", "messages": [{"role": "user", "content": user_input}]},
+                __user__={"id": "u1"},
+                __request__=object(),
+                __chat_id__=f"chat-trace-clear-reset-{hash(tuple(steps))}",
+            )
+        )
+        if idx < len(steps) - 1:
+            continue
+
+    assert isinstance(result, str)
+    assert result.startswith(expected_ack)
+    content = result
+    assert content.count("Context Compiler trace") == 1
+    assert "decision kind: update" in content
+    assert "downstream LLM call: no" in content
+    assert "downstream LLM call: yes" not in content
+    assert "active state: none" in content
+    assert "state injected: no" in content
+    assert downstream_calls == len(steps) - 1
+
+
+def test_pipe_clear_state_trace_not_duplicated_when_model_echoes_history(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_trace_echo_dedupe", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    async def _chat_completion(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        messages = payload.get("messages")
+        echoed = ""
+        if isinstance(messages, list):
+            assistant_contents = [
+                str(msg.get("content", ""))
+                for msg in messages
+                if isinstance(msg, dict) and msg.get("role") == "assistant"
+            ]
+            echoed = "\n".join(assistant_contents)
+        content = "downstream"
+        if echoed:
+            content += f"\n{echoed}"
+        return {"choices": [{"message": {"content": content}}]}
+
+    module.generate_chat_completion = _chat_completion
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+    chat_id = "chat-trace-echo-dedupe"
+
+    first = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "use docker"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_id,
+        )
+    )
+    assert isinstance(first, dict)
+    first_content = first["choices"][0]["message"]["content"]
+    assert first_content.count("Context Compiler trace") == 1
+
+    second = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [
+                    {"role": "assistant", "content": first_content},
+                    {"role": "user", "content": "clear state"},
+                ],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_id,
+        )
+    )
+    assert isinstance(second, str)
+    second_content = second
+    assert second_content.count("Context Compiler trace") == 1
+    assert "decision kind: update" in second_content
+    assert "downstream LLM call: no" in second_content
+    assert "downstream LLM call: yes" not in second_content
+    assert "active state: none" in second_content
+    assert "state injected: no" in second_content
+
+
+def test_pipe_clear_state_strips_preexisting_contradictory_trace_from_model_output(
+    monkeypatch,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_trace_strip_contradiction", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    old_trace = (
+        "Context Compiler trace\n\n"
+        "decision kind: update\n"
+        "active state: none\n"
+        "downstream LLM call: no\n"
+        "\n"
+        "state injected: none"
+    )
+
+    call_count = 0
+
+    async def _chat_completion(
+        _: object,
+        payload: dict[str, object],
+        __: object,
+    ) -> dict[str, object]:
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            return {"choices": [{"message": {"content": "downstream"}}]}
+        del payload
+        return {"choices": [{"message": {"content": f"downstream\n{old_trace}"}}]}
+
+    module.generate_chat_completion = _chat_completion
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+    chat_id = "chat-trace-strip-contradiction"
+
+    _ = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "use docker"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_id,
+        )
+    )
+
+    second = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "clear state"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_id,
+        )
+    )
+    assert isinstance(second, str)
+    second_content = second
+    assert second_content.count("Context Compiler trace") == 1
+    assert "downstream LLM call: no" in second_content
+    assert "downstream LLM call: yes" not in second_content

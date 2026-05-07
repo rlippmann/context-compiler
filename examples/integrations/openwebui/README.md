@@ -49,6 +49,10 @@ If using `open_webui_pipe_with_preprocessor.py`:
 - Optional: set `PREPROCESSOR_MODEL_ID` to route fallback precompilation through
   a separate model. If unset, fallback uses `BASE_MODEL_ID`.
 - Fallback routing is Open WebUI-native (no LiteLLM dependency for this pipe).
+- The heuristic precompiler is intentionally conservative/high-precision and
+  may abstain on mixed-prose natural language (for example, `i think we should
+  use docker`). In those cases, behavior may remain passthrough unless fallback
+  precompilation returns a validated canonical directive.
 - Invalid configured model ids return explicit runtime misconfiguration errors:
   - `BASE_MODEL_ID` not found in Open WebUI models
   - `PREPROCESSOR_MODEL_ID` not found in Open WebUI models
@@ -80,9 +84,15 @@ Use the Open WebUI model picker/list to copy exact model ids for `BASE_MODEL_ID`
 
 ## Manual Validation
 
-Validate clarify short-circuit, passthrough forwarding, deterministic update acknowledgments with no downstream forward, chat isolation with real chat ids, restart state loss, and non-text bypass behavior.
+Validate clarify short-circuit, passthrough forwarding without state injection,
+update forwarding with authoritative `[[cc_state]]` injection, chat isolation
+with real chat ids, restart state loss, and non-text bypass behavior.
 
-Note: In the OpenWebUI example pipes, update decisions are rendered deterministically and do not call the downstream LLM. This makes state transitions explicit. Production hosts may choose different rendering behavior.
+Note: In the OpenWebUI example pipes, `update` decisions call the downstream
+LLM with authoritative compiler state injected as a compiler-owned system
+message (`[[cc_state]] ...`). When trace is enabled, responses include the
+injected state block and a concise representation of downstream payload
+messages so state-to-payload behavior is directly visible.
 
 ## Behavioral comparisons
 
