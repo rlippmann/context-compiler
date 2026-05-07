@@ -5,7 +5,7 @@ from pathlib import Path
 from experimental.preprocessor.heuristic_preprocessor import precompile_heuristic
 from experimental.preprocessor.output_validation import validate_precompiler_output
 
-_PREPROCESSOR_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "precompiler"
+_PREPROCESSOR_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "preprocessor"
 
 
 def _fixture_paths() -> list[Path]:
