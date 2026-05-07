@@ -10,7 +10,7 @@ Open WebUI integration with Context Compiler preprocessor.
 
 This example extends `open_webui_pipe.py` by inserting a preprocessing step:
 
-1. Run heuristic precompiler (fast, high-precision cases)
+1. Run heuristic preprocessor (fast, high-precision cases)
 2. Fall back to Open WebUI-native model completion when needed
 3. Pass resulting directive (or original input) to `engine.step(...)`
 
@@ -386,7 +386,7 @@ def _is_truthy_bool(value: object) -> bool:
 class Pipe:
     """Map Context Compiler decisions into Open WebUI pipe behavior.
 
-    This variant adds a precompiler stage before ``engine.step(...)``:
+    This variant adds a preprocessor stage before ``engine.step(...)``:
     heuristic first, then Open WebUI-native LLM fallback.
     Update decisions forward with compiler-owned state injection.
     """

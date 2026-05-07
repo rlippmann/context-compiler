@@ -2,8 +2,8 @@
 
 Flow:
 1. Extract user input
-2. Run heuristic precompiler
-3. If no directive, run LLM fallback precompiler using prompt files
+2. Run heuristic preprocessor
+3. If no directive, run LLM fallback preprocessor using prompt files
 4. Pass directive (or original input) to engine.step(...)
 5. clarify -> return prompt_to_user (no model call)
 6. update -> return deterministic acknowledgment text (no model call)

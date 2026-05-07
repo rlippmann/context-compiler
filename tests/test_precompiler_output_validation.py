@@ -1,6 +1,9 @@
+from importlib import import_module
+
 from experimental.preprocessor.output_validation import (
     _is_allowed_directive,
     parse_precompiler_output,
+    parse_preprocessor_output,
     validate_precompiler_output,
 )
 
@@ -111,6 +114,19 @@ def test_parse_returns_validated_directive_only() -> None:
     assert parse_precompiler_output("prohibit peanuts") == "prohibit peanuts"
     assert parse_precompiler_output("<NO_DIRECTIVE>") is None
     assert parse_precompiler_output("set premise to concise replies") is None
+
+
+def test_parse_preprocessor_output_alias_matches_compat_parser() -> None:
+    assert parse_preprocessor_output("prohibit peanuts") == "prohibit peanuts"
+    assert parse_preprocessor_output("<NO_DIRECTIVE>") is None
+    assert parse_preprocessor_output("set premise to concise replies") is None
+
+
+def test_heuristic_module_new_and_compat_import_paths_both_work() -> None:
+    new_mod = import_module("experimental.preprocessor.heuristic_preprocessor")
+    compat_mod = import_module("experimental.preprocessor.heuristic_precompiler")
+    message = "use docker"
+    assert new_mod.precompile_heuristic(message) == compat_mod.precompile_heuristic(message)
 
 
 def test_parse_with_source_input_rejects_premise_near_miss_canonicalization() -> None:

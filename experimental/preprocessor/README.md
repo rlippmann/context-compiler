@@ -13,7 +13,8 @@ than using repo-relative preprocessor paths.
 
 ## Modules
 
-- `heuristic_precompiler.py`: conservative structural precompile pass.
+- `heuristic_preprocessor.py`: conservative structural preprocessing pass.
+- `heuristic_precompiler.py`: compatibility re-export for older imports.
 - `output_validation.py`: shared normalization/validation boundary.
 - `prompt_utils.py`: state-aware prompt rendering helper.
 - `constants.py`: shared protocol literals and directive validation patterns.
@@ -24,11 +25,13 @@ than using repo-relative preprocessor paths.
 
 Public validator entry point:
 
-- `parse_precompiler_output(raw_output: object, *, source_input: str | None = None) -> str | None`
+- `parse_preprocessor_output(raw_output: object, *, source_input: str | None = None) -> str | None`
+- `parse_precompiler_output(raw_output: object, *, source_input: str | None = None) -> str | None` (compatibility alias)
 - `validate_precompiler_output(raw_output: object, *, source_input: str | None = None) -> dict`
 
 All preprocessor outputs (heuristic or LLM) must be validated with
-`parse_precompiler_output(...)` before being applied.
+`parse_preprocessor_output(...)` (preferred; `parse_precompiler_output(...)`
+remains as a compatibility alias) before being applied.
 
 Classification contract:
 
@@ -52,17 +55,17 @@ Engine-owned near-misses are reject cases (for example `set premise to X`,
 
 Raw preprocessor/LLM outputs must not be passed directly to the compiler.
 
-The precompiler does not expand directive grammar. It may emit only validated
+The preprocessor does not expand directive grammar. It may emit only validated
 canonical directives accepted by the compiler.
 
 ## Safe usage pattern
 
 1. Run `precompile_heuristic(message)`.
 2. If a heuristic candidate directive exists, validate it with
-   `parse_precompiler_output(...)`.
+   `parse_preprocessor_output(...)`.
 3. If no valid directive was produced, run LLM fallback precompile.
 4. Validate fallback output with
-   `parse_precompiler_output(..., source_input=message)`.
+   `parse_preprocessor_output(..., source_input=message)`.
 5. If a valid directive is produced, pass it through a normal compiler input path.
    For session-owned integrations, use `engine.step(...)`.
    For transcript-based integrations that receive full chat history each turn:

@@ -39,12 +39,6 @@ Primary command:
 uv run python -m demos.run_demo all
 ```
 
-## Run metadata
-
-- Date: 2026-05-06
-- Context Compiler: 0.6.15
-- Command: `uv run python -m demos.run_demo all`
-
 Provider/model selection is done via environment variables:
 
 - `PROVIDER` (`openai`, `ollama`, `openai_compatible`)
@@ -60,6 +54,12 @@ Scoring behavior uses post-audit oracle/checker logic in demos and shared helper
 - `demos/05_llm_prompt_drift_vs_state.py`
 - `demos/07_llm_prompt_vs_state.py`
 - shared parsing/helpers in `demos/common.py`
+
+### Run metadata
+
+- Date: 2026-05-06
+- Context Compiler: 0.6.15
+- Command: `uv run python -m demos.run_demo all`
 
 ## Interpretation
 

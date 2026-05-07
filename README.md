@@ -30,15 +30,16 @@ Canonical matrix: [docs/demos-results.md](docs/demos-results.md)
 ```bash
 pip install context-compiler
 context-compiler
-context-compiler --with-precompiler
+context-compiler --with-preprocessor
 ```
 
 `context-compiler` launches the interactive REPL.
 
-`--with-precompiler` enables the experimental precompiler before each REPL turn
+`--with-preprocessor` enables the experimental preprocessor before each REPL turn
 (heuristic + validation only). Near-miss inputs are not rewritten and are
 passed through to the engine, which continues to return clarify behavior for
 those forms.
+`--with-precompiler` remains supported as a compatibility alias in 0.6.x.
 
 Or in code:
 ```python
@@ -342,9 +343,9 @@ For full directive grammar and edge-case behavior, see [DirectiveGrammarSpec.md]
 
 ## Examples
 
-- [examples](examples/)
-- [demos](demos/)
-- [integrations](examples/integrations/)
+- [examples](examples/) — minimal usage patterns and core integration primitives
+- [demos](demos/) — concrete scenarios showing how behavior differs with and without the compiler
+- [integrations](examples/integrations/) — production-style host integrations (OpenWebUI, LiteLLM, etc.)
 
 ---
 
@@ -358,8 +359,6 @@ For full directive grammar and edge-case behavior, see [DirectiveGrammarSpec.md]
 These invariants are verified through behavioral tests and Hypothesis-based property tests.
 
 ---
----
-
 
 ## Optional: LLM Preprocessor (Experimental)
 
@@ -369,7 +368,9 @@ into canonical directives before compilation.
 It is designed to be conservative and must be used with validation:
 
 - reject-first; directive-adjacent unsafe forms abstain instead of rewriting
-- all outputs must be validated with `parse_precompiler_output(...)`
+- all outputs must be validated with `parse_preprocessor_output(...)` (the
+  preferred preprocessor validation function; `parse_precompiler_output(...)`
+  remains as a compatibility alias)
 - no directive grammar expansion
 - raw outputs must not be passed directly to the compiler
 
@@ -397,6 +398,7 @@ More detailed design and milestone documents are available in:
 ## Conformance Fixtures
 
 Cross-language conformance tests are defined in [`tests/fixtures/`](tests/fixtures/).
+These fixtures serve as the behavioral contract for compiler semantics across implementations.
 
 ---
 
