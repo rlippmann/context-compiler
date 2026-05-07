@@ -11,6 +11,11 @@ Recommended install for integrations using this package:
 Integrations should import this package from the installed environment rather
 than using repo-relative preprocessor paths.
 
+Compatibility note:
+- Prefer `heuristic_preprocessor.py` and `parse_preprocessor_output(...)`.
+- `heuristic_precompiler.py` and `parse_precompiler_output(...)` remain
+  supported compatibility aliases in 0.6.x.
+
 ## Modules
 
 - `heuristic_preprocessor.py`: conservative structural preprocessing pass.

@@ -184,7 +184,7 @@ def test_pipe_debug_true_missing_base_skips_update_forwarding_call(monkeypatch) 
         "outcome": module.PRECOMPILE_OUTCOME_DIRECTIVE,
         "directive": "use docker",
     }
-    module.parse_precompiler_output = lambda value, **_kwargs: value
+    module.parse_preprocessor_output = lambda value, **_kwargs: value
 
     result = asyncio.run(
         pipe.pipe(
@@ -533,7 +533,7 @@ def test_preprocessor_pipe_restore_and_persist_checkpoint_points(monkeypatch) ->
 
     monkeypatch.setattr(module, "create_engine", _create_engine)
     monkeypatch.setattr(module, "precompile_heuristic", lambda _text: {"outcome": "no_directive"})
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value, **_kwargs: None)
+    monkeypatch.setattr(module, "parse_preprocessor_output", lambda _value, **_kwargs: None)
 
     pipe = module.Pipe()
     pipe.valves.BASE_MODEL_ID = "base-model"
@@ -592,7 +592,7 @@ def test_preprocessor_pipe_normal_update_forwards_with_state_and_persists_checkp
             }
         ),
     )
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda value, **_kwargs: value)
+    monkeypatch.setattr(module, "parse_preprocessor_output", lambda value, **_kwargs: value)
 
     forwarded_payloads: list[dict[str, object]] = []
 
@@ -1122,7 +1122,7 @@ def test_preprocessor_pipe_trace_off_keeps_existing_response_shape(monkeypatch) 
 
     monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
     monkeypatch.setattr(module, "precompile_heuristic", lambda _text: {"outcome": "no_directive"})
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value, **_kwargs: None)
+    monkeypatch.setattr(module, "parse_preprocessor_output", lambda _value, **_kwargs: None)
 
     pipe = module.Pipe()
     pipe.valves.BASE_MODEL_ID = "base-model"
@@ -1158,7 +1158,7 @@ def test_preprocessor_pipe_trace_on_appends_trace_to_user_visible_output(monkeyp
             "directive": "prohibit peanuts",
         },
     )
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda value, **_kwargs: value)
+    monkeypatch.setattr(module, "parse_preprocessor_output", lambda value, **_kwargs: value)
 
     pipe = module.Pipe()
     pipe.valves.BASE_MODEL_ID = "base-model"
@@ -1198,7 +1198,7 @@ def test_preprocessor_pipe_trace_on_passthrough_appends_trace_to_llm_content(mon
 
     monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
     monkeypatch.setattr(module, "precompile_heuristic", lambda _text: {"outcome": "no_directive"})
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value, **_kwargs: None)
+    monkeypatch.setattr(module, "parse_preprocessor_output", lambda _value, **_kwargs: None)
 
     pipe = module.Pipe()
     pipe.valves.BASE_MODEL_ID = "base-model"
@@ -1240,7 +1240,7 @@ def test_preprocessor_pipe_trace_on_passthrough_stream_appends_trace_after_chunk
 
     monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
     monkeypatch.setattr(module, "precompile_heuristic", lambda _text: {"outcome": "no_directive"})
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value, **_kwargs: None)
+    monkeypatch.setattr(module, "parse_preprocessor_output", lambda _value, **_kwargs: None)
 
     pipe = module.Pipe()
     pipe.valves.BASE_MODEL_ID = "base-model"
@@ -1345,7 +1345,7 @@ def test_preprocessor_pipe_trace_appends_on_object_response_for_passthrough_and_
         return {"outcome": "no_directive", "directive": None}
 
     monkeypatch.setattr(module, "precompile_heuristic", _heuristic)
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda value, **_kwargs: value)
+    monkeypatch.setattr(module, "parse_preprocessor_output", lambda value, **_kwargs: value)
 
     forwarded_payloads: list[dict[str, object]] = []
 
@@ -1416,7 +1416,7 @@ def test_preprocessor_pipe_trace_appends_on_streaming_response_wrapper_passthrou
         return {"outcome": "no_directive", "directive": None}
 
     monkeypatch.setattr(module, "precompile_heuristic", _heuristic)
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda value, **_kwargs: value)
+    monkeypatch.setattr(module, "parse_preprocessor_output", lambda value, **_kwargs: value)
 
     forwarded_payloads: list[dict[str, object]] = []
 
@@ -1509,7 +1509,7 @@ def test_preprocessor_pipe_trace_update_clear_reset_paths_single_and_consistent(
         "precompile_heuristic",
         lambda _text: {"outcome": "no_directive", "directive": None},
     )
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value, **_kwargs: None)
+    monkeypatch.setattr(module, "parse_preprocessor_output", lambda _value, **_kwargs: None)
 
     downstream_calls = 0
 
@@ -1566,7 +1566,7 @@ def test_preprocessor_pipe_clear_state_trace_not_duplicated_when_model_echoes_hi
         "precompile_heuristic",
         lambda _text: {"outcome": "no_directive", "directive": None},
     )
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value, **_kwargs: None)
+    monkeypatch.setattr(module, "parse_preprocessor_output", lambda _value, **_kwargs: None)
 
     async def _chat_completion(
         _: object, payload: dict[str, object], __: object
@@ -1643,7 +1643,7 @@ def test_preprocessor_pipe_clear_state_strips_preexisting_contradictory_trace_fr
         "precompile_heuristic",
         lambda _text: {"outcome": "no_directive", "directive": None},
     )
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value, **_kwargs: None)
+    monkeypatch.setattr(module, "parse_preprocessor_output", lambda _value, **_kwargs: None)
 
     old_trace = (
         "Context Compiler trace\n\n"
@@ -1716,7 +1716,7 @@ def test_preprocessor_pipe_update_trace_and_injection_when_heuristic_emits_direc
             else {"outcome": "no_directive", "directive": None}
         ),
     )
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda value, **_kwargs: value)
+    monkeypatch.setattr(module, "parse_preprocessor_output", lambda value, **_kwargs: value)
 
     forwarded_payloads: list[dict[str, object]] = []
 
@@ -1785,7 +1785,7 @@ def test_preprocessor_pipe_replacement_update_trace_and_injection_when_heuristic
             )
         ),
     )
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda value, **_kwargs: value)
+    monkeypatch.setattr(module, "parse_preprocessor_output", lambda value, **_kwargs: value)
 
     async def _chat_completion(
         _: object,
@@ -1841,7 +1841,7 @@ def test_preprocessor_pipe_ambiguous_text_passthrough_trace_streaming(monkeypatc
     module._CHECKPOINTS_BY_CHAT_KEY.clear()
 
     monkeypatch.setattr(module, "precompile_heuristic", lambda _text: {"outcome": "no_directive"})
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value, **_kwargs: None)
+    monkeypatch.setattr(module, "parse_preprocessor_output", lambda _value, **_kwargs: None)
 
     class _StreamingResponse:
         def __init__(self) -> None:
@@ -1899,7 +1899,7 @@ def test_preprocessor_pipe_natural_language_abstention_can_passthrough_with_trac
 
     # Use the real heuristic behavior for this phrase (unknown/no_directive),
     # and force fallback to abstain so runtime stays conservative.
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda _value, **_kwargs: None)
+    monkeypatch.setattr(module, "parse_preprocessor_output", lambda _value, **_kwargs: None)
 
     async def _chat_completion(
         _: object, payload: dict[str, object], __: object
@@ -1956,7 +1956,7 @@ def test_preprocessor_pipe_pending_clarification_bypasses_preprocessing_for_ambi
         return {"outcome": "no_directive", "directive": None}
 
     monkeypatch.setattr(module, "precompile_heuristic", _heuristic)
-    monkeypatch.setattr(module, "parse_precompiler_output", lambda value, **_kwargs: value)
+    monkeypatch.setattr(module, "parse_preprocessor_output", lambda value, **_kwargs: value)
 
     downstream_calls = 0
 

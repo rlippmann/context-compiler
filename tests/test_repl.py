@@ -303,9 +303,9 @@ def test_repl_with_precompiler_bypasses_parsing_while_pending(
         seen.append((raw_output, source_input))
         if raw_output == "use podman instead of docker":
             return "use podman instead of docker"
-        raise AssertionError("parse_precompiler_output should be bypassed while pending")
+        raise AssertionError("parse_preprocessor_output should be bypassed while pending")
 
-    monkeypatch.setattr(repl_module, "parse_precompiler_output", _parse)
+    monkeypatch.setattr(repl_module, "parse_preprocessor_output", _parse)
 
     out = StringIO()
     run_repl(
@@ -323,9 +323,9 @@ def test_repl_with_precompiler_bypasses_parsing_while_pending(
 def test_repl_without_precompiler_does_not_parse_inputs(monkeypatch: pytest.MonkeyPatch) -> None:
     def _fail_parse(_raw: object, *, source_input: str | None = None) -> str | None:
         del source_input
-        raise AssertionError("parse_precompiler_output should not be called")
+        raise AssertionError("parse_preprocessor_output should not be called")
 
-    monkeypatch.setattr(repl_module, "parse_precompiler_output", _fail_parse)
+    monkeypatch.setattr(repl_module, "parse_preprocessor_output", _fail_parse)
 
     out = StringIO()
     run_repl(StringIO('{"classification":"directive","output":"prohibit peanuts"}\nquit\n'), out)

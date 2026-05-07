@@ -3,7 +3,7 @@ from hypothesis import strategies as st
 
 from experimental.preprocessor.output_validation import (
     _is_allowed_directive,
-    parse_precompiler_output,
+    parse_preprocessor_output,
     validate_precompiler_output,
 )
 
@@ -45,14 +45,14 @@ NOISY_TEXT = st.one_of(
     )
 )
 def test_parse_non_string_never_produces_directive(raw_output: object) -> None:
-    assert parse_precompiler_output(raw_output) is None
+    assert parse_preprocessor_output(raw_output) is None
 
 
 @given(NOISY_TEXT)
 def test_parse_invalid_text_never_becomes_directive(text: str) -> None:
     stripped = text.strip()
     assume(not _is_allowed_directive(stripped))
-    assert parse_precompiler_output(text) is None
+    assert parse_preprocessor_output(text) is None
 
 
 @given(st.sampled_from(CANONICAL_DIRECTIVES), SPACE_TEXT, SPACE_TEXT)
@@ -60,7 +60,7 @@ def test_parse_valid_canonical_directive_always_passes(
     directive: str, leading_ws: str, trailing_ws: str
 ) -> None:
     raw = f"{leading_ws}{directive}{trailing_ws}"
-    assert parse_precompiler_output(raw) == directive
+    assert parse_preprocessor_output(raw) == directive
 
 
 @given(st.sampled_from(CANONICAL_DIRECTIVES), NON_EMPTY_TEXT, NON_EMPTY_TEXT)
@@ -70,7 +70,7 @@ def test_parse_rejects_directive_with_surrounding_text(
     raw = f"{prefix} {directive} {suffix}"
     stripped = raw.strip()
     assume(not _is_allowed_directive(stripped))
-    assert parse_precompiler_output(raw) is None
+    assert parse_preprocessor_output(raw) is None
 
 
 @given(
@@ -87,7 +87,7 @@ def test_parse_rejects_directive_with_surrounding_text(
 )
 def test_parse_rejects_directive_in_constrained_wrappers(directive: str, wrapper: str) -> None:
     wrapped = wrapper.format(directive)
-    assert parse_precompiler_output(wrapped) is None
+    assert parse_preprocessor_output(wrapped) is None
 
 
 def test_validate_malformed_abstain_negative_boundaries_are_unknown() -> None:
@@ -116,13 +116,13 @@ def test_parse_rejects_near_miss_directives_when_wrapped_or_prefixed() -> None:
         'he said "use docker"',
     ]
     for raw in cases:
-        assert parse_precompiler_output(raw) is None
+        assert parse_preprocessor_output(raw) is None
 
 
 @given(st.one_of(st.none(), st.integers(), st.text(max_size=120)))
 def test_parse_output_idempotent(raw_output: object) -> None:
-    first = parse_precompiler_output(raw_output)
-    second = parse_precompiler_output(first)
+    first = parse_preprocessor_output(raw_output)
+    second = parse_preprocessor_output(first)
     if first is None:
         assert second is None
     else:

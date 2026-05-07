@@ -51,7 +51,7 @@ from context_compiler import State, create_engine, get_policy_items, get_premise
 from context_compiler.engine import Engine
 from experimental.preprocessor import (
     PRECOMPILE_OUTCOME_DIRECTIVE,
-    parse_precompiler_output,
+    parse_preprocessor_output,
     precompile_heuristic,
     render_prompt,
 )
@@ -671,7 +671,7 @@ class Pipe:
             return None, normalized_error
 
         raw_output = _extract_completion_content(response)
-        parsed = parse_precompiler_output(raw_output, source_input=message)
+        parsed = parse_preprocessor_output(raw_output, source_input=message)
         if parsed is None:
             return None, None
         return parsed, None
@@ -694,7 +694,7 @@ class Pipe:
             heuristic_result["outcome"] == PRECOMPILE_OUTCOME_DIRECTIVE
             and heuristic_result["directive"]
         ):
-            parsed = parse_precompiler_output(heuristic_result["directive"])
+            parsed = parse_preprocessor_output(heuristic_result["directive"])
             if parsed is not None:
                 return parsed, None
 
