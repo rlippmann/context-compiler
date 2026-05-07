@@ -17,15 +17,16 @@ layer. Do not rely on repo-relative preprocessor paths.
 
 Recommended conceptual flow:
 
-1. heuristic precompile
+1. heuristic preprocessing
 2. validate candidate output
-3. LLM fallback precompile (only when needed)
+3. LLM fallback preprocessing (only when needed)
 4. validate candidate output
 5. If a valid directive is produced, pass it to the compiler.
    Otherwise pass the original input unchanged.
 
 All preprocessor outputs, including heuristic outputs, must be validated with
-`parse_precompiler_output(...)` before being applied.
+`parse_precompiler_output(...)` (the preprocessor validation function) before
+being applied.
 
 Raw heuristic/LLM outputs must not be passed directly to the compiler.
 

@@ -49,7 +49,7 @@ If using `open_webui_pipe_with_preprocessor.py`:
 - Optional: set `PREPROCESSOR_MODEL_ID` to route fallback precompilation through
   a separate model. If unset, fallback uses `BASE_MODEL_ID`.
 - Fallback routing is Open WebUI-native (no LiteLLM dependency for this pipe).
-- The heuristic precompiler is intentionally conservative/high-precision and
+- The heuristic preprocessor is intentionally conservative/high-precision and
   may abstain on mixed-prose natural language (for example, `i think we should
   use docker`). In those cases, behavior may remain passthrough unless fallback
   precompilation returns a validated canonical directive.
@@ -90,9 +90,11 @@ with real chat ids, restart state loss, and non-text bypass behavior.
 
 Note: In the OpenWebUI example pipes, `update` decisions call the downstream
 LLM with authoritative compiler state injected as a compiler-owned system
-message (`[[cc_state]] ...`). When trace is enabled, responses include the
-injected state block and a concise representation of downstream payload
-messages so state-to-payload behavior is directly visible.
+message (`[[cc_state]] ...`) for state-affecting updates. Administrative
+updates (`clear state`, `clear premise`, `reset policies`, `remove policy <item>`)
+return deterministic local acknowledgments and do not call the downstream LLM.
+When trace is enabled, responses include concise evidence of decision kind,
+active state, downstream LLM call/no-call, and whether state was injected.
 
 ## Behavioral comparisons
 
@@ -126,7 +128,7 @@ messages so state-to-payload behavior is directly visible.
 - base model: accepts conversational style phrasing
 - basic pipe: `Did you mean 'set premise concise replies'?`
 - preprocessor pipe: same clarify (near-miss is not rewritten)
-- why this is a real win: precompiler stays reject-first and preserves engine-owned clarify behavior.
+- why this is a real win: preprocessor stays reject-first and preserves engine-owned clarify behavior.
 
 **Case 5**
 

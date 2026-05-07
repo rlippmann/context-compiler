@@ -13,7 +13,7 @@ than using repo-relative preprocessor paths.
 
 ## Modules
 
-- `heuristic_precompiler.py`: conservative structural precompile pass.
+- `heuristic_precompiler.py`: conservative structural preprocessing pass.
 - `output_validation.py`: shared normalization/validation boundary.
 - `prompt_utils.py`: state-aware prompt rendering helper.
 - `constants.py`: shared protocol literals and directive validation patterns.
@@ -28,7 +28,8 @@ Public validator entry point:
 - `validate_precompiler_output(raw_output: object, *, source_input: str | None = None) -> dict`
 
 All preprocessor outputs (heuristic or LLM) must be validated with
-`parse_precompiler_output(...)` before being applied.
+`parse_precompiler_output(...)` (the preprocessor validation function) before
+being applied.
 
 Classification contract:
 
@@ -52,7 +53,7 @@ Engine-owned near-misses are reject cases (for example `set premise to X`,
 
 Raw preprocessor/LLM outputs must not be passed directly to the compiler.
 
-The precompiler does not expand directive grammar. It may emit only validated
+The preprocessor does not expand directive grammar. It may emit only validated
 canonical directives accepted by the compiler.
 
 ## Safe usage pattern
