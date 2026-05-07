@@ -13,7 +13,8 @@
 - [LLM preprocessor](llm-preprocessor.md)
 
 ## Evaluation & Evidence
-- [Behavioral comparisons (Open WebUI)](../examples/integrations/openwebui/README.md)
+- [Demo results matrix](demos-results.md)
+- [Demo outputs / scored scenarios](../demos/README.md)
 - [SWE curated results](../evals/swe-bench/README.md)
 
 ## Project Background
