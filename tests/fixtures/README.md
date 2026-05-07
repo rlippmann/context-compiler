@@ -5,9 +5,10 @@ This directory contains multiple fixture suites with different contracts.
 ## Fixture types
 
 * [`conformance/`](conformance/) — core engine cross-language conformance contract.
+* [`engine-regression/structured/`](engine-regression/structured/) — deterministic per-turn engine regression fixtures (including checkpoint snapshots).
 * [`preprocessor/`](preprocessor/) — preprocessor heuristic and validation fixtures.
 
-Preprocessor fixtures are intentionally separate from the core engine conformance contract.
+`conformance/` and `engine-regression/structured/` both cover engine behavior at different layers; preprocessor fixtures are intentionally separate from the core engine conformance contract.
 
 ## Step fixtures
 
@@ -49,6 +50,20 @@ For conformance transcript fixtures:
 
 Fixtures reflect current Python behavior and tests.
 
+## Engine regression fixtures
+
+[`engine-regression/structured/`](engine-regression/structured/)
+
+These fixtures capture deterministic per-turn engine behavior, including checkpoint snapshots, and are exercised by [`tests/test_structured_regression.py`](../test_structured_regression.py).
+
+They validate:
+
+* per-turn input handling
+* `Decision.kind` outcomes
+* clarification prompt behavior
+* checkpoint export parity against expected snapshots
+* continuation state restoration from checkpoints
+
 ## Preprocessor fixtures
 
 [`preprocessor/`](preprocessor/)
@@ -56,6 +71,13 @@ Fixtures reflect current Python behavior and tests.
 These fixtures cover preprocessor behavior (heuristic classification plus output validation), separate from the core engine conformance contract above.
 
 They are exercised by [`tests/test_preprocessor_conformance.py`](../test_preprocessor_conformance.py), including deterministic replay and validation-boundary checks (only validated directive output may pass through).
+
+They validate:
+
+* heuristic classification determinism
+* directive extraction and normalization
+* output validation boundaries
+* reject/unknown safety handling for ambiguous and near-miss inputs
 
 ## Test runner
 
