@@ -86,12 +86,12 @@ def test_main_help_flag_prints_usage_and_exits_zero(
     assert result == 0
     assert captured.out == (
         "Usage:\n"
-        "  context-compiler [--help] [--version] [--with-precompiler]\n"
+        "  context-compiler [--help] [--version] [--with-preprocessor]\n"
         "\n"
         "Options:\n"
-        "  --help               Show this help message and exit.\n"
-        "  --version            Show the installed context-compiler version and exit.\n"
-        "  --with-precompiler   Enable precompiler before each REPL turn "
+        "  --help                Show this help message and exit.\n"
+        "  --version             Show the installed context-compiler version and exit.\n"
+        "  --with-preprocessor   Enable preprocessor before each REPL turn "
         "(heuristic + validation only)\n"
     )
     assert captured.err == ""
@@ -131,7 +131,10 @@ def test_main_without_args_runs_repl_as_before(monkeypatch: pytest.MonkeyPatch) 
     assert called["use_precompiler"] is False
 
 
-def test_main_with_precompiler_flag_runs_repl_with_flag(monkeypatch: pytest.MonkeyPatch) -> None:
+@pytest.mark.parametrize("flag", ["--with-preprocessor", "--with-precompiler"])
+def test_main_with_preprocessor_flag_runs_repl_with_flag(
+    monkeypatch: pytest.MonkeyPatch, flag: str
+) -> None:
     called: dict[str, object] = {}
 
     def _fake_run_repl(
@@ -142,7 +145,7 @@ def test_main_with_precompiler_flag_runs_repl_with_flag(monkeypatch: pytest.Monk
         called["use_precompiler"] = use_precompiler
 
     monkeypatch.setattr(repl_module, "run_repl", _fake_run_repl)
-    monkeypatch.setattr(sys, "argv", ["context-compiler", "--with-precompiler"])
+    monkeypatch.setattr(sys, "argv", ["context-compiler", flag])
 
     result = repl_module.main()
 
@@ -171,8 +174,10 @@ def test_main_unknown_flag_prints_error_hint_and_exits_nonzero(
     "args, expected_bad_arg",
     [
         (["--with-precompiler", "foo"], "--with-precompiler"),
+        (["--with-preprocessor", "foo"], "--with-preprocessor"),
         (["--help", "--version"], "--help"),
         (["--version", "--with-precompiler"], "--version"),
+        (["--version", "--with-preprocessor"], "--version"),
     ],
 )
 def test_cli_rejects_non_single_flag_argument_forms(args: list[str], expected_bad_arg: str) -> None:
@@ -273,6 +278,15 @@ def test_repl_with_precompiler_non_directive_passthrough() -> None:
 
 def test_cli_with_precompiler_pipe_smoke_emits_clarify_without_update() -> None:
     result = _run_repl_cli("--with-precompiler", input_text="set premise to concise replies\n")
+
+    assert result.returncode == 0
+    assert "Did you mean 'set premise concise replies'?" in result.stdout
+    assert "updated" not in result.stdout
+    assert result.stderr == ""
+
+
+def test_cli_with_preprocessor_pipe_smoke_emits_clarify_without_update() -> None:
+    result = _run_repl_cli("--with-preprocessor", input_text="set premise to concise replies\n")
 
     assert result.returncode == 0
     assert "Did you mean 'set premise concise replies'?" in result.stdout

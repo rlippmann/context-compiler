@@ -30,15 +30,16 @@ Canonical matrix: [docs/demos-results.md](docs/demos-results.md)
 ```bash
 pip install context-compiler
 context-compiler
-context-compiler --with-precompiler
+context-compiler --with-preprocessor
 ```
 
 `context-compiler` launches the interactive REPL.
 
-`--with-precompiler` enables the experimental preprocessor before each REPL turn
+`--with-preprocessor` enables the experimental preprocessor before each REPL turn
 (heuristic + validation only). Near-miss inputs are not rewritten and are
 passed through to the engine, which continues to return clarify behavior for
 those forms.
+`--with-precompiler` remains supported as a compatibility alias in 0.6.x.
 
 Or in code:
 ```python

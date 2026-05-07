@@ -10,12 +10,12 @@ _EXIT_TOKENS = {"exit", "quit"}
 _HELP_TOKENS = {"help", "?"}
 _MULTI_COMMAND_PROMPT = "Multiple commands detected.\nEnter one command per line."
 _CLI_HELP_TEXT = """Usage:
-  context-compiler [--help] [--version] [--with-precompiler]
+  context-compiler [--help] [--version] [--with-preprocessor]
 
 Options:
-  --help               Show this help message and exit.
-  --version            Show the installed context-compiler version and exit.
-  --with-precompiler   Enable precompiler before each REPL turn (heuristic + validation only)
+  --help                Show this help message and exit.
+  --version             Show the installed context-compiler version and exit.
+  --with-preprocessor   Enable preprocessor before each REPL turn (heuristic + validation only)
 """
 
 
@@ -166,7 +166,7 @@ def main() -> int:  # pragma: no cover
         print(__version__, file=sys.stdout)
         return 0
 
-    if args == ["--with-precompiler"]:
+    if args in (["--with-preprocessor"], ["--with-precompiler"]):
         run_repl(sys.stdin, sys.stdout, use_precompiler=True)
         return 0
 
