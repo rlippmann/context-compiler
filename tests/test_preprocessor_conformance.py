@@ -2,14 +2,14 @@ import json
 import re
 from pathlib import Path
 
-from experimental.preprocessor.heuristic_precompiler import precompile_heuristic
+from experimental.preprocessor.heuristic_preprocessor import precompile_heuristic
 from experimental.preprocessor.output_validation import validate_precompiler_output
 
-_PRECOMPILER_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "precompiler"
+_PREPROCESSOR_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "preprocessor"
 
 
 def _fixture_paths() -> list[Path]:
-    return sorted(_PRECOMPILER_FIXTURES_DIR.glob("*.json"))
+    return sorted(_PREPROCESSOR_FIXTURES_DIR.glob("*.json"))
 
 
 def _load_fixture(path: Path) -> dict[str, object]:
@@ -53,7 +53,7 @@ def _derived_risky_rewrite_candidates(source_input: str) -> list[str]:
     return candidates
 
 
-def test_precompiler_conformance_fixtures() -> None:
+def test_preprocessor_conformance_fixtures() -> None:
     for path in _fixture_paths():
         fixture = _load_fixture(path)
         expected = fixture["expected"]
@@ -71,7 +71,7 @@ def test_precompiler_conformance_fixtures() -> None:
 
 
 def test_engine_owned_near_misses_are_reject_only_for_fallback_rewrites() -> None:
-    # Engine-owned near-misses must not be canonicalized by the precompiler and
+    # Engine-owned near-misses must not be canonicalized by the preprocessor and
     # must remain unknown even if fallback proposes a plausible canonical rewrite.
     for path in _fixture_paths():
         fixture = _load_fixture(path)

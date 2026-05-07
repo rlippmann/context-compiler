@@ -48,12 +48,12 @@ They do **not** cover:
 
 - REPL / user-facing formatting
 - LLM integration behavior
-- precompiler / heuristic directive generation
+- preprocessor / heuristic directive generation
 
 These surfaces are tested separately because:
 
 - REPL output may intentionally differ from the underlying state representation
-- precompiler behavior is non-deterministic and outside the engine contract
+- preprocessor behavior is non-deterministic and outside the engine contract
 
 This fixture set is the **canonical engine-level conformance surface**, and may be reused by other implementations (e.g., TypeScript) to validate identical engine behavior.
 

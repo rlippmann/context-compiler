@@ -34,7 +34,7 @@ from context_compiler import (
 )
 from experimental.preprocessor import (
     PRECOMPILE_OUTCOME_DIRECTIVE,
-    parse_precompiler_output,
+    parse_preprocessor_output,
     precompile_heuristic,
     render_prompt,
 )
@@ -180,7 +180,7 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
     except Exception:
         return None
 
-    parsed = parse_precompiler_output(raw_output, source_input=message)
+    parsed = parse_preprocessor_output(raw_output, source_input=message)
     if parsed is None:
         return None
     return parsed
@@ -203,7 +203,7 @@ def _precompile_last_user_message(message: str, state: State | None) -> str | No
             heuristic_result["outcome"] == PRECOMPILE_OUTCOME_DIRECTIVE
             and heuristic_result["directive"]
         ):
-            parsed = parse_precompiler_output(heuristic_result["directive"])
+            parsed = parse_preprocessor_output(heuristic_result["directive"])
             if parsed is not None:
                 return parsed
     except Exception:

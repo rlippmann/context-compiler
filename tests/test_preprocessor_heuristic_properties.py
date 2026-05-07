@@ -8,10 +8,10 @@ from experimental.preprocessor.constants import (
     PRECOMPILE_OUTCOME_NO_DIRECTIVE,
     PRECOMPILE_OUTCOME_UNKNOWN,
 )
-from experimental.preprocessor.heuristic_precompiler import precompile_heuristic
+from experimental.preprocessor.heuristic_preprocessor import precompile_heuristic
 from experimental.preprocessor.output_validation import (
     _is_allowed_directive,
-    parse_precompiler_output,
+    parse_preprocessor_output,
 )
 
 CANONICAL_DIRECTIVES = [
@@ -48,7 +48,7 @@ def test_heuristic_accepts_canonical_directive_with_trailing_period_or_bang(
 ) -> None:
     result = precompile_heuristic(f"{directive}{punctuation}")
     assert result["outcome"] == PRECOMPILE_OUTCOME_DIRECTIVE
-    parsed = parse_precompiler_output(result["directive"])
+    parsed = parse_preprocessor_output(result["directive"])
     assert parsed == result["directive"]
 
 
@@ -66,7 +66,7 @@ def test_heuristic_accepts_single_layer_exact_wrapper(
     left, right = wrapper
     result = precompile_heuristic(f"{left}{directive}{right}")
     assert result["outcome"] == PRECOMPILE_OUTCOME_DIRECTIVE
-    parsed = parse_precompiler_output(result["directive"])
+    parsed = parse_preprocessor_output(result["directive"])
     assert parsed == result["directive"]
 
 
@@ -109,7 +109,7 @@ def test_heuristic_directive_output_is_always_validator_safe(message: str) -> No
         return
     directive = result["directive"]
     assert isinstance(directive, str)
-    assert parse_precompiler_output(directive) == directive
+    assert parse_preprocessor_output(directive) == directive
 
 
 @given(st.sampled_from(CANONICAL_DIRECTIVES), NON_EMPTY_TEXT, NON_EMPTY_TEXT)

@@ -1,6 +1,6 @@
 import pytest
 
-from experimental.preprocessor.heuristic_precompiler import precompile_heuristic
+from experimental.preprocessor.heuristic_preprocessor import precompile_heuristic
 
 
 def test_heuristic_rejects_consistent_high_risk_non_directives() -> None:

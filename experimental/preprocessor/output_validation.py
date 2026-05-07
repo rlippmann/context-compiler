@@ -1,9 +1,9 @@
 """Shared preprocessor output normalization and validation helpers.
 
 Public API:
-- validate_precompiler_output
-- parse_precompiler_output
 - parse_preprocessor_output
+- parse_precompiler_output (compatibility alias)
+- validate_precompiler_output
 
 Internal helpers are implementation details and may change.
 """
@@ -146,7 +146,7 @@ def _validate_text_output(raw_output: str) -> PrecompilerValidationResult:
 def validate_precompiler_output(
     raw_output: object, *, source_input: str | None = None
 ) -> PrecompilerValidationResult:
-    """Validate raw precompiler output into a strict classification/output result.
+    """Validate raw preprocessor output into a strict classification/output result.
 
     Contract:
         - directive: output is a canonical directive string

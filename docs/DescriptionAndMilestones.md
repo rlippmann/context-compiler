@@ -93,7 +93,7 @@ Long-term memory remains a host persistence responsibility, not an engine-owned 
 
 ### 0.6.x
 
-The 0.6.x line completed checkpoint support, precompiler boundary hardening, and
+The 0.6.x line completed checkpoint support, preprocessor boundary hardening, and
 regression/conformance surfaces that prepare the project for the next milestone.
 
 ### 0.7 — Auditability & Boundary Hardening
@@ -119,7 +119,7 @@ Make engine behavior inspectable and externally controllable without guessing.
   - requires `--with-precompiler`
   - never implicit
   - inspectable via preview / JSON output
-- Explicit precompiler policy for multi-line, multi-sentence, and conversational-prefix input
+- Explicit preprocessor policy for multi-line, multi-sentence, and conversational-prefix input
   (for example `ok. prohibit peanuts`, `sure - use docker`, mixed conversational + directive content)
   that is rule-based, fixture-covered, and inspectable
 - Define policy for directive-adjacent mixed-intent payloads
@@ -131,7 +131,7 @@ Make engine behavior inspectable and externally controllable without guessing.
 - No expansion of authoritative state model
 - No implicit behavior
 - No heuristic-heavy parsing
-- Preserve separation between engine, precompiler, and host/controller layers
+- Preserve separation between engine, preprocessor, and host/controller layers
 
 ### Post-0.7 Direction
 
@@ -145,7 +145,7 @@ Conceptual completion is a stable minimal contract, not feature accumulation.
 
 - Stable minimal engine contract
 - Deterministic and inspectable behavior
-- Strict compiler / precompiler / host separation
+- Strict compiler / preprocessor / host separation
 - No implicit behavior
 - No authoritative state-model expansion
 - Cross-language consistency with Python as source of truth

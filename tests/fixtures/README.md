@@ -1,15 +1,18 @@
-# Conformance Fixtures
+# Fixture Suites
 
-These fixtures define the cross-language conformance contract for the Context Compiler.
+This directory contains multiple fixture suites with different contracts.
 
-## Layout
+## Fixture types
 
-[`conformance/`](conformance/)
+* [`conformance/`](conformance/) — core engine cross-language conformance contract.
+* [`engine-regression/structured/`](engine-regression/structured/) — deterministic per-turn engine regression fixtures (including checkpoint snapshots).
+* [`preprocessor/`](preprocessor/) — preprocessor heuristic and validation fixtures.
 
-* [`step/`](conformance/step/)
-* [`transcript/`](conformance/transcript/)
+`conformance/` and `engine-regression/structured/` both cover engine behavior at different layers; preprocessor fixtures are intentionally separate from the core engine conformance contract.
 
 ## Step fixtures
+
+For [`conformance/step/`](conformance/step/):
 
 Each step fixture runs:
 
@@ -27,6 +30,8 @@ Then asserts:
 
 ## Transcript fixtures
 
+For [`conformance/transcript/`](conformance/transcript/):
+
 Replay messages using `compile_transcript(messages)`.
 
 Results are normalized to:
@@ -36,12 +41,43 @@ Results are normalized to:
 
 ## Prompt matching
 
+For conformance transcript fixtures:
+
 * If `prompt_to_user` is a string → exact match
 * If `prompt_to_user` is `null` → any non-empty string is accepted
 
 ## Source of truth
 
 Fixtures reflect current Python behavior and tests.
+
+## Engine regression fixtures
+
+[`engine-regression/structured/`](engine-regression/structured/)
+
+These fixtures capture deterministic per-turn engine behavior, including checkpoint snapshots, and are exercised by [`tests/test_structured_regression.py`](../test_structured_regression.py).
+
+They validate:
+
+* per-turn input handling
+* `Decision.kind` outcomes
+* clarification prompt behavior
+* checkpoint export parity against expected snapshots
+* continuation state restoration from checkpoints
+
+## Preprocessor fixtures
+
+[`preprocessor/`](preprocessor/)
+
+These fixtures cover preprocessor behavior (heuristic classification plus output validation), separate from the core engine conformance contract above.
+
+They are exercised by [`tests/test_preprocessor_conformance.py`](../test_preprocessor_conformance.py), including deterministic replay and validation-boundary checks (only validated directive output may pass through).
+
+They validate:
+
+* heuristic classification determinism
+* directive extraction and normalization
+* output validation boundaries
+* reject/unknown safety handling for ambiguous and near-miss inputs
 
 ## Test runner
 

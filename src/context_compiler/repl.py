@@ -1,7 +1,7 @@
 import sys
 from typing import TextIO
 
-from experimental.preprocessor.output_validation import parse_precompiler_output
+from experimental.preprocessor.output_validation import parse_preprocessor_output
 
 from . import __version__, create_engine, get_policy_items, get_premise_value
 from .engine import Decision, DecisionKind, Engine, State
@@ -107,7 +107,7 @@ def _compile_input(raw_input: str, engine: Engine, *, use_precompiler: bool) -> 
         return raw_input
     if _has_pending_clarification(engine):
         return raw_input
-    parsed = parse_precompiler_output(raw_input, source_input=raw_input)
+    parsed = parse_preprocessor_output(raw_input, source_input=raw_input)
     return parsed if parsed is not None else raw_input
 
 
