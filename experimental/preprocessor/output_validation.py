@@ -1,8 +1,9 @@
-"""Shared precompiler output normalization and validation helpers.
+"""Shared preprocessor output normalization and validation helpers.
 
 Public API:
 - validate_precompiler_output
 - parse_precompiler_output
+- parse_preprocessor_output
 
 Internal helpers are implementation details and may change.
 """
@@ -19,6 +20,7 @@ from .constants import (
 )
 
 __all__ = [
+    "parse_preprocessor_output",
     "parse_precompiler_output",
     "validate_precompiler_output",
 ]
@@ -184,3 +186,12 @@ def parse_precompiler_output(raw_output: object, *, source_input: str | None = N
     if validated["classification"] == "directive":
         return validated["output"]
     return None
+
+
+def parse_preprocessor_output(raw_output: object, *, source_input: str | None = None) -> str | None:
+    """Preferred name for the preprocessor validation boundary.
+
+    Backward compatibility note:
+        ``parse_precompiler_output`` remains supported as an alias.
+    """
+    return parse_precompiler_output(raw_output, source_input=source_input)

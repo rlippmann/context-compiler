@@ -131,7 +131,7 @@ Note: In these LiteLLM example integrations, update decisions are rendered deter
 ## Basic vs preprocessor behavior
 
 - Basic: passes raw user input to `engine.step(...)`.
-- With preprocessor: runs heuristic precompiler first.
+- With preprocessor: runs heuristic preprocessor first.
   - If heuristic returns a directive, that directive is passed to `engine.step(...)`.
   - If heuristic does not produce a directive (`no_directive` or `unknown`), LLM fallback prompt conversion runs.
   - If fallback yields nothing usable or errors, behavior safely remains equivalent to basic.
@@ -140,7 +140,7 @@ Note: In these LiteLLM example integrations, update decisions are rendered deter
 ## Example checks
 
 - Near-miss passthrough (`with_preprocessor.py`):
-  - `set premise to concise replies` is not rewritten by the precompiler and is passed through unchanged.
+  - `set premise to concise replies` is not rewritten by the preprocessor and is passed through unchanged.
   - Engine returns clarify (`Did you mean 'set premise concise replies'?`).
 - Lifecycle enforcement (both):
   - `change premise to formal tone` with no premise -> clarify (`set premise ...` first).

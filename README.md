@@ -367,8 +367,9 @@ into canonical directives before compilation.
 It is designed to be conservative and must be used with validation:
 
 - reject-first; directive-adjacent unsafe forms abstain instead of rewriting
-- all outputs must be validated with `parse_precompiler_output(...)` (the
-  preprocessor validation function)
+- all outputs must be validated with `parse_preprocessor_output(...)` (the
+  preferred preprocessor validation function; `parse_precompiler_output(...)`
+  remains as a compatibility alias)
 - no directive grammar expansion
 - raw outputs must not be passed directly to the compiler
 
