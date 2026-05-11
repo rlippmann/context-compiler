@@ -1,0 +1,48 @@
+{
+  "id": "checkpoint_import_checkpoint_invalid_authoritative_state_rejected_atomically",
+  "kind": "checkpoint",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "use kubectl instead of docker"
+  ],
+  "action": {
+    "fn": "import_checkpoint",
+    "payload": {
+      "checkpoint_version": 1,
+      "authoritative_state": {
+        "premise": null,
+        "policies": [],
+        "version": 2
+      },
+      "pending": null
+    }
+  },
+  "expected": {
+    "error": {
+      "type": "ValueError",
+      "message_contains": "Invalid state payload"
+    },
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    },
+    "followup": {
+      "input": "maybe",
+      "decision": {
+        "kind": "clarify",
+        "state": null,
+        "prompt_to_user": "Did you mean to use \"kubectl\" instead?"
+      },
+      "state": {
+        "premise": null,
+        "policies": {},
+        "version": 2
+      }
+    }
+  }
+}

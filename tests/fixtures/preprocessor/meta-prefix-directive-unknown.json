@@ -1,0 +1,8 @@
+{
+  "name": "meta-prefix-directive-unknown",
+  "input": "example: use docker",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

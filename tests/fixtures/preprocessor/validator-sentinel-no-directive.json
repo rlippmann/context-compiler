@@ -1,0 +1,9 @@
+{
+  "name": "validator-sentinel-no-directive",
+  "kind": "validator",
+  "raw_output": "<NO_DIRECTIVE>",
+  "expected": {
+    "classification": "no_directive",
+    "output": null
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "name": "validator-source-input-block-set-premise-rewrite",
+  "kind": "validator",
+  "raw_output": "set premise concise replies",
+  "source_input": "set premise to concise replies",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "validator-malformed-text-unknown",
+  "kind": "validator",
+  "raw_output": "set premise to concise replies",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

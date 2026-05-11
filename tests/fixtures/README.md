@@ -57,9 +57,27 @@ For conformance transcript fixtures:
 * If `prompt_to_user` is a string → exact match
 * If `prompt_to_user` is `null` → any non-empty string is accepted
 
+## State JSON fixtures
+
+For [`conformance/state-json/`](conformance/state-json/):
+
+Portable serialization contract coverage for `engine.export_json()` and
+`engine.import_json(...)`, including canonical export payload shape and
+deterministic validation/error boundaries.
+
+## Checkpoint fixtures
+
+For [`conformance/checkpoint/`](conformance/checkpoint/):
+
+Portable checkpoint import contract coverage for
+`engine.import_checkpoint(...)`, including deterministic validation/error
+boundaries, atomic failure behavior, and pending-clarification clearing semantics.
+
 ## Source of truth
 
 Fixtures reflect current Python behavior and tests.
+Property/fuzz invariants remain Python-local tests and are not part of the
+portable fixture contract.
 
 ## Engine regression fixtures
 
@@ -82,6 +100,12 @@ They validate:
 These fixtures cover preprocessor behavior (heuristic classification plus output validation), separate from the core engine conformance contract above.
 
 They are exercised by [`tests/test_preprocessor_conformance.py`](../test_preprocessor_conformance.py), including deterministic replay and validation-boundary checks (only validated directive output may pass through).
+
+Portable fixture scope:
+- deterministic heuristic and validator input/output contracts intended for cross-language parity
+
+Python-local test scope:
+- property/fuzz invariants and filesystem/template behaviors (for example `render_prompt` file-loading behavior) remain in Python unit/property tests and are not portable fixture requirements.
 
 They validate:
 

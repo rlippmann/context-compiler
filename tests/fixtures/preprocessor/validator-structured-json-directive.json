@@ -1,0 +1,9 @@
+{
+  "name": "validator-structured-json-directive",
+  "kind": "validator",
+  "raw_output": "{\"classification\":\"directive\",\"output\":\"use docker\"}",
+  "expected": {
+    "classification": "directive",
+    "output": "use docker"
+  }
+}

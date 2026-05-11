@@ -8,12 +8,8 @@ from experimental.preprocessor.output_validation import validate_precompiler_out
 _PREPROCESSOR_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "preprocessor"
 
 
-def _fixture_paths() -> list[Path]:
-    return sorted(
-        path
-        for path in _PREPROCESSOR_FIXTURES_DIR.glob("*.json")
-        if not path.name.startswith("public-api-")
-    )
+def _behavior_fixture_paths() -> list[Path]:
+    return sorted(path for path in _PREPROCESSOR_FIXTURES_DIR.glob("*.json"))
 
 
 def _load_fixture(path: Path) -> dict[str, object]:
@@ -40,6 +36,16 @@ def _normalize_result(message: str) -> dict[str, object]:
     return normalized
 
 
+def _normalize_validator_result(
+    raw_output: object, source_input: str | None = None
+) -> dict[str, object]:
+    validated = validate_precompiler_output(raw_output, source_input=source_input)
+    return {
+        "classification": validated["classification"],
+        "output": validated["output"],
+    }
+
+
 def _derived_risky_rewrite_candidates(source_input: str) -> list[str]:
     normalized = re.sub(r"\s+", " ", source_input.strip().lower())
     candidates: list[str] = []
@@ -58,18 +64,37 @@ def _derived_risky_rewrite_candidates(source_input: str) -> list[str]:
 
 
 def test_preprocessor_conformance_fixtures() -> None:
-    for path in _fixture_paths():
+    for path in _behavior_fixture_paths():
         fixture = _load_fixture(path)
-        expected = fixture["expected"]
-        input_text = fixture["input"]
-        fixture_name = fixture["name"]
+        if path.name.startswith("public-api-"):
+            continue
+
+        expected = fixture.get("expected")
+        fixture_name = fixture.get("name", path.name)
+        kind = fixture.get("kind", "heuristic")
 
         assert isinstance(expected, dict), fixture_name
-        assert isinstance(input_text, str), fixture_name
+
+        if kind == "heuristic":
+            input_text = fixture.get("input")
+            assert isinstance(input_text, str), fixture_name
+
+            # Deterministic replay check.
+            first = _normalize_result(input_text)
+            second = _normalize_result(input_text)
+            assert first == second, fixture_name
+            assert first == expected, fixture_name
+            continue
+
+        assert kind == "validator", fixture_name
+        assert "raw_output" in fixture, fixture_name
+        raw_output = fixture["raw_output"]
+        source_input_obj = fixture.get("source_input")
+        source_input = source_input_obj if isinstance(source_input_obj, str) else None
 
         # Deterministic replay check.
-        first = _normalize_result(input_text)
-        second = _normalize_result(input_text)
+        first = _normalize_validator_result(raw_output, source_input=source_input)
+        second = _normalize_validator_result(raw_output, source_input=source_input)
         assert first == second, fixture_name
         assert first == expected, fixture_name
 
@@ -77,8 +102,12 @@ def test_preprocessor_conformance_fixtures() -> None:
 def test_engine_owned_near_misses_are_reject_only_for_fallback_rewrites() -> None:
     # Engine-owned near-misses must not be canonicalized by the preprocessor and
     # must remain unknown even if fallback proposes a plausible canonical rewrite.
-    for path in _fixture_paths():
+    for path in _behavior_fixture_paths():
         fixture = _load_fixture(path)
+        if path.name.startswith("public-api-"):
+            continue
+        if fixture.get("kind", "heuristic") != "heuristic":
+            continue
         expected = fixture["expected"]
         input_text = fixture["input"]
         fixture_name = fixture["name"]

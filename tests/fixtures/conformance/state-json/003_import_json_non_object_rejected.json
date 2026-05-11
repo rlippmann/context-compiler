@@ -1,0 +1,24 @@
+{
+  "id": "state_json_import_json_non_object_rejected",
+  "kind": "state_json",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "action": {
+    "fn": "import_json",
+    "payload": "[\"not\",\"an\",\"object\"]"
+  },
+  "expected": {
+    "error": {
+      "type": "ValueError",
+      "message_contains": "Invalid state payload"
+    },
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    }
+  }
+}
