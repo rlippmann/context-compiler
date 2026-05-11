@@ -1,0 +1,29 @@
+{
+  "id": "public-api-v1",
+  "kind": "api-contract",
+  "target": "context-compiler-ports",
+  "module": "context_compiler",
+  "required_exports": [
+    "create_engine",
+    "compile_transcript",
+    "get_premise_value",
+    "get_policy_items",
+    "TranscriptMessage",
+    "Transcript",
+    "ApplyResult"
+  ],
+  "engine": {
+    "type": "Engine",
+    "required_members": [
+      "step",
+      "state",
+      "export_json",
+      "import_json",
+      "apply_transcript",
+      "export_checkpoint",
+      "import_checkpoint",
+      "export_checkpoint_json",
+      "import_checkpoint_json"
+    ]
+  }
+}

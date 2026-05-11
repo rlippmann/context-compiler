@@ -9,7 +9,11 @@ _PREPROCESSOR_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "pre
 
 
 def _fixture_paths() -> list[Path]:
-    return sorted(_PREPROCESSOR_FIXTURES_DIR.glob("*.json"))
+    return sorted(
+        path
+        for path in _PREPROCESSOR_FIXTURES_DIR.glob("*.json")
+        if not path.name.startswith("public-api-")
+    )
 
 
 def _load_fixture(path: Path) -> dict[str, object]:
