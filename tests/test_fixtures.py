@@ -1,11 +1,19 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from context_compiler import compile_transcript, create_engine
 
 _STEP_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "conformance" / "step"
 _TRANSCRIPT_FIXTURES_DIR = (
     Path(__file__).resolve().parent / "fixtures" / "conformance" / "transcript"
+)
+_STATE_JSON_FIXTURES_DIR = (
+    Path(__file__).resolve().parent / "fixtures" / "conformance" / "state-json"
+)
+_CHECKPOINT_FIXTURES_DIR = (
+    Path(__file__).resolve().parent / "fixtures" / "conformance" / "checkpoint"
 )
 
 
@@ -75,3 +83,73 @@ def test_transcript_fixtures() -> None:
             normalized = {"state": result}
 
         assert normalized == fixture["expected"], fixture_id
+
+
+def _apply_prelude(engine: object, prelude: object) -> None:
+    assert isinstance(prelude, list)
+    for prior_input in prelude:
+        assert isinstance(prior_input, str)
+        engine.step(prior_input)
+
+
+def test_state_json_fixtures() -> None:
+    for path in _json_files(_STATE_JSON_FIXTURES_DIR):
+        fixture = _load(path)
+        fixture_id = fixture["id"]
+
+        assert fixture["kind"] == "state_json", fixture_id
+        engine = create_engine(state=fixture["initial_state"])
+        _apply_prelude(engine, fixture.get("prelude", []))
+
+        action = fixture["action"]
+        expected = fixture["expected"]
+        fn = action["fn"]
+
+        if fn == "export_json":
+            payload = engine.export_json()
+            assert payload == expected["payload"], fixture_id
+        elif fn == "import_json":
+            payload = action["payload"]
+            error = expected.get("error")
+            if error is None:
+                engine.import_json(payload)
+            else:
+                with pytest.raises(ValueError, match=error["message_contains"]):
+                    engine.import_json(payload)
+        else:
+            raise AssertionError(f"Unknown state_json action: {fn}")
+
+        assert engine.state == expected["state"], fixture_id
+
+
+def test_checkpoint_fixtures() -> None:
+    for path in _json_files(_CHECKPOINT_FIXTURES_DIR):
+        fixture = _load(path)
+        fixture_id = fixture["id"]
+
+        assert fixture["kind"] == "checkpoint", fixture_id
+        engine = create_engine(state=fixture["initial_state"])
+        _apply_prelude(engine, fixture.get("prelude", []))
+
+        action = fixture["action"]
+        expected = fixture["expected"]
+        fn = action["fn"]
+
+        if fn == "import_checkpoint":
+            payload = action["payload"]
+            error = expected.get("error")
+            if error is None:
+                engine.import_checkpoint(payload)
+            else:
+                with pytest.raises(ValueError, match=error["message_contains"]):
+                    engine.import_checkpoint(payload)
+        else:
+            raise AssertionError(f"Unknown checkpoint action: {fn}")
+
+        assert engine.state == expected["state"], fixture_id
+
+        followup = expected.get("followup")
+        if followup is not None:
+            decision = engine.step(followup["input"])
+            assert decision == followup["decision"], fixture_id
+            assert engine.state == followup["state"], fixture_id

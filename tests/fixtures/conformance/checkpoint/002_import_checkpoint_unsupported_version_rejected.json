@@ -1,0 +1,32 @@
+{
+  "id": "checkpoint_import_checkpoint_unsupported_version_rejected",
+  "kind": "checkpoint",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "action": {
+    "fn": "import_checkpoint",
+    "payload": {
+      "checkpoint_version": 2,
+      "authoritative_state": {
+        "premise": null,
+        "policies": {},
+        "version": 2
+      },
+      "pending": null
+    }
+  },
+  "expected": {
+    "error": {
+      "type": "ValueError",
+      "message_contains": "Unsupported checkpoint version"
+    },
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    }
+  }
+}

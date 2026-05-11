@@ -1,0 +1,29 @@
+{
+  "id": "state_json_import_json_empty_normalized_policy_key_rejected_atomically",
+  "kind": "state_json",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "use kubectl"
+  ],
+  "action": {
+    "fn": "import_json",
+    "payload": "{\"premise\":null,\"policies\":{\"Docker\":\"use\",\"a\":\"use\"},\"version\":2}"
+  },
+  "expected": {
+    "error": {
+      "type": "ValueError",
+      "message_contains": "Invalid state payload"
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "kubectl": "use"
+      },
+      "version": 2
+    }
+  }
+}

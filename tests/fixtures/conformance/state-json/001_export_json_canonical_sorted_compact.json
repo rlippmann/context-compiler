@@ -1,0 +1,28 @@
+{
+  "id": "state_json_export_json_canonical_sorted_compact",
+  "kind": "state_json",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "set premise concise",
+    "use zeta",
+    "use alpha"
+  ],
+  "action": {
+    "fn": "export_json"
+  },
+  "expected": {
+    "payload": "{\"policies\":{\"alpha\":\"use\",\"zeta\":\"use\"},\"premise\":\"concise\",\"version\":2}",
+    "state": {
+      "premise": "concise",
+      "policies": {
+        "alpha": "use",
+        "zeta": "use"
+      },
+      "version": 2
+    }
+  }
+}

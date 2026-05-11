@@ -1,0 +1,29 @@
+{
+  "id": "step_pending_negative_punctuation_token",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "use kubectl instead of docker"
+  ],
+  "input": " NOPE?? ",
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "prompt_to_user": null,
+      "state": {
+        "premise": null,
+        "policies": {},
+        "version": 2
+      }
+    },
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    }
+  }
+}

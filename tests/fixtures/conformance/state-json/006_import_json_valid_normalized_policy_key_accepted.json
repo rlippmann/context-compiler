@@ -1,0 +1,22 @@
+{
+  "id": "state_json_import_json_valid_normalized_policy_key_accepted",
+  "kind": "state_json",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "action": {
+    "fn": "import_json",
+    "payload": "{\"premise\":null,\"policies\":{\"Docker\":\"use\"},\"version\":2}"
+  },
+  "expected": {
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker": "use"
+      },
+      "version": 2
+    }
+  }
+}
