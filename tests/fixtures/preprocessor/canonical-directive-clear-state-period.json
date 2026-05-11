@@ -1,0 +1,8 @@
+{
+  "name": "canonical-directive-clear-state-period",
+  "input": "clear state.",
+  "expected": {
+    "classification": "directive",
+    "output": "clear state"
+  }
+}

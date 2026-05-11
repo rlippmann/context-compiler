@@ -1,0 +1,10 @@
+{
+  "name": "validator-source-input-block-change-premise-rewrite",
+  "kind": "validator",
+  "raw_output": "change premise to concise replies",
+  "source_input": "change premise concise replies",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "name": "canonical-directive-bracket-wrapper",
+  "input": "[prohibit peanuts]",
+  "expected": {
+    "classification": "directive",
+    "output": "prohibit peanuts"
+  }
+}

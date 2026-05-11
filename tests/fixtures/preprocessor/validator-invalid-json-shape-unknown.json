@@ -1,0 +1,11 @@
+{
+  "name": "validator-invalid-json-shape-unknown",
+  "kind": "validator",
+  "raw_output": {
+    "classification": "directive"
+  },
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

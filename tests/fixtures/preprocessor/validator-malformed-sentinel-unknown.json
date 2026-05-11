@@ -1,0 +1,9 @@
+{
+  "name": "validator-malformed-sentinel-unknown",
+  "kind": "validator",
+  "raw_output": "<NO_DIRECTIPLE>",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

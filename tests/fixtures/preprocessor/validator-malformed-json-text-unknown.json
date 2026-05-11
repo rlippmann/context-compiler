@@ -1,0 +1,9 @@
+{
+  "name": "validator-malformed-json-text-unknown",
+  "kind": "validator",
+  "raw_output": "{\"classification\":\"directive\",",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

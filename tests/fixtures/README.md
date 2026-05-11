@@ -83,6 +83,12 @@ These fixtures cover preprocessor behavior (heuristic classification plus output
 
 They are exercised by [`tests/test_preprocessor_conformance.py`](../test_preprocessor_conformance.py), including deterministic replay and validation-boundary checks (only validated directive output may pass through).
 
+Portable fixture scope:
+- deterministic heuristic and validator input/output contracts intended for cross-language parity
+
+Python-local test scope:
+- property/fuzz invariants and filesystem/template behaviors (for example `render_prompt` file-loading behavior) remain in Python unit/property tests and are not portable fixture requirements.
+
 They validate:
 
 * heuristic classification determinism
