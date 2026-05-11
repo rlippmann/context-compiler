@@ -5,10 +5,21 @@ This directory contains multiple fixture suites with different contracts.
 ## Fixture types
 
 * [`conformance/`](conformance/) — core engine cross-language conformance contract.
+  Includes a small public API presence contract under `conformance/api/`.
 * [`engine-regression/structured/`](engine-regression/structured/) — deterministic per-turn engine regression fixtures (including checkpoint snapshots).
 * [`preprocessor/`](preprocessor/) — preprocessor heuristic and validation fixtures.
 
 `conformance/` and `engine-regression/structured/` both cover engine behavior at different layers; preprocessor fixtures are intentionally separate from the core engine conformance contract.
+
+## API contract fixture
+
+[`conformance/api/public-api-v1.json`](conformance/api/public-api-v1.json) defines a small public API presence contract for the Python 0.6 surface that ports must expose.
+
+Ports may sync this artifact with conformance fixtures.
+
+Ports should check equivalent public exports and methods using language-appropriate names where casing differs.
+
+Behavioral semantics remain covered by conformance and structured fixtures.
 
 ## Step fixtures
 

@@ -1,0 +1,18 @@
+{
+  "id": "experimental-preprocessor-public-api-v1",
+  "kind": "api-contract",
+  "module": "experimental.preprocessor",
+  "required_exports": [
+    "PRECOMPILE_OUTCOME_DIRECTIVE",
+    "PRECOMPILE_OUTCOME_NO_DIRECTIVE",
+    "PRECOMPILE_OUTCOME_UNKNOWN",
+    "PRECOMPILER_NO_DIRECTIVE_SENTINEL",
+    "PrecompileResult",
+    "PrecompileOutcome",
+    "parse_preprocessor_output",
+    "parse_precompiler_output",
+    "precompile_heuristic",
+    "render_prompt",
+    "validate_precompiler_output"
+  ]
+}
