@@ -116,7 +116,7 @@ Make engine behavior inspectable and externally controllable without guessing.
   - `--initial-state-file`
 - REPL LLM fallback as explicit optional mode:
   - `--with-llm-fallback`
-  - requires `--with-precompiler`
+  - requires `--with-preprocessor`
   - never implicit
   - inspectable via preview / JSON output
 - Explicit preprocessor policy for multi-line, multi-sentence, and conversational-prefix input

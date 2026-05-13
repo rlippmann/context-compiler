@@ -50,9 +50,9 @@ except ModuleNotFoundError:
 from context_compiler import State, create_engine, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
 from experimental.preprocessor import (
-    PRECOMPILE_OUTCOME_DIRECTIVE,
+    PREPROCESS_OUTCOME_DIRECTIVE,
     parse_preprocessor_output,
-    precompile_heuristic,
+    preprocess_heuristic,
     render_prompt,
 )
 
@@ -629,7 +629,7 @@ class Pipe:
             )
         return None
 
-    async def _llm_fallback_precompile(
+    async def _llm_fallback_preprocess(
         self,
         message: str,
         state: State,
@@ -676,7 +676,7 @@ class Pipe:
             return None, None
         return parsed, None
 
-    async def _precompile_user_input(
+    async def _preprocess_user_input(
         self,
         message: str,
         state: State,
@@ -688,10 +688,10 @@ class Pipe:
     ) -> tuple[str | None, str | None]:
         # Heuristic first for precision, determinism, and low latency.
         # If heuristic does not produce a directive, try Open WebUI-native fallback.
-        heuristic_result = precompile_heuristic(message)
+        heuristic_result = preprocess_heuristic(message)
 
         if (
-            heuristic_result["outcome"] == PRECOMPILE_OUTCOME_DIRECTIVE
+            heuristic_result["outcome"] == PREPROCESS_OUTCOME_DIRECTIVE
             and heuristic_result["directive"]
         ):
             parsed = parse_preprocessor_output(heuristic_result["directive"])
@@ -702,12 +702,12 @@ class Pipe:
             return None, None
 
         # In debug mode with missing base/preprocessor model ids, skip fallback
-        # precompile entirely so we never attempt an empty-model LLM call.
+        # preprocess entirely so we never attempt an empty-model LLM call.
         model_id = _normalize_model_id(model_id)
         if model_id is None:
             return None, None
 
-        return await self._llm_fallback_precompile(
+        return await self._llm_fallback_preprocess(
             message,
             state,
             request=request,
@@ -816,7 +816,7 @@ class Pipe:
     ) -> Any:
         # Open WebUI integration entrypoint:
         # 1) extract latest user input
-        # 2) run precompile (heuristic -> LLM fallback)
+        # 2) run preprocess (heuristic -> LLM fallback)
         # 3) pass directive or original input to engine.step(...)
         # 4) map decision back to Open WebUI response behavior
         raw_messages = body.get("messages")
@@ -882,10 +882,10 @@ class Pipe:
         checkpoint_before = engine.export_checkpoint()
         pending_before = checkpoint_before.get("pending")
 
-        precompiled: str | None = None
-        precompile_error: str | None = None
+        preprocessd: str | None = None
+        preprocess_error: str | None = None
         if pending_before is None:
-            precompiled, precompile_error = await self._precompile_user_input(
+            preprocessd, preprocess_error = await self._preprocess_user_input(
                 latest_user_text,
                 engine.state,
                 request=__request__,
@@ -893,13 +893,13 @@ class Pipe:
                 prompt_profile=self.valves.PREPROCESSOR_PROMPT_PROFILE,
                 model_id=effective_preprocessor_model,
             )
-            if precompile_error is not None:
-                return precompile_error
+            if preprocess_error is not None:
+                return preprocess_error
 
-        logger.debug("preprocessor: precompiled=%r", precompiled)
-        # Preserve core behavior: if precompile yields no directive, use raw user
+        logger.debug("preprocessor: preprocessd=%r", preprocessd)
+        # Preserve core behavior: if preprocess yields no directive, use raw user
         # text so the compiler still decides clarify/passthrough/update.
-        compile_input = precompiled if precompiled is not None else latest_user_text
+        compile_input = preprocessd if preprocessd is not None else latest_user_text
 
         logger.debug("preprocessor: engine_input=%r", compile_input)
         decision = engine.step(compile_input)
@@ -920,7 +920,7 @@ class Pipe:
                 decision=decision,
                 state_before=state_before,
                 state_after=state_after,
-                preprocessor_output=precompiled,
+                preprocessor_output=preprocessd,
                 llm_called=False,
             )
         if near_miss_prompt is not None and kind == "passthrough":
@@ -931,7 +931,7 @@ class Pipe:
                 decision={"kind": "clarify", "prompt_to_user": near_miss_prompt},
                 state_before=state_before,
                 state_after=state_after,
-                preprocessor_output=precompiled,
+                preprocessor_output=preprocessd,
                 llm_called=False,
             )
         if kind == "passthrough":
@@ -948,7 +948,7 @@ class Pipe:
                 decision=decision,
                 state_before=state_before,
                 state_after=state_after,
-                preprocessor_output=precompiled,
+                preprocessor_output=preprocessd,
                 llm_called=base_model_id is not None,
             )
         if kind == "update":
@@ -961,7 +961,7 @@ class Pipe:
                     decision=decision,
                     state_before=state_before,
                     state_after=state_after,
-                    preprocessor_output=precompiled,
+                    preprocessor_output=preprocessd,
                     llm_called=False,
                 )
             response = await self._forward_update(
@@ -978,7 +978,7 @@ class Pipe:
                 decision=decision,
                 state_before=state_before,
                 state_after=state_after,
-                preprocessor_output=precompiled,
+                preprocessor_output=preprocessd,
                 llm_called=base_model_id is not None,
                 state_injected=_active_state_summary(state_after),
             )
@@ -996,6 +996,6 @@ class Pipe:
             decision=decision,
             state_before=state_before,
             state_after=state_after,
-            preprocessor_output=precompiled,
+            preprocessor_output=preprocessd,
             llm_called=base_model_id is not None,
         )

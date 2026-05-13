@@ -27,9 +27,9 @@ from typing import TypedDict, cast
 from context_compiler import State, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
 from experimental.preprocessor import (
-    PRECOMPILE_OUTCOME_DIRECTIVE,
+    PREPROCESS_OUTCOME_DIRECTIVE,
     parse_preprocessor_output,
-    precompile_heuristic,
+    preprocess_heuristic,
     render_prompt,
 )
 
@@ -197,7 +197,7 @@ def _prompt_file_path() -> Traversable:
     return _PROMPTS_DIR.joinpath("default.txt")
 
 
-def _llm_fallback_precompile(message: str, state: State) -> str | None:
+def _llm_fallback_preprocess(message: str, state: State) -> str | None:
     with as_file(_prompt_file_path()) as prompt_path:
         prompt = render_prompt(prompt_path, state)
     if prompt is None:
@@ -242,13 +242,13 @@ def _llm_fallback_precompile(message: str, state: State) -> str | None:
     return parsed
 
 
-def _precompile_user_input(message: str, state: State) -> str | None:
+def _preprocess_user_input(message: str, state: State) -> str | None:
     # Heuristic first (fast + high precision), then optional LLM fallback.
     try:
-        heuristic_result = precompile_heuristic(message)
+        heuristic_result = preprocess_heuristic(message)
         logger.debug("preprocessor: heuristic_outcome=%s", heuristic_result["outcome"])
         if (
-            heuristic_result["outcome"] == PRECOMPILE_OUTCOME_DIRECTIVE
+            heuristic_result["outcome"] == PREPROCESS_OUTCOME_DIRECTIVE
             and heuristic_result["directive"]
         ):
             parsed = parse_preprocessor_output(heuristic_result["directive"])
@@ -262,7 +262,7 @@ def _precompile_user_input(message: str, state: State) -> str | None:
         return None
 
     try:
-        fallback_directive = _llm_fallback_precompile(message, state)
+        fallback_directive = _llm_fallback_preprocess(message, state)
         logger.debug("preprocessor: fallback_directive=%r", fallback_directive)
         return fallback_directive
     except Exception:
@@ -427,15 +427,15 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
     _restore_session_checkpoint_if_needed(engine, session_key)
     checkpoint_before = engine.export_checkpoint()
     pending_before = checkpoint_before.get("pending")
-    precompiled: str | None = None
+    preprocessd: str | None = None
     if pending_before is not None:
         compile_input = user_input
     else:
-        precompiled = _precompile_user_input(user_input, engine.state)
-        compile_input = precompiled if precompiled else user_input
+        preprocessd = _preprocess_user_input(user_input, engine.state)
+        compile_input = preprocessd if preprocessd else user_input
     logger.debug(
         "preprocessor: engine_input=%s",
-        "directive" if precompiled else f"user_input len={len(user_input)}",
+        "directive" if preprocessd else f"user_input len={len(user_input)}",
     )
 
     decision = engine.step(compile_input)
@@ -450,7 +450,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             response_text,
             original_input=user_input,
             compiler_input=compile_input,
-            preprocessor_output=precompiled,
+            preprocessor_output=preprocessd,
             decision=decision,
             state_before=checkpoint_before.get("authoritative_state"),
             state_after=engine.state,
@@ -461,7 +461,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             near_miss_prompt,
             original_input=user_input,
             compiler_input=compile_input,
-            preprocessor_output=precompiled,
+            preprocessor_output=preprocessd,
             decision={"kind": "clarify", "prompt_to_user": near_miss_prompt},
             state_before=checkpoint_before.get("authoritative_state"),
             state_after=engine.state,
@@ -474,7 +474,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             response_text,
             original_input=user_input,
             compiler_input=compile_input,
-            preprocessor_output=precompiled,
+            preprocessor_output=preprocessd,
             decision=decision,
             state_before=checkpoint_before.get("authoritative_state"),
             state_after=engine.state,
@@ -486,7 +486,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             response_text,
             original_input=user_input,
             compiler_input=compile_input,
-            preprocessor_output=precompiled,
+            preprocessor_output=preprocessd,
             decision=decision,
             state_before=checkpoint_before.get("authoritative_state"),
             state_after=engine.state,
@@ -500,7 +500,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
         response_text,
         original_input=user_input,
         compiler_input=compile_input,
-        preprocessor_output=precompiled,
+        preprocessor_output=preprocessd,
         decision=decision,
         state_before=checkpoint_before.get("authoritative_state"),
         state_after=compiled_state,

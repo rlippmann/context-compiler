@@ -39,7 +39,6 @@ context-compiler --with-preprocessor
 (heuristic + validation only). Near-miss inputs are not rewritten and are
 passed through to the engine, which continues to return clarify behavior for
 those forms.
-`--with-precompiler` remains supported as a compatibility alias in 0.6.x.
 
 Or in code:
 ```python
@@ -368,9 +367,7 @@ into canonical directives before compilation.
 It is designed to be conservative and must be used with validation:
 
 - reject-first; directive-adjacent unsafe forms abstain instead of rewriting
-- all outputs must be validated with `parse_preprocessor_output(...)` (the
-  preferred preprocessor validation function; `parse_precompiler_output(...)`
-  remains as a compatibility alias)
+- all outputs must be validated with `parse_preprocessor_output(...)`
 - no directive grammar expansion
 - raw outputs must not be passed directly to the compiler
 

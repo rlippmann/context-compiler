@@ -180,8 +180,8 @@ def test_pipe_debug_true_missing_base_skips_update_forwarding_call(monkeypatch) 
         return {"ok": True}
 
     module.generate_chat_completion = _chat_completion
-    module.precompile_heuristic = lambda _text: {
-        "outcome": module.PRECOMPILE_OUTCOME_DIRECTIVE,
+    module.preprocess_heuristic = lambda _text: {
+        "outcome": module.PREPROCESS_OUTCOME_DIRECTIVE,
         "directive": "use docker",
     }
     module.parse_preprocessor_output = lambda value, **_kwargs: value
@@ -219,7 +219,7 @@ def test_pipe_debug_true_missing_base_hello_returns_base_misconfig_without_llm_c
         return {"ok": True}
 
     module.generate_chat_completion = _chat_completion
-    module.precompile_heuristic = lambda _text: {
+    module.preprocess_heuristic = lambda _text: {
         "outcome": "no_directive",
         "directive": None,
     }
@@ -262,7 +262,7 @@ def test_pipe_debug_true_like_values_missing_base_hello_uses_debug_passthrough_m
         return {"ok": True}
 
     module.generate_chat_completion = _chat_completion
-    module.precompile_heuristic = lambda _text: {
+    module.preprocess_heuristic = lambda _text: {
         "outcome": "no_directive",
         "directive": None,
     }
@@ -336,7 +336,7 @@ def test_preprocessor_fallback_uses_preprocessor_model_only(monkeypatch) -> None
 
     async def _chat_completion(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
         calls.append(str(payload.get("model", "")))
-        # First call is fallback precompile completion; return no directive.
+        # First call is fallback preprocess completion; return no directive.
         # Second call is main forward passthrough.
         if len(calls) == 1:
             return {"choices": [{"message": {"content": "no_directive"}}]}
@@ -351,7 +351,7 @@ def test_preprocessor_fallback_uses_preprocessor_model_only(monkeypatch) -> None
 
     module.generate_chat_completion = _chat_completion
     module.get_all_models = _models
-    module.precompile_heuristic = _heuristic
+    module.preprocess_heuristic = _heuristic
 
     pipe.valves.BASE_MODEL_ID = "base-model"
     pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
@@ -384,7 +384,7 @@ def test_preprocessor_fallback_rejects_premise_near_miss_rewrite(monkeypatch) ->
     module.render_prompt = lambda *_: "prompt"
 
     directive, error = asyncio.run(
-        pipe._llm_fallback_precompile(
+        pipe._llm_fallback_preprocess(
             "set premise to concise replies",
             {"premise": None, "policies": {}, "version": 2},
             request=object(),
@@ -430,7 +430,7 @@ def test_pipe_normalizes_preprocessor_model_not_found_response(monkeypatch) -> N
         return {"ok": True}
 
     module.generate_chat_completion = _chat_completion
-    module.precompile_heuristic = lambda _text: {"outcome": "no_directive", "directive": None}
+    module.preprocess_heuristic = lambda _text: {"outcome": "no_directive", "directive": None}
 
     result = asyncio.run(
         pipe.pipe(
@@ -466,7 +466,7 @@ def test_pipe_normalizes_preprocessor_model_not_found_exception(monkeypatch) -> 
         return {"ok": True}
 
     module.generate_chat_completion = _chat_completion
-    module.precompile_heuristic = lambda _text: {"outcome": "no_directive", "directive": None}
+    module.preprocess_heuristic = lambda _text: {"outcome": "no_directive", "directive": None}
 
     result = asyncio.run(
         pipe.pipe(
@@ -532,7 +532,7 @@ def test_preprocessor_pipe_restore_and_persist_checkpoint_points(monkeypatch) ->
         return engine
 
     monkeypatch.setattr(module, "create_engine", _create_engine)
-    monkeypatch.setattr(module, "precompile_heuristic", lambda _text: {"outcome": "no_directive"})
+    monkeypatch.setattr(module, "preprocess_heuristic", lambda _text: {"outcome": "no_directive"})
     monkeypatch.setattr(module, "parse_preprocessor_output", lambda _value, **_kwargs: None)
 
     pipe = module.Pipe()
@@ -579,15 +579,15 @@ def test_preprocessor_pipe_normal_update_forwards_with_state_and_persists_checkp
 
     monkeypatch.setattr(
         module,
-        "precompile_heuristic",
+        "preprocess_heuristic",
         lambda text: (
             {
-                "outcome": module.PRECOMPILE_OUTCOME_DIRECTIVE,
+                "outcome": module.PREPROCESS_OUTCOME_DIRECTIVE,
                 "directive": "remove policy peanuts",
             }
             if "remove policy peanuts" in text.lower()
             else {
-                "outcome": module.PRECOMPILE_OUTCOME_DIRECTIVE,
+                "outcome": module.PREPROCESS_OUTCOME_DIRECTIVE,
                 "directive": "prohibit peanuts",
             }
         ),
@@ -784,7 +784,7 @@ def test_preprocessor_pipe_update_forwarding_injects_state_across_directive_shap
         ("no",),
     ],
 )
-def test_preprocessor_pipe_bypasses_precompile_while_pending(
+def test_preprocessor_pipe_bypasses_preprocess_while_pending(
     monkeypatch, confirmation: str
 ) -> None:
     module = _load_module_with_openwebui_stubs("owui_preproc_pending_bypass", monkeypatch)
@@ -826,10 +826,10 @@ def test_preprocessor_pipe_bypasses_precompile_while_pending(
     engine = _PendingEngine()
     monkeypatch.setattr(module, "create_engine", lambda: engine)
 
-    def _fail_precompile(_: str) -> dict[str, object]:
-        raise AssertionError("should not precompile")
+    def _fail_preprocess(_: str) -> dict[str, object]:
+        raise AssertionError("should not preprocess")
 
-    monkeypatch.setattr(module, "precompile_heuristic", _fail_precompile)
+    monkeypatch.setattr(module, "preprocess_heuristic", _fail_preprocess)
 
     forwarded_payloads: list[dict[str, Any]] = []
 
@@ -886,11 +886,11 @@ def test_preprocessor_pipe_checkpoint_resume_yes_no_end_to_end(
 
     def _heuristic(text: str) -> dict[str, object]:
         if text in {"yes", "no"}:
-            raise AssertionError("heuristic precompile should be bypassed while pending")
+            raise AssertionError("heuristic preprocess should be bypassed while pending")
         heuristic_inputs.append(text)
         return {"outcome": "no_directive", "directive": None}
 
-    monkeypatch.setattr(module, "precompile_heuristic", _heuristic)
+    monkeypatch.setattr(module, "preprocess_heuristic", _heuristic)
 
     pipe = module.Pipe()
     pipe.valves.BASE_MODEL_ID = "base-model"
@@ -991,7 +991,7 @@ def test_preprocessor_pipe_skips_fallback_for_directive_shaped_malformed_inputs(
 
     monkeypatch.setattr(
         module,
-        "precompile_heuristic",
+        "preprocess_heuristic",
         lambda _text: {"outcome": "no_directive", "directive": None},
     )
 
@@ -1019,7 +1019,7 @@ def test_preprocessor_pipe_skips_fallback_for_directive_shaped_malformed_inputs(
         downstream_calls += 1
         raise AssertionError(f"downstream model should not be called: {payload.get('model')}")
 
-    monkeypatch.setattr(module.Pipe, "_llm_fallback_precompile", _fallback)
+    monkeypatch.setattr(module.Pipe, "_llm_fallback_preprocess", _fallback)
     monkeypatch.setattr(module, "generate_chat_completion", _downstream)
 
     pipe = module.Pipe()
@@ -1049,7 +1049,7 @@ def test_preprocessor_pipe_near_miss_directives_return_deterministic_clarify_wit
 
     monkeypatch.setattr(
         module,
-        "precompile_heuristic",
+        "preprocess_heuristic",
         lambda _text: {"outcome": "no_directive", "directive": None},
     )
 
@@ -1077,7 +1077,7 @@ def test_preprocessor_pipe_near_miss_directives_return_deterministic_clarify_wit
         downstream_calls += 1
         raise AssertionError(f"downstream model should not be called: {payload.get('model')}")
 
-    monkeypatch.setattr(module.Pipe, "_llm_fallback_precompile", _fallback)
+    monkeypatch.setattr(module.Pipe, "_llm_fallback_preprocess", _fallback)
     monkeypatch.setattr(module, "generate_chat_completion", _downstream)
 
     pipe = module.Pipe()
@@ -1121,7 +1121,7 @@ def test_preprocessor_pipe_trace_off_keeps_existing_response_shape(monkeypatch) 
         return {"choices": [{"message": {"content": "downstream"}}]}
 
     monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
-    monkeypatch.setattr(module, "precompile_heuristic", lambda _text: {"outcome": "no_directive"})
+    monkeypatch.setattr(module, "preprocess_heuristic", lambda _text: {"outcome": "no_directive"})
     monkeypatch.setattr(module, "parse_preprocessor_output", lambda _value, **_kwargs: None)
 
     pipe = module.Pipe()
@@ -1152,9 +1152,9 @@ def test_preprocessor_pipe_trace_on_appends_trace_to_user_visible_output(monkeyp
     monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
     monkeypatch.setattr(
         module,
-        "precompile_heuristic",
+        "preprocess_heuristic",
         lambda _text: {
-            "outcome": module.PRECOMPILE_OUTCOME_DIRECTIVE,
+            "outcome": module.PREPROCESS_OUTCOME_DIRECTIVE,
             "directive": "prohibit peanuts",
         },
     )
@@ -1197,7 +1197,7 @@ def test_preprocessor_pipe_trace_on_passthrough_appends_trace_to_llm_content(mon
         return {"choices": [{"message": {"content": "downstream"}}]}
 
     monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
-    monkeypatch.setattr(module, "precompile_heuristic", lambda _text: {"outcome": "no_directive"})
+    monkeypatch.setattr(module, "preprocess_heuristic", lambda _text: {"outcome": "no_directive"})
     monkeypatch.setattr(module, "parse_preprocessor_output", lambda _value, **_kwargs: None)
 
     pipe = module.Pipe()
@@ -1239,7 +1239,7 @@ def test_preprocessor_pipe_trace_on_passthrough_stream_appends_trace_after_chunk
         return _streaming_response()
 
     monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
-    monkeypatch.setattr(module, "precompile_heuristic", lambda _text: {"outcome": "no_directive"})
+    monkeypatch.setattr(module, "preprocess_heuristic", lambda _text: {"outcome": "no_directive"})
     monkeypatch.setattr(module, "parse_preprocessor_output", lambda _value, **_kwargs: None)
 
     pipe = module.Pipe()
@@ -1281,7 +1281,7 @@ def test_preprocessor_pipe_trace_on_clarify_shows_prompt_and_no_downstream_call(
 
     monkeypatch.setattr(
         module,
-        "precompile_heuristic",
+        "preprocess_heuristic",
         lambda _text: {"outcome": "no_directive", "directive": None},
     )
 
@@ -1341,10 +1341,10 @@ def test_preprocessor_pipe_trace_appends_on_object_response_for_passthrough_and_
 
     def _heuristic(text: str) -> dict[str, object]:
         if "use docker" in text.lower():
-            return {"outcome": module.PRECOMPILE_OUTCOME_DIRECTIVE, "directive": "use docker"}
+            return {"outcome": module.PREPROCESS_OUTCOME_DIRECTIVE, "directive": "use docker"}
         return {"outcome": "no_directive", "directive": None}
 
-    monkeypatch.setattr(module, "precompile_heuristic", _heuristic)
+    monkeypatch.setattr(module, "preprocess_heuristic", _heuristic)
     monkeypatch.setattr(module, "parse_preprocessor_output", lambda value, **_kwargs: value)
 
     forwarded_payloads: list[dict[str, object]] = []
@@ -1412,10 +1412,10 @@ def test_preprocessor_pipe_trace_appends_on_streaming_response_wrapper_passthrou
 
     def _heuristic(text: str) -> dict[str, object]:
         if "use docker" in text.lower():
-            return {"outcome": module.PRECOMPILE_OUTCOME_DIRECTIVE, "directive": "use docker"}
+            return {"outcome": module.PREPROCESS_OUTCOME_DIRECTIVE, "directive": "use docker"}
         return {"outcome": "no_directive", "directive": None}
 
-    monkeypatch.setattr(module, "precompile_heuristic", _heuristic)
+    monkeypatch.setattr(module, "preprocess_heuristic", _heuristic)
     monkeypatch.setattr(module, "parse_preprocessor_output", lambda value, **_kwargs: value)
 
     forwarded_payloads: list[dict[str, object]] = []
@@ -1506,7 +1506,7 @@ def test_preprocessor_pipe_trace_update_clear_reset_paths_single_and_consistent(
 
     monkeypatch.setattr(
         module,
-        "precompile_heuristic",
+        "preprocess_heuristic",
         lambda _text: {"outcome": "no_directive", "directive": None},
     )
     monkeypatch.setattr(module, "parse_preprocessor_output", lambda _value, **_kwargs: None)
@@ -1563,7 +1563,7 @@ def test_preprocessor_pipe_clear_state_trace_not_duplicated_when_model_echoes_hi
 
     monkeypatch.setattr(
         module,
-        "precompile_heuristic",
+        "preprocess_heuristic",
         lambda _text: {"outcome": "no_directive", "directive": None},
     )
     monkeypatch.setattr(module, "parse_preprocessor_output", lambda _value, **_kwargs: None)
@@ -1640,7 +1640,7 @@ def test_preprocessor_pipe_clear_state_strips_preexisting_contradictory_trace_fr
 
     monkeypatch.setattr(
         module,
-        "precompile_heuristic",
+        "preprocess_heuristic",
         lambda _text: {"outcome": "no_directive", "directive": None},
     )
     monkeypatch.setattr(module, "parse_preprocessor_output", lambda _value, **_kwargs: None)
@@ -1709,9 +1709,9 @@ def test_preprocessor_pipe_update_trace_and_injection_when_heuristic_emits_direc
 
     monkeypatch.setattr(
         module,
-        "precompile_heuristic",
+        "preprocess_heuristic",
         lambda text: (
-            {"outcome": module.PRECOMPILE_OUTCOME_DIRECTIVE, "directive": "use docker"}
+            {"outcome": module.PREPROCESS_OUTCOME_DIRECTIVE, "directive": "use docker"}
             if "i think we should use docker" in text.lower()
             else {"outcome": "no_directive", "directive": None}
         ),
@@ -1771,13 +1771,13 @@ def test_preprocessor_pipe_replacement_update_trace_and_injection_when_heuristic
 
     monkeypatch.setattr(
         module,
-        "precompile_heuristic",
+        "preprocess_heuristic",
         lambda text: (
-            {"outcome": module.PRECOMPILE_OUTCOME_DIRECTIVE, "directive": "use docker"}
+            {"outcome": module.PREPROCESS_OUTCOME_DIRECTIVE, "directive": "use docker"}
             if text.strip().lower() == "use docker"
             else (
                 {
-                    "outcome": module.PRECOMPILE_OUTCOME_DIRECTIVE,
+                    "outcome": module.PREPROCESS_OUTCOME_DIRECTIVE,
                     "directive": "use podman instead of docker",
                 }
                 if "switch to podman instead of docker" in text.lower()
@@ -1840,7 +1840,7 @@ def test_preprocessor_pipe_ambiguous_text_passthrough_trace_streaming(monkeypatc
     module._ENGINES_BY_CHAT_KEY.clear()
     module._CHECKPOINTS_BY_CHAT_KEY.clear()
 
-    monkeypatch.setattr(module, "precompile_heuristic", lambda _text: {"outcome": "no_directive"})
+    monkeypatch.setattr(module, "preprocess_heuristic", lambda _text: {"outcome": "no_directive"})
     monkeypatch.setattr(module, "parse_preprocessor_output", lambda _value, **_kwargs: None)
 
     class _StreamingResponse:
@@ -1946,16 +1946,16 @@ def test_preprocessor_pipe_pending_clarification_bypasses_preprocessing_for_ambi
 
     def _heuristic(text: str) -> dict[str, object]:
         if text.strip().lower() == "yeah probably":
-            raise AssertionError("heuristic precompile should be bypassed while pending")
+            raise AssertionError("heuristic preprocess should be bypassed while pending")
         heuristic_calls.append(text)
         if "use podman instead of kubectl" in text.lower():
             return {
-                "outcome": module.PRECOMPILE_OUTCOME_DIRECTIVE,
+                "outcome": module.PREPROCESS_OUTCOME_DIRECTIVE,
                 "directive": "use podman instead of kubectl",
             }
         return {"outcome": "no_directive", "directive": None}
 
-    monkeypatch.setattr(module, "precompile_heuristic", _heuristic)
+    monkeypatch.setattr(module, "preprocess_heuristic", _heuristic)
     monkeypatch.setattr(module, "parse_preprocessor_output", lambda value, **_kwargs: value)
 
     downstream_calls = 0

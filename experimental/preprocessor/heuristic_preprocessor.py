@@ -13,24 +13,24 @@ try:
     from .constants import (
         CANONICAL_DIRECTIVE_EXACT,
         CANONICAL_DIRECTIVE_PATTERNS,
-        PRECOMPILE_OUTCOME_DIRECTIVE,
-        PRECOMPILE_OUTCOME_NO_DIRECTIVE,
-        PRECOMPILE_OUTCOME_UNKNOWN,
-        PrecompileOutcome,
+        PREPROCESS_OUTCOME_DIRECTIVE,
+        PREPROCESS_OUTCOME_NO_DIRECTIVE,
+        PREPROCESS_OUTCOME_UNKNOWN,
+        PreprocessOutcome,
     )
 except ImportError:  # pragma: no cover - direct module loading in tests/evals
     from experimental.preprocessor.constants import (
         CANONICAL_DIRECTIVE_EXACT,
         CANONICAL_DIRECTIVE_PATTERNS,
-        PRECOMPILE_OUTCOME_DIRECTIVE,
-        PRECOMPILE_OUTCOME_NO_DIRECTIVE,
-        PRECOMPILE_OUTCOME_UNKNOWN,
-        PrecompileOutcome,
+        PREPROCESS_OUTCOME_DIRECTIVE,
+        PREPROCESS_OUTCOME_NO_DIRECTIVE,
+        PREPROCESS_OUTCOME_UNKNOWN,
+        PreprocessOutcome,
     )
 
 
-class PrecompileResult(TypedDict):
-    outcome: PrecompileOutcome
+class PreprocessResult(TypedDict):
+    outcome: PreprocessOutcome
     directive: str | None
     rule_id: str | None
 
@@ -140,14 +140,14 @@ def _is_quoted_or_backtick_wrapped(message: str) -> bool:
     return (stripped[0], stripped[-1]) in {('"', '"'), ("'", "'"), ("`", "`")}
 
 
-def precompile_heuristic(message: str) -> PrecompileResult:
+def preprocess_heuristic(message: str) -> PreprocessResult:
     """Run the conservative structural heuristic preprocessing pass.
 
     Args:
         message: Raw user text to evaluate as a possible directive.
 
     Returns:
-        A PrecompileResult with:
+        A PreprocessResult with:
         - outcome="directive" and a canonical directive string when matched
         - outcome="no_directive" when the heuristic abstains/rejects
         - outcome="unknown" when unresolved and LLM fallback may be attempted
@@ -158,7 +158,7 @@ def precompile_heuristic(message: str) -> PrecompileResult:
     """
     if _LIST_MARKER_PATTERN.match(message):
         return {
-            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "outcome": PREPROCESS_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.list_or_enumeration",
         }
@@ -167,49 +167,49 @@ def precompile_heuristic(message: str) -> PrecompileResult:
 
     if "?" in message and _DIRECTIVE_CUE_PATTERN.search(normalized):
         return {
-            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "outcome": PREPROCESS_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.question_form",
         }
 
     if _META_PREFIX_PATTERN.match(normalized):
         return {
-            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "outcome": PREPROCESS_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.meta_or_reporting",
         }
 
     if _MULTI_SEGMENT_PATTERN.match(normalized):
         return {
-            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "outcome": PREPROCESS_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.multi_segment_or_mixed_prose",
         }
 
     if normalized in _MULTI_INSTRUCTION_CASES:
         return {
-            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "outcome": PREPROCESS_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.multi_instruction",
         }
 
     if _contains_reporting_bracket_mention(message):
         return {
-            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "outcome": PREPROCESS_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.quoted_reported_bracket",
         }
 
     if _is_quoted_or_backtick_wrapped(message):
         return {
-            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "outcome": PREPROCESS_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.quoted_exact",
         }
 
     if normalized in _QUOTED_OR_REPORTED_CASES:
         return {
-            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "outcome": PREPROCESS_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.quoted_reported",
         }
@@ -218,14 +218,14 @@ def precompile_heuristic(message: str) -> PrecompileResult:
 
     if normalized in _NEAR_MISS_ALIAS_CASES:
         return {
-            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "outcome": PREPROCESS_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.near_miss_alias",
         }
 
     if normalized in _ADMIN_NEAR_MISS_CASES:
         return {
-            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "outcome": PREPROCESS_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.admin_near_miss_alias",
         }
@@ -235,21 +235,21 @@ def precompile_heuristic(message: str) -> PrecompileResult:
         and " instead of " not in normalized_candidate
     ) or (" in stead of " in normalized_candidate):
         return {
-            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "outcome": PREPROCESS_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.malformed_replacement_syntax",
         }
 
     if _MULTI_CANDIDATE_DIRECTIVE_PATTERN.search(normalized_candidate):
         return {
-            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "outcome": PREPROCESS_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.multi_candidate_directive",
         }
 
     if normalized_candidate in CANONICAL_DIRECTIVE_EXACT:
         return {
-            "outcome": PRECOMPILE_OUTCOME_DIRECTIVE,
+            "outcome": PREPROCESS_OUTCOME_DIRECTIVE,
             "directive": normalized_candidate,
             "rule_id": "canonical.full_match",
         }
@@ -257,20 +257,20 @@ def precompile_heuristic(message: str) -> PrecompileResult:
     for pattern in CANONICAL_DIRECTIVE_PATTERNS:
         if pattern.fullmatch(normalized_candidate):
             return {
-                "outcome": PRECOMPILE_OUTCOME_DIRECTIVE,
+                "outcome": PREPROCESS_OUTCOME_DIRECTIVE,
                 "directive": normalized_candidate,
                 "rule_id": "canonical.full_match",
             }
 
     if _DIRECTIVE_CUE_PATTERN.search(normalized_candidate):
         return {
-            "outcome": PRECOMPILE_OUTCOME_UNKNOWN,
+            "outcome": PREPROCESS_OUTCOME_UNKNOWN,
             "directive": None,
             "rule_id": "reject.directive_adjacent_unsafe",
         }
 
     return {
-        "outcome": PRECOMPILE_OUTCOME_NO_DIRECTIVE,
+        "outcome": PREPROCESS_OUTCOME_NO_DIRECTIVE,
         "directive": None,
         "rule_id": "reject.confident_non_directive",
     }

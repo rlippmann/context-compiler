@@ -12,14 +12,11 @@ Integrations should import this package from the installed environment rather
 than using repo-relative preprocessor paths.
 
 Compatibility note:
-- Prefer `heuristic_preprocessor.py` and `parse_preprocessor_output(...)`.
-- `heuristic_precompiler.py` and `parse_precompiler_output(...)` remain
-  supported compatibility aliases in 0.6.x.
+- Use `heuristic_preprocessor.py` and `parse_preprocessor_output(...)`.
 
 ## Modules
 
 - `heuristic_preprocessor.py`: conservative structural preprocessing pass.
-- `heuristic_precompiler.py`: compatibility re-export for older imports.
 - `output_validation.py`: shared normalization/validation boundary.
 - `prompt_utils.py`: state-aware prompt rendering helper.
 - `constants.py`: shared protocol literals and directive validation patterns.
@@ -31,12 +28,10 @@ Compatibility note:
 Public validator entry point:
 
 - `parse_preprocessor_output(raw_output: object, *, source_input: str | None = None) -> str | None`
-- `parse_precompiler_output(raw_output: object, *, source_input: str | None = None) -> str | None` (compatibility alias)
-- `validate_precompiler_output(raw_output: object, *, source_input: str | None = None) -> dict`
+- `validate_preprocessor_output(raw_output: object, *, source_input: str | None = None) -> dict`
 
 All preprocessor outputs (heuristic or LLM) must be validated with
-`parse_preprocessor_output(...)` (preferred; `parse_precompiler_output(...)`
-remains as a compatibility alias) before being applied.
+`parse_preprocessor_output(...)` before being applied.
 
 Classification contract:
 
@@ -65,10 +60,10 @@ canonical directives accepted by the compiler.
 
 ## Safe usage pattern
 
-1. Run `precompile_heuristic(message)`.
+1. Run `preprocess_heuristic(message)`.
 2. If a heuristic candidate directive exists, validate it with
    `parse_preprocessor_output(...)`.
-3. If no valid directive was produced, run LLM fallback precompile.
+3. If no valid directive was produced, run LLM fallback preprocess.
 4. Validate fallback output with
    `parse_preprocessor_output(..., source_input=message)`.
 5. If a valid directive is produced, pass it through a normal compiler input path.

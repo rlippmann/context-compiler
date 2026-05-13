@@ -114,11 +114,11 @@ def test_main_without_args_runs_repl_as_before(monkeypatch: pytest.MonkeyPatch) 
     called: dict[str, object] = {}
 
     def _fake_run_repl(
-        in_stream: TextIO, out_stream: TextIO, *, use_precompiler: bool = False
+        in_stream: TextIO, out_stream: TextIO, *, use_preprocessor: bool = False
     ) -> None:
         called["in_stream"] = in_stream
         called["out_stream"] = out_stream
-        called["use_precompiler"] = use_precompiler
+        called["use_preprocessor"] = use_preprocessor
 
     monkeypatch.setattr(repl_module, "run_repl", _fake_run_repl)
     monkeypatch.setattr(sys, "argv", ["context-compiler"])
@@ -128,31 +128,28 @@ def test_main_without_args_runs_repl_as_before(monkeypatch: pytest.MonkeyPatch) 
     assert result == 0
     assert called["in_stream"] is sys.stdin
     assert called["out_stream"] is sys.stdout
-    assert called["use_precompiler"] is False
+    assert called["use_preprocessor"] is False
 
 
-@pytest.mark.parametrize("flag", ["--with-preprocessor", "--with-precompiler"])
-def test_main_with_preprocessor_flag_runs_repl_with_flag(
-    monkeypatch: pytest.MonkeyPatch, flag: str
-) -> None:
+def test_main_with_preprocessor_flag_runs_repl_with_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     called: dict[str, object] = {}
 
     def _fake_run_repl(
-        in_stream: TextIO, out_stream: TextIO, *, use_precompiler: bool = False
+        in_stream: TextIO, out_stream: TextIO, *, use_preprocessor: bool = False
     ) -> None:
         called["in_stream"] = in_stream
         called["out_stream"] = out_stream
-        called["use_precompiler"] = use_precompiler
+        called["use_preprocessor"] = use_preprocessor
 
     monkeypatch.setattr(repl_module, "run_repl", _fake_run_repl)
-    monkeypatch.setattr(sys, "argv", ["context-compiler", flag])
+    monkeypatch.setattr(sys, "argv", ["context-compiler", "--with-preprocessor"])
 
     result = repl_module.main()
 
     assert result == 0
     assert called["in_stream"] is sys.stdin
     assert called["out_stream"] is sys.stdout
-    assert called["use_precompiler"] is True
+    assert called["use_preprocessor"] is True
 
 
 def test_main_unknown_flag_prints_error_hint_and_exits_nonzero(
@@ -173,10 +170,8 @@ def test_main_unknown_flag_prints_error_hint_and_exits_nonzero(
 @pytest.mark.parametrize(
     "args, expected_bad_arg",
     [
-        (["--with-precompiler", "foo"], "--with-precompiler"),
         (["--with-preprocessor", "foo"], "--with-preprocessor"),
         (["--help", "--version"], "--help"),
-        (["--version", "--with-precompiler"], "--version"),
         (["--version", "--with-preprocessor"], "--version"),
     ],
 )
@@ -248,41 +243,32 @@ def test_repl_non_interactive_uses_human_readable_output() -> None:
     assert lines == ["passthrough"]
 
 
-def test_repl_with_precompiler_parses_directive_before_engine_step() -> None:
+def test_repl_with_preprocessor_parses_directive_before_engine_step() -> None:
     out = StringIO()
     run_repl(
         StringIO('{"classification":"directive","output":"prohibit peanuts"}\nquit\n'),
         out,
-        use_precompiler=True,
+        use_preprocessor=True,
     )
 
     lines = out.getvalue().splitlines()
     assert lines == ["updated", "premise: (none)", "policies:", "- prohibit peanuts"]
 
 
-def test_repl_with_precompiler_near_miss_passes_through_and_clarifies() -> None:
+def test_repl_with_preprocessor_near_miss_passes_through_and_clarifies() -> None:
     out = StringIO()
-    run_repl(StringIO("set premise to concise replies\nquit\n"), out, use_precompiler=True)
+    run_repl(StringIO("set premise to concise replies\nquit\n"), out, use_preprocessor=True)
 
     lines = out.getvalue().splitlines()
     assert lines == ["confirm: Did you mean 'set premise concise replies'?"]
 
 
-def test_repl_with_precompiler_non_directive_passthrough() -> None:
+def test_repl_with_preprocessor_non_directive_passthrough() -> None:
     out = StringIO()
-    run_repl(StringIO("what is a simple curry recipe?\nquit\n"), out, use_precompiler=True)
+    run_repl(StringIO("what is a simple curry recipe?\nquit\n"), out, use_preprocessor=True)
 
     lines = out.getvalue().splitlines()
     assert lines == ["passthrough"]
-
-
-def test_cli_with_precompiler_pipe_smoke_emits_clarify_without_update() -> None:
-    result = _run_repl_cli("--with-precompiler", input_text="set premise to concise replies\n")
-
-    assert result.returncode == 0
-    assert "Did you mean 'set premise concise replies'?" in result.stdout
-    assert "updated" not in result.stdout
-    assert result.stderr == ""
 
 
 def test_cli_with_preprocessor_pipe_smoke_emits_clarify_without_update() -> None:
@@ -294,7 +280,7 @@ def test_cli_with_preprocessor_pipe_smoke_emits_clarify_without_update() -> None
     assert result.stderr == ""
 
 
-def test_repl_with_precompiler_bypasses_parsing_while_pending(
+def test_repl_with_preprocessor_bypasses_parsing_while_pending(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     seen: list[tuple[object, str | None]] = []
@@ -311,7 +297,7 @@ def test_repl_with_precompiler_bypasses_parsing_while_pending(
     run_repl(
         StringIO("use podman instead of docker\nyes\nquit\n"),
         out,
-        use_precompiler=True,
+        use_preprocessor=True,
     )
 
     assert seen == [("use podman instead of docker", "use podman instead of docker")]
@@ -320,7 +306,7 @@ def test_repl_with_precompiler_bypasses_parsing_while_pending(
     assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use podman"])
 
 
-def test_repl_without_precompiler_does_not_parse_inputs(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_repl_without_preprocessor_does_not_parse_inputs(monkeypatch: pytest.MonkeyPatch) -> None:
     def _fail_parse(_raw: object, *, source_input: str | None = None) -> str | None:
         del source_input
         raise AssertionError("parse_preprocessor_output should not be called")
