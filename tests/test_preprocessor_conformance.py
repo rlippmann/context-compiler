@@ -2,8 +2,8 @@ import json
 import re
 from pathlib import Path
 
-from experimental.preprocessor.heuristic_preprocessor import precompile_heuristic
-from experimental.preprocessor.output_validation import validate_precompiler_output
+from experimental.preprocessor.heuristic_preprocessor import preprocess_heuristic
+from experimental.preprocessor.output_validation import validate_preprocessor_output
 
 _PREPROCESSOR_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "preprocessor"
 
@@ -17,7 +17,7 @@ def _load_fixture(path: Path) -> dict[str, object]:
 
 
 def _normalize_result(message: str) -> dict[str, object]:
-    result = precompile_heuristic(message)
+    result = preprocess_heuristic(message)
     output = result["directive"] if result["outcome"] == "directive" else None
     normalized = {
         "classification": result["outcome"],
@@ -25,7 +25,7 @@ def _normalize_result(message: str) -> dict[str, object]:
     }
 
     # Enforce the validation boundary: only validated directive output may pass.
-    validated = validate_precompiler_output(output)
+    validated = validate_preprocessor_output(output)
     if normalized["classification"] == "directive":
         assert validated["classification"] == "directive"
         assert validated["output"] == output
@@ -39,7 +39,7 @@ def _normalize_result(message: str) -> dict[str, object]:
 def _normalize_validator_result(
     raw_output: object, source_input: str | None = None
 ) -> dict[str, object]:
-    validated = validate_precompiler_output(raw_output, source_input=source_input)
+    validated = validate_preprocessor_output(raw_output, source_input=source_input)
     return {
         "classification": validated["classification"],
         "output": validated["output"],
@@ -119,5 +119,5 @@ def test_engine_owned_near_misses_are_reject_only_for_fallback_rewrites() -> Non
             continue
 
         for candidate in _derived_risky_rewrite_candidates(input_text):
-            validated = validate_precompiler_output(candidate, source_input=input_text)
+            validated = validate_preprocessor_output(candidate, source_input=input_text)
             assert validated["classification"] != "directive", fixture_name

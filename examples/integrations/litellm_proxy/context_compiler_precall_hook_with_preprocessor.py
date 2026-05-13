@@ -33,9 +33,9 @@ from context_compiler import (
     get_premise_value,
 )
 from experimental.preprocessor import (
-    PRECOMPILE_OUTCOME_DIRECTIVE,
+    PREPROCESS_OUTCOME_DIRECTIVE,
     parse_preprocessor_output,
-    precompile_heuristic,
+    preprocess_heuristic,
     render_prompt,
 )
 
@@ -140,7 +140,7 @@ def _get_litellm_completion() -> Callable[..., object]:
     return cast(Callable[..., object], litellm_module.completion)
 
 
-def _llm_fallback_precompile(message: str, state: State) -> str | None:
+def _llm_fallback_preprocess(message: str, state: State) -> str | None:
     with as_file(_prompt_file_path()) as prompt_path:
         prompt = render_prompt(prompt_path, state)
     if prompt is None:
@@ -196,11 +196,11 @@ def _state_before_last_message(user_transcript: Transcript) -> State | None:
     return replay["state"]
 
 
-def _precompile_last_user_message(message: str, state: State | None) -> str | None:
+def _preprocess_last_user_message(message: str, state: State | None) -> str | None:
     try:
-        heuristic_result = precompile_heuristic(message)
+        heuristic_result = preprocess_heuristic(message)
         if (
-            heuristic_result["outcome"] == PRECOMPILE_OUTCOME_DIRECTIVE
+            heuristic_result["outcome"] == PREPROCESS_OUTCOME_DIRECTIVE
             and heuristic_result["directive"]
         ):
             parsed = parse_preprocessor_output(heuristic_result["directive"])
@@ -213,7 +213,7 @@ def _precompile_last_user_message(message: str, state: State | None) -> str | No
         return None
 
     try:
-        return _llm_fallback_precompile(message, state)
+        return _llm_fallback_preprocess(message, state)
     except Exception:
         logger.debug("litellm_proxy: fallback_exception", exc_info=True)
         return None
@@ -240,16 +240,16 @@ class ContextCompilerPreCallHookWithPreprocessor(CustomLogger):
 
         transcript_for_replay = user_transcript
         replaced_last_user_message = False
-        precompiled: str | None = None
+        preprocessd: str | None = None
 
         if user_transcript:
             last_user_content = cast(str, user_transcript[-1]["content"])
             prior_state = _state_before_last_message(user_transcript)
-            precompiled = _precompile_last_user_message(last_user_content, prior_state)
-            logger.debug("litellm_proxy: precompiled=%r", precompiled)
-            if precompiled:
+            preprocessd = _preprocess_last_user_message(last_user_content, prior_state)
+            logger.debug("litellm_proxy: preprocessd=%r", preprocessd)
+            if preprocessd:
                 transcript_for_replay = [*user_transcript]
-                transcript_for_replay[-1] = {"role": "user", "content": precompiled}
+                transcript_for_replay[-1] = {"role": "user", "content": preprocessd}
                 replaced_last_user_message = True
 
         logger.debug("litellm_proxy: replaced_last_user_message=%s", replaced_last_user_message)

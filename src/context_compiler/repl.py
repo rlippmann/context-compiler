@@ -102,8 +102,8 @@ def _has_pending_clarification(engine: Engine) -> bool:
     return checkpoint["pending"] is not None
 
 
-def _compile_input(raw_input: str, engine: Engine, *, use_precompiler: bool) -> str:
-    if not use_precompiler:
+def _compile_input(raw_input: str, engine: Engine, *, use_preprocessor: bool) -> str:
+    if not use_preprocessor:
         return raw_input
     if _has_pending_clarification(engine):
         return raw_input
@@ -111,7 +111,7 @@ def _compile_input(raw_input: str, engine: Engine, *, use_precompiler: bool) -> 
     return parsed if parsed is not None else raw_input
 
 
-def run_repl(in_stream: TextIO, out_stream: TextIO, *, use_precompiler: bool = False) -> None:
+def run_repl(in_stream: TextIO, out_stream: TextIO, *, use_preprocessor: bool = False) -> None:
     engine = create_engine()
 
     if _is_interactive(in_stream, out_stream):
@@ -135,7 +135,7 @@ def run_repl(in_stream: TextIO, out_stream: TextIO, *, use_precompiler: bool = F
                 _print_interactive_help(out_stream)
                 continue
 
-            compile_input = _compile_input(user_input, engine, use_precompiler=use_precompiler)
+            compile_input = _compile_input(user_input, engine, use_preprocessor=use_preprocessor)
             decision = engine.step(compile_input)
             _print_decision_lines(decision, out_stream, leading_blank=True)
         return
@@ -147,7 +147,7 @@ def run_repl(in_stream: TextIO, out_stream: TextIO, *, use_precompiler: bool = F
         user_input = line.rstrip("\n")
         if user_input.strip().lower() in _EXIT_TOKENS:
             return
-        compile_input = _compile_input(user_input, engine, use_precompiler=use_precompiler)
+        compile_input = _compile_input(user_input, engine, use_preprocessor=use_preprocessor)
         decision = engine.step(compile_input)
         _print_decision_lines(decision, out_stream, leading_blank=False)
 
@@ -166,8 +166,8 @@ def main() -> int:  # pragma: no cover
         print(__version__, file=sys.stdout)
         return 0
 
-    if args in (["--with-preprocessor"], ["--with-precompiler"]):
-        run_repl(sys.stdin, sys.stdout, use_precompiler=True)
+    if args == ["--with-preprocessor"]:
+        run_repl(sys.stdin, sys.stdout, use_preprocessor=True)
         return 0
 
     bad_arg = args[0]

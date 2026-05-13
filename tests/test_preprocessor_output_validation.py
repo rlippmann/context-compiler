@@ -1,10 +1,7 @@
-from importlib import import_module
-
 from experimental.preprocessor.output_validation import (
     _is_allowed_directive,
-    parse_precompiler_output,
     parse_preprocessor_output,
-    validate_precompiler_output,
+    validate_preprocessor_output,
 )
 
 
@@ -16,7 +13,7 @@ def test_is_allowed_directive_accepts_canonical_shapes() -> None:
 
 
 def test_validate_text_accepts_canonical_directive() -> None:
-    result = validate_precompiler_output("prohibit peanuts")
+    result = validate_preprocessor_output("prohibit peanuts")
     assert result == {
         "classification": "directive",
         "output": "prohibit peanuts",
@@ -24,7 +21,7 @@ def test_validate_text_accepts_canonical_directive() -> None:
 
 
 def test_validate_text_accepts_exact_no_directive_sentinel() -> None:
-    result = validate_precompiler_output("<NO_DIRECTIVE>")
+    result = validate_preprocessor_output("<NO_DIRECTIVE>")
     assert result == {
         "classification": "no_directive",
         "output": None,
@@ -32,22 +29,22 @@ def test_validate_text_accepts_exact_no_directive_sentinel() -> None:
 
 
 def test_validate_text_rejects_malformed_or_mixed_output_as_unknown() -> None:
-    assert validate_precompiler_output("<NO_DIRECTIPLE>") == {
+    assert validate_preprocessor_output("<NO_DIRECTIPLE>") == {
         "classification": "unknown",
         "output": None,
     }
-    assert validate_precompiler_output("set premise to concise replies") == {
+    assert validate_preprocessor_output("set premise to concise replies") == {
         "classification": "unknown",
         "output": None,
     }
-    assert validate_precompiler_output("prohibit peanuts and use almonds") == {
+    assert validate_preprocessor_output("prohibit peanuts and use almonds") == {
         "classification": "unknown",
         "output": None,
     }
 
 
 def test_validate_structured_output_accepts_strict_contract_shape() -> None:
-    assert validate_precompiler_output(
+    assert validate_preprocessor_output(
         {
             "classification": "directive",
             "output": "clear state",
@@ -57,7 +54,7 @@ def test_validate_structured_output_accepts_strict_contract_shape() -> None:
         "output": "clear state",
     }
 
-    assert validate_precompiler_output(
+    assert validate_preprocessor_output(
         {
             "classification": "no_directive",
             "output": None,
@@ -67,7 +64,7 @@ def test_validate_structured_output_accepts_strict_contract_shape() -> None:
         "output": None,
     }
 
-    assert validate_precompiler_output(
+    assert validate_preprocessor_output(
         {
             "classification": "unknown",
             "output": None,
@@ -96,7 +93,7 @@ def test_validate_structured_output_rejects_malformed_shape_or_payload_as_unknow
         {"action": "prohibit", "item": "peanuts"},
     ]
     for raw in cases:
-        assert validate_precompiler_output(raw) == {
+        assert validate_preprocessor_output(raw) == {
             "classification": "unknown",
             "output": None,
         }
@@ -104,41 +101,28 @@ def test_validate_structured_output_rejects_malformed_shape_or_payload_as_unknow
 
 def test_validate_text_parses_and_validates_json_contract() -> None:
     raw = '{"classification":"directive","output":"use docker"}'
-    assert validate_precompiler_output(raw) == {
+    assert validate_preprocessor_output(raw) == {
         "classification": "directive",
         "output": "use docker",
     }
 
 
 def test_parse_returns_validated_directive_only() -> None:
-    assert parse_precompiler_output("prohibit peanuts") == "prohibit peanuts"
-    assert parse_precompiler_output("<NO_DIRECTIVE>") is None
-    assert parse_precompiler_output("set premise to concise replies") is None
-
-
-def test_parse_preprocessor_output_alias_matches_compat_parser() -> None:
     assert parse_preprocessor_output("prohibit peanuts") == "prohibit peanuts"
     assert parse_preprocessor_output("<NO_DIRECTIVE>") is None
     assert parse_preprocessor_output("set premise to concise replies") is None
 
 
-def test_heuristic_module_new_and_compat_import_paths_both_work() -> None:
-    new_mod = import_module("experimental.preprocessor.heuristic_preprocessor")
-    compat_mod = import_module("experimental.preprocessor.heuristic_precompiler")
-    message = "use docker"
-    assert new_mod.precompile_heuristic(message) == compat_mod.precompile_heuristic(message)
-
-
 def test_parse_with_source_input_rejects_premise_near_miss_canonicalization() -> None:
     assert (
-        parse_precompiler_output(
+        parse_preprocessor_output(
             "set premise concise replies",
             source_input="set premise to concise replies",
         )
         is None
     )
     assert (
-        parse_precompiler_output(
+        parse_preprocessor_output(
             "change premise to concise replies",
             source_input="change premise concise replies",
         )
@@ -147,14 +131,14 @@ def test_parse_with_source_input_rejects_premise_near_miss_canonicalization() ->
 
 
 def test_validation_with_source_input_rejects_premise_near_miss_canonicalization() -> None:
-    assert validate_precompiler_output(
+    assert validate_preprocessor_output(
         "set premise concise replies",
         source_input="set premise to concise replies",
     ) == {
         "classification": "unknown",
         "output": None,
     }
-    assert validate_precompiler_output(
+    assert validate_preprocessor_output(
         "change premise to concise replies",
         source_input="change premise concise replies",
     ) == {
@@ -164,14 +148,14 @@ def test_validation_with_source_input_rejects_premise_near_miss_canonicalization
 
 
 def test_validation_with_source_input_allows_other_directives() -> None:
-    assert validate_precompiler_output(
+    assert validate_preprocessor_output(
         "prohibit peanuts",
         source_input="prohibit peanuts",
     ) == {
         "classification": "directive",
         "output": "prohibit peanuts",
     }
-    assert validate_precompiler_output(
+    assert validate_preprocessor_output(
         "use coconut milk",
         source_input="what is a simple curry recipe?",
     ) == {

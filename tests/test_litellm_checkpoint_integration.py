@@ -73,8 +73,8 @@ def _assert_checkpoint_behavior(module: object) -> None:
         return "ok"
 
     module._call_litellm = _track_litellm
-    if hasattr(module, "_precompile_user_input"):
-        module._precompile_user_input = lambda _text, _state: None
+    if hasattr(module, "_preprocess_user_input"):
+        module._preprocess_user_input = lambda _text, _state: None
 
     try:
         checkpoints["s1"] = "ckpt-in"
@@ -137,7 +137,7 @@ def test_litellm_with_preprocessor_checkpoint_restore_and_persist_points() -> No
         ("no", "State unchanged."),
     ],
 )
-def test_litellm_with_preprocessor_bypasses_precompile_while_pending(
+def test_litellm_with_preprocessor_bypasses_preprocess_while_pending(
     confirmation: str, expected_response: str
 ) -> None:
     module = _load_module(
@@ -175,10 +175,10 @@ def test_litellm_with_preprocessor_bypasses_precompile_while_pending(
             return {"kind": "passthrough", "state": None}
 
     call_litellm = cast(Any, module._call_litellm)
-    precompile_user_input = cast(Any, module._precompile_user_input)
+    preprocess_user_input = cast(Any, module._preprocess_user_input)
 
-    def _fail_precompile(_text: str, _state: dict[str, object]) -> None:
-        raise AssertionError("should not precompile")
+    def _fail_preprocess(_text: str, _state: dict[str, object]) -> None:
+        raise AssertionError("should not preprocess")
 
     litellm_calls = 0
 
@@ -188,13 +188,13 @@ def test_litellm_with_preprocessor_bypasses_precompile_while_pending(
         return "ok"
 
     module._call_litellm = _track_litellm
-    module._precompile_user_input = _fail_precompile
+    module._preprocess_user_input = _fail_preprocess
     try:
         engine = _PendingEngine()
         result = module.handle_turn(confirmation, engine)
     finally:
         module._call_litellm = call_litellm
-        module._precompile_user_input = precompile_user_input
+        module._preprocess_user_input = preprocess_user_input
 
     assert result == expected_response
     assert engine.step_inputs == [confirmation]
@@ -221,16 +221,16 @@ def test_litellm_with_preprocessor_checkpoint_resume_yes_no_end_to_end(
     restored.clear()
 
     call_litellm = cast(Any, module._call_litellm)
-    precompile_user_input = cast(Any, module._precompile_user_input)
+    preprocess_user_input = cast(Any, module._preprocess_user_input)
 
-    precompile_inputs: list[str] = []
+    preprocess_inputs: list[str] = []
 
-    def _precompile_before_pending(text: str, _state: dict[str, object]) -> None:
-        precompile_inputs.append(text)
+    def _preprocess_before_pending(text: str, _state: dict[str, object]) -> None:
+        preprocess_inputs.append(text)
         return None
 
-    def _fail_precompile(_text: str, _state: dict[str, object]) -> None:
-        raise AssertionError("precompile should be bypassed while pending is restored")
+    def _fail_preprocess(_text: str, _state: dict[str, object]) -> None:
+        raise AssertionError("preprocess should be bypassed while pending is restored")
 
     litellm_calls = 0
 
@@ -240,7 +240,7 @@ def test_litellm_with_preprocessor_checkpoint_resume_yes_no_end_to_end(
         return "ok"
 
     module._call_litellm = _track_litellm
-    module._precompile_user_input = _precompile_before_pending
+    module._preprocess_user_input = _preprocess_before_pending
     session_key = "resume-e2e"
 
     try:
@@ -251,10 +251,10 @@ def test_litellm_with_preprocessor_checkpoint_resume_yes_no_end_to_end(
             session_key=session_key,
         )
         assert clarify == 'Did you mean to use "kubectl" instead?'
-        assert precompile_inputs == ["use kubectl instead of docker"]
+        assert preprocess_inputs == ["use kubectl instead of docker"]
         assert session_key in checkpoints
 
-        module._precompile_user_input = _fail_precompile
+        module._preprocess_user_input = _fail_preprocess
         second_engine = create_engine()
         resumed = module.handle_turn(confirmation, second_engine, session_key=session_key)
         assert resumed == expected_response
@@ -268,7 +268,7 @@ def test_litellm_with_preprocessor_checkpoint_resume_yes_no_end_to_end(
         assert litellm_calls == 0
     finally:
         module._call_litellm = call_litellm
-        module._precompile_user_input = precompile_user_input
+        module._preprocess_user_input = preprocess_user_input
 
 
 @pytest.mark.parametrize(
@@ -490,8 +490,8 @@ def test_litellm_literal_replacement_update_summary_uses_new_item_only(
         litellm_calls += 1
         raise AssertionError("downstream model should not be called for update summaries")
 
-    if hasattr(module, "_llm_fallback_precompile"):
-        module._llm_fallback_precompile = lambda _message, _state: None
+    if hasattr(module, "_llm_fallback_preprocess"):
+        module._llm_fallback_preprocess = lambda _message, _state: None
 
     module._call_litellm = _track_litellm
     try:
@@ -608,15 +608,15 @@ def test_litellm_near_miss_directives_return_deterministic_clarify_without_downs
 
     fallback_calls = 0
     fallback_original = None
-    if hasattr(module, "_llm_fallback_precompile"):
-        fallback_original = module._llm_fallback_precompile
+    if hasattr(module, "_llm_fallback_preprocess"):
+        fallback_original = module._llm_fallback_preprocess
 
         def _track_fallback(_message: str, _state: dict[str, object]) -> None:
             nonlocal fallback_calls
             fallback_calls += 1
             raise AssertionError("fallback should not be called for near-miss directive input")
 
-        module._llm_fallback_precompile = _track_fallback
+        module._llm_fallback_preprocess = _track_fallback
 
     module._call_litellm = _track_litellm
     try:
@@ -644,7 +644,7 @@ def test_litellm_near_miss_directives_return_deterministic_clarify_without_downs
     finally:
         module._call_litellm = call_litellm
         if fallback_original is not None:
-            module._llm_fallback_precompile = fallback_original
+            module._llm_fallback_preprocess = fallback_original
 
     assert litellm_calls == 0
 
@@ -685,7 +685,7 @@ def test_litellm_with_preprocessor_trace_on_includes_preprocessor_output() -> No
     )
     module.SHOW_CONTEXT_COMPILER_TRACE = True
     module._call_litellm = lambda _messages: "ok"
-    module._precompile_user_input = lambda _text, _state: "prohibit peanuts"
+    module._preprocess_user_input = lambda _text, _state: "prohibit peanuts"
     engine = create_engine()
 
     result = module.handle_turn("please use docker", engine)
@@ -703,7 +703,7 @@ def test_litellm_with_preprocessor_trace_on_passthrough_includes_trace() -> None
     )
     module.SHOW_CONTEXT_COMPILER_TRACE = True
     module._call_litellm = lambda _messages: "ok"
-    module._precompile_user_input = lambda _text, _state: None
+    module._preprocess_user_input = lambda _text, _state: None
     engine = create_engine()
 
     result = module.handle_turn("hello", engine)

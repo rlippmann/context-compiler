@@ -4,7 +4,7 @@ from hypothesis import strategies as st
 from experimental.preprocessor.output_validation import (
     _is_allowed_directive,
     parse_preprocessor_output,
-    validate_precompiler_output,
+    validate_preprocessor_output,
 )
 
 CANONICAL_DIRECTIVES = [
@@ -102,7 +102,7 @@ def test_validate_malformed_abstain_negative_boundaries_are_unknown() -> None:
         "<NO_DIRECTIVE>": "no_directive",
     }
     for raw, expected_cls in cases.items():
-        validated = validate_precompiler_output(raw)
+        validated = validate_preprocessor_output(raw)
         assert validated["classification"] == expected_cls
         assert validated["output"] is None
 
@@ -135,7 +135,7 @@ def test_parse_output_idempotent(raw_output: object) -> None:
     )
 )
 def test_validate_output_always_has_null_for_non_directive(raw_output: object) -> None:
-    validated = validate_precompiler_output(raw_output)
+    validated = validate_preprocessor_output(raw_output)
     if validated["classification"] == "directive":
         assert isinstance(validated["output"], str)
     else:

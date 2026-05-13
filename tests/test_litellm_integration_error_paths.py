@@ -242,13 +242,13 @@ def test_call_litellm_logs_single_mode_resolution_line(
 def test_with_preprocessor_fallback_failure_preserves_basic_behavior(monkeypatch) -> None:
     module = _load_module("litellm_with_preproc_fallback_failure", LITELLM_WITH_PREPROC_PATH)
 
-    seen_precompile_inputs: list[str] = []
+    seen_preprocess_inputs: list[str] = []
 
     def _heuristic(_text: str) -> dict[str, object]:
         return {"outcome": "no_directive", "directive": None}
 
     def _fallback(_message: str, _state: dict[str, object]) -> str | None:
-        seen_precompile_inputs.append("called")
+        seen_preprocess_inputs.append("called")
         raise RuntimeError("fallback failed")
 
     seen_engine_inputs: list[str] = []
@@ -268,13 +268,13 @@ def test_with_preprocessor_fallback_failure_preserves_basic_behavior(monkeypatch
             seen_engine_inputs.append(text)
             return self._engine.step(text)
 
-    monkeypatch.setattr(module, "precompile_heuristic", _heuristic)
-    monkeypatch.setattr(module, "_llm_fallback_precompile", _fallback)
+    monkeypatch.setattr(module, "preprocess_heuristic", _heuristic)
+    monkeypatch.setattr(module, "_llm_fallback_preprocess", _fallback)
     monkeypatch.setattr(module, "_call_litellm", lambda _messages: "ok")
 
     engine = _ProxyEngine()
     result = module.handle_turn("hello world", engine)
 
     assert result == "ok"
-    assert seen_precompile_inputs == ["called"]
+    assert seen_preprocess_inputs == ["called"]
     assert seen_engine_inputs == ["hello world"]

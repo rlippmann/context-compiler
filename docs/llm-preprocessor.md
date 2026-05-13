@@ -25,8 +25,7 @@ Recommended conceptual flow:
    Otherwise pass the original input unchanged.
 
 All preprocessor outputs, including heuristic outputs, must be validated with
-`parse_preprocessor_output(...)` (preferred; `parse_precompiler_output(...)`
-remains as a compatibility alias) before being applied.
+`parse_preprocessor_output(...)` before being applied.
 
 Raw heuristic/LLM outputs must not be passed directly to the compiler.
 

@@ -2,8 +2,7 @@
 
 Public API:
 - parse_preprocessor_output
-- parse_precompiler_output (compatibility alias)
-- validate_precompiler_output
+- validate_preprocessor_output
 
 Internal helpers are implementation details and may change.
 """
@@ -15,19 +14,18 @@ from typing import TypedDict
 from .constants import (
     CANONICAL_DIRECTIVE_EXACT,
     CANONICAL_DIRECTIVE_PATTERNS,
-    PRECOMPILER_NO_DIRECTIVE_SENTINEL,
-    PrecompileOutcome,
+    PREPROCESSOR_NO_DIRECTIVE_SENTINEL,
+    PreprocessOutcome,
 )
 
 __all__ = [
     "parse_preprocessor_output",
-    "parse_precompiler_output",
-    "validate_precompiler_output",
+    "validate_preprocessor_output",
 ]
 
 
-class PrecompilerValidationResult(TypedDict):
-    classification: PrecompileOutcome
+class PreprocessorValidationResult(TypedDict):
+    classification: PreprocessOutcome
     output: str | None
 
 
@@ -39,15 +37,15 @@ _SET_PREMISE_TO_NEAR_MISS_PATTERN = re.compile(r"^set premise to\s+(.+\S)\s*$")
 _CHANGE_PREMISE_MISSING_TO_NEAR_MISS_PATTERN = re.compile(r"^change premise\s+(?!to\b)(.+\S)\s*$")
 
 
-def _unknown() -> PrecompilerValidationResult:
+def _unknown() -> PreprocessorValidationResult:
     return {"classification": "unknown", "output": None}
 
 
-def _directive(output: str) -> PrecompilerValidationResult:
+def _directive(output: str) -> PreprocessorValidationResult:
     return {"classification": "directive", "output": output}
 
 
-def _no_directive() -> PrecompilerValidationResult:
+def _no_directive() -> PreprocessorValidationResult:
     return {"classification": "no_directive", "output": None}
 
 
@@ -82,7 +80,7 @@ def _is_safe_fallback_directive_rewrite(source_input: str, directive_output: str
     return True
 
 
-def _validate_structured_output(raw_output: object) -> PrecompilerValidationResult:
+def _validate_structured_output(raw_output: object) -> PreprocessorValidationResult:
     if not isinstance(raw_output, dict):
         return _unknown()
 
@@ -119,12 +117,12 @@ def _validate_structured_output(raw_output: object) -> PrecompilerValidationResu
     return _unknown()
 
 
-def _validate_text_output(raw_output: str) -> PrecompilerValidationResult:
+def _validate_text_output(raw_output: str) -> PreprocessorValidationResult:
     stripped = raw_output.strip()
     if not stripped:
         return _unknown()
 
-    if stripped.upper() == PRECOMPILER_NO_DIRECTIVE_SENTINEL:
+    if stripped.upper() == PREPROCESSOR_NO_DIRECTIVE_SENTINEL:
         return _no_directive()
 
     if _contains_multiple_candidate_directives(stripped):
@@ -143,9 +141,9 @@ def _validate_text_output(raw_output: str) -> PrecompilerValidationResult:
     return _unknown()
 
 
-def validate_precompiler_output(
+def validate_preprocessor_output(
     raw_output: object, *, source_input: str | None = None
-) -> PrecompilerValidationResult:
+) -> PreprocessorValidationResult:
     """Validate raw preprocessor output into a strict classification/output result.
 
     Contract:
@@ -169,29 +167,9 @@ def validate_precompiler_output(
     return validated
 
 
-def parse_precompiler_output(raw_output: object, *, source_input: str | None = None) -> str | None:
-    """Compatibility wrapper returning only validated directive output.
-
-    Args:
-        raw_output: Raw value produced by heuristic or LLM preprocessing.
-
-    Returns:
-        Canonical directive string when valid, else None.
-
-    Notes:
-        This is the public validation boundary. Preprocessor outputs must be
-        passed through this function before being applied to compiler paths.
-    """
-    validated = validate_precompiler_output(raw_output, source_input=source_input)
+def parse_preprocessor_output(raw_output: object, *, source_input: str | None = None) -> str | None:
+    """Public validation boundary returning only validated directive output."""
+    validated = validate_preprocessor_output(raw_output, source_input=source_input)
     if validated["classification"] == "directive":
         return validated["output"]
     return None
-
-
-def parse_preprocessor_output(raw_output: object, *, source_input: str | None = None) -> str | None:
-    """Preferred name for the preprocessor validation boundary.
-
-    Backward compatibility note:
-        ``parse_precompiler_output`` remains supported as an alias.
-    """
-    return parse_precompiler_output(raw_output, source_input=source_input)

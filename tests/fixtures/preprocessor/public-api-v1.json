@@ -3,16 +3,15 @@
   "kind": "api-contract",
   "module": "experimental.preprocessor",
   "required_exports": [
-    "PRECOMPILE_OUTCOME_DIRECTIVE",
-    "PRECOMPILE_OUTCOME_NO_DIRECTIVE",
-    "PRECOMPILE_OUTCOME_UNKNOWN",
-    "PRECOMPILER_NO_DIRECTIVE_SENTINEL",
-    "PrecompileResult",
-    "PrecompileOutcome",
+    "PREPROCESS_OUTCOME_DIRECTIVE",
+    "PREPROCESS_OUTCOME_NO_DIRECTIVE",
+    "PREPROCESS_OUTCOME_UNKNOWN",
+    "PREPROCESSOR_NO_DIRECTIVE_SENTINEL",
+    "PreprocessResult",
+    "PreprocessOutcome",
     "parse_preprocessor_output",
-    "parse_precompiler_output",
-    "precompile_heuristic",
+    "preprocess_heuristic",
     "render_prompt",
-    "validate_precompiler_output"
+    "validate_preprocessor_output"
   ]
 }

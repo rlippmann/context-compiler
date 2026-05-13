@@ -54,7 +54,7 @@ def test_litellm_preprocessor_model_defaults_to_model(monkeypatch):
     monkeypatch.setattr(module, "render_prompt", lambda *_: "prompt")
     monkeypatch.setattr(module, "parse_preprocessor_output", lambda value, **_kwargs: value)
 
-    result = module._llm_fallback_precompile("please use docker", None)
+    result = module._llm_fallback_preprocess("please use docker", None)
 
     assert result == "use docker"
     assert seen["model"] == "openai/main-model"
@@ -77,7 +77,7 @@ def test_litellm_preprocessor_model_override(monkeypatch):
     monkeypatch.setattr(module, "render_prompt", lambda *_: "prompt")
     monkeypatch.setattr(module, "parse_preprocessor_output", lambda value, **_kwargs: value)
 
-    result = module._llm_fallback_precompile("please use docker", None)
+    result = module._llm_fallback_preprocess("please use docker", None)
 
     assert result == "use docker"
     assert seen["model"] == "openai/preprocessor-model"
@@ -102,7 +102,7 @@ def test_litellm_proxy_preprocessor_model_defaults_to_model(monkeypatch):
     monkeypatch.setattr(module, "render_prompt", lambda *_: "prompt")
     monkeypatch.setattr(module, "parse_preprocessor_output", lambda value, **_kwargs: value)
 
-    result = module._llm_fallback_precompile("please use docker", None)
+    result = module._llm_fallback_preprocess("please use docker", None)
 
     assert result == "use docker"
     assert seen["model"] == "openai/main-model"
@@ -127,7 +127,7 @@ def test_litellm_proxy_preprocessor_model_override(monkeypatch):
     monkeypatch.setattr(module, "render_prompt", lambda *_: "prompt")
     monkeypatch.setattr(module, "parse_preprocessor_output", lambda value, **_kwargs: value)
 
-    result = module._llm_fallback_precompile("please use docker", None)
+    result = module._llm_fallback_preprocess("please use docker", None)
 
     assert result == "use docker"
     assert seen["model"] == "openai/preprocessor-model"
@@ -149,7 +149,7 @@ def test_litellm_fallback_rejects_premise_near_miss_rewrite(monkeypatch):
     monkeypatch.setattr(module, "_get_litellm_completion", lambda: _completion)
     monkeypatch.setattr(module, "render_prompt", lambda *_: "prompt")
 
-    result = module._llm_fallback_precompile("set premise to concise replies", None)
+    result = module._llm_fallback_preprocess("set premise to concise replies", None)
     assert result is None
 
 
@@ -169,16 +169,16 @@ def test_litellm_proxy_fallback_rejects_premise_near_miss_rewrite(monkeypatch):
     monkeypatch.setattr(module, "_get_litellm_completion", lambda: _completion)
     monkeypatch.setattr(module, "render_prompt", lambda *_: "prompt")
 
-    result = module._llm_fallback_precompile("change premise concise replies", None)
+    result = module._llm_fallback_preprocess("change premise concise replies", None)
     assert result is None
 
 
-def test_litellm_precompile_skips_fallback_for_directive_shaped_malformed_inputs(monkeypatch):
+def test_litellm_preprocess_skips_fallback_for_directive_shaped_malformed_inputs(monkeypatch):
     module = _load_module("litellm_with_preproc_skip_fallback_malformed", LITELLM_WITH_PREPROC_PATH)
 
     monkeypatch.setattr(
         module,
-        "precompile_heuristic",
+        "preprocess_heuristic",
         lambda _text: {"outcome": "no_directive", "directive": None},
     )
 
@@ -196,7 +196,7 @@ def test_litellm_precompile_skips_fallback_for_directive_shaped_malformed_inputs
         downstream_calls += 1
         raise AssertionError("downstream should not be called for clarify output")
 
-    monkeypatch.setattr(module, "_llm_fallback_precompile", _fallback)
+    monkeypatch.setattr(module, "_llm_fallback_preprocess", _fallback)
     monkeypatch.setattr(module, "_call_litellm", _downstream)
 
     cases = [
