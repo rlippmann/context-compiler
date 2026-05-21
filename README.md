@@ -384,6 +384,12 @@ For a full documentation map, see [docs/README.md](docs/README.md).
 
 ---
 
+## Design Rationale
+
+- [Design philosophy](docs/DesignPhilosophy.md)
+
+---
+
 ## Design Notes
 
 More detailed design and milestone documents are available in:
