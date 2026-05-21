@@ -6,23 +6,25 @@ They compare normal prompting with an approach where the application tracks
 important instructions explicitly instead of relying only on the conversation
 history. The scripts are designed to produce consistent results so the
 behavior is easy to see.
+This demo set shows what users notice: rules and corrections keep applying
+later in the conversation instead of fading over time.
 
 Scored demos now compare three paths:
 - baseline
-- compiler-mediated (full transcript + injected state)
-- compiler+compact (compacted transcript + injected state)
+- compiler-mediated (full transcript + saved compiler state added to the prompt)
+- compiler+compact (compacted transcript + saved compiler state added to the prompt)
 
 ## Demo overview
 
 | Demo | Behavior | Concept | Most visible with |
 | :--: | --- | :--: | --- |
 | [01](./01_llm_contradiction_clarify.py) | Contradiction blocking | clarification gate | small instruct models |
-| [02](./02_llm_constraint_guardrail.py) | Constraint drift | persistent policy enforcement | small or quantized models |
-| [03](./03_llm_premise_guardrail.py) | Premise update drift | deterministic premise updates | models that summarize conversation |
+| [02](./02_llm_constraint_guardrail.py) | Rules stop applying over time | persistent policy enforcement | small or quantized models |
+| [03](./03_llm_premise_guardrail.py) | Premise updates stop sticking | fixed, repeatable premise updates | models that summarize conversation |
 | [04](./04_llm_tool_denylist_guardrail.py) | Tool governance | host-side denylist | general assistant models |
 | [05](./05_llm_prompt_drift_vs_state.py) | Prompt drift | long transcript failure | weaker long-context models ([see Demo 5 note](#demo-5-stress-ladder-turns)) |
-| [06](./06_llm_context_compaction.py) | Context compaction | compiled state replacing transcript | small or local models |
-| [07](./07_llm_prompt_vs_state.py) | Prompt engineering comparison | prompting vs compiled state | any model with long transcript sensitivity |
+| [06](./06_llm_context_compaction.py) | Context compaction | saved compiler state replacing transcript context | small or local models |
+| [07](./07_llm_prompt_vs_state.py) | Prompt engineering comparison | prompting vs saved compiler state | any model with long transcript sensitivity |
 
 Stronger frontier models may show these behaviors less often, but the same
 patterns still appear in real applications.
@@ -41,7 +43,7 @@ Environment variables (strict provider mode contract):
 - `MODEL` (optional)
 - `OPENAI_API_KEY` (required in normal `openai` mode)
 - `OPENAI_BASE_URL` (explicit endpoint override; required for explicit `openai_compatible`)
-Note: Demos prefer deterministic decoding (`temperature=0`) for reproducible PASS/FAIL behavior.
+Note: Demos prefer fixed decoding (`temperature=0`) for reproducible PASS/FAIL behavior.
 If a model rejects that parameter (for example, some `gpt-5` paths), the demo client retries once without it.
 
 Default (openai):
@@ -96,7 +98,7 @@ The canonical cross-model results matrix is maintained in [docs/demos-results.md
 Notes:
 - There are **6 scored demos** (`01`–`05`, `07`). `06_context_compaction` is informational and excluded from PASS/FAIL totals.
 - Anthropic runs in this repo are executed through the `openai_compatible` provider path.
-- `PASS` means the demo-specific oracle/checker for that path succeeded; `FAIL` means it did not.
+- `PASS` means the demo-specific expected-behavior check for that path succeeded; `FAIL` means it did not.
 
 ### Demo 05 example (prompt drift under longer context)
 
@@ -117,7 +119,7 @@ compiler: PASS
 compiler+compact: PASS
 ```
 
-The baseline drifted under the longer transcript, while both compiler-mediated paths preserved the saved premise.
+The baseline lost the earlier rule under the longer transcript, while both compiler-mediated paths kept the saved premise.
 
 ## Provider throttling
 
@@ -142,7 +144,7 @@ Running against a local OpenAI-compatible endpoint avoids provider rate limits.
     - `compiler+compact: PASS|FAIL`
   - expected behavior
   - actual outcome
-  - `result: ...` (short deterministic description)
+  - `result: ...` (short fixed, repeatable description)
   - for `06_llm_context_compaction`:
     - `context scaling: ...`
     - `compacted transcript: <baseline> → <compacted> chars`
@@ -153,15 +155,15 @@ Running against a local OpenAI-compatible endpoint avoids provider rate limits.
     - informational summary lines for `06_llm_context_compaction` (non-scored)
 - `Verbose (--verbose)`:
   - user inputs
-  - compiler decisions and compiled state
+  - compiler decisions and saved compiler state
   - prompts/messages sent to the LLM
   - output excerpts
   - host checks and final verdict
   - for `06_llm_context_compaction`, also:
     - raw transcript context
-    - compiled context
+    - context with saved compiler state
     - compacted transcript context
-    - baseline and compiled prompts
+    - baseline and compiler-state prompts
     - compacted prompt
     - context and prompt size comparisons (state-only and compacted variants)
 
