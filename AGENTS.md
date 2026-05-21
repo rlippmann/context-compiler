@@ -92,6 +92,26 @@ Do not change specification documents unless explicitly instructed.
 
 If implementation behavior does not match the specification, report the mismatch instead of modifying the specification.
 
+## Documentation style
+
+For README, demo, integration, and package-listing docs, explain user-visible behavior before architecture.
+
+Prefer plain, concrete wording when accurate. Examples:
+- "rules and corrections that stick"
+- "saved compiler state"
+- "stored premise and policy rules"
+- "fixed, repeatable"
+- "explicit instructions stay consistent across turns"
+
+Avoid describing features only in architectural terms when a behavior-first explanation is possible.
+
+Specification and contract documents are different:
+- preserve precise terminology
+- preserve unambiguous behavioral guarantees
+- do not weaken formal semantics for readability
+
+Do not rewrite captured outputs, fixture-sensitive examples, or eval evidence unless explicitly asked.
+
 ## Tooling
 Use the project's existing tooling:
 
