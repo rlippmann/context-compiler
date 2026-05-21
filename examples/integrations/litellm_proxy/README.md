@@ -1,7 +1,7 @@
 # LiteLLM Proxy (pre-call hook)
 
 This example shows how to run Context Compiler inside a LiteLLM proxy pre-call hook.
-The hook enforces deterministic state handling before any upstream model call.
+The hook applies fixed, repeatable state handling before any upstream model call.
 
 Available hook files:
 
@@ -84,7 +84,7 @@ curl http://localhost:4000/v1/chat/completions \
 
 - User messages are replayed through Context Compiler before the model call.
 - If clarification is required, the proxy returns the clarification text as the response instead of calling the model.
-- Otherwise, compiled state is injected into a system message.
+- Otherwise, compiler state is added as a system message.
 
 Preprocessor-enabled variant behavior:
 

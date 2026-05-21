@@ -100,7 +100,7 @@ Notes:
 
 ### Demo 05 example (prompt drift under longer context)
 
-Demo 05 measures prompt drift versus authoritative compiled state on a longer transcript.
+Demo 05 measures prompt drift versus saved compiler state on a longer transcript.
 Representative run: `PROVIDER=ollama MODEL='ollama/llama3.1:8b' uv run python demos/05_llm_prompt_drift_vs_state.py --turns 30`
 
 ```text
@@ -117,7 +117,7 @@ compiler: PASS
 compiler+compact: PASS
 ```
 
-The baseline drifted under the longer transcript, while both compiler-mediated paths preserved the authoritative premise.
+The baseline drifted under the longer transcript, while both compiler-mediated paths preserved the saved premise.
 
 ## Provider throttling
 

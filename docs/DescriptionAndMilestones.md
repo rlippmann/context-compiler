@@ -1,30 +1,28 @@
 # Context Compiler
 
-Deterministic state management for LLM interactions
+Reliable state handling for LLM conversations
 
 ## Project Purpose
 
-Modern LLM systems are powerful at reasoning but unreliable at
-maintaining consistent state across interactions. Corrections compete
-with prior statements instead of replacing them, topics bleed between
-conversations, and long-term state accumulates contradictions rather
-than resolving them.
-This project introduces a deterministic state layer that governs
-authoritative state independently of the model. The model performs
-interpretation and generation, while the state engine manages deterministic authoritative state (premise and policies). By separating reasoning
-from state authority, the system improves reliability without requiring
-model retraining. The system never derives authoritative state from
-model responses; only user directives modify state.
+LLM systems are strong at reasoning, but they can lose consistency across turns.
+Corrections may compete with earlier instructions, topics can leak between
+conversations, and state can conflict over time.
+This project adds a deterministic state layer that is independent of the model.
+The model handles interpretation and generation; the engine handles premise and
+policies. Only explicit user directives can change state.
+By separating reasoning from state authority, the system improves reliability
+without requiring model retraining. The system never derives authoritative state
+from model responses.
 The goal is not to make the model smarter, but to make interactions
 predictable: once a statement is corrected or scoped, future responses
 must respect that change.
 
-The engine is a deterministic state machine, not a semantic memory or
-reasoning system.
+The engine is a deterministic state machine. It is not a memory or
+reasoning layer.
 
 ## Architectural Principle
 
-The state engine is authoritative and model-independent.
+The state engine is the source of truth and is model-independent.
 Model output is never interpreted to derive or modify state.
 All state transitions originate from explicit user directives.
 
@@ -36,7 +34,7 @@ Behavioral details are authoritative in `docs/DirectiveGrammarSpec.md`.
 
 **Goal**
 Explicit user commitments persist reliably within a conversation.
-A change directive means replacing previously set authoritative state, not evaluating conversational accuracy.
+A change directive replaces previously set state. It does not judge whether earlier conversation content was "correct."
 
 M1 established deterministic state transitions and explicit clarification behavior.
 The current authoritative state shape and directive semantics are defined in `DirectiveGrammarSpec.md` (0.5 / schema version 2).
@@ -46,7 +44,7 @@ The current authoritative state shape and directive semantics are defined in `Di
 - Recognize explicit user directives that mutate premise or policies
 - Apply explicit state changes as deterministic replacements
 - Block ambiguous updates until clarified
-- Maintain an authoritative state independent of prior messages
+- Maintain a source-of-truth state that does not depend on prior model wording
 - Provide structured state for host-provided model context
 
 **Deliverables:**
@@ -84,7 +82,7 @@ Extend host-level workflows around persisted exported state safely and intention
 
 **User-visible outcome:**
 
-Assistant remembers decisions across sessions without resurrecting contradictions.
+When hosts persist exported state, assistants can carry decisions across sessions without reintroducing old conflicts.
 Pending confirmation-required flows can be resumed when the host persists checkpoints.
 
 `export_json()` / `import_json()` remain authoritative-state only.
