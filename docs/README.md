@@ -4,7 +4,7 @@
 - [Project README](../README.md)
 
 ## Core Concepts
-- [Directive Grammar](DirectiveGrammarSpec.md)
+- [Directive Grammar (exact command forms the engine accepts)](DirectiveGrammarSpec.md)
 
 ## Integrations
 - [Open WebUI integration](../examples/integrations/openwebui/README.md)

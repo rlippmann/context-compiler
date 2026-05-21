@@ -5,14 +5,15 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/context-compiler)](https://pypi.org/project/context-compiler/)
 [![License](https://img.shields.io/pypi/l/context-compiler)](https://pypi.org/project/context-compiler/)
 
-A deterministic directive engine that converts explicit user instructions
-into structured conversational state for LLM applications.
+Context Compiler lets users set rules and corrections that actually stick.
+It helps applications keep explicit user instructions consistent across turns.
+It stores premise and policy rules outside the model, so corrections do not drift or conflict over time.
 
-LLMs are good at reasoning but unreliable at maintaining consistent state. Constraints drift, corrections compete, and long conversations accumulate contradictions.
+LLMs are good at conversation, but bad at consistently following long-term rules and corrections. Constraints drift, corrections conflict, and long chats can become inconsistent.
 
-The **Context Compiler** introduces a deterministic state layer that governs authoritative conversational state independently of the model.
+The model writes responses. The compiler stores premise and policy rules.
 
-The model performs reasoning and generation while the compiler manages premise and policies. Once accepted, directives remain authoritative until explicitly corrected or reset.
+Context Compiler is a deterministic control layer for LLM applications. It processes explicit user instructions before model calls so applications can reliably enforce premise and policy constraints.
 
 ## Does it work?
 
@@ -87,7 +88,7 @@ uv run pytest
 
 ## Why “Compiler”?
 
-Context Compiler treats explicit user directives as inputs to a deterministic process.
+Context Compiler treats explicit user directives as inputs to a fixed, repeatable process.
 
 Instead of relying on the LLM to remember constraints across a conversation, user instructions are compiled into structured state before the model runs.
 
@@ -111,7 +112,7 @@ Later in the conversation:
 User: how should I make this curry?
 ```
 
-The host supplies the authoritative state to the model so the constraint persists across turns.
+Your app sends the saved state to the model so the rule still applies on later turns.
 
 ---
 
@@ -162,7 +163,7 @@ Host Application
  └─ update → call LLM with compiled state
 ```
 
-The compiler governs authoritative state and never calls the LLM.
+The compiler owns state updates and never calls the LLM.
 The host decides whether to call the model based on the returned `Decision`.
 
 ---
@@ -210,7 +211,7 @@ Meaning:
 
 ## State Model
 
-The compiler maintains an authoritative state snapshot.
+The compiler keeps a current state snapshot that your app can trust.
 
 - Premise is a single value that can be set or replaced
 - Policies are per-item (`use` or `prohibit`)

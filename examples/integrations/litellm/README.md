@@ -1,6 +1,6 @@
 # LiteLLM examples
 
-This directory contains two minimal Context Compiler + LiteLLM integrations:
+This directory contains two small Context Compiler + LiteLLM integration examples:
 
 - `basic.py`: compiler-only flow (no preprocessor)
 - `with_preprocessor.py`: heuristic-first preprocessor with optional LLM fallback before `engine.step(...)`
@@ -118,7 +118,7 @@ These files are importable integration references for host applications.
   continuity requires external persistence (DB/Redis/etc.).
 - Display the returned assistant text.
 
-Note: In these LiteLLM example integrations, update decisions are rendered deterministically and do not call the downstream LLM. This makes state transitions explicit. Production hosts may choose different rendering behavior.
+Note: In these LiteLLM example integrations, update decisions are rendered locally in a fixed, repeatable way and do not call the downstream LLM. This makes state transitions explicit. Production hosts may choose different rendering behavior.
 
 ## Troubleshooting
 
@@ -135,7 +135,7 @@ Note: In these LiteLLM example integrations, update decisions are rendered deter
   - If heuristic returns a directive, that directive is passed to `engine.step(...)`.
   - If heuristic does not produce a directive (`no_directive` or `unknown`), LLM fallback prompt conversion runs.
   - If fallback yields nothing usable or errors, behavior safely remains equivalent to basic.
-  - Behavior is reject-first and does not expand directive grammar.
+  - Behavior is reject-first and does not broaden the directive grammar.
 
 ## Example checks
 

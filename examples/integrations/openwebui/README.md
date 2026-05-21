@@ -1,6 +1,6 @@
 # Open WebUI Pipe Integration
 
-Open WebUI Pipe Function examples for Context Compiler.
+Examples of Open WebUI Pipe Functions that run Context Compiler.
 
 Tested target: Open WebUI `v0.8.12` (latest at time of testing).
 Runtime-validated on stock Docker Open WebUI with a real backend model provider.
@@ -11,7 +11,7 @@ These examples support both sync (`0.8.x`) and async (`0.9.x`) user lookup.
 ## Files
 
 - `open_webui_pipe.py`: basic integration, no preprocessor layer (recommended/default).
-- `open_webui_pipe_with_preprocessor.py`: optional/experimental preprocessor layer (heuristic first, then model fallback) before `engine.step(...)`.
+- `open_webui_pipe_with_preprocessor.py`: optional/experimental preprocessor layer (rule-based check first, then optional model fallback) before `engine.step(...)`.
 
 ## Setup
 
@@ -85,7 +85,7 @@ Use the Open WebUI model picker/list to copy exact model ids for `BASE_MODEL_ID`
 ## Manual Validation
 
 Validate clarify short-circuit, passthrough forwarding without state injection,
-update forwarding with authoritative `[[cc_state]]` injection, chat isolation
+update forwarding with compiler state (`[[cc_state]]`) added to the request, chat isolation
 with real chat ids, restart state loss, and non-text bypass behavior.
 
 Note: In the OpenWebUI example pipes, `update` decisions call the downstream
@@ -104,7 +104,7 @@ active state, downstream LLM call/no-call, and whether state was injected.
 - base model: “To adjust the tone… provide the original content…”
 - basic pipe: `No premise exists yet. Use 'set premise ...' first.`
 - preprocessor pipe: `No premise exists yet. Use 'set premise ...' first.`
-- why this is a real win: lifecycle rule is enforced deterministically; base model drifts into generic rewriting help.
+- why this is a real win: lifecycle rule is enforced in a fixed, repeatable way; base model drifts into generic rewriting help.
 
 **Case 2**
 

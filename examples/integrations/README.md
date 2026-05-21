@@ -4,7 +4,7 @@ These examples show how to integrate Context Compiler with external systems.
 
 ## LiteLLM (SDK)
 
-Minimal example showing how to run Context Compiler before an LLM call with LiteLLM.
+Minimal example showing how to run Context Compiler before sending a request to the LLM with LiteLLM.
 
 Files:
 - Examples (basic + preprocessor): [litellm/README.md](litellm/README.md)
@@ -28,7 +28,7 @@ See the LiteLLM examples README for setup and usage:
 
 - Context Compiler runs before any LLM call.
 - If clarification is required, no LLM call is made.
-- Otherwise, compiled state is injected into the prompt before calling the model.
+- Otherwise, saved compiler state is added to the prompt before calling the model.
 
 ## LiteLLM Proxy
 
