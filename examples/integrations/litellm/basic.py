@@ -22,12 +22,14 @@ from context_compiler import State, get_policy_items, get_premise_value
 from context_compiler.engine import Engine
 
 try:
-    from host_support import is_confirmation_text, summarize_confirmation_update
+    from host_support import is_confirmation_text
 except ImportError:
     import host_support.confirmation as _confirmation
 
     is_confirmation_text = _confirmation.is_confirmation_text
-    summarize_confirmation_update = _confirmation.summarize_confirmation_update
+
+from host_support.confirmation import summarize_confirmation_update
+
 try:
     from host_support import build_trace
 except ImportError:
@@ -215,44 +217,8 @@ def _near_miss_directive_clarify(value: str) -> str | None:
 
 
 def _summarize_confirmation_update(user_input: str, pending: object) -> str:
-    summarize_fn = summarize_confirmation_update
-    if callable(summarize_fn):
-        return summarize_fn(user_input, pending)
-
-    normalized = _normalize_confirmation_for_summary(user_input)
-    if normalized in _NEGATIVE_CONFIRMATION_TOKENS:
-        return "State unchanged."
-    if not isinstance(pending, dict):
-        return "State updated."
-
-    replacement = pending.get("replacement")
-    if not isinstance(replacement, dict):
-        return "State updated."
-
-    kind = replacement.get("kind")
-    new_item = replacement.get("new_item")
-    old_item = replacement.get("old_item")
-    if kind == "use_only" and isinstance(new_item, str):
-        new_label = _render_item_label(new_item)
-        if new_label:
-            return f"State updated: Use {new_label}."
-        return "State updated."
-
-    if kind == "replace_use" and isinstance(new_item, str) and isinstance(old_item, str):
-        new_label = _render_item_label(new_item)
-        old_label = _render_item_label(old_item)
-        if not new_label or not old_label:
-            return "State updated."
-        prompt = pending.get("prompt_to_user")
-        prohibited_old_prompt = (
-            f'"{old_item}" is currently prohibited. '
-            f'Did you mean to remove it and use "{new_item}" instead?'
-        )
-        if prompt == prohibited_old_prompt:
-            return f"State updated: Removed prohibition on {old_label}; use {new_label}."
-        return f"State updated: Replaced {old_label} with {new_label}."
-
-    return "State updated."
+    summarize_fn: Callable[[str, object], str] = summarize_confirmation_update
+    return summarize_fn(user_input, pending)
 
 
 def _summarize_update_from_input(user_input: str) -> str:
