@@ -116,6 +116,14 @@ def _extract_latest_user_text(messages: list[dict[str, Any]]) -> str | None:
     return None
 
 
+def _has_pending_clarification(engine: Engine) -> bool:
+    checker = getattr(engine, "has_pending_clarification", None)
+    if callable(checker):
+        return bool(checker())
+    checkpoint = engine.export_checkpoint()
+    return checkpoint.get("pending") is not None
+
+
 def _render_compiler_state_block(state: State) -> str:
     lines: list[str] = [_CC_MARKER]
 
@@ -879,12 +887,11 @@ class Pipe:
                 engine.import_checkpoint_json(checkpoint)
             _ENGINES_BY_CHAT_KEY[chat_key] = engine
 
-        checkpoint_before = engine.export_checkpoint()
-        pending_before = checkpoint_before.get("pending")
+        state_before = engine.state
 
         preprocessd: str | None = None
         preprocess_error: str | None = None
-        if pending_before is None:
+        if not _has_pending_clarification(engine):
             preprocessd, preprocess_error = await self._preprocess_user_input(
                 latest_user_text,
                 engine.state,
@@ -906,7 +913,6 @@ class Pipe:
         kind = decision["kind"]
         logger.debug("preprocessor: decision=%s", kind)
         near_miss_prompt = _near_miss_directive_clarify(latest_user_text)
-        state_before = checkpoint_before.get("authoritative_state")
         state_after = decision.get("state") if isinstance(decision, dict) else None
         if state_after is None:
             state_after = engine.state

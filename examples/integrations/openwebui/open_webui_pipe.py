@@ -624,13 +624,12 @@ class Pipe:
                 engine.import_checkpoint_json(checkpoint)
             _ENGINES_BY_CHAT_KEY[chat_key] = engine
 
-        checkpoint_before = engine.export_checkpoint()
+        state_before = engine.state
         logger.debug("pipe: engine_input=%r", latest_user_text)
         decision = engine.step(latest_user_text)
         kind = decision["kind"]
         logger.debug("pipe: decision=%s", kind)
         near_miss_prompt = _near_miss_directive_clarify(latest_user_text)
-        state_before = checkpoint_before.get("authoritative_state")
         state_after = decision.get("state") if isinstance(decision, dict) else None
         if state_after is None:
             state_after = engine.state

@@ -293,6 +293,14 @@ def _persist_session_checkpoint_if_needed(
     _CHECKPOINTS_BY_SESSION_KEY[session_key] = engine.export_checkpoint_json()
 
 
+def _has_pending_clarification(engine: Engine) -> bool:
+    checker = getattr(engine, "has_pending_clarification", None)
+    if callable(checker):
+        return bool(checker())
+    checkpoint = engine.export_checkpoint()
+    return checkpoint.get("pending") is not None
+
+
 def _normalize_confirmation_for_summary(value: str) -> str:
     normalized = value.strip().lower()
     normalized = re.sub(r"\s+", " ", normalized)
@@ -425,10 +433,12 @@ def _append_trace(
 
 def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = None) -> str:
     _restore_session_checkpoint_if_needed(engine, session_key)
-    checkpoint_before = engine.export_checkpoint()
-    pending_before = checkpoint_before.get("pending")
+    state_before = engine.state
+    pending_before = (
+        engine.export_checkpoint().get("pending") if _has_pending_clarification(engine) else None
+    )
     preprocessd: str | None = None
-    if pending_before is not None:
+    if _has_pending_clarification(engine):
         compile_input = user_input
     else:
         preprocessd = _preprocess_user_input(user_input, engine.state)
@@ -452,7 +462,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             compiler_input=compile_input,
             preprocessor_output=preprocessd,
             decision=decision,
-            state_before=checkpoint_before.get("authoritative_state"),
+            state_before=state_before,
             state_after=engine.state,
             llm_called=False,
         )
@@ -463,7 +473,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             compiler_input=compile_input,
             preprocessor_output=preprocessd,
             decision={"kind": "clarify", "prompt_to_user": near_miss_prompt},
-            state_before=checkpoint_before.get("authoritative_state"),
+            state_before=state_before,
             state_after=engine.state,
             llm_called=False,
         )
@@ -476,7 +486,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             compiler_input=compile_input,
             preprocessor_output=preprocessd,
             decision=decision,
-            state_before=checkpoint_before.get("authoritative_state"),
+            state_before=state_before,
             state_after=engine.state,
             llm_called=False,
         )
@@ -488,7 +498,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             compiler_input=compile_input,
             preprocessor_output=preprocessd,
             decision=decision,
-            state_before=checkpoint_before.get("authoritative_state"),
+            state_before=state_before,
             state_after=engine.state,
             llm_called=False,
         )
@@ -502,7 +512,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
         compiler_input=compile_input,
         preprocessor_output=preprocessd,
         decision=decision,
-        state_before=checkpoint_before.get("authoritative_state"),
+        state_before=state_before,
         state_after=compiled_state,
         llm_called=True,
     )

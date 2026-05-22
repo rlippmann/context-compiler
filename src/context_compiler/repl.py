@@ -98,8 +98,7 @@ def _print_decision_lines(decision: Decision, out_stream: TextIO, *, leading_bla
 
 
 def _has_pending_clarification(engine: Engine) -> bool:
-    checkpoint = engine.export_checkpoint()
-    return checkpoint["pending"] is not None
+    return engine.has_pending_clarification()
 
 
 def _compile_input(raw_input: str, engine: Engine, *, use_preprocessor: bool) -> str:

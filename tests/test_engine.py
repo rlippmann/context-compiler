@@ -18,6 +18,7 @@ def test_decision_kind_strenum_behavior() -> None:
 def test_initial_state_and_helpers() -> None:
     engine = create_engine()
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
+    assert engine.has_pending_clarification() is False
     assert get_premise_value(engine.state) is None
     assert get_policy_items(engine.state) == []
 
@@ -228,6 +229,7 @@ def test_export_checkpoint_serializes_pending_replacement_state_for_exact_resume
     engine = create_engine()
     clarify = engine.step("use kubectl instead of docker")
     assert clarify["kind"] == "clarify"
+    assert engine.has_pending_clarification() is True
 
     checkpoint = engine.export_checkpoint()
     assert checkpoint["pending"] == {
@@ -292,10 +294,12 @@ def test_import_checkpoint_restores_pending_clarification_and_unmatched_input_re
 
     target = create_engine()
     target.import_checkpoint(checkpoint)
+    assert target.has_pending_clarification() is True
     before = target.state
     second = target.step("maybe")
 
     assert second == first
+    assert target.has_pending_clarification() is True
     assert target.state == before
 
 
@@ -326,10 +330,23 @@ def test_import_checkpoint_restores_pending_clarification_and_resolves_yes() -> 
 
     target = create_engine()
     target.import_checkpoint(checkpoint)
+    assert target.has_pending_clarification() is True
     decision = target.step("yes")
 
     assert decision["kind"] == "update"
+    assert target.has_pending_clarification() is False
     assert target.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
+
+
+def test_has_pending_clarification_clears_on_negative_confirmation() -> None:
+    engine = create_engine()
+    decision = engine.step("use kubectl instead of docker")
+    assert decision["kind"] == "clarify"
+    assert engine.has_pending_clarification() is True
+
+    no_decision = engine.step("no")
+    assert no_decision["kind"] == "update"
+    assert engine.has_pending_clarification() is False
 
 
 def test_import_checkpoint_invalid_json_and_invalid_object_payload_are_rejected() -> None:
@@ -526,6 +543,17 @@ def test_import_checkpoint_is_all_or_nothing_when_authoritative_state_is_invalid
     assert engine.state == before
 
 
+def test_has_pending_clarification_clears_after_import_json() -> None:
+    engine = create_engine()
+    clarify = engine.step("use kubectl instead of docker")
+    assert clarify["kind"] == "clarify"
+    assert engine.has_pending_clarification() is True
+
+    engine.import_json('{"policies":{},"premise":null,"version":2}')
+
+    assert engine.has_pending_clarification() is False
+
+
 def test_replace_use_clarifies_when_old_policy_is_not_use_in_invalid_internal_state() -> None:
     engine = create_engine()
     # Defensive-path coverage for impossible external state values.
@@ -546,6 +574,7 @@ def test_replace_use_clarifies_when_old_policy_is_not_use_in_invalid_internal_st
 def test_import_checkpoint_with_pending_none_clears_existing_pending() -> None:
     engine = create_engine()
     engine.step("use kubectl instead of docker")
+    assert engine.has_pending_clarification() is True
 
     engine.import_checkpoint(
         {
@@ -558,6 +587,7 @@ def test_import_checkpoint_with_pending_none_clears_existing_pending() -> None:
             "pending": None,
         }
     )
+    assert engine.has_pending_clarification() is False
 
     yes_decision = engine.step("yes")
     assert yes_decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
@@ -568,6 +598,7 @@ def test_import_checkpoint_with_pending_none_clears_existing_pending() -> None:
 def test_import_checkpoint_with_pending_absent_clears_existing_pending() -> None:
     engine = create_engine()
     engine.step("use kubectl instead of docker")
+    assert engine.has_pending_clarification() is True
 
     engine.import_checkpoint(
         {
@@ -579,6 +610,7 @@ def test_import_checkpoint_with_pending_absent_clears_existing_pending() -> None
             },
         }
     )
+    assert engine.has_pending_clarification() is False
 
     yes_decision = engine.step("yes")
     assert yes_decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
