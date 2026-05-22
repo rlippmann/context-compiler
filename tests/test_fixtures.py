@@ -25,6 +25,17 @@ def _load(path: Path) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _assert_optional_pending_flag(expected_obj: object, engine: object, fixture_id: object) -> None:
+    if not isinstance(expected_obj, dict):
+        return
+    if "has_pending_clarification" not in expected_obj:
+        return
+
+    expected_pending = expected_obj["has_pending_clarification"]
+    assert isinstance(expected_pending, bool), fixture_id
+    assert engine.has_pending_clarification() is expected_pending, fixture_id
+
+
 def test_step_fixtures() -> None:
     for path in _json_files(_STEP_FIXTURES_DIR):
         fixture = _load(path)
@@ -58,6 +69,7 @@ def test_step_fixtures() -> None:
             assert decision["state"] == engine.state, fixture_id
 
         assert engine.state == expected["state"], fixture_id
+        _assert_optional_pending_flag(expected, engine, fixture_id)
 
 
 def test_transcript_fixtures() -> None:
@@ -147,9 +159,11 @@ def test_checkpoint_fixtures() -> None:
             raise AssertionError(f"Unknown checkpoint action: {fn}")
 
         assert engine.state == expected["state"], fixture_id
+        _assert_optional_pending_flag(expected, engine, fixture_id)
 
         followup = expected.get("followup")
         if followup is not None:
             decision = engine.step(followup["input"])
             assert decision == followup["decision"], fixture_id
             assert engine.state == followup["state"], fixture_id
+            _assert_optional_pending_flag(followup, engine, fixture_id)

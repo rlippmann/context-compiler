@@ -23,6 +23,7 @@
     }
   },
   "expected": {
+    "has_pending_clarification": false,
     "state": {
       "premise": "baseline",
       "policies": {
