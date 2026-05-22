@@ -34,12 +34,14 @@ from experimental.preprocessor import (
 )
 
 try:
-    from host_support import is_confirmation_text, summarize_confirmation_update
+    from host_support import is_confirmation_text
 except ImportError:
     import host_support.confirmation as _confirmation
 
     is_confirmation_text = _confirmation.is_confirmation_text
-    summarize_confirmation_update = _confirmation.summarize_confirmation_update
+
+from host_support.confirmation import summarize_confirmation_update
+
 try:
     from host_support import build_trace
 except ImportError:
@@ -293,6 +295,14 @@ def _persist_session_checkpoint_if_needed(
     _CHECKPOINTS_BY_SESSION_KEY[session_key] = engine.export_checkpoint_json()
 
 
+def _has_pending_clarification(engine: Engine) -> bool:
+    checker = getattr(engine, "has_pending_clarification", None)
+    if callable(checker):
+        return bool(checker())
+    checkpoint = engine.export_checkpoint()
+    return checkpoint.get("pending") is not None
+
+
 def _normalize_confirmation_for_summary(value: str) -> str:
     normalized = value.strip().lower()
     normalized = re.sub(r"\s+", " ", normalized)
@@ -318,44 +328,8 @@ def _near_miss_directive_clarify(value: str) -> str | None:
 
 
 def _summarize_confirmation_update(user_input: str, pending: object) -> str:
-    summarize_fn = summarize_confirmation_update
-    if callable(summarize_fn):
-        return summarize_fn(user_input, pending)
-
-    normalized = _normalize_confirmation_for_summary(user_input)
-    if normalized in _NEGATIVE_CONFIRMATION_TOKENS:
-        return "State unchanged."
-    if not isinstance(pending, dict):
-        return "State updated."
-
-    replacement = pending.get("replacement")
-    if not isinstance(replacement, dict):
-        return "State updated."
-
-    kind = replacement.get("kind")
-    new_item = replacement.get("new_item")
-    old_item = replacement.get("old_item")
-    if kind == "use_only" and isinstance(new_item, str):
-        new_label = _render_item_label(new_item)
-        if new_label:
-            return f"State updated: Use {new_label}."
-        return "State updated."
-
-    if kind == "replace_use" and isinstance(new_item, str) and isinstance(old_item, str):
-        new_label = _render_item_label(new_item)
-        old_label = _render_item_label(old_item)
-        if not new_label or not old_label:
-            return "State updated."
-        prompt = pending.get("prompt_to_user")
-        prohibited_old_prompt = (
-            f'"{old_item}" is currently prohibited. '
-            f'Did you mean to remove it and use "{new_item}" instead?'
-        )
-        if prompt == prohibited_old_prompt:
-            return f"State updated: Removed prohibition on {old_label}; use {new_label}."
-        return f"State updated: Replaced {old_label} with {new_label}."
-
-    return "State updated."
+    summarize_fn: Callable[[str, object], str] = summarize_confirmation_update
+    return summarize_fn(user_input, pending)
 
 
 def _summarize_update_from_input(user_input: str) -> str:
@@ -425,10 +399,12 @@ def _append_trace(
 
 def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = None) -> str:
     _restore_session_checkpoint_if_needed(engine, session_key)
-    checkpoint_before = engine.export_checkpoint()
-    pending_before = checkpoint_before.get("pending")
+    state_before = engine.state
+    pending_before = (
+        engine.export_checkpoint().get("pending") if _has_pending_clarification(engine) else None
+    )
     preprocessd: str | None = None
-    if pending_before is not None:
+    if _has_pending_clarification(engine):
         compile_input = user_input
     else:
         preprocessd = _preprocess_user_input(user_input, engine.state)
@@ -452,7 +428,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             compiler_input=compile_input,
             preprocessor_output=preprocessd,
             decision=decision,
-            state_before=checkpoint_before.get("authoritative_state"),
+            state_before=state_before,
             state_after=engine.state,
             llm_called=False,
         )
@@ -463,7 +439,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             compiler_input=compile_input,
             preprocessor_output=preprocessd,
             decision={"kind": "clarify", "prompt_to_user": near_miss_prompt},
-            state_before=checkpoint_before.get("authoritative_state"),
+            state_before=state_before,
             state_after=engine.state,
             llm_called=False,
         )
@@ -476,7 +452,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             compiler_input=compile_input,
             preprocessor_output=preprocessd,
             decision=decision,
-            state_before=checkpoint_before.get("authoritative_state"),
+            state_before=state_before,
             state_after=engine.state,
             llm_called=False,
         )
@@ -488,7 +464,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             compiler_input=compile_input,
             preprocessor_output=preprocessd,
             decision=decision,
-            state_before=checkpoint_before.get("authoritative_state"),
+            state_before=state_before,
             state_after=engine.state,
             llm_called=False,
         )
@@ -502,7 +478,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
         compiler_input=compile_input,
         preprocessor_output=preprocessd,
         decision=decision,
-        state_before=checkpoint_before.get("authoritative_state"),
+        state_before=state_before,
         state_after=compiled_state,
         llm_called=True,
     )

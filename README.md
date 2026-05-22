@@ -198,6 +198,7 @@ Meaning:
 | `compile_transcript(messages: Transcript)` | Replay a transcript from a fresh engine and return either final state or a confirmation prompt. |
 | `engine.apply_transcript(messages: Transcript)` | Replay a transcript onto the current engine state and return either final state or a confirmation prompt. |
 | `engine.state` | Read current authoritative in-memory state snapshot. |
+| `engine.has_pending_clarification()` | Return whether a confirmation-required clarification is currently pending. |
 | `get_premise_value(state)` | Read the current premise value from a state snapshot. |
 | `get_policy_items(state, value=None)` | Read policy items from a state snapshot (all, `use`, or `prohibit`). |
 | `engine.export_json()` | Export authoritative state as JSON (`str`) for state transport/persistence. |

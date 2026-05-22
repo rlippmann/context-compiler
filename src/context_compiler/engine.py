@@ -150,6 +150,10 @@ class Engine:
     def state(self) -> State:
         return deepcopy(self._state)
 
+    def has_pending_clarification(self) -> bool:
+        """Return whether a confirmation-required clarification is pending."""
+        return self._pending_replacement is not None
+
     def export_json(self) -> str:
         return json.dumps(self._state, sort_keys=True, separators=(",", ":"))
 

@@ -26,6 +26,7 @@
       "type": "ValueError",
       "message_contains": "Invalid state payload"
     },
+    "has_pending_clarification": true,
     "state": {
       "premise": null,
       "policies": {},

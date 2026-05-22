@@ -37,20 +37,7 @@ def is_confirmation_text(value: str) -> bool:
     return _normalize_confirmation_text(value) in CONFIRMATION_TOKENS
 
 
-def summarize_confirmation_update(user_input: str, pending: object) -> str:
-    """Return deterministic host summary text for confirmation-only updates.
-
-    This helper is intentionally conservative:
-    - negative confirmations always return ``State unchanged.``
-    - affirmative confirmations return an exact deterministic summary only when
-      pending metadata unambiguously identifies the confirmed transition
-    - otherwise it falls back to ``State updated.``
-    """
-    normalized = _normalize_confirmation_text(user_input)
-    if normalized in _NEGATIVE_CONFIRMATION_TOKENS:
-        return "State unchanged."
-    if normalized not in _AFFIRMATIVE_CONFIRMATION_TOKENS:
-        return "State updated."
+def _summarize_pending_confirmation_update(pending: object) -> str:
     if not isinstance(pending, dict):
         return "State updated."
 
@@ -84,3 +71,20 @@ def summarize_confirmation_update(user_input: str, pending: object) -> str:
         return f"State updated: Replaced {old_label} with {new_label}."
 
     return "State updated."
+
+
+def summarize_confirmation_update(user_input: str, pending: object) -> str:
+    """Return deterministic host summary text for confirmation-only updates.
+
+    This helper is intentionally conservative:
+    - negative confirmations always return ``State unchanged.``
+    - affirmative confirmations return an exact deterministic summary only when
+      pending metadata unambiguously identifies the confirmed transition
+    - otherwise it falls back to ``State updated.``
+    """
+    normalized = _normalize_confirmation_text(user_input)
+    if normalized in _NEGATIVE_CONFIRMATION_TOKENS:
+        return "State unchanged."
+    if normalized not in _AFFIRMATIVE_CONFIRMATION_TOKENS:
+        return "State updated."
+    return _summarize_pending_confirmation_update(pending)

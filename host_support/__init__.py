@@ -1,6 +1,6 @@
 """Host-side shared helpers."""
 
-from .confirmation import is_confirmation_text, summarize_confirmation_update
+from .confirmation import is_confirmation_text
 from .observability import build_trace
 from .provider_mode import ProviderConfig, print_startup_config, resolve_provider_config
 
@@ -10,5 +10,4 @@ __all__ = [
     "is_confirmation_text",
     "print_startup_config",
     "resolve_provider_config",
-    "summarize_confirmation_update",
 ]
