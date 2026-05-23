@@ -43,16 +43,16 @@ those forms.
 
 Or in code:
 ```python
-from context_compiler import create_engine
+from context_compiler import DECISION_CLARIFY, DECISION_UPDATE, create_engine
 
 engine = create_engine()
 
 user_input = "prohibit peanuts"
 decision = engine.step(user_input)
 
-if decision["kind"] == "clarify":
+if decision["kind"] == DECISION_CLARIFY:
     show_to_user(decision["prompt_to_user"])
-elif decision["kind"] == "update":
+elif decision["kind"] == DECISION_UPDATE:
     messages = build_messages(engine.state, user_input)
     render(call_llm(messages))
 else:

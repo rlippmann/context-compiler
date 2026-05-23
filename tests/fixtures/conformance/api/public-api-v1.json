@@ -8,6 +8,9 @@
     "compile_transcript",
     "get_premise_value",
     "get_policy_items",
+    "DECISION_PASSTHROUGH",
+    "DECISION_UPDATE",
+    "DECISION_CLARIFY",
     "TranscriptMessage",
     "Transcript",
     "ApplyResult"

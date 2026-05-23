@@ -1,5 +1,6 @@
 from importlib.metadata import version
 
+from .decision_constants import DECISION_CLARIFY, DECISION_PASSTHROUGH, DECISION_UPDATE
 from .engine import (
     ApplyResult,
     Checkpoint,
@@ -20,6 +21,9 @@ __all__ = [
     "ApplyResult",
     "Checkpoint",
     "Decision",
+    "DECISION_CLARIFY",
+    "DECISION_PASSTHROUGH",
+    "DECISION_UPDATE",
     "Engine",
     "State",
     "Transcript",
