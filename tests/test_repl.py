@@ -837,6 +837,11 @@ def test_repl_interactive_state_renders_empty_state() -> None:
     assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies: (none)"])
 
 
+def test_repl_interactive_state_command_renders_current_state() -> None:
+    lines = _run_interactive_lines("state\nquit\n")
+    assert _contains_subsequence(lines, ["premise: (none)", "policies: (none)"])
+
+
 def test_repl_interactive_state_renders_premise_only() -> None:
     lines = _run_interactive_lines("set premise concise\nquit\n")
     assert _contains_subsequence(lines, ["updated", "premise: concise", "policies: (none)"])
@@ -862,3 +867,68 @@ def test_repl_interactive_state_renders_mixed_with_sorted_policies() -> None:
             "- prohibit poetry",
         ],
     )
+
+
+def test_repl_interactive_step_command_paths_while_pending() -> None:
+    lines = _run_interactive_lines("use kubectl instead of docker\nstep maybe\nstep yes!!!\nquit\n")
+
+    assert _contains_subsequence(lines, ['confirm: Did you mean to use "kubectl" instead?'])
+    assert _contains_subsequence(
+        lines,
+        [
+            "error: step command only accepts confirmation while clarification is pending.",
+            "Use yes/no (or variants), or use preview/state.",
+        ],
+    )
+    assert _contains_subsequence(
+        lines, ["updated", "premise: (none)", "policies:", "- use kubectl"]
+    )
+
+
+def test_repl_interactive_preview_requires_payload() -> None:
+    lines = _run_interactive_lines("preview\nquit\n")
+    assert _contains_subsequence(
+        lines, ["error: preview requires input.", "Use 'preview <input>'."]
+    )
+
+
+def test_repl_interactive_step_requires_payload() -> None:
+    lines = _run_interactive_lines("step\nquit\n")
+    assert _contains_subsequence(lines, ["error: step requires input.", "Use 'step <input>'."])
+
+
+def test_repl_interactive_preview_renders_structural_diff_lines(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    preview_result = {
+        "output_version": 1,
+        "mode": "preview",
+        "decision": {
+            "kind": "update",
+            "state": {"premise": "after", "policies": {"docker": "prohibit"}},
+            "prompt_to_user": None,
+        },
+        "state_before": {"premise": "before", "policies": {"docker": "use", "kubectl": "use"}},
+        "state_after": {"premise": "after", "policies": {"docker": "prohibit"}},
+        "diff": {
+            "changed": True,
+            "premise": {"before": "before", "after": "after", "changed": True},
+            "policies": {
+                "added": {},
+                "removed": {"kubectl": "use"},
+                "changed": {"docker": {"before": "use", "after": "prohibit"}},
+            },
+        },
+        "would_mutate": True,
+    }
+
+    def _fake_preview(_engine: object, _user_input: str) -> object:
+        return preview_result
+
+    monkeypatch.setattr(repl_module, "controller_preview", _fake_preview)
+
+    lines = _run_interactive_lines("preview test\nquit\n")
+    assert _contains_subsequence(lines, ["preview", "updated"])
+    assert _contains_subsequence(lines, ["- premise: before -> after"])
+    assert _contains_subsequence(lines, ["- - use kubectl"])
+    assert _contains_subsequence(lines, ["- ~ use docker -> prohibit docker"])
