@@ -1,0 +1,16 @@
+{
+  "id": "controller_preview_idempotent_no_mutation",
+  "kind": "controller_preview",
+  "prelude": [
+    "use docker"
+  ],
+  "input": "use docker",
+  "expected": {
+    "decision_kind": "update",
+    "would_mutate": false,
+    "diff_changed": false,
+    "state_before_equals_after": true,
+    "engine_state_unchanged_after_preview": true
+  }
+}
+
