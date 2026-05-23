@@ -1,3 +1,4 @@
+import json
 import subprocess
 import sys
 from io import StringIO
@@ -86,13 +87,14 @@ def test_main_help_flag_prints_usage_and_exits_zero(
     assert result == 0
     assert captured.out == (
         "Usage:\n"
-        "  context-compiler [--help] [--version] [--with-preprocessor]\n"
+        "  context-compiler [--help] [--version] [--with-preprocessor] [--json]\n"
         "\n"
         "Options:\n"
         "  --help                Show this help message and exit.\n"
         "  --version             Show the installed context-compiler version and exit.\n"
         "  --with-preprocessor   Enable preprocessor before each REPL turn "
         "(heuristic + validation only)\n"
+        "  --json                Emit machine-readable NDJSON output (non-interactive only)\n"
     )
     assert captured.err == ""
 
@@ -135,11 +137,16 @@ def test_main_with_preprocessor_flag_runs_repl_with_flag(monkeypatch: pytest.Mon
     called: dict[str, object] = {}
 
     def _fake_run_repl(
-        in_stream: TextIO, out_stream: TextIO, *, use_preprocessor: bool = False
+        in_stream: TextIO,
+        out_stream: TextIO,
+        *,
+        use_preprocessor: bool = False,
+        json_mode: bool = False,
     ) -> None:
         called["in_stream"] = in_stream
         called["out_stream"] = out_stream
         called["use_preprocessor"] = use_preprocessor
+        called["json_mode"] = json_mode
 
     monkeypatch.setattr(repl_module, "run_repl", _fake_run_repl)
     monkeypatch.setattr(sys, "argv", ["context-compiler", "--with-preprocessor"])
@@ -150,6 +157,79 @@ def test_main_with_preprocessor_flag_runs_repl_with_flag(monkeypatch: pytest.Mon
     assert called["in_stream"] is sys.stdin
     assert called["out_stream"] is sys.stdout
     assert called["use_preprocessor"] is True
+    assert called["json_mode"] is False
+
+
+def test_main_with_json_flag_runs_repl_with_json_mode(monkeypatch: pytest.MonkeyPatch) -> None:
+    called: dict[str, object] = {}
+
+    def _fake_run_repl(
+        in_stream: TextIO,
+        out_stream: TextIO,
+        *,
+        use_preprocessor: bool = False,
+        json_mode: bool = False,
+    ) -> None:
+        called["in_stream"] = in_stream
+        called["out_stream"] = out_stream
+        called["use_preprocessor"] = use_preprocessor
+        called["json_mode"] = json_mode
+
+    monkeypatch.setattr(repl_module, "run_repl", _fake_run_repl)
+    monkeypatch.setattr(repl_module, "_is_interactive", lambda _in, _out: False)
+    monkeypatch.setattr(sys, "argv", ["context-compiler", "--json"])
+
+    result = repl_module.main()
+
+    assert result == 0
+    assert called["in_stream"] is sys.stdin
+    assert called["out_stream"] is sys.stdout
+    assert called["use_preprocessor"] is False
+    assert called["json_mode"] is True
+
+
+def test_main_with_json_and_preprocessor_runs_repl_with_both(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    called: dict[str, object] = {}
+
+    def _fake_run_repl(
+        in_stream: TextIO,
+        out_stream: TextIO,
+        *,
+        use_preprocessor: bool = False,
+        json_mode: bool = False,
+    ) -> None:
+        called["in_stream"] = in_stream
+        called["out_stream"] = out_stream
+        called["use_preprocessor"] = use_preprocessor
+        called["json_mode"] = json_mode
+
+    monkeypatch.setattr(repl_module, "run_repl", _fake_run_repl)
+    monkeypatch.setattr(repl_module, "_is_interactive", lambda _in, _out: False)
+    monkeypatch.setattr(sys, "argv", ["context-compiler", "--with-preprocessor", "--json"])
+
+    result = repl_module.main()
+
+    assert result == 0
+    assert called["in_stream"] is sys.stdin
+    assert called["out_stream"] is sys.stdout
+    assert called["use_preprocessor"] is True
+    assert called["json_mode"] is True
+
+
+def test_main_json_requires_non_interactive_stdio(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(repl_module, "_is_interactive", lambda _in, _out: True)
+    monkeypatch.setattr(sys, "argv", ["context-compiler", "--json"])
+
+    result = repl_module.main()
+    captured = capsys.readouterr()
+
+    assert result == 1
+    assert captured.out == ""
+    assert captured.err == "error: --json requires non-interactive stdin/stdout.\n"
 
 
 def test_main_unknown_flag_prints_error_hint_and_exits_nonzero(
@@ -248,6 +328,130 @@ def test_repl_non_interactive_uses_human_readable_output() -> None:
 
     lines = out.getvalue().splitlines()
     assert lines == ["passthrough"]
+
+
+def _run_non_interactive_json_lines(text: str) -> list[dict[str, object]]:
+    out = StringIO()
+    run_repl(StringIO(text), out, json_mode=True)
+    return [json.loads(line) for line in out.getvalue().splitlines() if line.strip()]
+
+
+def test_repl_non_interactive_json_bare_input_step_result() -> None:
+    rows = _run_non_interactive_json_lines("set premise concise\nquit\n")
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["output_version"] == 1
+    assert row["mode"] == "step"
+    assert row["command"] == "input"
+    decision = row["decision"]
+    assert isinstance(decision, dict)
+    assert decision["kind"] == "update"
+
+
+def test_repl_non_interactive_json_step_and_preview_results() -> None:
+    rows = _run_non_interactive_json_lines(
+        "step set premise concise\npreview clear premise\nquit\n"
+    )
+    assert [row["mode"] for row in rows] == ["step", "preview"]
+    assert [row["command"] for row in rows] == ["step", "preview"]
+    assert rows[0]["output_version"] == 1
+    assert rows[1]["output_version"] == 1
+    assert "would_mutate" in rows[1]
+    assert "diff" in rows[1]
+
+
+def test_repl_non_interactive_json_state_command() -> None:
+    rows = _run_non_interactive_json_lines("set premise concise\nstate\nquit\n")
+    assert rows[1]["command"] == "state"
+    assert rows[1]["mode"] == "state"
+    assert rows[1]["output_version"] == 1
+    state = rows[1]["state"]
+    assert isinstance(state, dict)
+    assert state["premise"] == "concise"
+    assert state["policies"] == {}
+
+
+def test_repl_non_interactive_json_clarify_and_passthrough() -> None:
+    rows = _run_non_interactive_json_lines(
+        "prohibit docker\nuse kubectl instead of docker\nyes\nhello\nquit\n"
+    )
+    assert rows[1]["mode"] == "step"
+    assert rows[1]["decision"]["kind"] == "clarify"
+    assert rows[3]["mode"] == "step"
+    assert rows[3]["decision"]["kind"] == "passthrough"
+
+
+def test_repl_non_interactive_json_machine_readable_errors() -> None:
+    rows = _run_non_interactive_json_lines("preview\nstep\nquit\n")
+    assert rows == [
+        {
+            "command": "preview",
+            "error": {
+                "code": "missing_preview_input",
+                "message": "preview requires input.\nUse 'preview <input>'.",
+            },
+            "mode": "error",
+            "output_version": 1,
+        },
+        {
+            "command": "step",
+            "error": {
+                "code": "missing_step_input",
+                "message": "step requires input.\nUse 'step <input>'.",
+            },
+            "mode": "error",
+            "output_version": 1,
+        },
+    ]
+
+
+def test_repl_non_interactive_json_multi_command_chunk_error() -> None:
+    out = StringIO()
+    run_repl(
+        _ChunkedInput(["set premise concise\nprohibit peanuts\n", "quit\n"]),  # type: ignore[arg-type]
+        out,
+        json_mode=True,
+    )
+    rows = [json.loads(line) for line in out.getvalue().splitlines() if line.strip()]
+    assert rows == [
+        {
+            "command": "input",
+            "error": {
+                "code": "multi_command_input",
+                "message": "Multiple commands detected.\nEnter one command per line.",
+            },
+            "mode": "error",
+            "output_version": 1,
+        }
+    ]
+
+
+def test_repl_non_interactive_json_step_pending_confirmation_error() -> None:
+    rows = _run_non_interactive_json_lines(
+        "use kubectl instead of docker\nstep set premise concise\nyes\nquit\n"
+    )
+    assert rows[1] == {
+        "command": "step",
+        "error": {
+            "code": "pending_confirmation_required",
+            "message": (
+                "step command only accepts confirmation while clarification is pending.\n"
+                "Use yes/no (or variants), or use preview/state."
+            ),
+        },
+        "mode": "error",
+        "output_version": 1,
+    }
+
+
+def test_repl_non_interactive_json_has_no_human_output_leakage() -> None:
+    out = StringIO()
+    run_repl(
+        StringIO("state\nset premise concise\npreview clear premise\nquit\n"), out, json_mode=True
+    )
+    for line in out.getvalue().splitlines():
+        parsed = json.loads(line)
+        assert isinstance(parsed, dict)
 
 
 def test_repl_non_interactive_state_command_renders_current_state() -> None:

@@ -32,6 +32,7 @@ Canonical matrix: [docs/demos-results.md](docs/demos-results.md)
 pip install context-compiler
 context-compiler
 context-compiler --with-preprocessor
+context-compiler --json < input.txt
 ```
 
 `context-compiler` launches the interactive REPL.
@@ -40,6 +41,9 @@ context-compiler --with-preprocessor
 (heuristic + validation only). Near-miss inputs are not rewritten and are
 passed through to the engine, which continues to return clarify behavior for
 those forms.
+
+`--json` enables machine-readable NDJSON output for non-interactive usage
+(one complete JSON object per processed input line).
 
 REPL command-layer commands (host/controller layer, not engine directives):
 - `state` shows current authoritative state.

@@ -1,10 +1,11 @@
+import json
 import sys
 from typing import TextIO
 
 from experimental.preprocessor.output_validation import parse_preprocessor_output
 
 from . import __version__, create_engine, get_policy_items, get_premise_value
-from .controller import PreviewResult, StepResult
+from .controller import OUTPUT_VERSION, PreviewResult, StepResult
 from .controller import preview as controller_preview
 from .controller import step as controller_step
 from .decision_constants import DECISION_CLARIFY, DECISION_PASSTHROUGH
@@ -20,12 +21,13 @@ _STEP_PENDING_CONFIRMATION_ERROR = (
     "Use yes/no (or variants), or use preview/state."
 )
 _CLI_HELP_TEXT = """Usage:
-  context-compiler [--help] [--version] [--with-preprocessor]
+  context-compiler [--help] [--version] [--with-preprocessor] [--json]
 
 Options:
   --help                Show this help message and exit.
   --version             Show the installed context-compiler version and exit.
   --with-preprocessor   Enable preprocessor before each REPL turn (heuristic + validation only)
+  --json                Emit machine-readable NDJSON output (non-interactive only)
 """
 
 
@@ -158,6 +160,40 @@ def _print_command_error(out_stream: TextIO, *, leading_blank: bool, message: st
     print(f"error: {message}", file=out_stream)
 
 
+def _write_json_line(out_stream: TextIO, payload: dict[str, object]) -> None:
+    print(json.dumps(payload, separators=(",", ":"), sort_keys=True), file=out_stream)
+
+
+def _json_step_payload(result: StepResult, *, command: str) -> dict[str, object]:
+    payload: dict[str, object] = dict(result)
+    payload["command"] = command
+    return payload
+
+
+def _json_preview_payload(result: PreviewResult, *, command: str) -> dict[str, object]:
+    payload: dict[str, object] = dict(result)
+    payload["command"] = command
+    return payload
+
+
+def _json_state_payload(state: State) -> dict[str, object]:
+    return {
+        "output_version": OUTPUT_VERSION,
+        "mode": "state",
+        "command": "state",
+        "state": state,
+    }
+
+
+def _json_error_payload(*, command: str, code: str, message: str) -> dict[str, object]:
+    return {
+        "output_version": OUTPUT_VERSION,
+        "mode": "error",
+        "command": command,
+        "error": {"code": code, "message": message},
+    }
+
+
 def _has_pending_clarification(engine: Engine) -> bool:
     return engine.has_pending_clarification()
 
@@ -183,7 +219,13 @@ def _compile_input(raw_input: str, engine: Engine, *, use_preprocessor: bool) ->
     return parsed if parsed is not None else raw_input
 
 
-def run_repl(in_stream: TextIO, out_stream: TextIO, *, use_preprocessor: bool = False) -> None:
+def run_repl(
+    in_stream: TextIO,
+    out_stream: TextIO,
+    *,
+    use_preprocessor: bool = False,
+    json_mode: bool = False,
+) -> None:
     engine = create_engine()
 
     if _is_interactive(in_stream, out_stream):
@@ -270,7 +312,17 @@ def run_repl(in_stream: TextIO, out_stream: TextIO, *, use_preprocessor: bool = 
 
     for line in in_stream:
         if _has_embedded_newline(line):
-            _print_decision_lines(_multi_command_decision(), out_stream, leading_blank=False)
+            if json_mode:
+                _write_json_line(
+                    out_stream,
+                    _json_error_payload(
+                        command="input",
+                        code="multi_command_input",
+                        message=_MULTI_COMMAND_PROMPT,
+                    ),
+                )
+            else:
+                _print_decision_lines(_multi_command_decision(), out_stream, leading_blank=False)
             continue
         user_input = line.rstrip("\n")
         if user_input.strip().lower() in _EXIT_TOKENS:
@@ -278,30 +330,56 @@ def run_repl(in_stream: TextIO, out_stream: TextIO, *, use_preprocessor: bool = 
 
         token = user_input.strip().lower()
         if token == "state":
-            for state_line in _render_state_lines(engine.state):
-                print(state_line, file=out_stream)
+            if json_mode:
+                _write_json_line(out_stream, _json_state_payload(engine.state))
+            else:
+                for state_line in _render_state_lines(engine.state):
+                    print(state_line, file=out_stream)
             continue
 
         if user_input.startswith("step"):
             payload = user_input[4:].lstrip() if user_input != "step" else ""
             if token == "step" and payload == "":
-                _print_command_error(
-                    out_stream,
-                    leading_blank=False,
-                    message="step requires input.\nUse 'step <input>'.",
-                )
-                continue
-            if payload != "" and (user_input == "step" or user_input.startswith("step ")):
-                if _has_pending_clarification(engine) and not _is_confirmation_input(payload):
+                if json_mode:
+                    _write_json_line(
+                        out_stream,
+                        _json_error_payload(
+                            command="step",
+                            code="missing_step_input",
+                            message="step requires input.\nUse 'step <input>'.",
+                        ),
+                    )
+                else:
                     _print_command_error(
                         out_stream,
                         leading_blank=False,
-                        message=_STEP_PENDING_CONFIRMATION_ERROR,
+                        message="step requires input.\nUse 'step <input>'.",
                     )
+                continue
+            if payload != "" and (user_input == "step" or user_input.startswith("step ")):
+                if _has_pending_clarification(engine) and not _is_confirmation_input(payload):
+                    if json_mode:
+                        _write_json_line(
+                            out_stream,
+                            _json_error_payload(
+                                command="step",
+                                code="pending_confirmation_required",
+                                message=_STEP_PENDING_CONFIRMATION_ERROR,
+                            ),
+                        )
+                    else:
+                        _print_command_error(
+                            out_stream,
+                            leading_blank=False,
+                            message=_STEP_PENDING_CONFIRMATION_ERROR,
+                        )
                     continue
                 compile_input = _compile_input(payload, engine, use_preprocessor=use_preprocessor)
                 result = controller_step(engine, compile_input)
-                _print_decision_lines(result["decision"], out_stream, leading_blank=False)
+                if json_mode:
+                    _write_json_line(out_stream, _json_step_payload(result, command="step"))
+                else:
+                    _print_decision_lines(result["decision"], out_stream, leading_blank=False)
                 continue
 
         preview_command = None
@@ -314,25 +392,43 @@ def run_repl(in_stream: TextIO, out_stream: TextIO, *, use_preprocessor: bool = 
 
         if preview_command == "preview":
             if payload.strip() == "":
-                _print_command_error(
-                    out_stream,
-                    leading_blank=False,
-                    message="preview requires input.\nUse 'preview <input>'.",
-                )
+                if json_mode:
+                    _write_json_line(
+                        out_stream,
+                        _json_error_payload(
+                            command="preview",
+                            code="missing_preview_input",
+                            message="preview requires input.\nUse 'preview <input>'.",
+                        ),
+                    )
+                else:
+                    _print_command_error(
+                        out_stream,
+                        leading_blank=False,
+                        message="preview requires input.\nUse 'preview <input>'.",
+                    )
                 continue
             compile_input = _compile_input(payload, engine, use_preprocessor=use_preprocessor)
             preview_result = controller_preview(engine, compile_input)
-            _print_preview_lines(
-                preview_result,
-                out_stream,
-                leading_blank=False,
-                command_name=preview_command,
-            )
+            if json_mode:
+                _write_json_line(
+                    out_stream, _json_preview_payload(preview_result, command="preview")
+                )
+            else:
+                _print_preview_lines(
+                    preview_result,
+                    out_stream,
+                    leading_blank=False,
+                    command_name=preview_command,
+                )
             continue
 
         compile_input = _compile_input(user_input, engine, use_preprocessor=use_preprocessor)
         result = controller_step(engine, compile_input)
-        _print_decision_lines(result["decision"], out_stream, leading_blank=False)
+        if json_mode:
+            _write_json_line(out_stream, _json_step_payload(result, command="input"))
+        else:
+            _print_decision_lines(result["decision"], out_stream, leading_blank=False)
 
 
 def main() -> int:  # pragma: no cover
@@ -349,8 +445,21 @@ def main() -> int:  # pragma: no cover
         print(__version__, file=sys.stdout)
         return 0
 
-    if args == ["--with-preprocessor"]:
-        run_repl(sys.stdin, sys.stdout, use_preprocessor=True)
+    if args and all(arg in {"--with-preprocessor", "--json"} for arg in args) and len(args) <= 2:
+        if len(args) != len(set(args)):
+            bad_arg = args[0]
+            print(f"error: unknown option '{bad_arg}'", file=sys.stderr)
+            print("Try 'context-compiler --help' for usage.", file=sys.stderr)
+            return 1
+
+        use_preprocessor = "--with-preprocessor" in args
+        json_mode = "--json" in args
+
+        if json_mode and _is_interactive(sys.stdin, sys.stdout):
+            print("error: --json requires non-interactive stdin/stdout.", file=sys.stderr)
+            return 1
+
+        run_repl(sys.stdin, sys.stdout, use_preprocessor=use_preprocessor, json_mode=json_mode)
         return 0
 
     bad_arg = args[0]
