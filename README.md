@@ -41,6 +41,13 @@ context-compiler --with-preprocessor
 passed through to the engine, which continues to return clarify behavior for
 those forms.
 
+REPL command-layer commands (host/controller layer, not engine directives):
+- `state` shows current authoritative state.
+- `preview <input>` runs deterministic dry-run without mutating live state.
+- `step <input>` is an explicit alias of normal bare-input step behavior.
+
+Bare REPL input behavior remains unchanged.
+
 Or in code:
 ```python
 from context_compiler import DECISION_CLARIFY, DECISION_UPDATE, create_engine
@@ -207,6 +214,22 @@ Meaning:
 | `engine.import_checkpoint(payload)` | Restore full checkpoint (`Checkpoint`) and return `None`. |
 | `engine.export_checkpoint_json()` | Export checkpoint as canonical JSON (`str`). |
 | `engine.import_checkpoint_json(payload)` | Restore checkpoint from JSON (`str`) and return `None`. |
+
+### Controller API (Reusable Outside REPL)
+
+These controller-layer APIs are public package exports and can be used directly
+in host code (not just inside the REPL).
+
+| API | Description |
+|---|---|
+| `step(engine, user_input)` | Run one turn through the engine and return `StepResult` (`output_version`, `mode`, `decision`, `state`). |
+| `preview(engine, user_input)` | Run deterministic dry-run preview and return `PreviewResult` (`output_version`, `mode`, `decision`, `state_before`, `state_after`, `diff`, `would_mutate`). Live engine state is restored after preview. |
+| `state_diff(state_before, state_after)` | Return a structural `StructuralDiff` (`changed`, premise before/after, policies added/removed/changed). |
+
+Decision-kind constants are also exported for host branching readability:
+- `DECISION_PASSTHROUGH`
+- `DECISION_UPDATE`
+- `DECISION_CLARIFY`
 
 ---
 

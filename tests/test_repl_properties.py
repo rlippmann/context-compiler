@@ -15,6 +15,13 @@ LINE_TEXT = st.text(
 )
 
 
+def _is_repl_command_line(line: str) -> bool:
+    token = line.strip().lower()
+    if token in {"state", "preview", "step"}:
+        return True
+    return line.startswith("preview ") or line.startswith("step ")
+
+
 def _run_repl_lines(lines: list[str]) -> tuple[str, list[str]]:
     in_stream = StringIO("".join(f"{line}\n" for line in lines))
     out_stream = StringIO()
@@ -57,6 +64,7 @@ def _oracle_render_decision(decision: dict[str, object]) -> list[str]:
 @given(st.lists(LINE_TEXT, min_size=0, max_size=40))
 def test_repl_matches_engine_for_non_exit_sequences(lines: list[str]) -> None:
     assume(all(line.strip().lower() not in {"exit", "quit"} for line in lines))
+    assume(all(not _is_repl_command_line(line) for line in lines))
 
     _, repl_lines = _run_repl_lines(lines)
 
@@ -87,6 +95,7 @@ def test_repl_stops_processing_after_exit_or_quit(
     prefix: list[str], stop_token: str, suffix: list[str]
 ) -> None:
     assume(all(line.strip().lower() not in {"exit", "quit"} for line in prefix))
+    assume(all(not _is_repl_command_line(line) for line in prefix))
     lines = [*prefix, stop_token, *suffix]
     _, repl_lines = _run_repl_lines(lines)
 
