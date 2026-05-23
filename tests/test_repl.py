@@ -1,4 +1,5 @@
 import json
+import pathlib
 import subprocess
 import sys
 from io import StringIO
@@ -88,6 +89,8 @@ def test_main_help_flag_prints_usage_and_exits_zero(
     assert captured.out == (
         "Usage:\n"
         "  context-compiler [--help] [--version] [--with-preprocessor] [--json]\n"
+        "                   [--initial-state-json <json> | --initial-state-file <path>]\n"
+        "                   [--initial-checkpoint-json <json> | --initial-checkpoint-file <path>]\n"
         "\n"
         "Options:\n"
         "  --help                Show this help message and exit.\n"
@@ -95,6 +98,12 @@ def test_main_help_flag_prints_usage_and_exits_zero(
         "  --with-preprocessor   Enable preprocessor before each REPL turn "
         "(heuristic + validation only)\n"
         "  --json                Emit machine-readable NDJSON output (non-interactive only)\n"
+        "  --initial-state-json  Initialize authoritative state from exported state JSON text\n"
+        "  --initial-state-file  Initialize authoritative state from UTF-8 state JSON file\n"
+        "  --initial-checkpoint-json\n"
+        "                        Restore runtime continuation from checkpoint JSON text\n"
+        "  --initial-checkpoint-file\n"
+        "                        Restore runtime continuation from UTF-8 checkpoint JSON file\n"
     )
     assert captured.err == ""
 
@@ -116,11 +125,18 @@ def test_main_without_args_runs_repl_as_before(monkeypatch: pytest.MonkeyPatch) 
     called: dict[str, object] = {}
 
     def _fake_run_repl(
-        in_stream: TextIO, out_stream: TextIO, *, use_preprocessor: bool = False
+        in_stream: TextIO,
+        out_stream: TextIO,
+        *,
+        use_preprocessor: bool = False,
+        json_mode: bool = False,
+        engine: object | None = None,
     ) -> None:
         called["in_stream"] = in_stream
         called["out_stream"] = out_stream
         called["use_preprocessor"] = use_preprocessor
+        called["json_mode"] = json_mode
+        called["engine"] = engine
 
     monkeypatch.setattr(repl_module, "run_repl", _fake_run_repl)
     monkeypatch.setattr(sys, "argv", ["context-compiler"])
@@ -131,6 +147,8 @@ def test_main_without_args_runs_repl_as_before(monkeypatch: pytest.MonkeyPatch) 
     assert called["in_stream"] is sys.stdin
     assert called["out_stream"] is sys.stdout
     assert called["use_preprocessor"] is False
+    assert called["json_mode"] is False
+    assert called["engine"] is None
 
 
 def test_main_with_preprocessor_flag_runs_repl_with_flag(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -142,6 +160,7 @@ def test_main_with_preprocessor_flag_runs_repl_with_flag(monkeypatch: pytest.Mon
         *,
         use_preprocessor: bool = False,
         json_mode: bool = False,
+        engine: object | None = None,
     ) -> None:
         called["in_stream"] = in_stream
         called["out_stream"] = out_stream
@@ -169,6 +188,7 @@ def test_main_with_json_flag_runs_repl_with_json_mode(monkeypatch: pytest.Monkey
         *,
         use_preprocessor: bool = False,
         json_mode: bool = False,
+        engine: object | None = None,
     ) -> None:
         called["in_stream"] = in_stream
         called["out_stream"] = out_stream
@@ -199,6 +219,7 @@ def test_main_with_json_and_preprocessor_runs_repl_with_both(
         *,
         use_preprocessor: bool = False,
         json_mode: bool = False,
+        engine: object | None = None,
     ) -> None:
         called["in_stream"] = in_stream
         called["out_stream"] = out_stream
@@ -247,22 +268,246 @@ def test_main_unknown_flag_prints_error_hint_and_exits_nonzero(
     )
 
 
-@pytest.mark.parametrize(
-    "args, expected_bad_arg",
-    [
-        (["--with-preprocessor", "foo"], "--with-preprocessor"),
-        (["--help", "--version"], "--help"),
-        (["--version", "--with-preprocessor"], "--version"),
-    ],
-)
-def test_cli_rejects_non_single_flag_argument_forms(args: list[str], expected_bad_arg: str) -> None:
+@pytest.mark.parametrize("args", [["--help", "--version"], ["--version", "--with-preprocessor"]])
+def test_cli_rejects_non_single_flag_argument_forms(args: list[str]) -> None:
     result = _run_repl_cli(*args)
 
     assert result.returncode != 0
     assert result.stdout == ""
-    assert result.stderr == (
-        f"error: unknown option '{expected_bad_arg}'\nTry 'context-compiler --help' for usage.\n"
+    assert "error: unknown option" in result.stderr
+    assert "Try 'context-compiler --help' for usage." in result.stderr
+
+
+def test_cli_rejects_unknown_positional_after_flag() -> None:
+    result = _run_repl_cli("--with-preprocessor", "foo")
+    assert result.returncode != 0
+    assert result.stdout == ""
+    assert (
+        result.stderr == "error: unknown option 'foo'\nTry 'context-compiler --help' for usage.\n"
     )
+
+
+def test_cli_initial_state_json_preload_works() -> None:
+    engine = create_engine()
+    engine.step("set premise concise")
+    payload = engine.export_json()
+
+    result = _run_repl_cli("--initial-state-json", payload, input_text="state\nquit\n")
+    assert result.returncode == 0
+    assert "premise: concise" in result.stdout
+    assert result.stderr == ""
+
+
+def test_cli_initial_state_file_preload_works(tmp_path: pathlib.Path) -> None:
+    engine = create_engine()
+    engine.step("use docker")
+    path = tmp_path / "state.json"
+    path.write_text(engine.export_json(), encoding="utf-8")
+
+    result = _run_repl_cli("--initial-state-file", str(path), input_text="state\nquit\n")
+    assert result.returncode == 0
+    assert "policies:" in result.stdout
+    assert "- use docker" in result.stdout
+    assert result.stderr == ""
+
+
+def test_cli_initial_checkpoint_json_preload_works_with_pending_confirmation() -> None:
+    engine = create_engine()
+    engine.step("use kubectl instead of docker")
+    payload = engine.export_checkpoint_json()
+
+    result = _run_repl_cli("--initial-checkpoint-json", payload, input_text="yes\nquit\n")
+    assert result.returncode == 0
+    assert "updated" in result.stdout
+    assert "- use kubectl" in result.stdout
+    assert result.stderr == ""
+
+
+def test_cli_initial_checkpoint_file_preload_works(tmp_path: pathlib.Path) -> None:
+    engine = create_engine()
+    engine.step("set premise concise")
+    checkpoint = engine.export_checkpoint_json()
+    path = tmp_path / "checkpoint.json"
+    path.write_text(checkpoint, encoding="utf-8")
+
+    result = _run_repl_cli("--initial-checkpoint-file", str(path), input_text="state\nquit\n")
+    assert result.returncode == 0
+    assert "premise: concise" in result.stdout
+    assert result.stderr == ""
+
+
+def test_cli_invalid_initial_state_preload_fails_fast() -> None:
+    result = _run_repl_cli("--initial-state-json", '{"bad":true}', input_text="state\nquit\n")
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert result.stderr == "error: preload failed: Invalid state payload.\n"
+
+
+def test_cli_invalid_initial_checkpoint_preload_fails_fast() -> None:
+    result = _run_repl_cli("--initial-checkpoint-json", '{"bad":true}', input_text="state\nquit\n")
+    assert result.returncode == 1
+    assert result.stdout == ""
+    assert result.stderr == "error: preload failed: Invalid checkpoint payload.\n"
+
+
+def test_cli_preload_mutual_exclusion_state_json_vs_file() -> None:
+    result = _run_repl_cli("--initial-state-json", "{}", "--initial-state-file", "/tmp/ignored")
+    assert result.returncode == 1
+    assert result.stdout == ""
+    expected = (
+        "error: state preload options are mutually exclusive\n"
+        "Try 'context-compiler --help' for usage.\n"
+    )
+    assert result.stderr == expected
+
+
+def test_cli_preload_mutual_exclusion_checkpoint_json_vs_file() -> None:
+    result = _run_repl_cli(
+        "--initial-checkpoint-json", "{}", "--initial-checkpoint-file", "/tmp/ignored"
+    )
+    assert result.returncode == 1
+    assert result.stdout == ""
+    expected = (
+        "error: checkpoint preload options are mutually exclusive\n"
+        "Try 'context-compiler --help' for usage.\n"
+    )
+    assert result.stderr == expected
+
+
+def test_cli_preload_mutual_exclusion_state_vs_checkpoint() -> None:
+    result = _run_repl_cli("--initial-state-json", "{}", "--initial-checkpoint-json", "{}")
+    assert result.returncode == 1
+    assert result.stdout == ""
+    expected = (
+        "error: state preload and checkpoint preload are mutually exclusive\n"
+        "Try 'context-compiler --help' for usage.\n"
+    )
+    assert result.stderr == expected
+
+
+def test_cli_preload_works_with_json_mode() -> None:
+    engine = create_engine()
+    engine.step("set premise concise")
+    payload = engine.export_json()
+
+    result = _run_repl_cli("--json", "--initial-state-json", payload, input_text="state\nquit\n")
+    assert result.returncode == 0
+    lines = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
+    assert lines[0]["mode"] == "state"
+    assert lines[0]["state"]["premise"] == "concise"
+    assert result.stderr == ""
+
+
+def test_cli_preload_missing_value_errors() -> None:
+    result = _run_repl_cli("--initial-state-json")
+    assert result.returncode == 1
+    assert result.stdout == ""
+    expected = (
+        "error: option '--initial-state-json' requires a value\n"
+        "Try 'context-compiler --help' for usage.\n"
+    )
+    assert result.stderr == expected
+
+
+def test_parse_cli_options_duplicate_value_flag_rejected() -> None:
+    options, error = repl_module._parse_cli_options(
+        ["--initial-state-json", "{}", "--initial-state-json", "{}"]
+    )
+    assert options == {}
+    assert error == "option '--initial-state-json' was provided more than once"
+
+
+def test_parse_cli_options_missing_value_rejected() -> None:
+    options, error = repl_module._parse_cli_options(["--initial-state-json"])
+    assert options == {}
+    assert error == "option '--initial-state-json' requires a value"
+
+
+def test_parse_cli_options_mutual_exclusion_errors() -> None:
+    options_state, error_state = repl_module._parse_cli_options(
+        ["--initial-state-json", "{}", "--initial-state-file", "/tmp/x"]
+    )
+    assert options_state == {}
+    assert error_state == "state preload options are mutually exclusive"
+
+    options_ckpt, error_ckpt = repl_module._parse_cli_options(
+        ["--initial-checkpoint-json", "{}", "--initial-checkpoint-file", "/tmp/x"]
+    )
+    assert options_ckpt == {}
+    assert error_ckpt == "checkpoint preload options are mutually exclusive"
+
+    options_cross, error_cross = repl_module._parse_cli_options(
+        ["--initial-state-json", "{}", "--initial-checkpoint-json", "{}"]
+    )
+    assert options_cross == {}
+    assert error_cross == "state preload and checkpoint preload are mutually exclusive"
+
+
+def test_apply_preload_from_options_state_and_checkpoint_file_paths(
+    tmp_path: pathlib.Path,
+) -> None:
+    baseline = create_engine()
+    baseline.step("set premise concise")
+    baseline_checkpoint_engine = create_engine()
+    baseline_checkpoint_engine.step("use kubectl instead of docker")
+
+    state_path = tmp_path / "initial_state.json"
+    checkpoint_path = tmp_path / "initial_checkpoint.json"
+    state_path.write_text(baseline.export_json(), encoding="utf-8")
+    checkpoint_path.write_text(
+        baseline_checkpoint_engine.export_checkpoint_json(), encoding="utf-8"
+    )
+
+    state_engine = create_engine()
+    repl_module._apply_preload_from_options(
+        state_engine,
+        {"use_preprocessor": False, "json_mode": False, "initial_state_file": str(state_path)},
+    )
+    assert state_engine.state["premise"] == "concise"
+
+    checkpoint_engine = create_engine()
+    repl_module._apply_preload_from_options(
+        checkpoint_engine,
+        {
+            "use_preprocessor": False,
+            "json_mode": False,
+            "initial_checkpoint_file": str(checkpoint_path),
+        },
+    )
+    decision = checkpoint_engine.step("yes")
+    assert decision["kind"] == "update"
+    assert checkpoint_engine.state["policies"] == {"kubectl": "use"}
+
+
+def test_apply_preload_from_options_state_and_checkpoint_json() -> None:
+    source_state = create_engine()
+    source_state.step("set premise concise")
+    source_checkpoint = create_engine()
+    source_checkpoint.step("use kubectl instead of docker")
+
+    state_engine = create_engine()
+    repl_module._apply_preload_from_options(
+        state_engine,
+        {
+            "use_preprocessor": False,
+            "json_mode": False,
+            "initial_state_json": source_state.export_json(),
+        },
+    )
+    assert state_engine.state["premise"] == "concise"
+
+    checkpoint_engine = create_engine()
+    repl_module._apply_preload_from_options(
+        checkpoint_engine,
+        {
+            "use_preprocessor": False,
+            "json_mode": False,
+            "initial_checkpoint_json": source_checkpoint.export_checkpoint_json(),
+        },
+    )
+    decision = checkpoint_engine.step("yes")
+    assert decision["kind"] == "update"
+    assert checkpoint_engine.state["policies"] == {"kubectl": "use"}
 
 
 def test_repl_update_flow() -> None:

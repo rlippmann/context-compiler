@@ -22,12 +22,20 @@ _STEP_PENDING_CONFIRMATION_ERROR = (
 )
 _CLI_HELP_TEXT = """Usage:
   context-compiler [--help] [--version] [--with-preprocessor] [--json]
+                   [--initial-state-json <json> | --initial-state-file <path>]
+                   [--initial-checkpoint-json <json> | --initial-checkpoint-file <path>]
 
 Options:
   --help                Show this help message and exit.
   --version             Show the installed context-compiler version and exit.
   --with-preprocessor   Enable preprocessor before each REPL turn (heuristic + validation only)
   --json                Emit machine-readable NDJSON output (non-interactive only)
+  --initial-state-json  Initialize authoritative state from exported state JSON text
+  --initial-state-file  Initialize authoritative state from UTF-8 state JSON file
+  --initial-checkpoint-json
+                        Restore runtime continuation from checkpoint JSON text
+  --initial-checkpoint-file
+                        Restore runtime continuation from UTF-8 checkpoint JSON file
 """
 
 
@@ -194,6 +202,83 @@ def _json_error_payload(*, command: str, code: str, message: str) -> dict[str, o
     }
 
 
+def _read_utf8_file(path: str) -> str:
+    with open(path, encoding="utf-8") as fh:
+        return fh.read()
+
+
+def _parse_cli_options(args: list[str]) -> tuple[dict[str, str | bool], str | None]:
+    options: dict[str, str | bool] = {
+        "use_preprocessor": False,
+        "json_mode": False,
+    }
+
+    value_flags = {
+        "--initial-state-json": "initial_state_json",
+        "--initial-state-file": "initial_state_file",
+        "--initial-checkpoint-json": "initial_checkpoint_json",
+        "--initial-checkpoint-file": "initial_checkpoint_file",
+    }
+
+    idx = 0
+    while idx < len(args):
+        arg = args[idx]
+        if arg == "--with-preprocessor":
+            options["use_preprocessor"] = True
+            idx += 1
+            continue
+        if arg == "--json":
+            options["json_mode"] = True
+            idx += 1
+            continue
+        if arg in value_flags:
+            key = value_flags[arg]
+            if idx + 1 >= len(args):
+                return {}, f"option '{arg}' requires a value"
+            if key in options:
+                return {}, f"option '{arg}' was provided more than once"
+            options[key] = args[idx + 1]
+            idx += 2
+            continue
+        return {}, f"unknown option '{arg}'"
+
+    has_state_json = "initial_state_json" in options
+    has_state_file = "initial_state_file" in options
+    has_checkpoint_json = "initial_checkpoint_json" in options
+    has_checkpoint_file = "initial_checkpoint_file" in options
+
+    if has_state_json and has_state_file:
+        return {}, "state preload options are mutually exclusive"
+    if has_checkpoint_json and has_checkpoint_file:
+        return {}, "checkpoint preload options are mutually exclusive"
+    if (has_state_json or has_state_file) and (has_checkpoint_json or has_checkpoint_file):
+        return {}, "state preload and checkpoint preload are mutually exclusive"
+
+    return options, None
+
+
+def _apply_preload_from_options(engine: Engine, options: dict[str, str | bool]) -> None:
+    if "initial_state_json" in options:
+        raw = options["initial_state_json"]
+        assert isinstance(raw, str)
+        engine.import_json(raw)
+        return
+    if "initial_state_file" in options:
+        path = options["initial_state_file"]
+        assert isinstance(path, str)
+        engine.import_json(_read_utf8_file(path))
+        return
+    if "initial_checkpoint_json" in options:
+        raw = options["initial_checkpoint_json"]
+        assert isinstance(raw, str)
+        engine.import_checkpoint_json(raw)
+        return
+    if "initial_checkpoint_file" in options:
+        path = options["initial_checkpoint_file"]
+        assert isinstance(path, str)
+        engine.import_checkpoint_json(_read_utf8_file(path))
+
+
 def _has_pending_clarification(engine: Engine) -> bool:
     return engine.has_pending_clarification()
 
@@ -225,8 +310,9 @@ def run_repl(
     *,
     use_preprocessor: bool = False,
     json_mode: bool = False,
+    engine: Engine | None = None,
 ) -> None:
-    engine = create_engine()
+    active_engine = create_engine() if engine is None else engine
 
     if _is_interactive(in_stream, out_stream):
         print("Context Compiler REPL (0.5). Type help for commands.", file=out_stream)
@@ -251,7 +337,7 @@ def run_repl(
 
             if token == "state":
                 print("", file=out_stream)
-                for line in _render_state_lines(engine.state):
+                for line in _render_state_lines(active_engine.state):
                     print(line, file=out_stream)
                 continue
 
@@ -265,7 +351,9 @@ def run_repl(
                     )
                     continue
                 if payload != "" and (user_input == "step" or user_input.startswith("step ")):
-                    if _has_pending_clarification(engine) and not _is_confirmation_input(payload):
+                    if _has_pending_clarification(active_engine) and not _is_confirmation_input(
+                        payload
+                    ):
                         _print_command_error(
                             out_stream,
                             leading_blank=True,
@@ -273,9 +361,9 @@ def run_repl(
                         )
                         continue
                     compile_input = _compile_input(
-                        payload, engine, use_preprocessor=use_preprocessor
+                        payload, active_engine, use_preprocessor=use_preprocessor
                     )
-                    result: StepResult = controller_step(engine, compile_input)
+                    result: StepResult = controller_step(active_engine, compile_input)
                     _print_decision_lines(result["decision"], out_stream, leading_blank=True)
                     continue
 
@@ -295,8 +383,10 @@ def run_repl(
                         message="preview requires input.\nUse 'preview <input>'.",
                     )
                     continue
-                compile_input = _compile_input(payload, engine, use_preprocessor=use_preprocessor)
-                preview_result = controller_preview(engine, compile_input)
+                compile_input = _compile_input(
+                    payload, active_engine, use_preprocessor=use_preprocessor
+                )
+                preview_result = controller_preview(active_engine, compile_input)
                 _print_preview_lines(
                     preview_result,
                     out_stream,
@@ -305,8 +395,10 @@ def run_repl(
                 )
                 continue
 
-            compile_input = _compile_input(user_input, engine, use_preprocessor=use_preprocessor)
-            result = controller_step(engine, compile_input)
+            compile_input = _compile_input(
+                user_input, active_engine, use_preprocessor=use_preprocessor
+            )
+            result = controller_step(active_engine, compile_input)
             _print_decision_lines(result["decision"], out_stream, leading_blank=True)
         return
 
@@ -331,9 +423,9 @@ def run_repl(
         token = user_input.strip().lower()
         if token == "state":
             if json_mode:
-                _write_json_line(out_stream, _json_state_payload(engine.state))
+                _write_json_line(out_stream, _json_state_payload(active_engine.state))
             else:
-                for state_line in _render_state_lines(engine.state):
+                for state_line in _render_state_lines(active_engine.state):
                     print(state_line, file=out_stream)
             continue
 
@@ -357,7 +449,9 @@ def run_repl(
                     )
                 continue
             if payload != "" and (user_input == "step" or user_input.startswith("step ")):
-                if _has_pending_clarification(engine) and not _is_confirmation_input(payload):
+                if _has_pending_clarification(active_engine) and not _is_confirmation_input(
+                    payload
+                ):
                     if json_mode:
                         _write_json_line(
                             out_stream,
@@ -374,8 +468,10 @@ def run_repl(
                             message=_STEP_PENDING_CONFIRMATION_ERROR,
                         )
                     continue
-                compile_input = _compile_input(payload, engine, use_preprocessor=use_preprocessor)
-                result = controller_step(engine, compile_input)
+                compile_input = _compile_input(
+                    payload, active_engine, use_preprocessor=use_preprocessor
+                )
+                result = controller_step(active_engine, compile_input)
                 if json_mode:
                     _write_json_line(out_stream, _json_step_payload(result, command="step"))
                 else:
@@ -408,8 +504,10 @@ def run_repl(
                         message="preview requires input.\nUse 'preview <input>'.",
                     )
                 continue
-            compile_input = _compile_input(payload, engine, use_preprocessor=use_preprocessor)
-            preview_result = controller_preview(engine, compile_input)
+            compile_input = _compile_input(
+                payload, active_engine, use_preprocessor=use_preprocessor
+            )
+            preview_result = controller_preview(active_engine, compile_input)
             if json_mode:
                 _write_json_line(
                     out_stream, _json_preview_payload(preview_result, command="preview")
@@ -423,8 +521,8 @@ def run_repl(
                 )
             continue
 
-        compile_input = _compile_input(user_input, engine, use_preprocessor=use_preprocessor)
-        result = controller_step(engine, compile_input)
+        compile_input = _compile_input(user_input, active_engine, use_preprocessor=use_preprocessor)
+        result = controller_step(active_engine, compile_input)
         if json_mode:
             _write_json_line(out_stream, _json_step_payload(result, command="input"))
         else:
@@ -445,27 +543,32 @@ def main() -> int:  # pragma: no cover
         print(__version__, file=sys.stdout)
         return 0
 
-    if args and all(arg in {"--with-preprocessor", "--json"} for arg in args) and len(args) <= 2:
-        if len(args) != len(set(args)):
-            bad_arg = args[0]
-            print(f"error: unknown option '{bad_arg}'", file=sys.stderr)
-            print("Try 'context-compiler --help' for usage.", file=sys.stderr)
-            return 1
+    options, parse_error = _parse_cli_options(args)
+    if parse_error is not None:
+        print(f"error: {parse_error}", file=sys.stderr)
+        print("Try 'context-compiler --help' for usage.", file=sys.stderr)
+        return 1
 
-        use_preprocessor = "--with-preprocessor" in args
-        json_mode = "--json" in args
+    json_mode = bool(options["json_mode"])
+    if json_mode and _is_interactive(sys.stdin, sys.stdout):
+        print("error: --json requires non-interactive stdin/stdout.", file=sys.stderr)
+        return 1
 
-        if json_mode and _is_interactive(sys.stdin, sys.stdout):
-            print("error: --json requires non-interactive stdin/stdout.", file=sys.stderr)
-            return 1
+    engine = create_engine()
+    try:
+        _apply_preload_from_options(engine, options)
+    except (OSError, ValueError) as exc:
+        print(f"error: preload failed: {exc}", file=sys.stderr)
+        return 1
 
-        run_repl(sys.stdin, sys.stdout, use_preprocessor=use_preprocessor, json_mode=json_mode)
-        return 0
-
-    bad_arg = args[0]
-    print(f"error: unknown option '{bad_arg}'", file=sys.stderr)
-    print("Try 'context-compiler --help' for usage.", file=sys.stderr)
-    return 1
+    run_repl(
+        sys.stdin,
+        sys.stdout,
+        use_preprocessor=bool(options["use_preprocessor"]),
+        json_mode=json_mode,
+        engine=engine,
+    )
+    return 0
 
 
 if __name__ == "__main__":  # pragma: no cover
