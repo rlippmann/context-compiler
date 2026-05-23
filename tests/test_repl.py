@@ -409,6 +409,69 @@ def test_cli_preload_missing_value_errors() -> None:
     assert result.stderr == expected
 
 
+def test_cli_initial_state_file_preload_unreadable_file_error_is_deterministic(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def _boom(_path: str) -> str:
+        raise OSError("cannot read preload file")
+
+    monkeypatch.setattr(repl_module, "_read_utf8_file", _boom)
+    monkeypatch.setattr(
+        sys, "argv", ["context-compiler", "--initial-state-file", "/tmp/state.json"]
+    )
+
+    result = repl_module.main()
+    captured = capsys.readouterr()
+
+    assert result == 1
+    assert captured.out == ""
+    assert captured.err == "error: preload failed: cannot read preload file\n"
+
+
+def test_cli_initial_checkpoint_file_preload_permission_failure_is_deterministic(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def _boom(_path: str) -> str:
+        raise PermissionError("permission denied")
+
+    monkeypatch.setattr(repl_module, "_read_utf8_file", _boom)
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["context-compiler", "--initial-checkpoint-file", "/tmp/checkpoint.json"],
+    )
+
+    result = repl_module.main()
+    captured = capsys.readouterr()
+
+    assert result == 1
+    assert captured.out == ""
+    assert captured.err == "error: preload failed: permission denied\n"
+
+
+def test_cli_initial_state_file_preload_utf8_decode_failure_is_deterministic(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def _boom(_path: str) -> str:
+        raise UnicodeDecodeError("utf-8", b"\x80", 0, 1, "invalid start byte")
+
+    monkeypatch.setattr(repl_module, "_read_utf8_file", _boom)
+    monkeypatch.setattr(
+        sys, "argv", ["context-compiler", "--initial-state-file", "/tmp/state.json"]
+    )
+
+    result = repl_module.main()
+    captured = capsys.readouterr()
+
+    assert result == 1
+    assert captured.out == ""
+    expected = (
+        "error: preload failed: 'utf-8' codec can't decode byte 0x80 in position 0: "
+        "invalid start byte\n"
+    )
+    assert captured.err == expected
+
+
 def test_parse_cli_options_duplicate_value_flag_rejected() -> None:
     options, error = repl_module._parse_cli_options(
         ["--initial-state-json", "{}", "--initial-state-json", "{}"]
