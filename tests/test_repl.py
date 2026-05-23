@@ -243,6 +243,139 @@ def test_repl_non_interactive_uses_human_readable_output() -> None:
     assert lines == ["passthrough"]
 
 
+def test_repl_non_interactive_state_command_renders_current_state() -> None:
+    out = StringIO()
+    run_repl(StringIO("set premise concise\nstate\nquit\n"), out)
+
+    lines = out.getvalue().splitlines()
+    assert _contains_subsequence(lines, ["updated", "premise: concise", "policies: (none)"])
+    assert _contains_subsequence(lines, ["premise: concise", "policies: (none)"])
+
+
+def test_repl_non_interactive_preview_reports_no_mutation_for_clarify_and_keeps_pending() -> None:
+    out = StringIO()
+    run_repl(
+        StringIO("use kubectl instead of docker\npreview yes\nyes\nquit\n"),
+        out,
+    )
+    lines = [line for line in out.getvalue().splitlines() if line.strip()]
+
+    assert _contains_subsequence(lines, ['confirm: Did you mean to use "kubectl" instead?'])
+    assert _contains_subsequence(
+        lines, ["preview", "updated", "premise: (none)", "policies:", "- use kubectl"]
+    )
+    assert _contains_subsequence(lines, ["would_mutate: yes"])
+    assert _contains_subsequence(
+        lines, ["updated", "premise: (none)", "policies:", "- use kubectl"]
+    )
+
+
+def test_repl_non_interactive_preview_decline_reports_no_mutation() -> None:
+    out = StringIO()
+    run_repl(StringIO("use kubectl instead of docker\npreview no\nquit\n"), out)
+    lines = [line for line in out.getvalue().splitlines() if line.strip()]
+
+    assert _contains_subsequence(
+        lines, ["preview", "updated", "premise: (none)", "policies: (none)"]
+    )
+    assert _contains_subsequence(lines, ["would_mutate: no", "diff:", "- (none)"])
+
+
+def test_repl_non_interactive_explain_alias_matches_preview() -> None:
+    preview_out = StringIO()
+    run_repl(StringIO("preview set premise concise\nquit\n"), preview_out)
+
+    explain_out = StringIO()
+    run_repl(StringIO("explain set premise concise\nquit\n"), explain_out)
+
+    preview_lines = [line for line in preview_out.getvalue().splitlines() if line.strip()]
+    explain_lines = [line for line in explain_out.getvalue().splitlines() if line.strip()]
+
+    assert preview_lines[1:] == explain_lines[1:]
+    assert preview_lines[0] == "preview"
+    assert explain_lines[0] == "explain"
+
+
+def test_repl_non_interactive_step_alias_matches_bare_input_behavior() -> None:
+    bare = _run_non_interactive_lines("set premise concise\nquit\n")
+    aliased = _run_non_interactive_lines("step set premise concise\nquit\n")
+    assert bare == aliased
+
+
+def test_repl_non_interactive_preview_and_step_require_payload() -> None:
+    out = StringIO()
+    run_repl(StringIO("preview\nexplain\nstep\nquit\n"), out)
+    lines = [line for line in out.getvalue().splitlines() if line.strip()]
+
+    assert _contains_subsequence(
+        lines, ["error: preview requires input.", "Use 'preview <input>'."]
+    )
+    assert _contains_subsequence(
+        lines, ["error: explain requires input.", "Use 'explain <input>'."]
+    )
+    assert _contains_subsequence(lines, ["error: step requires input.", "Use 'step <input>'."])
+
+
+def test_repl_state_command_available_while_pending_clarification() -> None:
+    out = StringIO()
+    run_repl(StringIO("use kubectl instead of docker\nstate\nyes\nquit\n"), out)
+    lines = [line for line in out.getvalue().splitlines() if line.strip()]
+
+    assert _contains_subsequence(lines, ['confirm: Did you mean to use "kubectl" instead?'])
+    assert _contains_subsequence(lines, ["premise: (none)", "policies: (none)"])
+    assert _contains_subsequence(
+        lines, ["updated", "premise: (none)", "policies:", "- use kubectl"]
+    )
+
+
+def test_repl_step_command_rejects_non_confirmation_while_pending() -> None:
+    out = StringIO()
+    run_repl(
+        StringIO("use kubectl instead of docker\nstep set premise concise\nyes\nquit\n"),
+        out,
+    )
+    lines = [line for line in out.getvalue().splitlines() if line.strip()]
+
+    assert _contains_subsequence(lines, ['confirm: Did you mean to use "kubectl" instead?'])
+    assert _contains_subsequence(
+        lines,
+        [
+            "error: step command only accepts confirmation while clarification is pending.",
+            "Use yes/no (or variants), or use preview/explain/state.",
+        ],
+    )
+    assert _contains_subsequence(
+        lines, ["updated", "premise: (none)", "policies:", "- use kubectl"]
+    )
+
+
+def test_repl_step_command_accepts_confirmation_while_pending() -> None:
+    out = StringIO()
+    run_repl(StringIO("use kubectl instead of docker\nstep yes\nquit\n"), out)
+    lines = [line for line in out.getvalue().splitlines() if line.strip()]
+
+    assert _contains_subsequence(lines, ['confirm: Did you mean to use "kubectl" instead?'])
+    assert _contains_subsequence(
+        lines, ["updated", "premise: (none)", "policies:", "- use kubectl"]
+    )
+
+
+def test_repl_preview_and_explain_available_while_pending_clarification() -> None:
+    out = StringIO()
+    run_repl(
+        StringIO("use kubectl instead of docker\npreview yes\nexplain no\nyes\nquit\n"),
+        out,
+    )
+    lines = [line for line in out.getvalue().splitlines() if line.strip()]
+
+    assert _contains_subsequence(
+        lines, ["preview", "updated", "premise: (none)", "policies:", "- use kubectl"]
+    )
+    assert _contains_subsequence(
+        lines, ["explain", "updated", "premise: (none)", "policies: (none)"]
+    )
+
+
 def test_repl_with_preprocessor_parses_directive_before_engine_step() -> None:
     out = StringIO()
     run_repl(

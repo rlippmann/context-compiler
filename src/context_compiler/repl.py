@@ -4,12 +4,21 @@ from typing import TextIO
 from experimental.preprocessor.output_validation import parse_preprocessor_output
 
 from . import __version__, create_engine, get_policy_items, get_premise_value
+from .controller import PreviewResult, StepResult
+from .controller import preview as controller_preview
+from .controller import step as controller_step
 from .decision_constants import DECISION_CLARIFY, DECISION_PASSTHROUGH
 from .engine import Decision, DecisionKind, Engine, State
 
 _EXIT_TOKENS = {"exit", "quit"}
 _HELP_TOKENS = {"help", "?"}
 _MULTI_COMMAND_PROMPT = "Multiple commands detected.\nEnter one command per line."
+_AFFIRMATIVE_CONFIRMATIONS = {"yes", "yes please", "yep", "yeah", "sure", "ok", "okay"}
+_NEGATIVE_CONFIRMATIONS = {"no", "nope", "no thanks"}
+_STEP_PENDING_CONFIRMATION_ERROR = (
+    "step command only accepts confirmation while clarification is pending.\n"
+    "Use yes/no (or variants), or use preview/explain/state."
+)
 _CLI_HELP_TEXT = """Usage:
   context-compiler [--help] [--version] [--with-preprocessor]
 
@@ -98,8 +107,65 @@ def _print_decision_lines(decision: Decision, out_stream: TextIO, *, leading_bla
         print(line, file=out_stream)
 
 
+def _render_diff_lines(preview_result: PreviewResult) -> list[str]:
+    diff = preview_result["diff"]
+    lines = [f"would_mutate: {'yes' if preview_result['would_mutate'] else 'no'}", "diff:"]
+
+    premise = diff["premise"]
+    if premise["changed"]:
+        before = "(none)" if premise["before"] is None else premise["before"]
+        after = "(none)" if premise["after"] is None else premise["after"]
+        lines.append(f"- premise: {before} -> {after}")
+
+    policies = diff["policies"]
+    for item, value in sorted(policies["added"].items()):
+        lines.append(f"- + {value} {item}")
+    for item, value in sorted(policies["removed"].items()):
+        lines.append(f"- - {value} {item}")
+    for item, change in sorted(policies["changed"].items()):
+        lines.append(f"- ~ {change['before']} {item} -> {change['after']} {item}")
+
+    if len(lines) == 2:
+        lines.append("- (none)")
+    return lines
+
+
+def _print_preview_lines(
+    preview_result: PreviewResult,
+    out_stream: TextIO,
+    *,
+    leading_blank: bool,
+    command_name: str,
+) -> None:
+    if leading_blank:
+        print("", file=out_stream)
+    print(command_name, file=out_stream)
+    for line in _render_decision_lines(preview_result["decision"]):
+        print(line, file=out_stream)
+    for line in _render_diff_lines(preview_result):
+        print(line, file=out_stream)
+
+
+def _print_command_error(out_stream: TextIO, *, leading_blank: bool, message: str) -> None:
+    if leading_blank:
+        print("", file=out_stream)
+    print(f"error: {message}", file=out_stream)
+
+
 def _has_pending_clarification(engine: Engine) -> bool:
     return engine.has_pending_clarification()
+
+
+def _normalize_confirmation_token(value: str) -> str:
+    normalized = value.strip().lower()
+    while normalized and normalized[-1] in ".,!?":
+        normalized = normalized[:-1]
+    return " ".join(normalized.split())
+
+
+def _is_confirmation_input(value: str) -> bool:
+    normalized = _normalize_confirmation_token(value)
+    return normalized in _AFFIRMATIVE_CONFIRMATIONS or normalized in _NEGATIVE_CONFIRMATIONS
 
 
 def _compile_input(raw_input: str, engine: Engine, *, use_preprocessor: bool) -> str:
@@ -135,9 +201,71 @@ def run_repl(in_stream: TextIO, out_stream: TextIO, *, use_preprocessor: bool = 
                 _print_interactive_help(out_stream)
                 continue
 
+            if token == "state":
+                print("", file=out_stream)
+                for line in _render_state_lines(engine.state):
+                    print(line, file=out_stream)
+                continue
+
+            if user_input.startswith("step"):
+                payload = user_input[4:].lstrip() if user_input != "step" else ""
+                if token == "step" and payload == "":
+                    _print_command_error(
+                        out_stream,
+                        leading_blank=True,
+                        message="step requires input.\nUse 'step <input>'.",
+                    )
+                    continue
+                if payload != "" and (user_input == "step" or user_input.startswith("step ")):
+                    if _has_pending_clarification(engine) and not _is_confirmation_input(payload):
+                        _print_command_error(
+                            out_stream,
+                            leading_blank=True,
+                            message=_STEP_PENDING_CONFIRMATION_ERROR,
+                        )
+                        continue
+                    compile_input = _compile_input(
+                        payload, engine, use_preprocessor=use_preprocessor
+                    )
+                    result: StepResult = controller_step(engine, compile_input)
+                    _print_decision_lines(result["decision"], out_stream, leading_blank=True)
+                    continue
+
+            preview_command: str | None = None
+            payload = ""
+            if user_input.startswith("preview "):
+                preview_command = "preview"
+                payload = user_input[len("preview ") :]
+            elif token == "preview":
+                preview_command = "preview"
+            elif user_input.startswith("explain "):
+                preview_command = "explain"
+                payload = user_input[len("explain ") :]
+            elif token == "explain":
+                preview_command = "explain"
+
+            if preview_command is not None:
+                if payload.strip() == "":
+                    message = f"{preview_command} requires input.\nUse '{preview_command} <input>'."
+                    _print_command_error(
+                        out_stream,
+                        leading_blank=True,
+                        message=message,
+                    )
+                    continue
+                compile_input = _compile_input(payload, engine, use_preprocessor=use_preprocessor)
+                preview_result = controller_preview(engine, compile_input)
+                _print_preview_lines(
+                    preview_result,
+                    out_stream,
+                    leading_blank=True,
+                    command_name=preview_command,
+                )
+                continue
+
             compile_input = _compile_input(user_input, engine, use_preprocessor=use_preprocessor)
-            decision = engine.step(compile_input)
-            _print_decision_lines(decision, out_stream, leading_blank=True)
+            result = controller_step(engine, compile_input)
+            _print_decision_lines(result["decision"], out_stream, leading_blank=True)
         return
 
     for line in in_stream:
@@ -147,9 +275,70 @@ def run_repl(in_stream: TextIO, out_stream: TextIO, *, use_preprocessor: bool = 
         user_input = line.rstrip("\n")
         if user_input.strip().lower() in _EXIT_TOKENS:
             return
+
+        token = user_input.strip().lower()
+        if token == "state":
+            for state_line in _render_state_lines(engine.state):
+                print(state_line, file=out_stream)
+            continue
+
+        if user_input.startswith("step"):
+            payload = user_input[4:].lstrip() if user_input != "step" else ""
+            if token == "step" and payload == "":
+                _print_command_error(
+                    out_stream,
+                    leading_blank=False,
+                    message="step requires input.\nUse 'step <input>'.",
+                )
+                continue
+            if payload != "" and (user_input == "step" or user_input.startswith("step ")):
+                if _has_pending_clarification(engine) and not _is_confirmation_input(payload):
+                    _print_command_error(
+                        out_stream,
+                        leading_blank=False,
+                        message=_STEP_PENDING_CONFIRMATION_ERROR,
+                    )
+                    continue
+                compile_input = _compile_input(payload, engine, use_preprocessor=use_preprocessor)
+                result = controller_step(engine, compile_input)
+                _print_decision_lines(result["decision"], out_stream, leading_blank=False)
+                continue
+
+        preview_command = None
+        payload = ""
+        if user_input.startswith("preview "):
+            preview_command = "preview"
+            payload = user_input[len("preview ") :]
+        elif token == "preview":
+            preview_command = "preview"
+        elif user_input.startswith("explain "):
+            preview_command = "explain"
+            payload = user_input[len("explain ") :]
+        elif token == "explain":
+            preview_command = "explain"
+
+        if preview_command is not None:
+            if payload.strip() == "":
+                message = f"{preview_command} requires input.\nUse '{preview_command} <input>'."
+                _print_command_error(
+                    out_stream,
+                    leading_blank=False,
+                    message=message,
+                )
+                continue
+            compile_input = _compile_input(payload, engine, use_preprocessor=use_preprocessor)
+            preview_result = controller_preview(engine, compile_input)
+            _print_preview_lines(
+                preview_result,
+                out_stream,
+                leading_blank=False,
+                command_name=preview_command,
+            )
+            continue
+
         compile_input = _compile_input(user_input, engine, use_preprocessor=use_preprocessor)
-        decision = engine.step(compile_input)
-        _print_decision_lines(decision, out_stream, leading_blank=False)
+        result = controller_step(engine, compile_input)
+        _print_decision_lines(result["decision"], out_stream, leading_blank=False)
 
 
 def main() -> int:  # pragma: no cover
