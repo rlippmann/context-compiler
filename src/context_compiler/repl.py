@@ -4,6 +4,7 @@ from typing import TextIO
 from experimental.preprocessor.output_validation import parse_preprocessor_output
 
 from . import __version__, create_engine, get_policy_items, get_premise_value
+from .decision_constants import DECISION_CLARIFY, DECISION_PASSTHROUGH
 from .engine import Decision, DecisionKind, Engine, State
 
 _EXIT_TOKENS = {"exit", "quit"}
@@ -76,9 +77,9 @@ def _render_state_lines(state: State) -> list[str]:
 
 def _render_decision_lines(decision: Decision) -> list[str]:
     kind = decision["kind"]
-    if kind == "passthrough":
+    if kind == DECISION_PASSTHROUGH:
         return ["passthrough"]
-    if kind == "clarify":
+    if kind == DECISION_CLARIFY:
         prompt = decision["prompt_to_user"] or ""
         prompt_lines = prompt.splitlines() if prompt else [""]
         if prompt.endswith("?"):

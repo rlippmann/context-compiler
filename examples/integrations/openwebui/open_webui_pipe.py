@@ -44,7 +44,15 @@ except ModuleNotFoundError:
         return default
 
 
-from context_compiler import State, create_engine, get_policy_items, get_premise_value
+from context_compiler import (
+    DECISION_CLARIFY,
+    DECISION_PASSTHROUGH,
+    DECISION_UPDATE,
+    State,
+    create_engine,
+    get_policy_items,
+    get_premise_value,
+)
 from context_compiler.engine import Engine
 
 logger = logging.getLogger(__name__)
@@ -221,7 +229,7 @@ def _build_compact_trace_text(
     kind = kind_obj if isinstance(kind_obj, str) else "unknown"
     lines = ["Context Compiler trace", "", f"decision kind: {kind}"]
 
-    if kind == "update":
+    if kind == DECISION_UPDATE:
         lines.append(f"state change: {_compact_state_change(state_before, state_after)}")
         lines.append(f"active state: {_active_state_summary(state_after)}")
         lines.append(f"downstream LLM call: {'yes' if llm_called else 'no'}")
@@ -229,7 +237,7 @@ def _build_compact_trace_text(
         lines.append(f"state injected: {state_injected}")
         return "\n".join(lines)
 
-    if kind == "clarify":
+    if kind == DECISION_CLARIFY:
         prompt_obj = decision.get("prompt_to_user") if isinstance(decision, dict) else None
         prompt = prompt_obj if isinstance(prompt_obj, str) else ""
         lines.append(f"clarification prompt: {prompt}")
@@ -634,7 +642,7 @@ class Pipe:
         if state_after is None:
             state_after = engine.state
 
-        if kind == "clarify":
+        if kind == DECISION_CLARIFY:
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
             return self._with_trace(
                 near_miss_prompt or decision["prompt_to_user"] or "",
@@ -645,7 +653,7 @@ class Pipe:
                 state_after=state_after,
                 llm_called=False,
             )
-        if near_miss_prompt is not None and kind == "passthrough":
+        if near_miss_prompt is not None and kind == DECISION_PASSTHROUGH:
             return self._with_trace(
                 near_miss_prompt,
                 original_input=latest_user_text,
@@ -655,7 +663,7 @@ class Pipe:
                 state_after=state_after,
                 llm_called=False,
             )
-        if kind == "passthrough":
+        if kind == DECISION_PASSTHROUGH:
             response = await self._forward_passthrough(body, __user__, __request__)
             return self._with_trace(
                 response,
@@ -666,7 +674,7 @@ class Pipe:
                 state_after=state_after,
                 llm_called=True,
             )
-        if kind == "update":
+        if kind == DECISION_UPDATE:
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
             if _is_administrative_update_input(latest_user_text):
                 return self._with_trace(

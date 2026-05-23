@@ -4,7 +4,15 @@ import os
 import re
 from typing import Literal, NotRequired, TypedDict
 
-from context_compiler import Decision, State, create_engine, get_policy_items, get_premise_value
+from context_compiler import (
+    DECISION_CLARIFY,
+    DECISION_UPDATE,
+    Decision,
+    State,
+    create_engine,
+    get_policy_items,
+    get_premise_value,
+)
 from demos.llm_client import Message
 
 VERBOSE_ENV_VAR = "CONTEXT_COMPILER_DEMO_VERBOSE"
@@ -71,10 +79,10 @@ def print_decision(title: str, decision: Decision, state: State) -> None:
     if not is_verbose():
         return
     print(f"Compiler decision ({title}):")
-    if decision["kind"] == "update":
+    if decision["kind"] == DECISION_UPDATE:
         print("result: updated")
         _print_state_summary(state)
-    elif decision["kind"] == "clarify":
+    elif decision["kind"] == DECISION_CLARIFY:
         print("result: clarify")
         prompt = decision["prompt_to_user"]
         if prompt:
@@ -251,10 +259,10 @@ def compact_user_turns(
 
     for turn in user_turns:
         decision = engine.step(turn)
-        if decision["kind"] == "update":
+        if decision["kind"] == DECISION_UPDATE:
             continue
         compacted_turns.append(turn)
-        if decision["kind"] == "clarify":
+        if decision["kind"] == DECISION_CLARIFY:
             prompt_to_user = decision["prompt_to_user"]
             break
 
