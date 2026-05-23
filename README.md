@@ -45,6 +45,12 @@ those forms.
 `--json` enables machine-readable NDJSON output for non-interactive usage
 (one complete JSON object per processed input line).
 
+Preload options keep authoritative state and runtime continuation separate:
+- `--initial-state-json` / `--initial-state-file` load authoritative state
+  (via exported state JSON).
+- `--initial-checkpoint-json` / `--initial-checkpoint-file` restore full
+  checkpoint continuation (authoritative state + pending clarification state).
+
 REPL command-layer commands (host/controller layer, not engine directives):
 - `state` shows current authoritative state.
 - `preview <input>` runs deterministic dry-run without mutating live state.

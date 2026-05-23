@@ -116,6 +116,27 @@ def test_state_diff_structural_changes() -> None:
     }
 
 
+@pytest.mark.contract
+def test_state_diff_policy_removed_and_value_changed() -> None:
+    before = {
+        "premise": None,
+        "policies": {"docker": "use", "pytest": "prohibit"},
+        "version": 2,
+    }
+    after = {
+        "premise": None,
+        "policies": {"docker": "prohibit"},
+        "version": 2,
+    }
+
+    diff = state_diff(before, after)
+    assert diff["changed"] is True
+    assert diff["premise"] == {"before": None, "after": None, "changed": False}
+    assert diff["policies"]["removed"] == {"pytest": "prohibit"}
+    assert diff["policies"]["changed"] == {"docker": {"before": "use", "after": "prohibit"}}
+    assert diff["policies"]["added"] == {}
+
+
 def test_preview_fails_when_checkpoint_restore_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
