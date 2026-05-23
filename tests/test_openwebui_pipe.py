@@ -265,7 +265,7 @@ def test_pipe_supports_async_user_lookup(monkeypatch) -> None:
     assert isinstance(result, dict)
 
 
-def test_pipe_normal_update_forwards_with_state_and_persists_checkpoint(monkeypatch) -> None:
+def test_pipe_normal_update_returns_local_ack_and_persists_checkpoint(monkeypatch) -> None:
     module = _load_module_with_openwebui_stubs("owui_pipe_update_forward", monkeypatch)
     module._ENGINES_BY_CHAT_KEY.clear()
     module._CHECKPOINTS_BY_CHAT_KEY.clear()
@@ -296,11 +296,8 @@ def test_pipe_normal_update_forwards_with_state_and_persists_checkpoint(monkeypa
         )
     )
 
-    assert result == {"ok": True}
-    assert len(forwarded_payloads) == 1
-    first_messages = forwarded_payloads[0]["messages"]
-    assert isinstance(first_messages, list)
-    assert first_messages[0] == {"role": "system", "content": "[[cc_state]]\nProhibit: peanuts"}
+    assert result == "State updated: Prohibit peanuts."
+    assert len(forwarded_payloads) == 0
 
     checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
     assert checkpoint["pending"] is None
@@ -319,14 +316,14 @@ def test_pipe_normal_update_forwards_with_state_and_persists_checkpoint(monkeypa
     )
 
     assert result == "State updated: Removed policy peanuts."
-    assert len(forwarded_payloads) == 1
+    assert len(forwarded_payloads) == 0
 
     checkpoint = json.loads(module._CHECKPOINTS_BY_CHAT_KEY[chat_key])
     assert checkpoint["pending"] is None
     assert checkpoint["authoritative_state"]["policies"] == {}
 
 
-def test_pipe_update_forwarding_injects_state_across_directive_shapes(monkeypatch) -> None:
+def test_pipe_update_directives_return_local_ack_across_shapes(monkeypatch) -> None:
     module = _load_module_with_openwebui_stubs("owui_pipe_update_shapes", monkeypatch)
     module._ENGINES_BY_CHAT_KEY.clear()
     module._CHECKPOINTS_BY_CHAT_KEY.clear()
@@ -352,7 +349,7 @@ def test_pipe_update_forwarding_injects_state_across_directive_shapes(monkeypatc
             __chat_id__="chat-use",
         )
     )
-    assert result == {"ok": True}
+    assert result == "State updated: Use docker."
 
     result = asyncio.run(
         pipe.pipe(
@@ -365,7 +362,7 @@ def test_pipe_update_forwarding_injects_state_across_directive_shapes(monkeypatc
             __chat_id__="chat-prohibit",
         )
     )
-    assert result == {"ok": True}
+    assert result == "State updated: Prohibit docker."
 
     result = asyncio.run(
         pipe.pipe(
@@ -375,7 +372,7 @@ def test_pipe_update_forwarding_injects_state_across_directive_shapes(monkeypatc
             __chat_id__="chat-idempotent",
         )
     )
-    assert result == {"ok": True}
+    assert result == "State updated: Use docker."
 
     result = asyncio.run(
         pipe.pipe(
@@ -388,7 +385,7 @@ def test_pipe_update_forwarding_injects_state_across_directive_shapes(monkeypatc
             __chat_id__="chat-replace",
         )
     )
-    assert result == {"ok": True}
+    assert result == "State updated: Use docker."
 
     result = asyncio.run(
         pipe.pipe(
@@ -401,7 +398,7 @@ def test_pipe_update_forwarding_injects_state_across_directive_shapes(monkeypatc
             __chat_id__="chat-replace",
         )
     )
-    assert result == {"ok": True}
+    assert result == "State updated: Use kubectl."
 
     result = asyncio.run(
         pipe.pipe(
@@ -414,7 +411,7 @@ def test_pipe_update_forwarding_injects_state_across_directive_shapes(monkeypatc
             __chat_id__="chat-premise",
         )
     )
-    assert result == {"ok": True}
+    assert result == "State updated."
 
     result = asyncio.run(
         pipe.pipe(
@@ -437,16 +434,8 @@ def test_pipe_update_forwarding_injects_state_across_directive_shapes(monkeypatc
             __chat_id__="chat-replace-noop",
         )
     )
-    assert result == {"ok": True}
-    assert len(forwarded_payloads) == 7
-    assert all(
-        isinstance(payload.get("messages"), list)
-        and isinstance(payload["messages"][0], dict)
-        and payload["messages"][0].get("role") == "system"
-        and isinstance(payload["messages"][0].get("content"), str)
-        and payload["messages"][0]["content"].startswith("[[cc_state]]")
-        for payload in forwarded_payloads
-    )
+    assert result == "State updated: Use docker."
+    assert len(forwarded_payloads) == 0
 
 
 def test_pipe_near_miss_directives_return_deterministic_clarify_without_downstream(
@@ -504,7 +493,7 @@ def test_pipe_near_miss_directives_return_deterministic_clarify_without_downstre
         ("no thanks.", {}),
     ],
 )
-def test_pipe_confirmation_update_forwards_with_state(
+def test_pipe_confirmation_update_returns_local_ack(
     monkeypatch,
     confirmation: str,
     expected_policies: dict[str, str],
@@ -553,14 +542,8 @@ def test_pipe_confirmation_update_forwards_with_state(
             __chat_id__=chat_key,
         )
     )
-    assert resumed == {"ok": True}
-    assert len(forwarded_payloads) == 1
-    resumed_messages = forwarded_payloads[0]["messages"]
-    assert isinstance(resumed_messages, list)
-    assert isinstance(resumed_messages[0], dict)
-    assert resumed_messages[0].get("role") == "system"
-    assert isinstance(resumed_messages[0].get("content"), str)
-    assert resumed_messages[0]["content"].startswith("[[cc_state]]")
+    assert resumed == "State updated."
+    assert len(forwarded_payloads) == 0
 
     resumed_engine = module._ENGINES_BY_CHAT_KEY[chat_key]
     assert resumed_engine.state == {
@@ -675,7 +658,7 @@ def test_pipe_trace_on_passthrough_stream_appends_trace_after_chunks(monkeypatch
     assert "state injected: no" in content
 
 
-def test_pipe_trace_on_update_shows_state_payload_and_downstream_call(monkeypatch) -> None:
+def test_pipe_trace_on_update_shows_local_ack_and_no_downstream_call(monkeypatch) -> None:
     module = _load_module_with_openwebui_stubs("owui_pipe_trace_update", monkeypatch)
     module._ENGINES_BY_CHAT_KEY.clear()
     module._CHECKPOINTS_BY_CHAT_KEY.clear()
@@ -704,18 +687,18 @@ def test_pipe_trace_on_update_shows_state_payload_and_downstream_call(monkeypatc
             __chat_id__="chat-trace-update",
         )
     )
-    assert isinstance(result, dict)
-    content = result["choices"][0]["message"]["content"]
-    assert "downstream" in content
+    assert isinstance(result, str)
+    content = result
+    assert content.startswith("State updated: Prohibit peanuts.")
     assert "Context Compiler trace" in content
     assert "decision kind: update" in content
-    assert "downstream LLM call: yes" in content
+    assert "downstream LLM call: no" in content
     assert "state change:" in content
     assert "active state:" in content
-    assert "state injected: prohibit peanuts" in content
+    assert "state injected: no" in content
     assert "\n\ndecision kind: update" in content
-    assert "\n\nstate injected: prohibit peanuts" in content
-    assert downstream_calls == 1
+    assert "\n\nstate injected: no" in content
+    assert downstream_calls == 0
 
 
 def test_pipe_trace_on_clarify_shows_prompt_and_no_downstream_call(monkeypatch) -> None:
@@ -809,19 +792,13 @@ def test_pipe_trace_appends_on_object_response_for_passthrough_and_update(monkey
             __chat_id__="chat-object-update",
         )
     )
-    assert hasattr(update, "choices")
-    update_content = update.choices[0].message.content
+    assert isinstance(update, str)
+    update_content = update
     assert "Context Compiler trace" in update_content
     assert "decision kind: update" in update_content
-    assert "downstream LLM call: yes" in update_content
-    assert "state injected:" in update_content
-    assert any(
-        isinstance(payload.get("messages"), list)
-        and isinstance(payload["messages"][0], dict)
-        and isinstance(payload["messages"][0].get("content"), str)
-        and payload["messages"][0]["content"].startswith("[[cc_state]]")
-        for payload in forwarded_payloads
-    )
+    assert "downstream LLM call: no" in update_content
+    assert "state injected: no" in update_content
+    assert len(forwarded_payloads) == 1
 
 
 def test_pipe_trace_appends_on_streaming_response_wrapper_passthrough_and_update(
@@ -879,18 +856,11 @@ def test_pipe_trace_appends_on_streaming_response_wrapper_passthrough_and_update
             __chat_id__="chat-stream-wrapper-update",
         )
     )
-    update_stream = asyncio.run(_collect_stream(update))
-    assert "data: [DONE]" in update_stream
-    assert "Context Compiler trace" in update_stream
-    assert "decision kind: update" in update_stream
-    assert "state injected:" in update_stream
-    assert any(
-        isinstance(payload.get("messages"), list)
-        and isinstance(payload["messages"][0], dict)
-        and isinstance(payload["messages"][0].get("content"), str)
-        and payload["messages"][0]["content"].startswith("[[cc_state]]")
-        for payload in forwarded_payloads
-    )
+    assert isinstance(update, str)
+    assert "Context Compiler trace" in update
+    assert "decision kind: update" in update
+    assert "state injected: no" in update
+    assert len(forwarded_payloads) == 1
 
 
 @pytest.mark.parametrize(
@@ -960,7 +930,7 @@ def test_pipe_trace_update_clear_reset_paths_single_and_consistent(
     assert "downstream LLM call: yes" not in content
     assert "active state: none" in content
     assert "state injected: no" in content
-    assert downstream_calls == len(steps) - 1
+    assert downstream_calls == 0
 
 
 def test_pipe_clear_state_trace_not_duplicated_when_model_echoes_history(monkeypatch) -> None:
@@ -999,8 +969,8 @@ def test_pipe_clear_state_trace_not_duplicated_when_model_echoes_history(monkeyp
             __chat_id__=chat_id,
         )
     )
-    assert isinstance(first, dict)
-    first_content = first["choices"][0]["message"]["content"]
+    assert isinstance(first, str)
+    first_content = first
     assert first_content.count("Context Compiler trace") == 1
 
     second = asyncio.run(

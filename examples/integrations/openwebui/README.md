@@ -88,11 +88,9 @@ Validate clarify short-circuit, passthrough forwarding without state injection,
 update forwarding with compiler state (`[[cc_state]]`) added to the request, chat isolation
 with real chat ids, restart state loss, and non-text bypass behavior.
 
-Note: In the OpenWebUI example pipes, `update` decisions call the downstream
-LLM with authoritative compiler state injected as a compiler-owned system
-message (`[[cc_state]] ...`) for state-affecting updates. Administrative
-updates (`clear state`, `clear premise`, `reset policies`, `remove policy <item>`)
-return deterministic local acknowledgments and do not call the downstream LLM.
+Note: In the OpenWebUI example pipes, recognized directive-only `update`
+decisions return deterministic local acknowledgments and do not call the
+downstream LLM.
 When trace is enabled, responses include concise evidence of decision kind,
 active state, downstream LLM call/no-call, and whether state was injected.
 

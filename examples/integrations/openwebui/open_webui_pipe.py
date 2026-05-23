@@ -353,7 +353,7 @@ class Pipe:
 
     - ``clarify`` returns plain text and skips model forwarding.
     - ``passthrough`` forwards with minimal mutation.
-    - ``update`` forwards with compiler-owned state injection.
+    - ``update`` returns deterministic local acknowledgement (no model call).
     """
 
     class Valves(BaseModel):
@@ -676,31 +676,14 @@ class Pipe:
             )
         if kind == DECISION_UPDATE:
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
-            if _is_administrative_update_input(latest_user_text):
-                return self._with_trace(
-                    _summarize_update_from_input(latest_user_text),
-                    original_input=latest_user_text,
-                    compiler_input=latest_user_text,
-                    decision=decision,
-                    state_before=state_before,
-                    state_after=state_after,
-                    llm_called=False,
-                )
-            response = await self._forward_update(
-                body,
-                __user__,
-                __request__,
-                state_after,
-            )
             return self._with_trace(
-                response,
+                _summarize_update_from_input(latest_user_text),
                 original_input=latest_user_text,
                 compiler_input=latest_user_text,
                 decision=decision,
                 state_before=state_before,
                 state_after=state_after,
-                llm_called=True,
-                state_injected=_active_state_summary(state_after),
+                llm_called=False,
             )
 
         response = await self._forward_passthrough(body, __user__, __request__)
