@@ -1,7 +1,12 @@
 import json
 from typing import Any, Literal
 
-from context_compiler import get_policy_items, get_premise_value
+from context_compiler import (
+    DECISION_CLARIFY,
+    DECISION_UPDATE,
+    get_policy_items,
+    get_premise_value,
+)
 
 
 def canonical_json(obj: Any) -> str:
@@ -29,14 +34,14 @@ def print_state_summary(state: Any, label: str = "state") -> None:
 
 def print_decision_summary(decision: Any) -> None:
     kind = decision.get("kind")
-    if kind == "update":
+    if kind == DECISION_UPDATE:
         print("result: updated")
         state = decision.get("state")
         assert isinstance(state, dict)
         print_state_summary(state, "compiled state")
         return
 
-    if kind == "clarify":
+    if kind == DECISION_CLARIFY:
         print("result: clarify")
         prompt = decision.get("prompt_to_user")
         if isinstance(prompt, str) and prompt:

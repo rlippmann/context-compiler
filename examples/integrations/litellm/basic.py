@@ -18,7 +18,14 @@ from collections.abc import Callable, Mapping, Sequence
 from importlib import import_module
 from typing import TypedDict, cast
 
-from context_compiler import State, get_policy_items, get_premise_value
+from context_compiler import (
+    DECISION_CLARIFY,
+    DECISION_PASSTHROUGH,
+    DECISION_UPDATE,
+    State,
+    get_policy_items,
+    get_premise_value,
+)
 from context_compiler.engine import Engine
 
 try:
@@ -296,7 +303,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
     logger.debug("litellm_basic: decision=%s", kind)
     near_miss_prompt = _near_miss_directive_clarify(user_input)
 
-    if kind == "clarify":
+    if kind == DECISION_CLARIFY:
         _persist_session_checkpoint_if_needed(engine, kind, session_key)
         response_text = near_miss_prompt or decision["prompt_to_user"] or ""
         return _append_trace(
@@ -308,7 +315,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             state_after=engine.state,
             llm_called=False,
         )
-    if near_miss_prompt is not None and kind == "passthrough":
+    if near_miss_prompt is not None and kind == DECISION_PASSTHROUGH:
         return _append_trace(
             near_miss_prompt,
             original_input=user_input,
@@ -319,7 +326,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             llm_called=False,
         )
     _persist_session_checkpoint_if_needed(engine, kind, session_key)
-    if kind == "update" and is_confirmation_text(user_input) and pending_before is not None:
+    if kind == DECISION_UPDATE and is_confirmation_text(user_input) and pending_before is not None:
         response_text = _summarize_confirmation_update(user_input, pending_before)
         return _append_trace(
             response_text,
@@ -330,7 +337,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             state_after=engine.state,
             llm_called=False,
         )
-    if kind == "update":
+    if kind == DECISION_UPDATE:
         response_text = _summarize_update_from_input(user_input)
         return _append_trace(
             response_text,
