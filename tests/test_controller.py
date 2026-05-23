@@ -151,3 +151,27 @@ def test_controller_preview_fixtures() -> None:
         assert (engine.state == before) is expected["engine_state_unchanged_after_preview"], (
             fixture_id
         )
+
+
+def test_controller_result_surface_contract_stability() -> None:
+    engine = create_engine()
+
+    step_result = step(engine, "set premise concise replies")
+    assert set(step_result.keys()) == {"output_version", "mode", "decision", "state"}
+    assert step_result["output_version"] == 1
+    assert step_result["mode"] == "step"
+    assert isinstance(step_result["state"], dict)
+
+    preview_result = preview(engine, "use docker")
+    assert set(preview_result.keys()) == {
+        "output_version",
+        "mode",
+        "decision",
+        "state_before",
+        "state_after",
+        "diff",
+        "would_mutate",
+    }
+    assert preview_result["output_version"] == 1
+    assert preview_result["mode"] == "preview"
+    assert preview_result["would_mutate"] is preview_result["diff"]["changed"]
