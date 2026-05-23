@@ -349,6 +349,15 @@ def test_repl_step_command_accepts_confirmation_while_pending() -> None:
     )
 
 
+def test_repl_step_command_accepts_negative_confirmation_while_pending() -> None:
+    out = StringIO()
+    run_repl(StringIO("use kubectl instead of docker\nstep no\nquit\n"), out)
+    lines = [line for line in out.getvalue().splitlines() if line.strip()]
+
+    assert _contains_subsequence(lines, ['confirm: Did you mean to use "kubectl" instead?'])
+    assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies: (none)"])
+
+
 def test_repl_preview_available_while_pending_clarification() -> None:
     out = StringIO()
     run_repl(StringIO("use kubectl instead of docker\npreview yes\nyes\nquit\n"), out)
@@ -357,6 +366,41 @@ def test_repl_preview_available_while_pending_clarification() -> None:
     assert _contains_subsequence(
         lines, ["preview", "updated", "premise: (none)", "policies:", "- use kubectl"]
     )
+
+
+def test_repl_interactive_preview_available_while_pending_clarification() -> None:
+    lines = _run_interactive_lines("use kubectl instead of docker\npreview yes\nyes\nquit\n")
+
+    assert _contains_subsequence(lines, ['confirm: Did you mean to use "kubectl" instead?'])
+    assert _contains_subsequence(
+        lines, ["preview", "updated", "premise: (none)", "policies:", "- use kubectl"]
+    )
+    assert _contains_subsequence(lines, ["would_mutate: yes"])
+    assert _contains_subsequence(
+        lines, ["updated", "premise: (none)", "policies:", "- use kubectl"]
+    )
+
+
+def test_repl_interactive_help_available_while_pending_clarification() -> None:
+    lines = _run_interactive_lines("use kubectl instead of docker\nhelp\nyes\nquit\n")
+
+    assert _contains_subsequence(lines, ['confirm: Did you mean to use "kubectl" instead?'])
+    assert _contains_subsequence(lines, ["Commands: help/? exit/quit"])
+    assert _contains_subsequence(lines, ["REPL command layer (not engine directives):"])
+    assert _contains_subsequence(
+        lines, ["updated", "premise: (none)", "policies:", "- use kubectl"]
+    )
+
+
+def test_repl_preview_idempotent_admin_action_reports_no_mutation() -> None:
+    out = StringIO()
+    run_repl(StringIO("preview clear premise\nquit\n"), out)
+    lines = [line for line in out.getvalue().splitlines() if line.strip()]
+
+    assert _contains_subsequence(
+        lines, ["preview", "updated", "premise: (none)", "policies: (none)"]
+    )
+    assert _contains_subsequence(lines, ["would_mutate: no", "diff:", "- (none)"])
 
 
 def test_repl_with_preprocessor_parses_directive_before_engine_step() -> None:
