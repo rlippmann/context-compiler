@@ -405,6 +405,45 @@ def test_repl_non_interactive_json_machine_readable_errors() -> None:
     ]
 
 
+def test_repl_non_interactive_json_multi_command_chunk_error() -> None:
+    out = StringIO()
+    run_repl(
+        _ChunkedInput(["set premise concise\nprohibit peanuts\n", "quit\n"]),  # type: ignore[arg-type]
+        out,
+        json_mode=True,
+    )
+    rows = [json.loads(line) for line in out.getvalue().splitlines() if line.strip()]
+    assert rows == [
+        {
+            "command": "input",
+            "error": {
+                "code": "multi_command_input",
+                "message": "Multiple commands detected.\nEnter one command per line.",
+            },
+            "mode": "error",
+            "output_version": 1,
+        }
+    ]
+
+
+def test_repl_non_interactive_json_step_pending_confirmation_error() -> None:
+    rows = _run_non_interactive_json_lines(
+        "use kubectl instead of docker\nstep set premise concise\nyes\nquit\n"
+    )
+    assert rows[1] == {
+        "command": "step",
+        "error": {
+            "code": "pending_confirmation_required",
+            "message": (
+                "step command only accepts confirmation while clarification is pending.\n"
+                "Use yes/no (or variants), or use preview/state."
+            ),
+        },
+        "mode": "error",
+        "output_version": 1,
+    }
+
+
 def test_repl_non_interactive_json_has_no_human_output_leakage() -> None:
     out = StringIO()
     run_repl(
