@@ -215,6 +215,22 @@ Meaning:
 | `engine.export_checkpoint_json()` | Export checkpoint as canonical JSON (`str`). |
 | `engine.import_checkpoint_json(payload)` | Restore checkpoint from JSON (`str`) and return `None`. |
 
+### Controller API (Reusable Outside REPL)
+
+These controller-layer APIs are public package exports and can be used directly
+in host code (not just inside the REPL).
+
+| API | Description |
+|---|---|
+| `step(engine, user_input)` | Run one turn through the engine and return `StepResult` (`output_version`, `mode`, `decision`, `state`). |
+| `preview(engine, user_input)` | Run deterministic dry-run preview and return `PreviewResult` (`output_version`, `mode`, `decision`, `state_before`, `state_after`, `diff`, `would_mutate`). Live engine state is restored after preview. |
+| `state_diff(state_before, state_after)` | Return a structural `StructuralDiff` (`changed`, premise before/after, policies added/removed/changed). |
+
+Decision-kind constants are also exported for host branching readability:
+- `DECISION_PASSTHROUGH`
+- `DECISION_UPDATE`
+- `DECISION_CLARIFY`
+
 ---
 
 ## State Model
