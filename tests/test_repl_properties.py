@@ -17,9 +17,9 @@ LINE_TEXT = st.text(
 
 def _is_repl_command_line(line: str) -> bool:
     token = line.strip().lower()
-    if token in {"state", "preview", "explain", "step"}:
+    if token in {"state", "preview", "step"}:
         return True
-    return line.startswith("preview ") or line.startswith("explain ") or line.startswith("step ")
+    return line.startswith("preview ") or line.startswith("step ")
 
 
 def _run_repl_lines(lines: list[str]) -> tuple[str, list[str]]:

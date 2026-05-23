@@ -41,6 +41,13 @@ context-compiler --with-preprocessor
 passed through to the engine, which continues to return clarify behavior for
 those forms.
 
+REPL command-layer commands (host/controller layer, not engine directives):
+- `state` shows current authoritative state.
+- `preview <input>` runs deterministic dry-run without mutating live state.
+- `step <input>` is an explicit alias of normal bare-input step behavior.
+
+Bare REPL input behavior remains unchanged.
+
 Or in code:
 ```python
 from context_compiler import DECISION_CLARIFY, DECISION_UPDATE, create_engine

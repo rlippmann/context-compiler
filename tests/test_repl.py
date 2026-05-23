@@ -216,6 +216,10 @@ def test_repl_interactive_help_commands() -> None:
     lines = out.getvalue().splitlines()
     expected_help = [
         "Commands: help/? exit/quit",
+        "REPL command layer (not engine directives):",
+        "  state",
+        "  preview <input>",
+        "  step <input>     (explicit alias of bare input behavior)",
         "Directives (exact prefix only):",
         "  set premise <value>",
         "  change premise to <value>",
@@ -226,13 +230,16 @@ def test_repl_interactive_help_commands() -> None:
         "  clear premise",
         "  reset policies",
         "  clear state",
+        "Bare input behavior remains unchanged.",
+        "preview is a deterministic dry-run and never mutates live state.",
         "Only question prompts accept yes/no confirmations",
         "Other clarify prompts are errors and do not accept yes/no",
     ]
     assert lines[0] == "Context Compiler REPL (0.5). Type help for commands."
     assert lines[1] == "Non-directive input is passthrough."
-    assert lines[2:15] == expected_help
-    assert lines[15:28] == expected_help
+    expected_help_len = len(expected_help)
+    assert lines[2 : 2 + expected_help_len] == expected_help
+    assert lines[2 + expected_help_len : 2 + (2 * expected_help_len)] == expected_help
 
 
 def test_repl_non_interactive_uses_human_readable_output() -> None:
@@ -281,21 +288,6 @@ def test_repl_non_interactive_preview_decline_reports_no_mutation() -> None:
     assert _contains_subsequence(lines, ["would_mutate: no", "diff:", "- (none)"])
 
 
-def test_repl_non_interactive_explain_alias_matches_preview() -> None:
-    preview_out = StringIO()
-    run_repl(StringIO("preview set premise concise\nquit\n"), preview_out)
-
-    explain_out = StringIO()
-    run_repl(StringIO("explain set premise concise\nquit\n"), explain_out)
-
-    preview_lines = [line for line in preview_out.getvalue().splitlines() if line.strip()]
-    explain_lines = [line for line in explain_out.getvalue().splitlines() if line.strip()]
-
-    assert preview_lines[1:] == explain_lines[1:]
-    assert preview_lines[0] == "preview"
-    assert explain_lines[0] == "explain"
-
-
 def test_repl_non_interactive_step_alias_matches_bare_input_behavior() -> None:
     bare = _run_non_interactive_lines("set premise concise\nquit\n")
     aliased = _run_non_interactive_lines("step set premise concise\nquit\n")
@@ -304,14 +296,11 @@ def test_repl_non_interactive_step_alias_matches_bare_input_behavior() -> None:
 
 def test_repl_non_interactive_preview_and_step_require_payload() -> None:
     out = StringIO()
-    run_repl(StringIO("preview\nexplain\nstep\nquit\n"), out)
+    run_repl(StringIO("preview\nstep\nquit\n"), out)
     lines = [line for line in out.getvalue().splitlines() if line.strip()]
 
     assert _contains_subsequence(
         lines, ["error: preview requires input.", "Use 'preview <input>'."]
-    )
-    assert _contains_subsequence(
-        lines, ["error: explain requires input.", "Use 'explain <input>'."]
     )
     assert _contains_subsequence(lines, ["error: step requires input.", "Use 'step <input>'."])
 
@@ -341,7 +330,7 @@ def test_repl_step_command_rejects_non_confirmation_while_pending() -> None:
         lines,
         [
             "error: step command only accepts confirmation while clarification is pending.",
-            "Use yes/no (or variants), or use preview/explain/state.",
+            "Use yes/no (or variants), or use preview/state.",
         ],
     )
     assert _contains_subsequence(
@@ -360,19 +349,13 @@ def test_repl_step_command_accepts_confirmation_while_pending() -> None:
     )
 
 
-def test_repl_preview_and_explain_available_while_pending_clarification() -> None:
+def test_repl_preview_available_while_pending_clarification() -> None:
     out = StringIO()
-    run_repl(
-        StringIO("use kubectl instead of docker\npreview yes\nexplain no\nyes\nquit\n"),
-        out,
-    )
+    run_repl(StringIO("use kubectl instead of docker\npreview yes\nyes\nquit\n"), out)
     lines = [line for line in out.getvalue().splitlines() if line.strip()]
 
     assert _contains_subsequence(
         lines, ["preview", "updated", "premise: (none)", "policies:", "- use kubectl"]
-    )
-    assert _contains_subsequence(
-        lines, ["explain", "updated", "premise: (none)", "policies: (none)"]
     )
 
 

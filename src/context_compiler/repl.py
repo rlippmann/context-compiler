@@ -17,7 +17,7 @@ _AFFIRMATIVE_CONFIRMATIONS = {"yes", "yes please", "yep", "yeah", "sure", "ok", 
 _NEGATIVE_CONFIRMATIONS = {"no", "nope", "no thanks"}
 _STEP_PENDING_CONFIRMATION_ERROR = (
     "step command only accepts confirmation while clarification is pending.\n"
-    "Use yes/no (or variants), or use preview/explain/state."
+    "Use yes/no (or variants), or use preview/state."
 )
 _CLI_HELP_TEXT = """Usage:
   context-compiler [--help] [--version] [--with-preprocessor]
@@ -50,6 +50,10 @@ def _multi_command_decision() -> Decision:
 
 def _print_interactive_help(out_stream: TextIO) -> None:
     print("Commands: help/? exit/quit", file=out_stream)
+    print("REPL command layer (not engine directives):", file=out_stream)
+    print("  state", file=out_stream)
+    print("  preview <input>", file=out_stream)
+    print("  step <input>     (explicit alias of bare input behavior)", file=out_stream)
     print("Directives (exact prefix only):", file=out_stream)
     print("  set premise <value>", file=out_stream)
     print("  change premise to <value>", file=out_stream)
@@ -60,6 +64,8 @@ def _print_interactive_help(out_stream: TextIO) -> None:
     print("  clear premise", file=out_stream)
     print("  reset policies", file=out_stream)
     print("  clear state", file=out_stream)
+    print("Bare input behavior remains unchanged.", file=out_stream)
+    print("preview is a deterministic dry-run and never mutates live state.", file=out_stream)
     print("Only question prompts accept yes/no confirmations", file=out_stream)
     print("Other clarify prompts are errors and do not accept yes/no", file=out_stream)
 
@@ -231,26 +237,20 @@ def run_repl(in_stream: TextIO, out_stream: TextIO, *, use_preprocessor: bool = 
                     _print_decision_lines(result["decision"], out_stream, leading_blank=True)
                     continue
 
-            preview_command: str | None = None
+            preview_command = None
             payload = ""
             if user_input.startswith("preview "):
                 preview_command = "preview"
                 payload = user_input[len("preview ") :]
             elif token == "preview":
                 preview_command = "preview"
-            elif user_input.startswith("explain "):
-                preview_command = "explain"
-                payload = user_input[len("explain ") :]
-            elif token == "explain":
-                preview_command = "explain"
 
-            if preview_command is not None:
+            if preview_command == "preview":
                 if payload.strip() == "":
-                    message = f"{preview_command} requires input.\nUse '{preview_command} <input>'."
                     _print_command_error(
                         out_stream,
                         leading_blank=True,
-                        message=message,
+                        message="preview requires input.\nUse 'preview <input>'.",
                     )
                     continue
                 compile_input = _compile_input(payload, engine, use_preprocessor=use_preprocessor)
@@ -311,19 +311,13 @@ def run_repl(in_stream: TextIO, out_stream: TextIO, *, use_preprocessor: bool = 
             payload = user_input[len("preview ") :]
         elif token == "preview":
             preview_command = "preview"
-        elif user_input.startswith("explain "):
-            preview_command = "explain"
-            payload = user_input[len("explain ") :]
-        elif token == "explain":
-            preview_command = "explain"
 
-        if preview_command is not None:
+        if preview_command == "preview":
             if payload.strip() == "":
-                message = f"{preview_command} requires input.\nUse '{preview_command} <input>'."
                 _print_command_error(
                     out_stream,
                     leading_blank=False,
-                    message=message,
+                    message="preview requires input.\nUse 'preview <input>'.",
                 )
                 continue
             compile_input = _compile_input(payload, engine, use_preprocessor=use_preprocessor)
