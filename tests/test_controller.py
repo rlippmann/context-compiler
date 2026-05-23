@@ -175,3 +175,34 @@ def test_controller_result_surface_contract_stability() -> None:
     assert preview_result["output_version"] == 1
     assert preview_result["mode"] == "preview"
     assert preview_result["would_mutate"] is preview_result["diff"]["changed"]
+
+
+@pytest.mark.parametrize(
+    ("confirmation", "expected_state", "expected_would_mutate"),
+    [
+        ("yes", {"premise": None, "policies": {"kubectl": "use"}, "version": 2}, True),
+        ("no", {"premise": None, "policies": {}, "version": 2}, False),
+    ],
+)
+def test_preview_pending_confirmation_user_flow(
+    confirmation: str,
+    expected_state: dict[str, object],
+    expected_would_mutate: bool,
+) -> None:
+    engine = create_engine()
+    initial = engine.step("use kubectl instead of docker")
+    assert initial["kind"] == "clarify"
+    assert engine.has_pending_clarification() is True
+
+    preview_result = preview(engine, confirmation)
+    assert preview_result["decision"]["kind"] == "update"
+    assert preview_result["state_after"] == expected_state
+    assert preview_result["would_mutate"] is expected_would_mutate
+
+    assert engine.has_pending_clarification() is True
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+
+    final = step(engine, confirmation)
+    assert final["decision"]["kind"] == "update"
+    assert final["state"] == expected_state
+    assert engine.has_pending_clarification() is False
