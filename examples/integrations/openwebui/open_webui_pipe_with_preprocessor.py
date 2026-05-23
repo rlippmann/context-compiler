@@ -404,7 +404,7 @@ class Pipe:
 
     This variant adds a preprocessor stage before ``engine.step(...)``:
     heuristic first, then Open WebUI-native LLM fallback.
-    Update decisions forward with compiler-owned state injection.
+    Update decisions return deterministic local acknowledgement (no model call).
     """
 
     class Valves(BaseModel):
@@ -967,34 +967,15 @@ class Pipe:
             )
         if kind == DECISION_UPDATE:
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
-            if _is_administrative_update_input(compile_input):
-                return self._with_trace(
-                    _summarize_update_from_input(compile_input),
-                    original_input=latest_user_text,
-                    compiler_input=compile_input,
-                    decision=decision,
-                    state_before=state_before,
-                    state_after=state_after,
-                    preprocessor_output=preprocessd,
-                    llm_called=False,
-                )
-            response = await self._forward_update(
-                body,
-                __user__,
-                __request__,
-                state_after,
-                base_model_id=base_model_id,
-            )
             return self._with_trace(
-                response,
+                _summarize_update_from_input(compile_input),
                 original_input=latest_user_text,
                 compiler_input=compile_input,
                 decision=decision,
                 state_before=state_before,
                 state_after=state_after,
                 preprocessor_output=preprocessd,
-                llm_called=base_model_id is not None,
-                state_injected=_active_state_summary(state_after),
+                llm_called=False,
             )
 
         response = await self._forward_passthrough(
