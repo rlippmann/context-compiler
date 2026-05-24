@@ -93,5 +93,5 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["context_compiler", "host_support"]
+source = ["src/context_compiler"]
 omit = ["demos/*", "evals/*", "tests/*"]
