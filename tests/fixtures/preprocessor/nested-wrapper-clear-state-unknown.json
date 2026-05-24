@@ -1,0 +1,8 @@
+{
+  "name": "nested-wrapper-clear-state-unknown",
+  "input": "([clear state])",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

@@ -42,6 +42,19 @@ The preprocessor is best-effort and intentionally conservative. Ambiguous,
 reported, quoted, or mixed-intent inputs may still require abstention or host
 clarification behavior.
 
+Boundary policy (explicit):
+
+- Whole-message canonicalization only.
+- At most one canonical directive may be emitted; otherwise abstain.
+- Do not extract directives from surrounding prose, questions, or reporting.
+- Do not split sentences or mine multi-line batches for commands.
+- Do not extract from markdown/code blocks or quoted/reported text.
+- Do not perform broad semantic rewrites.
+- Prefer false negatives over false positive state mutation.
+
+Natural-language state proposal workflows should be handled by explicit host
+assist/proposal flows, not implicit preprocessing.
+
 ## Status
 
 This preprocessor surface is experimental and may evolve independently of the

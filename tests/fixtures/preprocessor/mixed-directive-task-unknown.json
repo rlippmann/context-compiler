@@ -1,0 +1,8 @@
+{
+  "name": "mixed-directive-task-unknown",
+  "input": "use docker and explain why",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

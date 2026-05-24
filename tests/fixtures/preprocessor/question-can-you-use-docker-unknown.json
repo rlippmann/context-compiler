@@ -1,0 +1,8 @@
+{
+  "name": "question-can-you-use-docker-unknown",
+  "input": "can you use docker?",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}
