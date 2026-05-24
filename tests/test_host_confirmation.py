@@ -109,6 +109,12 @@ def test_summarize_confirmation_update_unexpected_shape_falls_back_safely() -> N
     assert result == "State updated."
 
 
+def test_summarize_confirmation_update_non_affirmative_non_negative_falls_back() -> None:
+    pending = {"replacement": {"kind": "use_only", "new_item": "docker", "old_item": None}}
+    result = _confirmation.summarize_confirmation_update("maybe", pending)
+    assert result == "State updated."
+
+
 def test_summarize_confirmation_update_affirmative_pending_not_dict_falls_back() -> None:
     result = _confirmation.summarize_confirmation_update("yes", ["not-a-dict"])
     assert "State updated." in result
@@ -270,3 +276,33 @@ def test_engine_host_confirmation_parity_property(value: str) -> None:
         assert decision["prompt_to_user"] == pending_prompt
         assert engine.state == pre_pending_state
         assert checkpoint["pending"] is not None
+
+
+def test_summarize_confirmation_update_from_engine_without_export_checkpoint_falls_back() -> None:
+    class _NoExport:
+        pass
+
+    result = _confirmation.summarize_confirmation_update_from_engine("yes", _NoExport())
+    assert result == "State updated."
+
+
+def test_summarize_confirmation_update_from_engine_export_raises_falls_back() -> None:
+    class _BadExport:
+        def export_checkpoint(self) -> dict[str, object]:
+            raise RuntimeError("boom")
+
+    result = _confirmation.summarize_confirmation_update_from_engine("yes", _BadExport())
+    assert result == "State updated."
+
+
+def test_summarize_confirmation_update_from_engine_uses_pending_when_available() -> None:
+    class _PendingExport:
+        def export_checkpoint(self) -> dict[str, object]:
+            return {
+                "pending": {
+                    "replacement": {"kind": "use_only", "new_item": "docker", "old_item": None}
+                }
+            }
+
+    result = _confirmation.summarize_confirmation_update_from_engine("yes", _PendingExport())
+    assert result == "State updated: Use docker."

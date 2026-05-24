@@ -3,6 +3,8 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -21,6 +23,11 @@ class _DecisionObject:
 class _VeryLongRepr:
     def __repr__(self) -> str:
         return "x" * 250
+
+
+class _BadStateDict(dict):
+    def get(self, key: object, default: object = None) -> object:
+        raise RuntimeError(f"bad key access: {key!r}")
 
 
 def test_build_trace_passthrough_without_preprocessor_output() -> None:
@@ -280,3 +287,95 @@ def test_build_compact_trace_text_clarify_shape() -> None:
     assert "active state: none" in output
     assert "downstream LLM call: no" in output
     assert output.endswith("state injected: no")
+
+
+def test_build_compact_trace_text_update_handles_removed_and_changed_prohibit() -> None:
+    module = _load_module()
+    output = module.build_compact_trace_text(
+        decision={"kind": "update"},
+        state_before={"premise": None, "policies": {"docker": "prohibit"}, "version": 2},
+        state_after={"premise": None, "policies": {"docker": "use"}, "version": 2},
+        llm_called=False,
+        state_injected="yes",
+    )
+
+    assert "state change: ~use docker" in output
+
+
+def test_build_compact_trace_text_update_handles_removed_prohibit_policy() -> None:
+    module = _load_module()
+    output = module.build_compact_trace_text(
+        decision={"kind": "update"},
+        state_before={"premise": None, "policies": {"docker": "prohibit"}, "version": 2},
+        state_after={"premise": None, "policies": {}, "version": 2},
+        llm_called=False,
+        state_injected="yes",
+    )
+
+    assert "state change: -prohibit docker" in output
+
+
+def test_build_compact_trace_text_update_ignores_malformed_changed_transition() -> None:
+    module = _load_module()
+    output = module.build_compact_trace_text(
+        decision={"kind": "update"},
+        state_before={"premise": None, "policies": {"docker": "use"}, "version": 2},
+        state_after={"premise": None, "policies": {"docker": "prohibit"}, "version": 2},
+        llm_called=False,
+        state_injected="yes",
+    )
+
+    assert "state change: ~prohibit docker" in output
+
+
+def test_build_compact_trace_text_state_summary_non_dict_falls_back_to_none() -> None:
+    module = _load_module()
+    output = module.build_compact_trace_text(
+        decision={"kind": "passthrough"},
+        state_before={"premise": None, "policies": {}, "version": 2},
+        state_after=["not-a-dict-state"],
+        llm_called=False,
+        state_injected="no",
+    )
+    assert "active state: none" in output
+
+
+def test_build_compact_trace_text_state_summary_exception_falls_back_to_none() -> None:
+    module = _load_module()
+    output = module.build_compact_trace_text(
+        decision={"kind": "passthrough"},
+        state_before={"premise": None, "policies": {}, "version": 2},
+        state_after=_BadStateDict(),
+        llm_called=False,
+        state_injected="no",
+    )
+    assert "active state: none" in output
+
+
+def test_build_compact_trace_text_ignores_malformed_policy_changed_transitions(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = _load_module()
+
+    def _bad_diff(_: object, __: object) -> dict[str, object]:
+        return {
+            "changed": True,
+            "premise": {"before": None, "after": None, "changed": False},
+            "policies": {
+                "added": {},
+                "removed": {},
+                "changed": {"docker": "not-a-mapping"},
+            },
+        }
+
+    monkeypatch.setattr(module, "state_diff", _bad_diff)
+    output = module.build_compact_trace_text(
+        decision={"kind": "update"},
+        state_before={"premise": None, "policies": {"docker": "use"}, "version": 2},
+        state_after={"premise": None, "policies": {"docker": "prohibit"}, "version": 2},
+        llm_called=False,
+        state_injected="yes",
+    )
+
+    assert "state change: " in output
+    assert "~" not in output
