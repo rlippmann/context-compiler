@@ -69,3 +69,17 @@ The compiler only maintains a single authoritative state per instance.
 Start with one engine.
 
 Introduce multiple engines only when you need **independent lifecycle or isolation**, not because a single engine is insufficient.
+
+## Combining Policies from Multiple Sources
+
+If you need to combine constraints from separate sources, do it explicitly in
+host code by replaying directives through `step(...)` into a target engine.
+
+Pattern:
+
+1. Select ordered source directives
+2. Replay each directive via `engine.step(...)`
+3. Handle any returned `clarify` decisions explicitly
+
+This keeps conflict handling in normal engine semantics and avoids adding merge
+semantics to core state APIs.

@@ -113,6 +113,20 @@ The idea is similar to a traditional compiler: user directives are translated in
 
 ---
 
+## FAQ
+
+**Is this just prompt reinjection?**
+Partly. Hosts still pass state to models as context. The difference is that
+state is maintained by a deterministic engine with explicit update rules,
+clarify flows, and inspectable checkpoints.
+
+**Isn’t this just prompt engineering?**
+It complements prompt engineering, but solves a different problem. Prompting
+shapes model behavior; Context Compiler provides an authoritative state layer
+that updates only through explicit directives.
+
+---
+
 ## 10-Second Example
 
 User sets a constraint once:
@@ -337,6 +351,18 @@ Use policies instead when the constraint is explicit and enforceable:
 - “prohibit introducing new external dependencies”
 - “use single-step preparation methods”
 
+### Example domains
+
+Hosts define what policy items and premise mean in context. Common patterns:
+
+- safety-oriented constraints (for example, prohibited materials or tools)
+- authority/evidence constraints (for example, cite only approved sources)
+- software workflow constraints (for example, require `uv`, prohibit `npm`)
+- accessibility/environment constraints (for example, no audio-only outputs)
+
+Context Compiler enforces explicit directive/state mechanics. Domain reasoning
+still belongs to the host and model workflow.
+
 ---
 
 ## Directive Examples
@@ -380,6 +406,10 @@ For full directive grammar and edge-case behavior, see [DirectiveGrammarSpec.md]
 - [examples](examples/) — minimal usage patterns and core integration primitives
 - [demos](demos/) — concrete scenarios showing how behavior differs with and without the compiler
 - [integrations](examples/integrations/) — production-style host integrations (OpenWebUI, LiteLLM, etc.)
+
+Integration note: current OpenWebUI example pipes return deterministic local
+acknowledgements for directive-only `update` decisions instead of forwarding
+those turns to the downstream LLM.
 
 ---
 

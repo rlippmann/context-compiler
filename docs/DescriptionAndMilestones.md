@@ -104,19 +104,15 @@ Make engine behavior inspectable and externally controllable without guessing.
 - State inspection
 - Deterministic dry-run / preview
 - Structural state diff
-- Thin controller layer around step / preview / replay behavior
+- Thin stateless controller layer around step / preview behavior
 - Machine-readable REPL JSON output containing:
-  - `decision`
-  - `prompt_to_user`
-  - `state`
-- JSON input for initial state only:
+  - versioned one-object-per-line output (`output_version`)
+  - step / preview / state command result envelopes
+- JSON preload for authoritative state and checkpoint continuation:
   - `--initial-state-json`
   - `--initial-state-file`
-- REPL LLM fallback as explicit optional mode:
-  - `--with-llm-fallback`
-  - requires `--with-preprocessor`
-  - never implicit
-  - inspectable via preview / JSON output
+  - `--initial-checkpoint-json`
+  - `--initial-checkpoint-file`
 - Explicit preprocessor policy for multi-line, multi-sentence, and conversational-prefix input
   (for example `ok. prohibit peanuts`, `sure - use docker`, mixed conversational + directive content)
   that is rule-based, fixture-covered, and inspectable
@@ -133,9 +129,11 @@ Make engine behavior inspectable and externally controllable without guessing.
 
 ### Post-0.7 Direction
 
-- Profile commands and workflow conveniences
+- 0.8 candidate direction: model-assisted state suggestions (inspectable, previewable,
+  and never directly mutating authoritative state)
+- MCP adapter likely as a separate/later track after 0.8 direction is clearer
+- Optional 0.7.1 MCP-readiness helpers only if narrowly justified
 - Additional tooling built on auditability surfaces
-- Broader heuristic responsibility remains default-avoid unless tightly justified
 
 ### 1.0 Target
 
