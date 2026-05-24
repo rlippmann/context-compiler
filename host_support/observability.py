@@ -107,6 +107,64 @@ def _state_change_summary(before: object, after: object) -> str:
     return f"{_summarize_state(before)} -> {_summarize_state(after)}"
 
 
+def _active_state_summary(state: object) -> str:
+    if not isinstance(state, dict):
+        return "none"
+    try:
+        normalized = cast(State, state)
+        premise = normalized.get("premise")
+        policies = normalized.get("policies")
+    except Exception:
+        return "none"
+    parts: list[str] = []
+    if isinstance(premise, str):
+        parts.append(f'premise="{premise}"')
+    if isinstance(policies, Mapping):
+        use_items = sorted(str(item) for item, value in policies.items() if value == "use")
+        prohibit_items = sorted(
+            str(item) for item, value in policies.items() if value == "prohibit"
+        )
+        if use_items:
+            parts.append("use " + ", ".join(use_items))
+        if prohibit_items:
+            parts.append("prohibit " + ", ".join(prohibit_items))
+    return "; ".join(parts) if parts else "none"
+
+
+def build_compact_trace_text(
+    *,
+    decision: object,
+    state_before: object,
+    state_after: object,
+    llm_called: bool,
+    state_injected: str,
+) -> str:
+    """Build OpenWebUI-style compact trace text with stable line formatting."""
+    kind = _normalize_text(_decision_field(decision, "kind")) or "unknown"
+    lines = ["Context Compiler trace", "", f"decision kind: {kind}"]
+
+    if kind == "update":
+        lines.append(f"state change: {_state_change_summary(state_before, state_after)}")
+        lines.append(f"active state: {_active_state_summary(state_after)}")
+        lines.append(f"downstream LLM call: {'yes' if llm_called else 'no'}")
+        lines.append("")
+        lines.append(f"state injected: {state_injected}")
+        return "\n".join(lines)
+
+    if kind == "clarify":
+        prompt = _normalize_text(_decision_field(decision, "prompt_to_user")) or ""
+        lines.append(f"clarification prompt: {prompt}")
+        lines.append(f"active state: {_active_state_summary(state_after)}")
+        lines.append(f"downstream LLM call: {'yes' if llm_called else 'no'}")
+        lines.append("state injected: no")
+        return "\n".join(lines)
+
+    lines.append(f"active state: {_active_state_summary(state_after)}")
+    lines.append(f"downstream LLM call: {'yes' if llm_called else 'no'}")
+    lines.append("state injected: no")
+    return "\n".join(lines)
+
+
 def build_trace(
     *,
     original_input: str,

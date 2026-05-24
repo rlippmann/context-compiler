@@ -246,3 +246,41 @@ def test_build_trace_state_summary_truncates_very_long_repr() -> None:
 
     assert "state change:" in output
     assert "..." in output
+
+
+def test_build_compact_trace_text_update_shape() -> None:
+    module = _load_module()
+    output = module.build_compact_trace_text(
+        decision={"kind": "update"},
+        state_before={"premise": None, "policies": {}, "version": 2},
+        state_after={
+            "premise": "concise replies",
+            "policies": {"docker": "use"},
+            "version": 2,
+        },
+        llm_called=False,
+        state_injected="yes",
+    )
+
+    assert output.startswith("Context Compiler trace\n\ndecision kind: update\n")
+    assert 'state change: +premise "concise replies", +use docker' in output
+    assert 'active state: premise="concise replies"; use docker' in output
+    assert "downstream LLM call: no" in output
+    assert output.endswith("state injected: yes")
+
+
+def test_build_compact_trace_text_clarify_shape() -> None:
+    module = _load_module()
+    output = module.build_compact_trace_text(
+        decision={"kind": "clarify", "prompt_to_user": "Use what item?"},
+        state_before={"premise": None, "policies": {}, "version": 2},
+        state_after={"premise": None, "policies": {}, "version": 2},
+        llm_called=False,
+        state_injected="no",
+    )
+
+    assert output.startswith("Context Compiler trace\n\ndecision kind: clarify\n")
+    assert "clarification prompt: Use what item?" in output
+    assert "active state: none" in output
+    assert "downstream LLM call: no" in output
+    assert output.endswith("state injected: no")
