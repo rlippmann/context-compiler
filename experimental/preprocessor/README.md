@@ -58,6 +58,19 @@ Raw preprocessor/LLM outputs must not be passed directly to the compiler.
 The preprocessor does not expand directive grammar. It may emit only validated
 canonical directives accepted by the compiler.
 
+Conservative boundary policy:
+
+- Whole-message canonicalization only (no directive mining from prose).
+- Emit at most one canonical directive; otherwise abstain.
+- No sentence splitting or hidden multi-line extraction.
+- No mixed directive + task extraction.
+- No markdown/code-block extraction.
+- No broad natural-language semantic rewriting.
+- Prefer false negatives over false positives.
+
+If you need natural-language proposal/orchestration behavior, use an explicit
+host-side assist workflow with preview/diff/confirmation, not this preprocessor.
+
 ## Safe usage pattern
 
 1. Run `preprocess_heuristic(message)`.

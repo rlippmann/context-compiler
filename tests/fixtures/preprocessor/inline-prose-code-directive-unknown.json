@@ -1,0 +1,8 @@
+{
+  "name": "inline-prose-code-directive-unknown",
+  "input": "the command is `use docker`",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

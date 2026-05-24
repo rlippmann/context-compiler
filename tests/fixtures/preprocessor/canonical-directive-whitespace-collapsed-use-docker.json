@@ -1,0 +1,8 @@
+{
+  "name": "canonical-directive-whitespace-collapsed-use-docker",
+  "input": "  use    docker  ",
+  "expected": {
+    "classification": "directive",
+    "output": "use docker"
+  }
+}

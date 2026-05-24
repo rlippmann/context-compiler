@@ -1,0 +1,8 @@
+{
+  "name": "canonical-directive-case-normalized-use-docker",
+  "input": "Use Docker",
+  "expected": {
+    "classification": "directive",
+    "output": "use docker"
+  }
+}
