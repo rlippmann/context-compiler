@@ -147,6 +147,25 @@ def _render_compiler_state_block(state: State) -> str:
     return "\n".join(lines)
 
 
+def _render_show_state_summary(engine: Engine) -> str:
+    premise = get_premise_value(engine.state)
+    use_items = sorted(get_policy_items(engine.state, "use"))
+    prohibit_items = sorted(get_policy_items(engine.state, "prohibit"))
+    pending = engine.has_pending_clarification()
+
+    use_text = ", ".join(use_items) if use_items else "none"
+    prohibit_text = ", ".join(prohibit_items) if prohibit_items else "none"
+    premise_text = premise if premise is not None else "none"
+    pending_text = "yes" if pending else "no"
+
+    return (
+        f"Premise: {premise_text}\n"
+        f"Use: {use_text}\n"
+        f"Prohibit: {prohibit_text}\n"
+        f"Pending clarification: {pending_text}"
+    )
+
+
 def _replace_compiler_system_message(
     messages: list[dict[str, Any]],
     rendered_state_block: str,
@@ -829,6 +848,18 @@ class Pipe:
             if checkpoint is not None:
                 engine.import_checkpoint_json(checkpoint)
             _ENGINES_BY_CHAT_KEY[chat_key] = engine
+
+        if latest_user_text.strip().lower() == "show state":
+            summary = _render_show_state_summary(engine)
+            return self._with_trace(
+                summary,
+                original_input=latest_user_text,
+                compiler_input=latest_user_text,
+                decision={"kind": DECISION_PASSTHROUGH},
+                state_before=engine.state,
+                state_after=engine.state,
+                llm_called=False,
+            )
 
         state_before = engine.state
 

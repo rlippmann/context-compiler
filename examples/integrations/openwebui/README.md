@@ -91,6 +91,10 @@ with real chat ids, restart state loss, and non-text bypass behavior.
 Note: In the OpenWebUI example pipes, recognized directive-only `update`
 decisions return deterministic local acknowledgments and do not call the
 downstream LLM.
+Both pipes also support an exact local inspection command: `show state`.
+When the latest user message is exactly `show state` (case-insensitive after
+trim), the pipe returns a deterministic state summary and does not call
+downstream LLM or preprocessor fallback.
 When trace is enabled, responses include concise evidence of decision kind,
 active state, downstream LLM call/no-call, and whether state was injected.
 
