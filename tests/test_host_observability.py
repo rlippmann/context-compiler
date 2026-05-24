@@ -302,6 +302,19 @@ def test_build_compact_trace_text_update_handles_removed_and_changed_prohibit() 
     assert "state change: ~use docker" in output
 
 
+def test_build_compact_trace_text_update_handles_removed_prohibit_policy() -> None:
+    module = _load_module()
+    output = module.build_compact_trace_text(
+        decision={"kind": "update"},
+        state_before={"premise": None, "policies": {"docker": "prohibit"}, "version": 2},
+        state_after={"premise": None, "policies": {}, "version": 2},
+        llm_called=False,
+        state_injected="yes",
+    )
+
+    assert "state change: -prohibit docker" in output
+
+
 def test_build_compact_trace_text_update_ignores_malformed_changed_transition() -> None:
     module = _load_module()
     output = module.build_compact_trace_text(
