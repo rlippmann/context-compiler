@@ -438,6 +438,105 @@ def test_pipe_update_directives_return_local_ack_across_shapes(monkeypatch) -> N
     assert len(forwarded_payloads) == 0
 
 
+def test_pipe_show_state_returns_local_summary_and_no_downstream(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_show_state", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    downstream_calls = 0
+
+    async def _track_downstream(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        del payload
+        nonlocal downstream_calls
+        downstream_calls += 1
+        return {"choices": [{"message": {"content": "downstream"}}]}
+
+    module.generate_chat_completion = _track_downstream
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+    chat_id = "chat-show-state"
+
+    no_pending = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "show state"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_id,
+        )
+    )
+    assert no_pending == ("Premise: none\nUse: none\nProhibit: none\nPending clarification: no")
+
+    assert downstream_calls == 0
+    assert "Context Compiler trace" not in no_pending
+
+
+def test_pipe_show_state_reports_pending_yes(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_show_state_pending", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    class _PendingEngine:
+        state = {"premise": None, "policies": {}, "version": 2}
+
+        def has_pending_clarification(self) -> bool:
+            return True
+
+        def step(self, _: str) -> dict[str, object]:
+            raise AssertionError("show state should not step engine")
+
+    monkeypatch.setattr(module, "create_engine", lambda: _PendingEngine())
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "show state"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-show-state-pending",
+        )
+    )
+    assert result == "Premise: none\nUse: none\nProhibit: none\nPending clarification: yes"
+
+
+def test_pipe_show_state_non_exact_routes_normally(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_show_state_non_exact", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    downstream_calls = 0
+
+    async def _track_downstream(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        del payload
+        nonlocal downstream_calls
+        downstream_calls += 1
+        return {"choices": [{"message": {"content": "downstream"}}]}
+
+    module.generate_chat_completion = _track_downstream
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+
+    result = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "show state please"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-show-state-non-exact",
+        )
+    )
+    assert result == {"choices": [{"message": {"content": "downstream"}}]}
+    assert downstream_calls == 1
+
+
 def test_pipe_near_miss_directives_return_deterministic_clarify_without_downstream(
     monkeypatch,
 ) -> None:

@@ -91,6 +91,9 @@ with real chat ids, restart state loss, and non-text bypass behavior.
 Note: In the OpenWebUI example pipes, recognized directive-only `update`
 decisions return deterministic local acknowledgments and do not call the
 downstream LLM.
+Both pipes support an exact local inspection command: `show state`.
+When the latest user message is exactly `show state` (case-insensitive after trim),
+the pipe returns current compiler state locally and does not call the downstream model.
 When trace is enabled, responses include concise evidence of decision kind,
 active state, downstream LLM call/no-call, and whether state was injected.
 
@@ -102,7 +105,7 @@ active state, downstream LLM call/no-call, and whether state was injected.
 - base model: “To adjust the tone… provide the original content…”
 - basic pipe: `No premise exists yet. Use 'set premise ...' first.`
 - preprocessor pipe: `No premise exists yet. Use 'set premise ...' first.`
-- why this is a real win: lifecycle rule is enforced in a fixed, repeatable way; base model drifts into generic rewriting help.
+- why this matters: lifecycle rule is enforced in a fixed, repeatable way; base model drifts into generic rewriting help.
 
 **Case 2**
 
@@ -110,7 +113,7 @@ active state, downstream LLM call/no-call, and whether state was injected.
 - base model: generic Docker/prohibition guidance text
 - basic pipe: `'docker' is already in use. Only one policy per item is allowed. Use 'reset policies' to change it.`
 - preprocessor pipe: same conflict clarify
-- why this is a real win: explicit conflict semantics are preserved instead of conversational interpretation.
+- why this matters: explicit conflict semantics are preserved instead of conversational interpretation.
 
 **Case 3**
 
@@ -118,7 +121,7 @@ active state, downstream LLM call/no-call, and whether state was injected.
 - base model: generic “how to switch to Podman” tutorial
 - basic pipe: `No exact policy found for "docker". Replacement requires an exact policy match...`
 - preprocessor pipe: same replacement clarify
-- why this is a real win: replacement precondition (old item must exist) is enforced.
+- why this matters: replacement precondition (old item must exist) is enforced.
 
 **Case 4**
 
@@ -126,7 +129,7 @@ active state, downstream LLM call/no-call, and whether state was injected.
 - base model: accepts conversational style phrasing
 - basic pipe: `Did you mean 'set premise concise replies'?`
 - preprocessor pipe: same clarify (near-miss is not rewritten)
-- why this is a real win: preprocessor stays reject-first and preserves engine-owned clarify behavior.
+- why this matters: preprocessor stays reject-first and preserves engine-owned clarify behavior.
 
 **Case 5**
 
@@ -134,4 +137,4 @@ active state, downstream LLM call/no-call, and whether state was injected.
 - base model: generic “please clarify changes” response
 - basic pipe: `Did you mean 'change premise to concise replies'?`
 - preprocessor pipe: same clarify (near-miss is passed through unchanged)
-- why this is a real win: near-miss inputs are not canonicalized, so directive semantics stay engine-owned.
+- why this matters: near-miss inputs are not canonicalized, so directive semantics stay engine-owned.
