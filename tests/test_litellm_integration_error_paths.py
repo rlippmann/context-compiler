@@ -264,6 +264,9 @@ def test_with_preprocessor_fallback_failure_preserves_basic_behavior(monkeypatch
         def export_checkpoint(self) -> dict[str, object]:
             return self._engine.export_checkpoint()
 
+        def has_pending_clarification(self) -> bool:
+            return self._engine.has_pending_clarification()
+
         def step(self, text: str) -> dict[str, object]:
             seen_engine_inputs.append(text)
             return self._engine.step(text)

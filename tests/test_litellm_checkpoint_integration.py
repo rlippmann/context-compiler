@@ -43,6 +43,9 @@ class _FakeEngine:
             "pending": pending,
         }
 
+    def has_pending_clarification(self) -> bool:
+        return self._has_pending
+
     def step(self, _text: str) -> dict[str, object]:
         self.step_calls += 1
         if self.kind == "clarify":
@@ -164,6 +167,9 @@ def test_litellm_with_preprocessor_bypasses_preprocess_while_pending(
                 "authoritative_state": self.state,
                 "pending": pending,
             }
+
+        def has_pending_clarification(self) -> bool:
+            return self.pending
 
         def step(self, text: str) -> dict[str, object]:
             self.step_inputs.append(text)
@@ -427,6 +433,9 @@ def test_litellm_basic_confirmation_summary_falls_back_for_unknown_pending_shape
                 "authoritative_state": self.state,
                 "pending": self._pending,
             }
+
+        def has_pending_clarification(self) -> bool:
+            return self._pending is not None
 
         def export_checkpoint_json(self) -> str:
             return "ckpt-fallback"

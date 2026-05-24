@@ -3,7 +3,7 @@
 Most applications should start with a **single Context Compiler engine**.
 
 A single engine is not a single rule.  
-It maintains a complete authoritative state consisting of:
+It maintains a complete saved state consisting of:
 
 - one premise (a single explicit conversational stance)
 - a set of per-item policy states (`use` or `prohibit`)
@@ -39,7 +39,7 @@ Policies do not interact with each other.
 - There is no grouping  
 - There is no domain model  
 
-Each policy entry is an independent authoritative key.
+Each policy entry is an independent key in state.
 
 ## When to Use Multiple Engines
 
@@ -52,20 +52,34 @@ Typical cases:
 - isolation between workflows  
 - independent persistence or reset behavior  
 
-## Composition Is a Host Concern
+## Composition Is an App Concern
 
 The compiler does not coordinate multiple engines.
 
-The host is responsible for:
+The app is responsible for:
 
 - selecting which engine(s) apply  
 - combining state into model context  
 - managing lifecycle (reset, persistence, replay) per engine  
 
-The compiler only maintains a single authoritative state per instance.
+The compiler only maintains a single state instance per engine.
 
 ## Guideline
 
 Start with one engine.
 
 Introduce multiple engines only when you need **independent lifecycle or isolation**, not because a single engine is insufficient.
+
+## Combining Policies from Multiple Sources
+
+If you need to combine constraints from separate sources, do it explicitly in
+host code by replaying directives through `step(...)` into a target engine.
+
+Pattern:
+
+1. Select ordered source directives
+2. Replay each directive via `engine.step(...)`
+3. Handle any returned `clarify` decisions explicitly
+
+This keeps conflict handling in normal engine semantics and avoids adding merge
+semantics to core state APIs.

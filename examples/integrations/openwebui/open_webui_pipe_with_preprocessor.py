@@ -3,8 +3,8 @@ title: Context Compiler Preprocessor Pipe
 author: rlippmann
 author_url: https://github.com/rlippmann/context-compiler
 funding_url: https://github.com/rlippmann/context-compiler
-version: 0.8.2
-requirements: context-compiler[experimental]>=0.6.14
+version: 0.9.0
+requirements: context-compiler[experimental]>=0.6.20
 
 Open WebUI integration with Context Compiler preprocessor.
 
@@ -57,6 +57,7 @@ from context_compiler import (
     get_premise_value,
 )
 from context_compiler.engine import Engine
+from context_compiler.observability import build_compact_trace_text
 from experimental.preprocessor import (
     PREPROCESS_OUTCOME_DIRECTIVE,
     parse_preprocessor_output,
@@ -125,11 +126,7 @@ def _extract_latest_user_text(messages: list[dict[str, Any]]) -> str | None:
 
 
 def _has_pending_clarification(engine: Engine) -> bool:
-    checker = getattr(engine, "has_pending_clarification", None)
-    if callable(checker):
-        return bool(checker())
-    checkpoint = engine.export_checkpoint()
-    return checkpoint.get("pending") is not None
+    return engine.has_pending_clarification()
 
 
 def _render_compiler_state_block(state: State) -> str:
@@ -182,50 +179,6 @@ def _normalize_state(value: object) -> State:
     return {"premise": None, "policies": {}, "version": 2}
 
 
-def _active_state_summary(state: object) -> str:
-    normalized = _normalize_state(state)
-    premise = get_premise_value(normalized)
-    use_items = sorted(get_policy_items(normalized, "use"))
-    prohibit_items = sorted(get_policy_items(normalized, "prohibit"))
-    parts: list[str] = []
-    if premise is not None:
-        parts.append(f'premise="{premise}"')
-    if use_items:
-        parts.append("use " + ", ".join(use_items))
-    if prohibit_items:
-        parts.append("prohibit " + ", ".join(prohibit_items))
-    return "; ".join(parts) if parts else "none"
-
-
-def _compact_state_change(before: object, after: object) -> str:
-    before_state = _normalize_state(before)
-    after_state = _normalize_state(after)
-    before_premise = get_premise_value(before_state)
-    after_premise = get_premise_value(after_state)
-    before_use = set(get_policy_items(before_state, "use"))
-    after_use = set(get_policy_items(after_state, "use"))
-    before_prohibit = set(get_policy_items(before_state, "prohibit"))
-    after_prohibit = set(get_policy_items(after_state, "prohibit"))
-
-    parts: list[str] = []
-    if before_premise != after_premise:
-        if after_premise is None:
-            parts.append("-premise")
-        elif before_premise is None:
-            parts.append(f'+premise "{after_premise}"')
-        else:
-            parts.append(f'~premise "{after_premise}"')
-    for item in sorted(after_use - before_use):
-        parts.append(f"+use {item}")
-    for item in sorted(before_use - after_use):
-        parts.append(f"-use {item}")
-    for item in sorted(after_prohibit - before_prohibit):
-        parts.append(f"+prohibit {item}")
-    for item in sorted(before_prohibit - after_prohibit):
-        parts.append(f"-prohibit {item}")
-    return ", ".join(parts) if parts else "none"
-
-
 def _build_compact_trace_text(
     *,
     decision: object,
@@ -234,31 +187,13 @@ def _build_compact_trace_text(
     llm_called: bool,
     state_injected: str,
 ) -> str:
-    kind_obj = decision.get("kind") if isinstance(decision, dict) else None
-    kind = kind_obj if isinstance(kind_obj, str) else "unknown"
-    lines = ["Context Compiler trace", "", f"decision kind: {kind}"]
-
-    if kind == DECISION_UPDATE:
-        lines.append(f"state change: {_compact_state_change(state_before, state_after)}")
-        lines.append(f"active state: {_active_state_summary(state_after)}")
-        lines.append(f"downstream LLM call: {'yes' if llm_called else 'no'}")
-        lines.append("")
-        lines.append(f"state injected: {state_injected}")
-        return "\n".join(lines)
-
-    if kind == DECISION_CLARIFY:
-        prompt_obj = decision.get("prompt_to_user") if isinstance(decision, dict) else None
-        prompt = prompt_obj if isinstance(prompt_obj, str) else ""
-        lines.append(f"clarification prompt: {prompt}")
-        lines.append(f"active state: {_active_state_summary(state_after)}")
-        lines.append(f"downstream LLM call: {'yes' if llm_called else 'no'}")
-        lines.append("state injected: no")
-        return "\n".join(lines)
-
-    lines.append(f"active state: {_active_state_summary(state_after)}")
-    lines.append(f"downstream LLM call: {'yes' if llm_called else 'no'}")
-    lines.append("state injected: no")
-    return "\n".join(lines)
+    return build_compact_trace_text(
+        decision=decision,
+        state_before=state_before,
+        state_after=state_after,
+        llm_called=llm_called,
+        state_injected=state_injected,
+    )
 
 
 def _strip_trace_block_from_text(content: str) -> str:

@@ -10,7 +10,7 @@ conversations, and state can conflict over time.
 This project adds a deterministic state layer that is independent of the model.
 The model handles interpretation and generation; the engine handles premise and
 policies. Only explicit user directives can change state.
-By separating reasoning from state authority, the system improves reliability
+By separating reasoning from state ownership, the system improves reliability
 without requiring model retraining. The system never derives authoritative state
 from model responses.
 The goal is not to make the model smarter, but to make interactions
@@ -26,7 +26,7 @@ The state engine is the source of truth and is model-independent.
 Model output is never interpreted to derive or modify state.
 All state transitions originate from explicit user directives.
 
-Behavioral details are authoritative in `docs/DirectiveGrammarSpec.md`.
+Behavioral details are defined in `docs/DirectiveGrammarSpec.md`.
 
 ## Project Milestones
 
@@ -45,7 +45,7 @@ The current authoritative state shape and directive semantics are defined in `Di
 - Apply explicit state changes as deterministic replacements
 - Block ambiguous updates until clarified
 - Maintain a source-of-truth state that does not depend on prior model wording
-- Provide structured state for host-provided model context
+- Provide structured state for app-provided model context
 
 **Deliverables:**
 
@@ -53,7 +53,7 @@ The current authoritative state shape and directive semantics are defined in `Di
 - State data model (authoritative conversational state)
 - Deterministic update rules for explicit directives and clarification
 - Clarification mechanism for ambiguous mutations
-- Context serialization interface (`export_json` / `import_json`, state → host application)
+- Context serialization interface (`export_json` / `import_json`, state → app layer)
 - Reference integration harness (example host)
 - Tests: persistence and non-regression of deterministic state updates
 
@@ -64,7 +64,7 @@ After correcting or constraining the assistant once, the behavior remains consis
 ### M3 — Cross-Session Recall (implemented, engine-level / host-enabled)
 
 **Goal**
-Extend host-level workflows around persisted exported state safely and intentionally.
+Extend app-level workflows around persisted exported state safely and intentionally.
 
 **Core capability:**
 
@@ -77,17 +77,17 @@ Extend host-level workflows around persisted exported state safely and intention
 
 **Deliverables:**
 
-- Host-side storage/recovery patterns built on the existing import/export API
-- Host-side storage/recovery patterns for checkpoint object/checkpoint JSON continuation restore
+- App-side storage/recovery patterns built on the existing import/export API
+- App-side storage/recovery patterns for checkpoint object/checkpoint JSON continuation restore
 
 **User-visible outcome:**
 
-When hosts persist exported state, assistants can carry decisions across sessions without reintroducing old conflicts.
-Pending confirmation-required flows can be resumed when the host persists checkpoints.
+When apps persist exported state, assistants can carry decisions across sessions without reintroducing old conflicts.
+Pending confirmation-required flows can be resumed when the app persists checkpoints.
 
 `export_json()` / `import_json()` remain authoritative-state only.
 Checkpoint APIs are separate and represent runtime continuation.
-Long-term memory remains a host persistence responsibility, not an engine-owned store.
+Long-term memory remains an app persistence responsibility, not an engine-owned store.
 
 ### 0.6.x
 
@@ -104,19 +104,15 @@ Make engine behavior inspectable and externally controllable without guessing.
 - State inspection
 - Deterministic dry-run / preview
 - Structural state diff
-- Thin controller layer around step / preview / replay behavior
+- Thin stateless controller layer around step / preview behavior
 - Machine-readable REPL JSON output containing:
-  - `decision`
-  - `prompt_to_user`
-  - `state`
-- JSON input for initial state only:
+  - versioned one-object-per-line output (`output_version`)
+  - step / preview / state command result envelopes
+- JSON preload for authoritative state and checkpoint continuation:
   - `--initial-state-json`
   - `--initial-state-file`
-- REPL LLM fallback as explicit optional mode:
-  - `--with-llm-fallback`
-  - requires `--with-preprocessor`
-  - never implicit
-  - inspectable via preview / JSON output
+  - `--initial-checkpoint-json`
+  - `--initial-checkpoint-file`
 - Explicit preprocessor policy for multi-line, multi-sentence, and conversational-prefix input
   (for example `ok. prohibit peanuts`, `sure - use docker`, mixed conversational + directive content)
   that is rule-based, fixture-covered, and inspectable
@@ -133,9 +129,11 @@ Make engine behavior inspectable and externally controllable without guessing.
 
 ### Post-0.7 Direction
 
-- Profile commands and workflow conveniences
+- 0.8 candidate direction: model-assisted state suggestions (inspectable, previewable,
+  and never directly mutating authoritative state)
+- MCP adapter likely as a separate/later track after 0.8 direction is clearer
+- Optional 0.7.1 MCP-readiness helpers only if narrowly justified
 - Additional tooling built on auditability surfaces
-- Broader heuristic responsibility remains default-avoid unless tightly justified
 
 ### 1.0 Target
 

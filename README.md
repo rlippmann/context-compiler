@@ -45,13 +45,13 @@ those forms.
 `--json` enables machine-readable NDJSON output for non-interactive usage
 (one complete JSON object per processed input line).
 
-Preload options keep authoritative state and runtime continuation separate:
-- `--initial-state-json` / `--initial-state-file` load authoritative state
+Preload options keep saved rules separate from in-progress confirmation state:
+- `--initial-state-json` / `--initial-state-file` load saved state
   (via exported state JSON).
 - `--initial-checkpoint-json` / `--initial-checkpoint-file` restore full
-  checkpoint continuation (authoritative state + pending clarification state).
+  continuation checkpoint (saved state + pending confirmation state).
 
-REPL command-layer commands (host/controller layer, not engine directives):
+REPL commands (controller layer, not engine directives):
 - `state` shows current authoritative state.
 - `preview <input>` runs deterministic dry-run without mutating live state.
 - `step <input>` is an explicit alias of normal bare-input step behavior.
@@ -110,6 +110,20 @@ Context Compiler treats explicit user directives as inputs to a fixed, repeatabl
 Instead of relying on the LLM to remember constraints across a conversation, user instructions are compiled into structured state before the model runs.
 
 The idea is similar to a traditional compiler: user directives are translated into a structured representation that the rest of the system can rely on.
+
+---
+
+## FAQ
+
+**Is this just prompt reinjection?**
+Partly. Hosts still pass state to models as context. The difference is that
+state is maintained by a deterministic engine with explicit update rules,
+clarification behavior, and inspectable checkpoints.
+
+**Isn’t this just prompt engineering?**
+It complements prompt engineering, but solves a different problem. Prompting
+shapes model behavior; Context Compiler provides a deterministic state layer
+that updates only through explicit directives.
 
 ---
 
@@ -181,7 +195,7 @@ Host Application
 ```
 
 The compiler owns state updates and never calls the LLM.
-The host decides whether to call the model based on the returned `Decision`.
+Your app decides whether to call the model based on the returned `Decision`.
 
 ---
 
@@ -227,8 +241,8 @@ Meaning:
 
 ### Controller API (Reusable Outside REPL)
 
-These controller-layer APIs are public package exports and can be used directly
-in host code (not just inside the REPL).
+These controller APIs are public package exports and can be used directly
+in app code (not just inside the REPL).
 
 | API | Description |
 |---|---|
@@ -337,6 +351,18 @@ Use policies instead when the constraint is explicit and enforceable:
 - “prohibit introducing new external dependencies”
 - “use single-step preparation methods”
 
+### Example domains
+
+Hosts define what policy items and premise mean in context. Common patterns:
+
+- safety-oriented constraints (for example, prohibited materials or tools)
+- authority/evidence constraints (for example, cite only approved sources)
+- software workflow constraints (for example, require `uv`, prohibit `npm`)
+- accessibility/environment constraints (for example, no audio-only outputs)
+
+Context Compiler enforces explicit directive/state mechanics. Domain reasoning
+still belongs to the host and model workflow.
+
 ---
 
 ## Directive Examples
@@ -380,6 +406,10 @@ For full directive grammar and edge-case behavior, see [DirectiveGrammarSpec.md]
 - [examples](examples/) — minimal usage patterns and core integration primitives
 - [demos](demos/) — concrete scenarios showing how behavior differs with and without the compiler
 - [integrations](examples/integrations/) — production-style host integrations (OpenWebUI, LiteLLM, etc.)
+
+Integration note: current OpenWebUI example pipes return deterministic local
+acknowledgements for directive-only `update` decisions instead of forwarding
+those turns to the downstream LLM.
 
 ---
 

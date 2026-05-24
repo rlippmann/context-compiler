@@ -88,3 +88,22 @@ def summarize_confirmation_update(user_input: str, pending: object) -> str:
     if normalized not in _AFFIRMATIVE_CONFIRMATION_TOKENS:
         return "State updated."
     return _summarize_pending_confirmation_update(pending)
+
+
+def summarize_confirmation_update_from_engine(user_input: str, engine: object) -> str:
+    """Return confirmation summary using pending details from an engine checkpoint."""
+    checkpoint: object = None
+    export_checkpoint = getattr(engine, "export_checkpoint", None)
+    if callable(export_checkpoint):
+        try:
+            checkpoint = export_checkpoint()
+        except Exception:
+            checkpoint = None
+    pending = checkpoint.get("pending") if isinstance(checkpoint, dict) else None
+    return summarize_confirmation_update(user_input, pending)
+
+
+def summarize_confirmation_update_from_checkpoint(user_input: str, checkpoint: object) -> str:
+    """Return confirmation summary using pending details from a checkpoint object."""
+    pending = checkpoint.get("pending") if isinstance(checkpoint, dict) else None
+    return summarize_confirmation_update(user_input, pending)
