@@ -1,19 +1,15 @@
-import importlib.util
+import importlib
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-MODULE_PATH = Path("host_support/observability.py")
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _load_module():
-    spec = importlib.util.spec_from_file_location("host_support_observability_test", MODULE_PATH)
-    if spec is None or spec.loader is None:
-        raise RuntimeError("unable to load host_support/observability.py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    sys.path.insert(0, str(REPO_ROOT))
+    module = importlib.import_module("context_compiler.observability")
+    return importlib.reload(module)
 
 
 @dataclass
@@ -192,10 +188,10 @@ def test_build_trace_non_mapping_states_render_safely() -> None:
     assert "['docker', 'kubectl']" in output
 
 
-def test_host_support_exports_build_trace() -> None:
+def test_context_compiler_observability_exports_build_trace() -> None:
     sys.path.insert(0, str(REPO_ROOT))
-    sys.modules.pop("host_support", None)
-    from host_support import build_trace
+    sys.modules.pop("context_compiler.observability", None)
+    from context_compiler.observability import build_trace
 
     output = build_trace(
         original_input="hello",
