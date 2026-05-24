@@ -166,4 +166,34 @@ def build_compact_trace_text(
     return "\n".join(lines)
 
 
-__all__ = ["build_compact_trace_text"]
+def build_trace(
+    *,
+    original_input: str,
+    compiler_input: str,
+    decision: object,
+    state_before: object,
+    state_after: object,
+    preprocessor_output: str | None = None,
+    llm_called: bool = False,
+) -> str:
+    """Build a concise human-readable trace line set for host integrations."""
+    kind = _normalize_text(_decision_field(decision, "kind")) or "unknown"
+    clarify_prompt = _normalize_text(_decision_field(decision, "prompt_to_user"))
+    normalized_preproc = _normalize_text(preprocessor_output)
+
+    lines = [
+        "Context Compiler trace",
+        f"- original input: {original_input}",
+        f"- compiler input: {compiler_input}",
+    ]
+    if normalized_preproc is not None:
+        lines.append(f"- preprocessor output: {normalized_preproc}")
+    lines.append(f"- decision kind: {kind}")
+    if clarify_prompt is not None:
+        lines.append(f"- clarification prompt: {clarify_prompt}")
+    lines.append(f"- state change: {_state_change_summary(state_before, state_after)}")
+    lines.append(f"- downstream LLM call: {'yes' if llm_called else 'no'}")
+    return "\n".join(lines)
+
+
+__all__ = ["build_compact_trace_text", "build_trace"]

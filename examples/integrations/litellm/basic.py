@@ -27,6 +27,7 @@ from context_compiler import (
     get_premise_value,
 )
 from context_compiler.engine import Engine
+from context_compiler.observability import build_trace
 
 try:
     from host_support import is_confirmation_text
@@ -45,35 +46,6 @@ except ImportError:
     def summarize_confirmation_update_from_checkpoint(user_input: str, checkpoint: object) -> str:
         pending = checkpoint.get("pending") if isinstance(checkpoint, dict) else None
         return _summarize_confirmation_update_from_pending(user_input, pending)
-
-
-try:
-    from host_support import build_trace
-except ImportError:
-    try:
-        from host_support.observability import build_trace
-    except ImportError:
-
-        def build_trace(
-            *,
-            original_input: str,
-            compiler_input: str,
-            decision: object,
-            state_before: object,
-            state_after: object,
-            preprocessor_output: str | None = None,
-            llm_called: bool = False,
-        ) -> str:
-            del (
-                original_input,
-                compiler_input,
-                decision,
-                state_before,
-                state_after,
-                preprocessor_output,
-                llm_called,
-            )
-            return ""
 
 
 try:
