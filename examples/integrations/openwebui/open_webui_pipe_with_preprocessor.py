@@ -55,6 +55,7 @@ from context_compiler import (
     create_engine,
     get_policy_items,
     get_premise_value,
+    state_diff,
 )
 from context_compiler.engine import Engine
 from experimental.preprocessor import (
@@ -200,29 +201,31 @@ def _active_state_summary(state: object) -> str:
 def _compact_state_change(before: object, after: object) -> str:
     before_state = _normalize_state(before)
     after_state = _normalize_state(after)
-    before_premise = get_premise_value(before_state)
-    after_premise = get_premise_value(after_state)
-    before_use = set(get_policy_items(before_state, "use"))
-    after_use = set(get_policy_items(after_state, "use"))
-    before_prohibit = set(get_policy_items(before_state, "prohibit"))
-    after_prohibit = set(get_policy_items(after_state, "prohibit"))
-
+    diff = state_diff(before_state, after_state)
     parts: list[str] = []
-    if before_premise != after_premise:
-        if after_premise is None:
+    premise = diff["premise"]
+    if premise["changed"]:
+        if premise["after"] is None:
             parts.append("-premise")
-        elif before_premise is None:
-            parts.append(f'+premise "{after_premise}"')
+        elif premise["before"] is None:
+            parts.append(f'+premise "{premise["after"]}"')
         else:
-            parts.append(f'~premise "{after_premise}"')
-    for item in sorted(after_use - before_use):
-        parts.append(f"+use {item}")
-    for item in sorted(before_use - after_use):
-        parts.append(f"-use {item}")
-    for item in sorted(after_prohibit - before_prohibit):
-        parts.append(f"+prohibit {item}")
-    for item in sorted(before_prohibit - after_prohibit):
-        parts.append(f"-prohibit {item}")
+            parts.append(f'~premise "{premise["after"]}"')
+    for item, value in sorted(diff["policies"]["added"].items()):
+        if value == "use":
+            parts.append(f"+use {item}")
+        else:
+            parts.append(f"+prohibit {item}")
+    for item, value in sorted(diff["policies"]["removed"].items()):
+        if value == "use":
+            parts.append(f"-use {item}")
+        else:
+            parts.append(f"-prohibit {item}")
+    for item, transition in sorted(diff["policies"]["changed"].items()):
+        if transition["after"] == "use":
+            parts.append(f"~use {item}")
+        else:
+            parts.append(f"~prohibit {item}")
     return ", ".join(parts) if parts else "none"
 
 

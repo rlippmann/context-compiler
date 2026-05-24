@@ -1,6 +1,9 @@
 """Shared human-readable integration trace helpers."""
 
 from collections.abc import Mapping
+from typing import cast
+
+from context_compiler import State, state_diff
 
 _MAX_INLINE_VALUE_LEN = 180
 
@@ -39,23 +42,68 @@ def _state_change_summary(before: object, after: object) -> str:
         return "none -> none"
     if before == after:
         return "unchanged"
+    if isinstance(before, dict) and isinstance(after, dict):
+        before_state = cast(State, before)
+        after_state = cast(State, after)
+        try:
+            diff = state_diff(before_state, after_state)
+        except Exception:
+            diff = None
+        if isinstance(diff, Mapping):
+            parts: list[str] = []
+            premise = diff.get("premise")
+            if isinstance(premise, Mapping) and premise.get("changed") is True:
+                after_premise = premise.get("after")
+                if after_premise is None:
+                    parts.append("-premise")
+                else:
+                    parts.append(f'+premise "{after_premise}"')
+            policies = diff.get("policies")
+            if isinstance(policies, Mapping):
+                added = policies.get("added")
+                removed = policies.get("removed")
+                changed = policies.get("changed")
+                if isinstance(added, Mapping):
+                    for item, value in sorted(added.items()):
+                        if value == "use":
+                            parts.append(f"+use {item}")
+                        elif value == "prohibit":
+                            parts.append(f"+prohibit {item}")
+                if isinstance(removed, Mapping):
+                    for item, value in sorted(removed.items()):
+                        if value == "use":
+                            parts.append(f"-use {item}")
+                        elif value == "prohibit":
+                            parts.append(f"-prohibit {item}")
+                if isinstance(changed, Mapping):
+                    for item, transition in sorted(changed.items()):
+                        if not isinstance(transition, Mapping):
+                            continue
+                        after_value = transition.get("after")
+                        if after_value == "use":
+                            parts.append(f"~use {item}")
+                        elif after_value == "prohibit":
+                            parts.append(f"~prohibit {item}")
+            if parts:
+                return ", ".join(parts)
+
     if isinstance(before, Mapping) and isinstance(after, Mapping):
         before_keys = set(before.keys())
         after_keys = set(after.keys())
-        added = sorted(str(key) for key in after_keys - before_keys)
-        removed = sorted(str(key) for key in before_keys - after_keys)
+        added_keys = sorted(str(key) for key in after_keys - before_keys)
+        removed_keys = sorted(str(key) for key in before_keys - after_keys)
         maybe_changed = sorted(
             str(key) for key in before_keys & after_keys if before[key] != after[key]
         )
-        parts: list[str] = []
-        if added:
-            parts.append(f"added={added}")
-        if removed:
-            parts.append(f"removed={removed}")
+        key_parts: list[str] = []
+        if added_keys:
+            key_parts.append(f"added={added_keys}")
+        if removed_keys:
+            key_parts.append(f"removed={removed_keys}")
         if maybe_changed:
-            parts.append(f"changed={maybe_changed}")
-        if parts:
-            return "; ".join(parts)
+            key_parts.append(f"changed={maybe_changed}")
+        if key_parts:
+            return "; ".join(key_parts)
     return f"{_summarize_state(before)} -> {_summarize_state(after)}"
 
 
