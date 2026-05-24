@@ -1,0 +1,7 @@
+{
+  "name": "parse-source-input-inline-prose-code-rejected",
+  "kind": "parse",
+  "source_input": "the command is `use docker`",
+  "raw_output": "use docker",
+  "expected_parsed": null
+}

@@ -1085,6 +1085,60 @@ def test_preprocessor_pipe_near_miss_directives_return_deterministic_clarify_wit
     assert downstream_calls == 0
 
 
+@pytest.mark.parametrize(
+    "user_input",
+    [
+        "ok. prohibit peanuts",
+        "```\nuse docker\n```",
+        "the command is `use docker`",
+        'the docs say "use docker"',
+        "can you use docker?",
+    ],
+)
+def test_preprocessor_pipe_fallback_boundary_unsafe_sources_do_not_mutate_state(
+    monkeypatch, user_input: str
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_fallback_boundary_unsafe", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    calls: list[str] = []
+
+    async def _chat_completion(_: object, payload: dict[str, Any], __: object) -> dict[str, object]:
+        model = str(payload.get("model", ""))
+        calls.append(model)
+        if model == "prep-model":
+            return {"choices": [{"message": {"content": "use docker"}}]}
+        return {"ok": True}
+
+    monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
+    monkeypatch.setattr(module, "render_prompt", lambda *_args, **_kwargs: "prompt")
+    monkeypatch.setattr(
+        module,
+        "preprocess_heuristic",
+        lambda _text: {"outcome": "unknown", "directive": None, "rule_id": "test"},
+    )
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+
+    chat_id = "chat-fallback-boundary-unsafe"
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": user_input}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_id,
+        )
+    )
+
+    assert result == {"ok": True}
+    assert calls == ["prep-model", "base-model"]
+    assert chat_id in module._ENGINES_BY_CHAT_KEY
+    assert module._ENGINES_BY_CHAT_KEY[chat_id].state["policies"] == {}
+
+
 def test_preprocessor_pipe_trace_off_keeps_existing_response_shape(monkeypatch) -> None:
     module = _load_module_with_openwebui_stubs("owui_preproc_trace_off_shape", monkeypatch)
     module._ENGINES_BY_CHAT_KEY.clear()

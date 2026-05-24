@@ -1,0 +1,7 @@
+{
+  "name": "parse-source-input-safe-canonicalization-use-docker",
+  "kind": "parse",
+  "source_input": "Use   Docker",
+  "raw_output": "use docker",
+  "expected_parsed": "use docker"
+}

@@ -1,0 +1,7 @@
+{
+  "name": "parse-source-input-multiline-rejected",
+  "kind": "parse",
+  "source_input": "clear premise\nreset policies",
+  "raw_output": "clear state",
+  "expected_parsed": null
+}

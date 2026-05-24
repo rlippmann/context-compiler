@@ -3,7 +3,10 @@ import re
 from pathlib import Path
 
 from experimental.preprocessor.heuristic_preprocessor import preprocess_heuristic
-from experimental.preprocessor.output_validation import validate_preprocessor_output
+from experimental.preprocessor.output_validation import (
+    parse_preprocessor_output,
+    validate_preprocessor_output,
+)
 
 _PREPROCESSOR_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "preprocessor"
 
@@ -46,6 +49,10 @@ def _normalize_validator_result(
     }
 
 
+def _normalize_parse_result(raw_output: object, source_input: str | None = None) -> str | None:
+    return parse_preprocessor_output(raw_output, source_input=source_input)
+
+
 def _derived_risky_rewrite_candidates(source_input: str) -> list[str]:
     normalized = re.sub(r"\s+", " ", source_input.strip().lower())
     candidates: list[str] = []
@@ -69,13 +76,12 @@ def test_preprocessor_conformance_fixtures() -> None:
         if path.name.startswith("public-api-"):
             continue
 
-        expected = fixture.get("expected")
         fixture_name = fixture.get("name", path.name)
         kind = fixture.get("kind", "heuristic")
 
-        assert isinstance(expected, dict), fixture_name
-
         if kind == "heuristic":
+            expected = fixture.get("expected")
+            assert isinstance(expected, dict), fixture_name
             input_text = fixture.get("input")
             assert isinstance(input_text, str), fixture_name
 
@@ -86,17 +92,31 @@ def test_preprocessor_conformance_fixtures() -> None:
             assert first == expected, fixture_name
             continue
 
-        assert kind == "validator", fixture_name
         assert "raw_output" in fixture, fixture_name
         raw_output = fixture["raw_output"]
         source_input_obj = fixture.get("source_input")
         source_input = source_input_obj if isinstance(source_input_obj, str) else None
 
+        if kind == "validator":
+            expected = fixture.get("expected")
+            assert isinstance(expected, dict), fixture_name
+            # Deterministic replay check.
+            first = _normalize_validator_result(raw_output, source_input=source_input)
+            second = _normalize_validator_result(raw_output, source_input=source_input)
+            assert first == second, fixture_name
+            assert first == expected, fixture_name
+            continue
+
+        assert kind == "parse", fixture_name
+        assert "expected_parsed" in fixture, fixture_name
+        expected_parsed = fixture["expected_parsed"]
+        assert isinstance(expected_parsed, str) or expected_parsed is None, fixture_name
+
         # Deterministic replay check.
-        first = _normalize_validator_result(raw_output, source_input=source_input)
-        second = _normalize_validator_result(raw_output, source_input=source_input)
-        assert first == second, fixture_name
-        assert first == expected, fixture_name
+        first_parsed = _normalize_parse_result(raw_output, source_input=source_input)
+        second_parsed = _normalize_parse_result(raw_output, source_input=source_input)
+        assert first_parsed == second_parsed, fixture_name
+        assert first_parsed == expected_parsed, fixture_name
 
 
 def test_engine_owned_near_misses_are_reject_only_for_fallback_rewrites() -> None:

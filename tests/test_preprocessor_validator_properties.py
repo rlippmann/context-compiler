@@ -1,6 +1,9 @@
+from copy import deepcopy
+
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
+from context_compiler import create_engine
 from experimental.preprocessor.output_validation import (
     _is_allowed_directive,
     parse_preprocessor_output,
@@ -30,6 +33,15 @@ NOISY_TEXT = st.one_of(
     st.builds(lambda t: f"[{t}]", st.text(max_size=60)),
     st.builds(lambda a, b: f"{a}; {b}", st.text(max_size=30), st.text(max_size=30)),
     st.builds(lambda a, b: f"{a}: {b}", st.text(max_size=30), st.text(max_size=30)),
+)
+UNSAFE_SOURCE_TEMPLATES = st.sampled_from(
+    [
+        "ok. {}",
+        "```\n{}\n```",
+        "the command is `{}`",
+        'the docs say "{}"',
+        "can you {}?",
+    ]
 )
 
 
@@ -140,3 +152,34 @@ def test_validate_output_always_has_null_for_non_directive(raw_output: object) -
         assert isinstance(validated["output"], str)
     else:
         assert validated["output"] is None
+
+
+@given(
+    st.sampled_from(CANONICAL_DIRECTIVES),
+    st.sampled_from(CANONICAL_DIRECTIVES),
+    UNSAFE_SOURCE_TEMPLATES,
+)
+def test_source_aware_validation_rejects_unsafe_wrapped_sources(
+    directive_in_source: str, fallback_directive: str, template: str
+) -> None:
+    source_input = template.format(directive_in_source)
+    validated = validate_preprocessor_output(fallback_directive, source_input=source_input)
+    assert validated == {"classification": "unknown", "output": None}
+
+
+@given(st.sampled_from(CANONICAL_DIRECTIVES), UNSAFE_SOURCE_TEMPLATES)
+def test_source_aware_rejection_prevents_engine_state_mutation(
+    directive_in_source: str, template: str
+) -> None:
+    source_input = template.format(directive_in_source)
+    fallback_directive = "use docker"
+    parsed = parse_preprocessor_output(fallback_directive, source_input=source_input)
+    compile_input = parsed if parsed is not None else source_input
+
+    engine = create_engine()
+    before = deepcopy(engine.state)
+    decision = engine.step(compile_input)
+    after = engine.state
+
+    assume(decision["kind"] != "update")
+    assert before == after

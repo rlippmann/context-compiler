@@ -50,6 +50,8 @@ Boundary policy (explicit):
 - Do not split sentences or mine multi-line batches for commands.
 - Do not extract from markdown/code blocks or quoted/reported text.
 - Do not perform broad semantic rewrites.
+- Preserve quoted payload tokens in canonical directives; do not silently strip
+  payload quotes (for example `use "docker"` remains quoted).
 - Prefer false negatives over false positive state mutation.
 
 Natural-language state proposal workflows should be handled by explicit host

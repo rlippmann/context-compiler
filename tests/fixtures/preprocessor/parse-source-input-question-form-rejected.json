@@ -1,0 +1,7 @@
+{
+  "name": "parse-source-input-question-form-rejected",
+  "kind": "parse",
+  "source_input": "can you use docker?",
+  "raw_output": "use docker",
+  "expected_parsed": null
+}
