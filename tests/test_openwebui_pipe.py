@@ -537,6 +537,38 @@ def test_pipe_show_state_non_exact_routes_normally(monkeypatch) -> None:
     assert downstream_calls == 1
 
 
+def test_pipe_show_state_exact_match_is_case_insensitive_after_trim(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_show_state_case_trim", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    downstream_calls = 0
+
+    async def _track_downstream(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        del payload
+        nonlocal downstream_calls
+        downstream_calls += 1
+        return {"choices": [{"message": {"content": "downstream"}}]}
+
+    module.generate_chat_completion = _track_downstream
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "  ShOw StAtE  "}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-show-state-case-trim",
+        )
+    )
+
+    assert result == "Premise: none\nUse: none\nProhibit: none\nPending clarification: no"
+    assert downstream_calls == 0
+
+
 def test_pipe_near_miss_directives_return_deterministic_clarify_without_downstream(
     monkeypatch,
 ) -> None:

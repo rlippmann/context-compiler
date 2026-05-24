@@ -883,6 +883,52 @@ def test_preprocessor_pipe_show_state_non_exact_routes_normally(monkeypatch) -> 
     assert downstream_calls >= 1
 
 
+def test_preprocessor_pipe_show_state_exact_match_is_case_insensitive_after_trim(
+    monkeypatch,
+) -> None:
+    module = _load_module_with_openwebui_stubs("owui_preproc_show_state_case_trim", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    downstream_calls = 0
+    preprocess_calls = 0
+
+    async def _track_downstream(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        del payload
+        nonlocal downstream_calls
+        downstream_calls += 1
+        return {"choices": [{"message": {"content": "downstream"}}]}
+
+    async def _track_preprocess(
+        self, *args: object, **kwargs: object
+    ) -> tuple[str | None, str | None]:
+        del self, args, kwargs
+        nonlocal preprocess_calls
+        preprocess_calls += 1
+        return None, None
+
+    monkeypatch.setattr(module, "generate_chat_completion", _track_downstream)
+    monkeypatch.setattr(module.Pipe, "_preprocess_user_input", _track_preprocess)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+    result = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "  ShOw StAtE  "}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__="chat-preproc-show-state-case-trim",
+        )
+    )
+
+    assert result == "Premise: none\nUse: none\nProhibit: none\nPending clarification: no"
+    assert downstream_calls == 0
+    assert preprocess_calls == 0
+
+
 @pytest.mark.parametrize(
     ("confirmation",),
     [
