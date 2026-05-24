@@ -67,6 +67,8 @@ Conservative boundary policy:
 - No markdown/code-block extraction.
 - No broad natural-language semantic rewriting.
 - Prefer false negatives over false positives.
+- Quoted payload tokens inside an otherwise canonical directive (for example
+  `use "docker"`) are preserved as-is; they are not silently unquoted.
 
 If you need natural-language proposal/orchestration behavior, use an explicit
 host-side assist workflow with preview/diff/confirmation, not this preprocessor.

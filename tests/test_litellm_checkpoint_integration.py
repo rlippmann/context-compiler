@@ -711,3 +711,57 @@ def test_litellm_with_preprocessor_trace_on_passthrough_includes_trace() -> None
     assert "Context Compiler trace" in result
     assert "decision kind: passthrough" in result
     assert "downstream LLM call: yes" in result
+
+
+@pytest.mark.parametrize(
+    "user_input",
+    [
+        "ok. prohibit peanuts",
+        "```\nuse docker\n```",
+        "the command is `use docker`",
+        'the docs say "use docker"',
+        "can you use docker?",
+    ],
+)
+def test_litellm_with_preprocessor_fallback_boundary_unsafe_sources_do_not_mutate_state(
+    monkeypatch: pytest.MonkeyPatch, user_input: str
+) -> None:
+    module = _load_module(
+        "litellm_with_preprocessor_fallback_boundary_unsafe",
+        Path("examples/integrations/litellm/with_preprocessor.py"),
+    )
+
+    class _Config:
+        mode = "openai"
+        api_key = "test-key"
+        base_url = "http://example.invalid"
+        model = "base-model"
+        source = "test"
+
+    completion_calls: list[str] = []
+
+    def _completion(**kwargs: object) -> dict[str, object]:
+        model = str(kwargs.get("model", ""))
+        completion_calls.append(model)
+        if model == "prep-model":
+            return {"choices": [{"message": {"content": "use docker"}}]}
+        return {"choices": [{"message": {"content": "downstream-ok"}}]}
+
+    monkeypatch.setenv("PREPROCESSOR_MODEL", "prep-model")
+    monkeypatch.setattr(module, "resolve_provider_config", lambda **_kwargs: _Config())
+    monkeypatch.setattr(module, "_get_litellm_completion", lambda: _completion)
+    monkeypatch.setattr(module, "render_prompt", lambda *_args, **_kwargs: "prompt")
+    monkeypatch.setattr(
+        module,
+        "preprocess_heuristic",
+        lambda _text: {"outcome": "unknown", "directive": None, "rule_id": "test"},
+    )
+
+    engine = create_engine()
+    initial_state = dict(engine.state["policies"])
+
+    result = module.handle_turn(user_input, engine)
+
+    assert result == "downstream-ok"
+    assert engine.state["policies"] == initial_state
+    assert completion_calls == ["prep-model", "base-model"]

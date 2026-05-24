@@ -4,7 +4,7 @@
   "raw_output": "prohibit peanuts",
   "source_input": "what is a simple curry recipe?",
   "expected": {
-    "classification": "directive",
-    "output": "prohibit peanuts"
+    "classification": "unknown",
+    "output": null
   }
 }

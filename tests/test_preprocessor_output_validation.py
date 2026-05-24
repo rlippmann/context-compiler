@@ -159,6 +159,56 @@ def test_validation_with_source_input_allows_other_directives() -> None:
         "use coconut milk",
         source_input="what is a simple curry recipe?",
     ) == {
+        "classification": "unknown",
+        "output": None,
+    }
+
+
+def test_validation_with_source_input_rejects_boundary_unsafe_fallback_rewrites() -> None:
+    cases = [
+        ("ok. prohibit peanuts", "prohibit peanuts"),
+        ("clear premise\nreset policies", "clear premise"),
+        ("```\nuse docker\n```", "use docker"),
+        ("the command is `use docker`", "use docker"),
+        ('the docs say "use docker"', "use docker"),
+        ("use docker and explain why", "use docker"),
+        ("can you use docker?", "use docker"),
+    ]
+    for source_input, fallback_output in cases:
+        assert validate_preprocessor_output(
+            fallback_output,
+            source_input=source_input,
+        ) == {
+            "classification": "unknown",
+            "output": None,
+        }
+
+
+def test_validation_with_source_input_preserves_safe_whole_message_canonicalization() -> None:
+    cases = [
+        ("Use Docker", "use docker"),
+        ("  use    docker  ", "use docker"),
+        ("clear state.", "clear state"),
+        ("reset policies!", "reset policies"),
+        ("(clear state)", "clear state"),
+        ("[clear state]", "clear state"),
+        ('use "docker"', 'use "docker"'),
+    ]
+    for source_input, fallback_output in cases:
+        assert validate_preprocessor_output(
+            fallback_output,
+            source_input=source_input,
+        ) == {
+            "classification": "directive",
+            "output": fallback_output,
+        }
+
+
+def test_validation_with_source_input_allows_strict_structured_contract_self_input() -> None:
+    assert validate_preprocessor_output(
+        '{"classification":"directive","output":"prohibit peanuts"}',
+        source_input='{"classification":"directive","output":"prohibit peanuts"}',
+    ) == {
         "classification": "directive",
-        "output": "use coconut milk",
+        "output": "prohibit peanuts",
     }
