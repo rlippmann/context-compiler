@@ -850,16 +850,7 @@ class Pipe:
             _ENGINES_BY_CHAT_KEY[chat_key] = engine
 
         if latest_user_text.strip().lower() == "show state":
-            summary = _render_show_state_summary(engine)
-            return self._with_trace(
-                summary,
-                original_input=latest_user_text,
-                compiler_input=latest_user_text,
-                decision={"kind": DECISION_PASSTHROUGH},
-                state_before=engine.state,
-                state_after=engine.state,
-                llm_called=False,
-            )
+            return _render_show_state_summary(engine)
 
         state_before = engine.state
 

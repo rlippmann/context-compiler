@@ -799,6 +799,7 @@ def test_preprocessor_pipe_show_state_returns_local_summary_and_bypasses_preproc
     pipe = module.Pipe()
     pipe.valves.BASE_MODEL_ID = "base-model"
     pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
     chat_id = "chat-preproc-show-state"
 
     no_pending = asyncio.run(
@@ -813,6 +814,7 @@ def test_preprocessor_pipe_show_state_returns_local_summary_and_bypasses_preproc
 
     assert downstream_calls == 0
     assert preprocess_calls == 0
+    assert "Context Compiler trace" not in no_pending
 
 
 def test_preprocessor_pipe_show_state_reports_pending_yes(monkeypatch) -> None:

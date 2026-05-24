@@ -457,6 +457,7 @@ def test_pipe_show_state_returns_local_summary_and_no_downstream(monkeypatch) ->
 
     pipe = module.Pipe()
     pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
     chat_id = "chat-show-state"
 
     no_pending = asyncio.run(
@@ -470,6 +471,7 @@ def test_pipe_show_state_returns_local_summary_and_no_downstream(monkeypatch) ->
     assert no_pending == ("Premise: none\nUse: none\nProhibit: none\nPending clarification: no")
 
     assert downstream_calls == 0
+    assert "Context Compiler trace" not in no_pending
 
 
 def test_pipe_show_state_reports_pending_yes(monkeypatch) -> None:
