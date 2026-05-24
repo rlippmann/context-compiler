@@ -517,6 +517,9 @@ def test_preprocessor_pipe_restore_and_persist_checkpoint_points(monkeypatch) ->
                 "pending": pending,
             }
 
+        def has_pending_clarification(self) -> bool:
+            return self.has_pending
+
         def step(self, _text: str) -> dict[str, object]:
             if self.kind == "clarify":
                 return {"kind": "clarify", "prompt_to_user": "confirm?", "state": None}
@@ -797,6 +800,9 @@ def test_preprocessor_pipe_bypasses_preprocess_while_pending(
                 "authoritative_state": self.state,
                 "pending": pending,
             }
+
+        def has_pending_clarification(self) -> bool:
+            return self.pending
 
         def export_checkpoint_json(self) -> str:
             return "ckpt-out"

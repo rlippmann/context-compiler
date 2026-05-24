@@ -47,7 +47,17 @@ except ImportError:
 
     is_confirmation_text = _confirmation.is_confirmation_text
 
-from host_support.confirmation import summarize_confirmation_update
+try:
+    from host_support.confirmation import summarize_confirmation_update_from_checkpoint
+except ImportError:
+    from host_support.confirmation import (
+        summarize_confirmation_update as _summarize_confirmation_update_from_pending,
+    )
+
+    def summarize_confirmation_update_from_checkpoint(user_input: str, checkpoint: object) -> str:
+        pending = checkpoint.get("pending") if isinstance(checkpoint, dict) else None
+        return _summarize_confirmation_update_from_pending(user_input, pending)
+
 
 try:
     from host_support import build_trace
@@ -302,14 +312,6 @@ def _persist_session_checkpoint_if_needed(
     _CHECKPOINTS_BY_SESSION_KEY[session_key] = engine.export_checkpoint_json()
 
 
-def _has_pending_clarification(engine: Engine) -> bool:
-    checker = getattr(engine, "has_pending_clarification", None)
-    if callable(checker):
-        return bool(checker())
-    checkpoint = engine.export_checkpoint()
-    return checkpoint.get("pending") is not None
-
-
 def _normalize_confirmation_for_summary(value: str) -> str:
     normalized = value.strip().lower()
     normalized = re.sub(r"\s+", " ", normalized)
@@ -334,9 +336,9 @@ def _near_miss_directive_clarify(value: str) -> str | None:
     return None
 
 
-def _summarize_confirmation_update(user_input: str, pending: object) -> str:
-    summarize_fn: Callable[[str, object], str] = summarize_confirmation_update
-    return summarize_fn(user_input, pending)
+def _summarize_confirmation_update(user_input: str, checkpoint: object) -> str:
+    summarize_fn: Callable[[str, object], str] = summarize_confirmation_update_from_checkpoint
+    return summarize_fn(user_input, checkpoint)
 
 
 def _summarize_update_from_input(user_input: str) -> str:
@@ -407,11 +409,10 @@ def _append_trace(
 def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = None) -> str:
     _restore_session_checkpoint_if_needed(engine, session_key)
     state_before = engine.state
-    pending_before = (
-        engine.export_checkpoint().get("pending") if _has_pending_clarification(engine) else None
-    )
+    has_pending_before = engine.has_pending_clarification()
+    checkpoint_before = engine.export_checkpoint() if has_pending_before else None
     preprocessd: str | None = None
-    if _has_pending_clarification(engine):
+    if engine.has_pending_clarification():
         compile_input = user_input
     else:
         preprocessd = _preprocess_user_input(user_input, engine.state)
@@ -451,8 +452,12 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             llm_called=False,
         )
     _persist_session_checkpoint_if_needed(engine, kind, session_key)
-    if kind == DECISION_UPDATE and is_confirmation_text(user_input) and pending_before is not None:
-        response_text = _summarize_confirmation_update(user_input, pending_before)
+    if (
+        kind == DECISION_UPDATE
+        and is_confirmation_text(user_input)
+        and checkpoint_before is not None
+    ):
+        response_text = _summarize_confirmation_update(user_input, checkpoint_before)
         return _append_trace(
             response_text,
             original_input=user_input,

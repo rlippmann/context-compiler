@@ -134,11 +134,7 @@ def _extract_latest_user_text(messages: list[dict[str, Any]]) -> str | None:
 
 
 def _has_pending_clarification(engine: Engine) -> bool:
-    checker = getattr(engine, "has_pending_clarification", None)
-    if callable(checker):
-        return bool(checker())
-    checkpoint = engine.export_checkpoint()
-    return checkpoint.get("pending") is not None
+    return engine.has_pending_clarification()
 
 
 def _render_compiler_state_block(state: State) -> str:
