@@ -1,0 +1,7 @@
+{
+  "name": "parse-source-input-reported-speech-rejected",
+  "kind": "parse",
+  "source_input": "the docs say \"use docker\"",
+  "raw_output": "use docker",
+  "expected_parsed": null
+}

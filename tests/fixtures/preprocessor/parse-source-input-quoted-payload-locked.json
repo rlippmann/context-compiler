@@ -1,0 +1,7 @@
+{
+  "name": "parse-source-input-quoted-payload-locked",
+  "kind": "parse",
+  "source_input": "use \"docker\"",
+  "raw_output": "use \"docker\"",
+  "expected_parsed": "use \"docker\""
+}

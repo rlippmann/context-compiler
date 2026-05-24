@@ -1,0 +1,7 @@
+{
+  "name": "parse-source-input-mixed-directive-task-rejected",
+  "kind": "parse",
+  "source_input": "use docker and explain why",
+  "raw_output": "use docker",
+  "expected_parsed": null
+}

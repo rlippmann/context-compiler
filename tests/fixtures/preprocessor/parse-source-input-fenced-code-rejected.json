@@ -1,0 +1,7 @@
+{
+  "name": "parse-source-input-fenced-code-rejected",
+  "kind": "parse",
+  "source_input": "```\nuse docker\n```",
+  "raw_output": "use docker",
+  "expected_parsed": null
+}
