@@ -3,8 +3,8 @@ title: Context Compiler Pipe
 author: rlippmann
 author_url: https://github.com/rlippmann/context-compiler
 funding_url: https://github.com/rlippmann/context-compiler
-version: 0.8.2
-requirements: context-compiler>=0.6.14
+version: 0.9.0
+requirements: context-compiler>=0.6.20
 
 Minimal Open WebUI Pipe integration for Context Compiler.
 
@@ -12,7 +12,7 @@ This integration demonstrates mapping Context Compiler `Decision` output into
 Open WebUI request flow.
 
 Scope is intentionally limited:
-- Single Pipe Function for Open WebUI v0.7.2.
+- Single Pipe Function for Open WebUI 0.8.x and 0.9.x.
 - In-memory per-process engine map keyed by chat key.
 - No persistence, no multi-worker coordination, no external storage.
 """
@@ -21,7 +21,7 @@ import inspect
 import json
 import logging
 import re
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator
 from typing import Any, cast
 
 from fastapi import Request  # type: ignore[import-not-found]
@@ -52,17 +52,9 @@ from context_compiler import (
     create_engine,
     get_policy_items,
     get_premise_value,
-    state_diff,
 )
 from context_compiler.engine import Engine
-
-_build_compact_trace_text_shared: Callable[..., str] | None
-try:
-    from host_support.observability import (
-        build_compact_trace_text as _build_compact_trace_text_shared,
-    )
-except ImportError:
-    _build_compact_trace_text_shared = None
+from context_compiler.observability import build_compact_trace_text
 
 logger = logging.getLogger(__name__)
 
@@ -182,52 +174,6 @@ def _normalize_state(value: object) -> State:
     return {"premise": None, "policies": {}, "version": 2}
 
 
-def _local_active_state_summary(state: object) -> str:
-    normalized = _normalize_state(state)
-    premise = get_premise_value(normalized)
-    use_items = sorted(get_policy_items(normalized, "use"))
-    prohibit_items = sorted(get_policy_items(normalized, "prohibit"))
-    parts: list[str] = []
-    if premise is not None:
-        parts.append(f'premise="{premise}"')
-    if use_items:
-        parts.append("use " + ", ".join(use_items))
-    if prohibit_items:
-        parts.append("prohibit " + ", ".join(prohibit_items))
-    return "; ".join(parts) if parts else "none"
-
-
-def _local_compact_state_change(before: object, after: object) -> str:
-    before_state = _normalize_state(before)
-    after_state = _normalize_state(after)
-    diff = state_diff(before_state, after_state)
-    parts: list[str] = []
-    premise = diff["premise"]
-    if premise["changed"]:
-        if premise["after"] is None:
-            parts.append("-premise")
-        elif premise["before"] is None:
-            parts.append(f'+premise "{premise["after"]}"')
-        else:
-            parts.append(f'~premise "{premise["after"]}"')
-    for item, value in sorted(diff["policies"]["added"].items()):
-        if value == "use":
-            parts.append(f"+use {item}")
-        else:
-            parts.append(f"+prohibit {item}")
-    for item, value in sorted(diff["policies"]["removed"].items()):
-        if value == "use":
-            parts.append(f"-use {item}")
-        else:
-            parts.append(f"-prohibit {item}")
-    for item, transition in sorted(diff["policies"]["changed"].items()):
-        if transition["after"] == "use":
-            parts.append(f"~use {item}")
-        else:
-            parts.append(f"~prohibit {item}")
-    return ", ".join(parts) if parts else "none"
-
-
 def _build_compact_trace_text(
     *,
     decision: object,
@@ -236,36 +182,13 @@ def _build_compact_trace_text(
     llm_called: bool,
     state_injected: str,
 ) -> str:
-    if _build_compact_trace_text_shared is not None:
-        return _build_compact_trace_text_shared(
-            decision=decision,
-            state_before=state_before,
-            state_after=state_after,
-            llm_called=llm_called,
-            state_injected=state_injected,
-        )
-    kind_obj = decision.get("kind") if isinstance(decision, dict) else None
-    kind = kind_obj if isinstance(kind_obj, str) else "unknown"
-    lines = ["Context Compiler trace", "", f"decision kind: {kind}"]
-    if kind == DECISION_UPDATE:
-        lines.append(f"state change: {_local_compact_state_change(state_before, state_after)}")
-        lines.append(f"active state: {_local_active_state_summary(state_after)}")
-        lines.append(f"downstream LLM call: {'yes' if llm_called else 'no'}")
-        lines.append("")
-        lines.append(f"state injected: {state_injected}")
-        return "\n".join(lines)
-    if kind == DECISION_CLARIFY:
-        prompt_obj = decision.get("prompt_to_user") if isinstance(decision, dict) else None
-        prompt = prompt_obj if isinstance(prompt_obj, str) else ""
-        lines.append(f"clarification prompt: {prompt}")
-        lines.append(f"active state: {_local_active_state_summary(state_after)}")
-        lines.append(f"downstream LLM call: {'yes' if llm_called else 'no'}")
-        lines.append("state injected: no")
-        return "\n".join(lines)
-    lines.append(f"active state: {_local_active_state_summary(state_after)}")
-    lines.append(f"downstream LLM call: {'yes' if llm_called else 'no'}")
-    lines.append("state injected: no")
-    return "\n".join(lines)
+    return build_compact_trace_text(
+        decision=decision,
+        state_before=state_before,
+        state_after=state_after,
+        llm_called=llm_called,
+        state_injected=state_injected,
+    )
 
 
 def _strip_trace_block_from_text(content: str) -> str:
