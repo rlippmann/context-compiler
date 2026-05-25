@@ -26,6 +26,8 @@ Scored demos now compare four paths:
 | [05](./05_llm_prompt_drift_vs_state.py) | Prompt drift | long transcript failure | weaker long-context models ([see Demo 5 note](#demo-5-stress-ladder-turns)) |
 | [06](./06_llm_context_compaction.py) | Context compaction | saved compiler state replacing transcript context | small or local models |
 | [07](./07_llm_prompt_vs_state.py) | Prompt engineering comparison | prompting vs saved compiler state | any model with long transcript sensitivity |
+| [08](./08_llm_replacement_precondition.py) | Replacement precondition | invalid replacement blocked without state mutation | any model |
+| [09](./09_llm_pending_clarification.py) | Pending clarification continuation | confirmation-only resolution of suspended mutation | any model |
 
 Stronger frontier models may show these behaviors less often, but the same
 patterns still appear in real applications.
@@ -142,10 +144,13 @@ is unavailable.
 The canonical cross-model results matrix is maintained in [docs/demos-results.md](../docs/demos-results.md).
 
 Notes:
-- There are **6 scored demos** (`01`–`05`, `07`). `06_context_compaction` is informational and excluded from PASS/FAIL totals.
+- There are **8 scored demos** (`01`–`05`, `07`, `08`, `09`). `06_context_compaction` is informational and excluded from PASS/FAIL totals.
 - Anthropic runs in this repo are executed through the `openai_compatible` provider path.
 - `PASS` means the demo-specific expected-behavior check for that path succeeded; `FAIL` means it did not.
 - `reinjected-state` can be enough for some persistence cases; this comparison is intended to show where deterministic state semantics add value.
+- Anti-overfitting guardrail: demos score host/state-transition invariants (for example blocked mutation, pending continuation, confirmation-only resolution), not model prose quality. Reinjected-state remains plain text injection only and does not include hidden compiler semantics.
+- Interpretation: demos `01`-`05` and `07` focus on persistence and policy-following across turns, while demos `08`/`09` focus on fixed host-side state-transition rules.
+- For demos `08`/`09`, similar outcomes across models are about architecture limits, not provider/model leaderboard ranking.
 
 ### Demo 05 example (prompt drift under longer context)
 
@@ -186,7 +191,7 @@ Running against a local OpenAI-compatible endpoint avoids provider rate limits.
 
 - `Default (concise)`:
   - scenario name + description
-  - for evaluative demos (`01`–`05`, `07`):
+  - for evaluative demos (`01`–`05`, `07`, `08`, `09`):
     - `baseline: PASS|FAIL`
     - `reinjected-state: PASS|FAIL`
     - `compiler: PASS|FAIL`

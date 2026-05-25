@@ -9,6 +9,10 @@ Note: this published matrix predates the `reinjected-state` path added in the 0.
 - Scored demos: `01`, `02`, `03`, `04`, `05`, `07` (6 total)
 - Informational demo: `06_context_compaction` (excluded from PASS/FAIL totals)
 
+Methodology note (2026-05): the demo suite now also includes scored state-transition
+semantics demos `08` and `09`. The published matrix below predates those additions and
+has not yet been fully rerun with the expanded scored set.
+
 ## Results Matrix
 
 | Provider Path | Model | Baseline (P/F) | Compiler (P/F) | Compiler+Compact (P/F) |
@@ -59,7 +63,14 @@ Scoring behavior uses post-audit oracle/checker logic in demos and shared helper
 - `demos/04_llm_tool_denylist_guardrail.py`
 - `demos/05_llm_prompt_drift_vs_state.py`
 - `demos/07_llm_prompt_vs_state.py`
+- `demos/08_llm_replacement_precondition.py`
+- `demos/09_llm_pending_clarification.py`
 - shared parsing/helpers in `demos/common.py`
+
+Anti-overfitting note: scored checks are designed around deterministic host/state
+invariants rather than preferred wording in model outputs. The `reinjected-state`
+path is intentionally limited to plain state text injection and does not include
+compiler precondition or pending-state semantics.
 
 ### Run metadata
 
@@ -72,6 +83,10 @@ Scoring behavior uses post-audit oracle/checker logic in demos and shared helper
 
 - Live demo runs are **evidence/smoke tests** across real model/provider behavior.
 - Deterministic test suites (unit/property tests) are the **regression authority** for oracle and engine contracts.
+- Persistence demos and transition-semantics demos should be interpreted differently:
+- `01`-`05`, `07`: persistence and policy-following under transcript pressure.
+- `08`/`09`: host-side transition checks (for example, replacement preconditions and pending-confirmation handling).
+- Demos `08`/`09` are not general LLM quality benchmarks. Baseline and reinjected-state can produce plausible text and still `FAIL` when those host-side transition checks are missing.
 
 ## Demo 05 Long-Transcript Stress (Exploratory Frontier Runs)
 

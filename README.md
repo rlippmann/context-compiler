@@ -31,6 +31,12 @@ Yes, on the current scored demo set.
 - Scored checks (**6 demos per model**; Demo 6 excluded): baseline **26 / 42**, compiler **42 / 42**, compiler+compact **42 / 42**.
 - Across tested models, compiler-mediated paths pass all scored scenarios; baseline behavior is model-dependent.
 
+Interpretation guide:
+- Persistence/policy-following demos test whether instructions keep applying across turns.
+- State-transition demos (`08`/`09`) test whether the host enforces state changes in a fixed, repeatable way.
+- Demos `08`/`09` are capability checks, not general model-quality rankings.
+- In those demos, baseline or reinjected-state can sound reasonable and still `FAIL` because required host-side transition checks are not present.
+
 → [Full results and demo output](demos/README.md)  
 Canonical matrix: [docs/demos-results.md](docs/demos-results.md)
 
