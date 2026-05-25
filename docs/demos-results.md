@@ -66,11 +66,27 @@ Scoring behavior uses post-audit oracle/checker logic in demos and shared helper
 - Date: 2026-05-06
 - Context Compiler: 0.6.15
 - Command: `uv run python -m demos.run_demo all`
+- Demo 05 turn count in this matrix: default setting (`--turns` omitted)
 
 ## Interpretation
 
 - Live demo runs are **evidence/smoke tests** across real model/provider behavior.
 - Deterministic test suites (unit/property tests) are the **regression authority** for oracle and engine contracts.
+
+## Demo 05 Long-Transcript Stress (Exploratory Frontier Runs)
+
+Additional exploratory runs extended Demo 05 to higher transcript lengths for selected
+frontier models. These runs are separate from the full cross-model matrix above, which
+records the standard scored demo configuration.
+
+- Models: `gpt-4.1` and `claude-sonnet-4-6` (OpenAI-compatible path)
+- Turn counts: up to `240`
+- In those exploratory runs, `reinjected-state`, `compiler`, and `compiler+compact`
+  continued to preserve premise-consistent behavior.
+
+This is exploratory evidence rather than deterministic benchmark authority. Reinjection can
+be sufficient in some persistence scenarios, while compiler-mediated paths still provide
+deterministic state-transition semantics.
 
 ## Local Ollama Context-Size Sweep (0.7.1 Experiment)
 
