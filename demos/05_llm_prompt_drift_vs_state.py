@@ -341,7 +341,7 @@ def _run_demo(turns: int = _DEFAULT_TURNS) -> None:
             "preserved premise-consistent plans"
             if mediated_respects and compact_respects and not baseline_respects
             else (
-                "all three paths preserved premise-consistent plan"
+                "all four paths preserved premise-consistent plan"
                 if baseline_respects and mediated_respects and compact_respects
                 else (
                     "at least one compiler-mediated path failed premise consistency"

@@ -91,7 +91,7 @@ def _actual_summary(*, weak_pass: bool, strong_pass: bool, compiler_pass: bool) 
             "prompting plus compiled state also held the premise"
         )
     if weak_pass and strong_pass and compiler_pass:
-        return "all three paths held the premise in this run"
+        return "all four paths held the premise in this run"
     if not strong_pass and compiler_pass:
         return (
             "better prompting alone drifted on premise, but prompting plus "

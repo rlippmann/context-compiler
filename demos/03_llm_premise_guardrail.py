@@ -182,7 +182,7 @@ def main() -> None:
             "both compiler-mediated paths used vegan value"
             if mediated_respects and compact_respects and baseline_uses_vegetarian
             else (
-                "all three paths used vegan value"
+                "all four paths used vegan value"
                 if baseline_respects and mediated_respects and compact_respects
                 else (
                     "at least one compiler-mediated path included stale vegetarian value"
