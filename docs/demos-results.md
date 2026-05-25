@@ -47,8 +47,9 @@ Provider/model selection is done via environment variables:
 - `MODEL`
 - `OPENAI_API_KEY` / `OPENAI_BASE_URL` as required by provider mode
 
-For `openai_compatible` Anthropic runs, this repo uses LiteLLM-style model identifiers
-in `MODEL` (for example, `anthropic/claude-sonnet-4-6`).
+Historical Anthropic rows below were run through an OpenAI-compatible path using
+provider-prefixed model IDs. For new runs, model naming follows the configured
+endpoint or gateway contract.
 
 Scoring behavior uses post-audit oracle/checker logic in demos and shared helpers:
 

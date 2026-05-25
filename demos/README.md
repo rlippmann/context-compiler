@@ -74,14 +74,33 @@ export OPENAI_API_KEY=ollama
 export MODEL=openai/llama3.1:8b
 ```
 
-Anthropic via an OpenAI-compatible endpoint (LiteLLM model name style):
+Anthropic (direct OpenAI-compatible endpoint):
+
+```bash
+export PROVIDER=openai_compatible
+export OPENAI_BASE_URL=<exact Anthropic compatibility base URL>
+export OPENAI_API_KEY=<Anthropic API key>
+export MODEL=claude-sonnet-4-6
+```
+
+Notes:
+- For direct Anthropic usage, `MODEL` should use the endpoint-native model ID.
+- Do not use the `anthropic/` prefix unless your endpoint/router expects it.
+- This repo passes `MODEL` through unchanged.
+- Provide the exact compatibility base URL required by your endpoint, including `/v1` when required.
+
+Anthropic via LiteLLM proxy/gateway:
 
 ```bash
 export PROVIDER=openai_compatible
 export OPENAI_BASE_URL=http://localhost:4000/v1
-export OPENAI_API_KEY=your_key_here
+export OPENAI_API_KEY=<gateway key>
 export MODEL=anthropic/claude-sonnet-4-6
 ```
+
+Notes:
+- Provider-prefixed model IDs such as `anthropic/...` are appropriate when the gateway/router expects them.
+- Model naming follows the endpoint/router contract.
 
 ## Quick run
 
