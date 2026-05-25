@@ -27,9 +27,11 @@ DEMO_FILES: dict[str, str] = {
     "5": "05_llm_prompt_drift_vs_state.py",
     "6": "06_llm_context_compaction.py",
     "7": "07_llm_prompt_vs_state.py",
+    "8": "08_llm_replacement_precondition.py",
+    "9": "09_llm_pending_clarification.py",
 }
 
-SCORED_DEMOS = {"1", "2", "3", "4", "5", "7"}
+SCORED_DEMOS = {"1", "2", "3", "4", "5", "7", "8", "9"}
 
 
 def _preflight_all_mode(*, context_size: int | None = None) -> None:
@@ -118,7 +120,7 @@ def main() -> None:
         nargs="?",
         default="all",
         choices=["all", *DEMO_FILES.keys()],
-        help="Demo number (1-7) or all",
+        help="Demo number (1-9) or all",
     )
     parser.add_argument(
         "--verbose",
