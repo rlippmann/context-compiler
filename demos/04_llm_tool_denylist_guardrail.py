@@ -2,10 +2,11 @@
 
 import re
 
-from context_compiler import create_engine, get_policy_items
+from context_compiler import create_engine
 from demos.common import (
     build_baseline_messages,
     build_mediated_messages_from_transcript,
+    build_reinjected_messages,
     compact_user_turns,
     extract_tag_value,
     is_verbose,
@@ -54,6 +55,9 @@ def selected_tool(output: str) -> str | None:
 
 
 def main() -> None:
+    app_managed_prohibited = ["docker"]
+    candidate_tools = ["docker", "kubectl"]
+
     engine = create_engine()
     user_inputs = [
         "prohibit docker",
@@ -78,9 +82,7 @@ def main() -> None:
     baseline_output = complete_messages(baseline_messages)
     print_model_output("Baseline", baseline_output)
 
-    prohibited = get_policy_items(engine.state, "prohibit")
-    candidate_tools = ["docker", "kubectl"]
-    filtered_tools = [tool for tool in candidate_tools if tool not in prohibited]
+    filtered_tools = [tool for tool in candidate_tools if tool not in app_managed_prohibited]
     if is_verbose():
         print("Candidate tools before filtering:")
         print(", ".join(candidate_tools))
@@ -89,6 +91,22 @@ def main() -> None:
         print(", ".join(filtered_tools) if filtered_tools else "(none)")
         print()
 
+    _, reinjected_messages = build_reinjected_messages(
+        [user_inputs[1]],
+        premise=None,
+        use_policies=[],
+        prohibit_policies=app_managed_prohibited,
+        extra_system_prompt=(
+            "Only choose tools that are not prohibited."
+            + "\nCandidate tools: "
+            + f"{', '.join(candidate_tools)}. "
+            + f"Prohibited: {', '.join(app_managed_prohibited) or '(none)'}"
+        ),
+    )
+    print_messages("reinjected-state", reinjected_messages)
+    reinjected_output = complete_messages(reinjected_messages)
+    print_model_output("Reinjected-state", reinjected_output)
+
     mediated_messages = build_mediated_messages_from_transcript(
         engine.state,
         user_inputs,
@@ -96,7 +114,7 @@ def main() -> None:
             "Only choose tools that are not prohibited."
             + "\nCandidate tools: "
             + f"{', '.join(candidate_tools)}. "
-            + f"Prohibited: {', '.join(prohibited) or '(none)'}"
+            + f"Prohibited: {', '.join(app_managed_prohibited) or '(none)'}"
         ),
     )
     print_messages("compiler-mediated (full)", mediated_messages)
@@ -117,7 +135,7 @@ def main() -> None:
                 "Only choose tools that are not prohibited."
                 + "\nCandidate tools: "
                 + f"{', '.join(candidate_tools)}. "
-                + f"Prohibited: {', '.join(prohibited) or '(none)'}"
+                + f"Prohibited: {', '.join(app_managed_prohibited) or '(none)'}"
             ),
         )
         print_messages("compiler-mediated + compact", compact_messages)
@@ -127,11 +145,20 @@ def main() -> None:
 
     print_tag_comparison("TOOL", baseline_output, mediated_output)
     baseline_tool = selected_tool(baseline_output)
+    reinjected_tool = selected_tool(reinjected_output)
     mediated_tool = selected_tool(mediated_output)
-    baseline_respects = baseline_tool is not None and baseline_tool not in prohibited
-    mediated_respects = mediated_tool is not None and mediated_tool not in prohibited
-    compact_respects = compact_tool is not None and compact_tool not in prohibited
+    baseline_respects = baseline_tool is not None and baseline_tool not in app_managed_prohibited
+    reinjected_respects = (
+        reinjected_tool is not None and reinjected_tool not in app_managed_prohibited
+    )
+    mediated_respects = mediated_tool is not None and mediated_tool not in app_managed_prohibited
+    compact_respects = compact_tool is not None and compact_tool not in app_managed_prohibited
     print_host_check("SELECTED_TOOL", baseline_tool or "MISSING", context="baseline")
+    print_host_check(
+        "SELECTED_TOOL",
+        reinjected_tool or "MISSING",
+        context="reinjected-state",
+    )
     print_host_check(
         "SELECTED_TOOL",
         mediated_tool or "MISSING",
@@ -145,6 +172,7 @@ def main() -> None:
     print_spec_report(
         test_name="04_tool_governance — denylisted tool selection",
         baseline_pass=baseline_respects,
+        reinjected_state_pass=reinjected_respects,
         compiler_pass=mediated_respects,
         compiler_compact_pass=compact_respects,
         expected="compiler-mediated should select an allowed tool and avoid the denylisted one",

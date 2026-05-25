@@ -2,6 +2,8 @@
 
 Canonical reference for the current LLM demo matrix and methodology.
 
+Note: this published matrix predates the `reinjected-state` path added in the 0.7.1 demo/evaluation experiment. It currently reports baseline/compiler/compiler+compact only.
+
 ## Scope
 
 - Scored demos: `01`, `02`, `03`, `04`, `05`, `07` (6 total)
@@ -45,6 +47,10 @@ Provider/model selection is done via environment variables:
 - `MODEL`
 - `OPENAI_API_KEY` / `OPENAI_BASE_URL` as required by provider mode
 
+Historical Anthropic rows below were run through an OpenAI-compatible path using
+provider-prefixed model IDs. For new runs, model naming follows the configured
+endpoint or gateway contract.
+
 Scoring behavior uses post-audit oracle/checker logic in demos and shared helpers:
 
 - `demos/01_llm_contradiction_clarify.py`
@@ -60,8 +66,75 @@ Scoring behavior uses post-audit oracle/checker logic in demos and shared helper
 - Date: 2026-05-06
 - Context Compiler: 0.6.15
 - Command: `uv run python -m demos.run_demo all`
+- Demo 05 turn count in this matrix: default setting (`--turns` omitted)
 
 ## Interpretation
 
 - Live demo runs are **evidence/smoke tests** across real model/provider behavior.
 - Deterministic test suites (unit/property tests) are the **regression authority** for oracle and engine contracts.
+
+## Demo 05 Long-Transcript Stress (Exploratory Frontier Runs)
+
+Additional exploratory runs extended Demo 05 to higher transcript lengths for selected
+frontier models. These runs are separate from the full cross-model matrix above, which
+records the standard scored demo configuration.
+
+- Models: `gpt-4.1` and `claude-sonnet-4-6` (OpenAI-compatible path)
+- Turn counts: up to `240`
+- In those exploratory runs, `reinjected-state`, `compiler`, and `compiler+compact`
+  continued to preserve premise-consistent behavior.
+
+This is exploratory evidence rather than deterministic benchmark authority. Reinjection can
+be sufficient in some persistence scenarios, while compiler-mediated paths still provide
+deterministic state-transition semantics.
+
+## Local Ollama Context-Size Sweep (0.7.1 Experiment)
+
+This section reports the refreshed local-only matrix with the `reinjected-state`
+path and explicit context-size ladder runs. Historical hosted-provider matrix rows
+above are preserved as originally recorded.
+
+### Commands Run
+
+```bash
+PROVIDER=ollama MODEL=ollama/llama3.1:8b uv run python -m demos.run_demo all --context-size 8192
+PROVIDER=ollama MODEL=ollama/llama3.1:8b uv run python -m demos.run_demo all --context-size 4096
+PROVIDER=ollama MODEL=ollama/llama3.1:8b uv run python -m demos.run_demo all --context-size 2048
+
+PROVIDER=ollama MODEL=ollama/qwen2.5:7b-instruct uv run python -m demos.run_demo all --context-size 8192
+PROVIDER=ollama MODEL=ollama/qwen2.5:7b-instruct uv run python -m demos.run_demo all --context-size 4096
+PROVIDER=ollama MODEL=ollama/qwen2.5:7b-instruct uv run python -m demos.run_demo all --context-size 2048
+
+PROVIDER=ollama MODEL=ollama/qwen2.5:14b-instruct uv run python -m demos.run_demo all --context-size 8192
+PROVIDER=ollama MODEL=ollama/qwen2.5:14b-instruct uv run python -m demos.run_demo all --context-size 4096
+PROVIDER=ollama MODEL=ollama/qwen2.5:14b-instruct uv run python -m demos.run_demo all --context-size 2048
+```
+
+### Results Matrix (Scored Demos 01-05, 07)
+
+| Provider | Model | Context size | Baseline (P/F) | Reinjected-state (P/F) | Compiler (P/F) | Compiler+compact (P/F) |
+| :-- | :-- | :--: | :--: | :--: | :--: | :--: |
+| `ollama` | `llama3.1:8b` | `8192` | 2 / 4 | 5 / 1 | 6 / 0 | 6 / 0 |
+| `ollama` | `llama3.1:8b` | `4096` | 2 / 4 | 5 / 1 | 6 / 0 | 6 / 0 |
+| `ollama` | `llama3.1:8b` | `2048` | 2 / 4 | 5 / 1 | 6 / 0 | 6 / 0 |
+| `ollama` | `qwen2.5:7b-instruct` | `8192` | 4 / 2 | 6 / 0 | 6 / 0 | 6 / 0 |
+| `ollama` | `qwen2.5:7b-instruct` | `4096` | 4 / 2 | 6 / 0 | 6 / 0 | 6 / 0 |
+| `ollama` | `qwen2.5:7b-instruct` | `2048` | 4 / 2 | 6 / 0 | 6 / 0 | 6 / 0 |
+| `ollama` | `qwen2.5:14b-instruct` | `8192` | 4 / 2 | 5 / 1 | 6 / 0 | 6 / 0 |
+| `ollama` | `qwen2.5:14b-instruct` | `4096` | 4 / 2 | 5 / 1 | 6 / 0 | 6 / 0 |
+| `ollama` | `qwen2.5:14b-instruct` | `2048` | 4 / 2 | 5 / 1 | 6 / 0 | 6 / 0 |
+
+### Concise Observations
+
+- `compiler` and `compiler+compact` were stable at `6 / 0` across all models and all context sizes.
+- `reinjected-state` stayed competitive:
+  - `6 / 0` for `qwen2.5:7b-instruct`
+  - `5 / 1` for `llama3.1:8b` and `qwen2.5:14b-instruct`
+- `baseline` varied by model but not by context size in this sweep:
+  - `2 / 4` for `llama3.1:8b`
+  - `4 / 2` for both Qwen models
+- For monitored demos:
+  - Demo `02` was the most persistent failure point for baseline, and remained a reinjected failure on `llama3.1:8b` and `qwen2.5:14b-instruct`.
+  - Demo `05` only failed baseline on `llama3.1:8b`; other paths passed.
+  - Demo `01` baseline failed on `llama3.1:8b` but passed on Qwen models.
+  - Demo `07` passed on all paths for all model/context combinations in this run set.

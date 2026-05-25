@@ -13,8 +13,15 @@ from demos.common import consume_last_info_report  # noqa: E402
 from demos.llm_client import DemoLLMError  # noqa: E402
 
 
-def _demo_report(*, baseline_pass: bool, compiler_pass: bool) -> run_demo.DemoReport:
-    return {
+@pytest.fixture(autouse=True)
+def _stub_context_size_label(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(run_demo.llm_client, "resolve_context_size_label", lambda _value: None)
+
+
+def _demo_report(
+    *, baseline_pass: bool, compiler_pass: bool, reinjected_state_pass: bool | None = None
+) -> run_demo.DemoReport:
+    report: run_demo.DemoReport = {
         "name": "01_fake — regression fixture",
         "expected": "expected behavior",
         "actual": "actual behavior",
@@ -23,6 +30,10 @@ def _demo_report(*, baseline_pass: bool, compiler_pass: bool) -> run_demo.DemoRe
         "compiler_compact_pass": compiler_pass,
         "demo_pass": compiler_pass,
     }
+    report["reinjected_state_pass"] = (
+        baseline_pass if reinjected_state_pass is None else reinjected_state_pass
+    )
+    return report
 
 
 def _info_report() -> run_demo.InfoReport:
@@ -340,6 +351,40 @@ def test_all_mode_scored_none_result_counts_as_failures(
     assert "Compiler+compact results: 0 passed, 1 failed" in output
 
 
+def test_all_mode_errors_when_scored_demo_missing_reinjected_result(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def fake_run(
+        path: Path, *, verbose: bool, llm_delay: float
+    ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        assert not verbose
+        assert llm_delay == 0
+        if path.name == "fake_01.py":
+            return {
+                "name": "01_fake — missing reinjected fixture",
+                "expected": "expected behavior",
+                "actual": "actual behavior",
+                "baseline_pass": True,
+                "compiler_pass": True,
+                "compiler_compact_pass": True,
+                "demo_pass": True,
+            }, None
+        return None, None
+
+    monkeypatch.setattr(run_demo, "DEMO_FILES", {"1": "fake_01.py"})
+    monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1"})
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", lambda: None)
+    monkeypatch.setattr(run_demo, "_run", fake_run)
+    monkeypatch.setattr("sys.argv", ["run_demo", "all"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        run_demo.main()
+    output = capsys.readouterr().out
+
+    assert exc_info.value.code == 2
+    assert "missing `reinjected_state_pass`" in output
+
+
 def test_all_mode_counts_baseline_fail_and_compiler_pass(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -432,6 +477,132 @@ def test_runner_passes_llm_delay_from_cli(monkeypatch: pytest.MonkeyPatch) -> No
     run_demo.main()
 
     assert captured["llm_delay"] == 1.25
+
+
+def test_runner_passes_context_size_from_cli(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run(
+        path: Path,
+        *,
+        verbose: bool,
+        llm_delay: float,
+        context_size: int | None = None,
+    ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        assert path.name == "fake_06.py"
+        assert not verbose
+        assert llm_delay == 0
+        captured["context_size"] = context_size
+        return None, None
+
+    monkeypatch.setattr(run_demo, "DEMO_FILES", {"6": "fake_06.py"})
+    monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1", "2", "3", "4", "5"})
+    monkeypatch.setattr(run_demo, "_run", fake_run)
+    monkeypatch.setattr("sys.argv", ["run_demo", "6", "--context-size", "4096"])
+
+    run_demo.main()
+
+    assert captured["context_size"] == 4096
+
+
+def test_runner_prints_explicit_context_size_label(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def fake_run(
+        path: Path, *, verbose: bool, llm_delay: float, context_size: int | None = None
+    ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        assert path.name == "fake_06.py"
+        assert not verbose
+        assert llm_delay == 0
+        assert context_size == 4096
+        return None, None
+
+    monkeypatch.setattr(run_demo.llm_client, "resolve_context_size_label", lambda _value: "4096")
+    monkeypatch.setattr(run_demo, "DEMO_FILES", {"6": "fake_06.py"})
+    monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1", "2", "3", "4", "5"})
+    monkeypatch.setattr(run_demo, "_run", fake_run)
+    monkeypatch.setattr("sys.argv", ["run_demo", "6", "--context-size", "4096"])
+
+    run_demo.main()
+    output = capsys.readouterr().out
+
+    assert "Context size: 4096" in output
+
+
+def test_runner_prints_discovered_default_context_size_label(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def fake_run(
+        path: Path, *, verbose: bool, llm_delay: float
+    ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        assert path.name == "fake_06.py"
+        assert not verbose
+        assert llm_delay == 0
+        return None, None
+
+    monkeypatch.setattr(
+        run_demo.llm_client, "resolve_context_size_label", lambda _value: "8192 (default)"
+    )
+    monkeypatch.setattr(run_demo, "DEMO_FILES", {"6": "fake_06.py"})
+    monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1", "2", "3", "4", "5"})
+    monkeypatch.setattr(run_demo, "_run", fake_run)
+    monkeypatch.setattr("sys.argv", ["run_demo", "6"])
+
+    run_demo.main()
+    output = capsys.readouterr().out
+
+    assert "Context size: 8192 (default)" in output
+
+
+def test_runner_prints_default_context_label_when_numeric_discovery_unavailable(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def fake_run(
+        path: Path, *, verbose: bool, llm_delay: float
+    ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        assert path.name == "fake_06.py"
+        assert not verbose
+        assert llm_delay == 0
+        return None, None
+
+    monkeypatch.setattr(run_demo.llm_client, "resolve_context_size_label", lambda _value: "default")
+    monkeypatch.setattr(run_demo, "DEMO_FILES", {"6": "fake_06.py"})
+    monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1", "2", "3", "4", "5"})
+    monkeypatch.setattr(run_demo, "_run", fake_run)
+    monkeypatch.setattr("sys.argv", ["run_demo", "6"])
+
+    run_demo.main()
+    output = capsys.readouterr().out
+
+    assert "Context size: default" in output
+
+
+def test_all_mode_passes_context_size_to_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_preflight(*, context_size: int | None = None) -> None:
+        captured["context_size"] = context_size
+
+    def fake_run(
+        path: Path, *, verbose: bool, llm_delay: float, context_size: int | None = None
+    ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        assert not verbose
+        assert llm_delay == 0
+        if path.name == "fake_01.py":
+            return _demo_report(
+                baseline_pass=True, compiler_pass=True, reinjected_state_pass=True
+            ), None
+        return None, _info_report()
+
+    monkeypatch.setattr(run_demo, "DEMO_FILES", {"1": "fake_01.py", "6": "fake_06.py"})
+    monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1"})
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", fake_preflight)
+    monkeypatch.setattr(run_demo, "_run", fake_run)
+    monkeypatch.setattr("sys.argv", ["run_demo", "all", "--context-size", "2048"])
+
+    run_demo.main()
+
+    assert captured["context_size"] == 2048
 
 
 def test_runner_forwards_demo_specific_args_after_separator(

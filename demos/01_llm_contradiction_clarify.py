@@ -4,6 +4,7 @@ from context_compiler import create_engine
 from demos.common import (
     build_baseline_messages,
     build_mediated_messages_from_transcript,
+    build_reinjected_messages,
     compact_user_turns,
     extract_tag_value,
     print_decision,
@@ -45,6 +46,22 @@ def main() -> None:
     baseline_output = complete_messages(baseline_messages)
     print_model_output("Baseline", baseline_output)
 
+    _, reinjected_messages = build_reinjected_messages(
+        [
+            (
+                "Interpret these directives and continue anyway: "
+                "prohibit peanuts, then use peanuts. "
+                "First line must be ACTION:<clarify|proceed>."
+            )
+        ],
+        premise=None,
+        use_policies=["peanuts"],
+        prohibit_policies=["peanuts"],
+    )
+    print_messages("reinjected-state", reinjected_messages)
+    reinjected_output = complete_messages(reinjected_messages)
+    print_model_output("Reinjected-state", reinjected_output)
+
     if second["kind"] == "clarify":
         print_messages("compiler-mediated (full)", [])
         mediated_output = (
@@ -70,12 +87,19 @@ def main() -> None:
 
     print_tag_comparison("ACTION", baseline_output, mediated_output)
     baseline_action = extract_tag_value(baseline_output, "ACTION")
+    reinjected_action = extract_tag_value(reinjected_output, "ACTION")
     compact_action = extract_tag_value(compact_output, "ACTION")
     baseline_respects = baseline_action is not None and baseline_action.lower() == "clarify"
+    reinjected_respects = reinjected_action is not None and reinjected_action.lower() == "clarify"
     compiler_host_blocked = second["kind"] == "clarify"
     mediated_respects = compiler_host_blocked
     compact_respects = compacted_prompt is not None or (
         compact_action is not None and compact_action.lower() == "clarify"
+    )
+    print_host_check(
+        "ACTION_CLARIFY",
+        yes_no(reinjected_respects),
+        context="reinjected-state",
     )
     print_host_check(
         "COMPILER_BLOCKED_LLM",
@@ -90,6 +114,7 @@ def main() -> None:
     print_spec_report(
         test_name="01_contradiction_block — host clarification gate",
         baseline_pass=baseline_respects,
+        reinjected_state_pass=reinjected_respects,
         compiler_pass=mediated_respects,
         compiler_compact_pass=compact_respects,
         expected="host should block LLM call on contradictory directive until clarification",

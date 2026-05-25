@@ -9,8 +9,9 @@ behavior is easy to see.
 This demo set shows what users notice: rules and corrections keep applying
 later in the conversation instead of fading over time.
 
-Scored demos now compare three paths:
+Scored demos now compare four paths:
 - baseline
+- reinjected-state (application-managed state text injected into the prompt, without compiler semantics)
 - compiler-mediated (full transcript + saved compiler state added to the prompt)
 - compiler+compact (compacted transcript + saved compiler state added to the prompt)
 
@@ -44,7 +45,9 @@ Environment variables (strict provider mode contract):
 - `OPENAI_API_KEY` (required in normal `openai` mode)
 - `OPENAI_BASE_URL` (explicit endpoint override; required for explicit `openai_compatible`)
 Note: Demos prefer fixed decoding (`temperature=0`) for reproducible PASS/FAIL behavior.
-If a model rejects that parameter (for example, some `gpt-5` paths), the demo client retries once without it.
+If a model rejects deterministic sampling parameters on the LiteLLM/OpenAI-compatible path
+(for example, some `gpt-5` and Claude paths), the demo client retries once without deterministic
+sampling parameters.
 
 Default (openai):
 
@@ -71,6 +74,34 @@ export OPENAI_API_KEY=ollama
 export MODEL=openai/llama3.1:8b
 ```
 
+Anthropic (direct OpenAI-compatible endpoint):
+
+```bash
+export PROVIDER=openai_compatible
+export OPENAI_BASE_URL=<exact Anthropic compatibility base URL>
+export OPENAI_API_KEY=<Anthropic API key>
+export MODEL=claude-sonnet-4-6
+```
+
+Notes:
+- For direct Anthropic usage, `MODEL` should use the endpoint-native model ID.
+- Do not use the `anthropic/` prefix unless your endpoint/router expects it.
+- This repo passes `MODEL` through unchanged.
+- Provide the exact compatibility base URL required by your endpoint, including `/v1` when required.
+
+Anthropic via LiteLLM proxy/gateway:
+
+```bash
+export PROVIDER=openai_compatible
+export OPENAI_BASE_URL=http://localhost:4000/v1
+export OPENAI_API_KEY=<gateway key>
+export MODEL=anthropic/claude-sonnet-4-6
+```
+
+Notes:
+- Provider-prefixed model IDs such as `anthropic/...` are appropriate when the gateway/router expects them.
+- Model naming follows the endpoint/router contract.
+
 ## Quick run
 
 Run a single demo:
@@ -91,6 +122,21 @@ Run all demos with detailed traces:
 uv run python -m demos.run_demo all --verbose
 ```
 
+Set Ollama context size (`num_ctx`) from the runner:
+
+```bash
+uv run python -m demos.run_demo all --context-size 8192
+uv run python -m demos.run_demo all --context-size 4096
+uv run python -m demos.run_demo all --context-size 2048
+```
+
+`--context-size` is intended for local Ollama runs (`PROVIDER=ollama`) and maps to
+Ollama `num_ctx`. Using it with unsupported providers fails with a clear error.
+When `--context-size` is omitted on Ollama runs, the runner attempts best-effort
+default context discovery and reports either a discovered numeric default
+(`Context size: <n> (default)`) or `Context size: default` if numeric discovery
+is unavailable.
+
 ## Results
 
 The canonical cross-model results matrix is maintained in [docs/demos-results.md](../docs/demos-results.md).
@@ -99,6 +145,7 @@ Notes:
 - There are **6 scored demos** (`01`–`05`, `07`). `06_context_compaction` is informational and excluded from PASS/FAIL totals.
 - Anthropic runs in this repo are executed through the `openai_compatible` provider path.
 - `PASS` means the demo-specific expected-behavior check for that path succeeded; `FAIL` means it did not.
+- `reinjected-state` can be enough for some persistence cases; this comparison is intended to show where deterministic state semantics add value.
 
 ### Demo 05 example (prompt drift under longer context)
 
@@ -115,11 +162,12 @@ PREMISE:vegetarian curry
 Here's a short dinner plan:
 
 baseline: FAIL
+reinjected-state: PASS
 compiler: PASS
 compiler+compact: PASS
 ```
 
-The baseline lost the earlier rule under the longer transcript, while both compiler-mediated paths kept the saved premise.
+The baseline lost the earlier rule under the longer transcript, while reinjected-state and both compiler-mediated paths kept the saved premise in this run.
 
 ## Provider throttling
 
@@ -140,6 +188,7 @@ Running against a local OpenAI-compatible endpoint avoids provider rate limits.
   - scenario name + description
   - for evaluative demos (`01`–`05`, `07`):
     - `baseline: PASS|FAIL`
+    - `reinjected-state: PASS|FAIL`
     - `compiler: PASS|FAIL`
     - `compiler+compact: PASS|FAIL`
   - expected behavior

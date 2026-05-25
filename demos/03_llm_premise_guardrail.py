@@ -6,6 +6,7 @@ from context_compiler import create_engine
 from demos.common import (
     build_baseline_messages,
     build_mediated_messages_from_transcript,
+    build_reinjected_messages,
     compact_user_turns,
     extract_tag_value,
     print_decision,
@@ -89,6 +90,16 @@ def main() -> None:
     baseline_output = complete_messages(baseline_messages)
     print_model_output("Baseline", baseline_output)
 
+    _, reinjected_messages = build_reinjected_messages(
+        [user_inputs[0], user_inputs[1], user_inputs[2]],
+        premise="vegan curry",
+        use_policies=[],
+        prohibit_policies=[],
+    )
+    print_messages("reinjected-state", reinjected_messages)
+    reinjected_output = complete_messages(reinjected_messages)
+    print_model_output("Reinjected-state", reinjected_output)
+
     mediated_messages = build_mediated_messages_from_transcript(engine.state, user_inputs)
     print_messages("compiler-mediated (full)", mediated_messages)
     mediated_output = complete_messages(mediated_messages)
@@ -108,15 +119,19 @@ def main() -> None:
     print_tag_comparison("PREMISE", baseline_output, mediated_output)
 
     baseline_premise = extract_tag_value(baseline_output, "PREMISE")
+    reinjected_premise = extract_tag_value(reinjected_output, "PREMISE")
     mediated_premise = extract_tag_value(mediated_output, "PREMISE")
     compact_premise = extract_tag_value(compact_output, "PREMISE")
     baseline_uses_vegan = _plan_uses_value(baseline_output, "vegan")
     baseline_uses_vegetarian = _plan_uses_value(baseline_output, "vegetarian")
+    reinjected_uses_vegan = _plan_uses_value(reinjected_output, "vegan")
+    reinjected_uses_vegetarian = _plan_uses_value(reinjected_output, "vegetarian")
     mediated_uses_vegan = _plan_uses_value(mediated_output, "vegan")
     mediated_uses_vegetarian = _plan_uses_value(mediated_output, "vegetarian")
     compact_uses_vegan = _plan_uses_value(compact_output, "vegan")
     compact_uses_vegetarian = _plan_uses_value(compact_output, "vegetarian")
     baseline_respects = not baseline_uses_vegetarian
+    reinjected_respects = not reinjected_uses_vegetarian
     mediated_respects = not mediated_uses_vegetarian
     compact_respects = compacted_prompt is None and not compact_uses_vegetarian
     print_host_check(
@@ -127,6 +142,15 @@ def main() -> None:
             f"premise_tag={baseline_premise or 'MISSING'}"
         ),
         context="baseline",
+    )
+    print_host_check(
+        "PLAN_VALUES",
+        (
+            f"vegan={yes_no(reinjected_uses_vegan)}, "
+            f"vegetarian={yes_no(reinjected_uses_vegetarian)}, "
+            f"premise_tag={reinjected_premise or 'MISSING'}"
+        ),
+        context="reinjected-state",
     )
     print_host_check(
         "PLAN_VALUES",
@@ -149,6 +173,7 @@ def main() -> None:
     print_spec_report(
         test_name="03_explicit_premise_change — stale value removed",
         baseline_pass=baseline_respects,
+        reinjected_state_pass=reinjected_respects,
         compiler_pass=mediated_respects,
         compiler_compact_pass=compact_respects,
         expected="explicit premise change should remove the stale vegetarian value",
@@ -157,7 +182,7 @@ def main() -> None:
             "both compiler-mediated paths used vegan value"
             if mediated_respects and compact_respects and baseline_uses_vegetarian
             else (
-                "all three paths used vegan value"
+                "all four paths used vegan value"
                 if baseline_respects and mediated_respects and compact_respects
                 else (
                     "at least one compiler-mediated path included stale vegetarian value"

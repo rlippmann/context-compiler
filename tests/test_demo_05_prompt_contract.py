@@ -12,7 +12,7 @@ if str(REPO_ROOT) not in sys.path:
 from demos.common import consume_last_report  # noqa: E402
 
 
-def test_demo_05_applies_same_output_format_contract_to_all_three_paths(
+def test_demo_05_applies_same_output_format_contract_to_all_four_paths(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     captured_messages: list[list[dict[str, str]]] = []
@@ -29,7 +29,7 @@ def test_demo_05_applies_same_output_format_contract_to_all_three_paths(
     monkeypatch.setattr("sys.argv", [str(demo_path)])
     runpy.run_path(str(demo_path), run_name="__main__")
 
-    assert len(captured_messages) == 3
+    assert len(captured_messages) == 4
     for messages in captured_messages:
         assert messages
         assert messages[0]["role"] == "system"
@@ -53,8 +53,8 @@ def test_demo_05_compact_path_injects_premise_anchor_when_directive_is_compacted
     monkeypatch.setattr("sys.argv", [str(demo_path)])
     runpy.run_path(str(demo_path), run_name="__main__")
 
-    assert len(captured_messages) == 3
-    compact_messages = captured_messages[2]
+    assert len(captured_messages) == 4
+    compact_messages = captured_messages[3]
     assert any(
         message["role"] == "user" and message["content"] == "Premise reminder: vegetarian curry"
         for message in compact_messages
@@ -90,5 +90,6 @@ def test_demo_05_baseline_and_compiler_paths_share_same_oracle(
     report = consume_last_report()
     assert report is not None
     assert report["baseline_pass"] is True
+    assert report["reinjected_state_pass"] is True
     assert report["compiler_pass"] is True
     assert report["compiler_compact_pass"] is True

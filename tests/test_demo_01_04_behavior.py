@@ -42,7 +42,12 @@ def test_demo_01_reports_host_clarification_gate(
     monkeypatch.setattr(
         module,
         "complete_messages",
-        _sequenced_outputs(["ACTION:proceed\nI will continue."]),
+        _sequenced_outputs(
+            [
+                "ACTION:proceed\nI will continue.",
+                "ACTION:clarify\nNeed clarification.",
+            ]
+        ),
     )
 
     module.main()
@@ -52,12 +57,14 @@ def test_demo_01_reports_host_clarification_gate(
     assert report is not None
     assert report["name"].startswith("01_contradiction_block")
     assert report["baseline_pass"] is False
+    assert report["reinjected_state_pass"] is True
     assert report["compiler_pass"] is True
     assert report["compiler_compact_pass"] is True
     assert report["demo_pass"] is True
     assert "baseline: FAIL" in output
     assert "compiler: PASS" in output
     assert "compiler+compact: PASS" in output
+    assert "reinjected-state: PASS" in output
 
 
 def test_demo_01_calls_llm_when_second_turn_is_not_clarify(
@@ -93,7 +100,7 @@ def test_demo_01_calls_llm_when_second_turn_is_not_clarify(
 
     assert report is not None
     assert report["compiler_pass"] is False
-    assert call_count == 2
+    assert call_count == 3
     assert "compiler: FAIL" in output
 
 
@@ -122,6 +129,7 @@ def test_demo_01_baseline_and_compiler_use_intentionally_different_gates(
                 "ACTION:clarify",
                 "ACTION:proceed",
                 "ACTION:proceed",
+                "ACTION:proceed",
             ]
         ),
     )
@@ -132,6 +140,7 @@ def test_demo_01_baseline_and_compiler_use_intentionally_different_gates(
 
     assert report is not None
     assert report["baseline_pass"] is True
+    assert report["reinjected_state_pass"] is False
     assert report["compiler_pass"] is False
     assert report["compiler_compact_pass"] is True
     assert "baseline: PASS" in output
@@ -156,6 +165,10 @@ def test_demo_02_reports_persistent_prohibition(
                     "I will not provide peanuts.\n"
                     "Use a peanut-free curry recipe with chickpeas instead."
                 ),
+                (
+                    "I will not provide peanuts.\n"
+                    "Use a peanut-free curry recipe with chickpeas instead."
+                ),
             ]
         ),
     )
@@ -167,12 +180,14 @@ def test_demo_02_reports_persistent_prohibition(
     assert report is not None
     assert report["name"].startswith("02_constraint_drift")
     assert report["baseline_pass"] is False
+    assert report["reinjected_state_pass"] is True
     assert report["compiler_pass"] is True
     assert report["compiler_compact_pass"] is True
     assert report["demo_pass"] is True
     assert "baseline: FAIL" in output
     assert "compiler: PASS" in output
     assert "compiler+compact: PASS" in output
+    assert "reinjected-state: PASS" in output
 
 
 def test_demo_02_accepts_safe_alternative_without_explicit_refusal_phrase(
@@ -187,6 +202,7 @@ def test_demo_02_accepts_safe_alternative_without_explicit_refusal_phrase(
                 "Ingredients:\n- peanuts\n- coconut milk\nSteps:\n1. Cook peanuts.",
                 "Here is a peanut-free curry alternative with chickpeas and coconut milk.",
                 "Use a peanut-free curry recipe with chickpeas instead.",
+                "Use a peanut-free curry recipe with chickpeas instead.",
             ]
         ),
     )
@@ -198,6 +214,7 @@ def test_demo_02_accepts_safe_alternative_without_explicit_refusal_phrase(
     assert report is not None
     assert report["name"].startswith("02_constraint_drift")
     assert report["baseline_pass"] is False
+    assert report["reinjected_state_pass"] is True
     assert report["compiler_pass"] is True
     assert report["compiler_compact_pass"] is True
     assert report["demo_pass"] is True
@@ -212,7 +229,7 @@ def test_demo_02_uses_same_prohibited_content_check_for_baseline_and_compiler(
     monkeypatch.setattr(
         module,
         "complete_messages",
-        _sequenced_outputs([safe_response, safe_response, safe_response]),
+        _sequenced_outputs([safe_response, safe_response, safe_response, safe_response]),
     )
 
     module.main()
@@ -221,6 +238,7 @@ def test_demo_02_uses_same_prohibited_content_check_for_baseline_and_compiler(
 
     assert report is not None
     assert report["baseline_pass"] is True
+    assert report["reinjected_state_pass"] is True
     assert report["compiler_pass"] is True
     assert report["compiler_compact_pass"] is True
     assert "baseline: PASS" in output
@@ -251,7 +269,7 @@ def test_demo_02_compact_clarify_branch_skips_compact_llm_call(
     report = consume_last_report()
 
     assert report is not None
-    assert len(calls) == 2
+    assert len(calls) == 3
     assert report["compiler_compact_pass"] is True
     assert "compiler+compact: PASS" in output
 
@@ -268,6 +286,7 @@ def test_demo_03_reports_explicit_premise_change(
                 "PREMISE: vegetarian curry\nPlan:\n- vegetarian shopping list",
                 "PREMISE: vegan curry\nPlan:\n- vegan shopping list",
                 "PREMISE: vegan curry\nPlan:\n- vegan ingredients only",
+                "PREMISE: vegan curry\nPlan:\n- vegan ingredients only",
             ]
         ),
     )
@@ -279,6 +298,7 @@ def test_demo_03_reports_explicit_premise_change(
     assert report is not None
     assert report["name"].startswith("03_explicit_premise_change")
     assert report["baseline_pass"] is False
+    assert report["reinjected_state_pass"] is True
     assert report["compiler_pass"] is True
     assert report["compiler_compact_pass"] is True
     assert report["demo_pass"] is True
@@ -311,7 +331,7 @@ def test_demo_03_compact_clarify_branch_reports_compact_fail(
     report = consume_last_report()
 
     assert report is not None
-    assert len(calls) == 2
+    assert len(calls) == 3
     assert report["compiler_pass"] is True
     assert report["compiler_compact_pass"] is False
     assert "compiler+compact: FAIL" in output
@@ -329,6 +349,7 @@ def test_demo_04_reports_denylisted_tool_avoidance(
                 "TOOL:docker\nACTION:Use docker run.",
                 "TOOL:kubectl\nACTION:Use kubectl apply.",
                 "TOOL:kubectl\nACTION:Use kubectl rollout status.",
+                "TOOL:kubectl\nACTION:Use kubectl rollout status.",
             ]
         ),
     )
@@ -340,6 +361,7 @@ def test_demo_04_reports_denylisted_tool_avoidance(
     assert report is not None
     assert report["name"].startswith("04_tool_governance")
     assert report["baseline_pass"] is False
+    assert report["reinjected_state_pass"] is True
     assert report["compiler_pass"] is True
     assert report["compiler_compact_pass"] is True
     assert report["demo_pass"] is True
@@ -372,7 +394,7 @@ def test_demo_04_compact_clarify_branch_skips_compact_tool_call(
     report = consume_last_report()
 
     assert report is not None
-    assert len(calls) == 2
+    assert len(calls) == 3
     assert report["compiler_pass"] is True
     assert report["compiler_compact_pass"] is False
     assert "compiler+compact: FAIL" in output
@@ -391,6 +413,7 @@ def test_demo_04_baseline_and_compiler_share_same_tool_oracle(
                 allowed_tool_response,
                 allowed_tool_response,
                 allowed_tool_response,
+                allowed_tool_response,
             ]
         ),
     )
@@ -401,6 +424,7 @@ def test_demo_04_baseline_and_compiler_share_same_tool_oracle(
 
     assert report is not None
     assert report["baseline_pass"] is True
+    assert report["reinjected_state_pass"] is True
     assert report["compiler_pass"] is True
     assert report["compiler_compact_pass"] is True
     assert "baseline: PASS" in output

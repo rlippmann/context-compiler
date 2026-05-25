@@ -32,7 +32,7 @@ DEMO_FILES: dict[str, str] = {
 SCORED_DEMOS = {"1", "2", "3", "4", "5", "7"}
 
 
-def _preflight_all_mode() -> None:
+def _preflight_all_mode(*, context_size: int | None = None) -> None:
     llm_client.complete_messages(
         [
             {
@@ -41,6 +41,7 @@ def _preflight_all_mode() -> None:
             }
         ],
         delay_seconds=0,
+        context_size=context_size,
     )
 
 
@@ -59,15 +60,22 @@ def _print_compiler_regression_warning() -> None:
 
 
 def _run(
-    path: Path, *, verbose: bool, llm_delay: float, demo_args: list[str] | None = None
+    path: Path,
+    *,
+    verbose: bool,
+    llm_delay: float,
+    context_size: int | None = None,
+    demo_args: list[str] | None = None,
 ) -> tuple[DemoReport | None, InfoReport | None]:
     if verbose:
         print(f"===== Running {_verbose_demo_label(path)} =====")
     old_verbose = os.getenv(VERBOSE_ENV_VAR)
     old_delay = llm_client.DEFAULT_LLM_DELAY_SECONDS
+    old_context_size = llm_client.DEFAULT_CONTEXT_SIZE
     old_argv = sys.argv[:]
     os.environ[VERBOSE_ENV_VAR] = "1" if verbose else "0"
     llm_client.DEFAULT_LLM_DELAY_SECONDS = llm_delay if llm_delay > 0 else 0.0
+    llm_client.DEFAULT_CONTEXT_SIZE = context_size
     sys.argv = [str(path), *(demo_args or [])]
     try:
         runpy.run_path(str(path), run_name="__main__")
@@ -79,6 +87,7 @@ def _run(
         else:
             os.environ[VERBOSE_ENV_VAR] = old_verbose
         llm_client.DEFAULT_LLM_DELAY_SECONDS = old_delay
+        llm_client.DEFAULT_CONTEXT_SIZE = old_context_size
 
 
 def _print_config_error(exc: MissingDemoConfigError) -> None:
@@ -122,6 +131,12 @@ def main() -> None:
         default=0,
         help="Delay between LLM calls in seconds (useful for low-quota providers).",
     )
+    parser.add_argument(
+        "--context-size",
+        type=int,
+        default=None,
+        help=("Ollama context window size (maps to num_ctx). Supported only with PROVIDER=ollama."),
+    )
     argv = sys.argv[1:]
     args, demo_args = parser.parse_known_args(argv)
     if demo_args and demo_args[0] == "--":
@@ -131,9 +146,24 @@ def main() -> None:
     if args.demo == "all" and demo_args:
         parser.error("demo-specific args are only supported when running a single demo")
 
+    try:
+        context_size_label = llm_client.resolve_context_size_label(args.context_size)
+    except MissingDemoConfigError as exc:
+        _print_config_error(exc)
+        raise SystemExit(2) from exc
+    except DemoLLMError as exc:
+        print(str(exc))
+        raise SystemExit(2) from exc
+    if context_size_label is not None:
+        print(f"Context size: {context_size_label}")
+        print()
+
     if args.demo == "all":
         try:
-            _preflight_all_mode()
+            if args.context_size is None:
+                _preflight_all_mode()
+            else:
+                _preflight_all_mode(context_size=args.context_size)
         except MissingDemoConfigError as exc:
             _print_config_error(exc)
             raise SystemExit(2) from exc
@@ -143,6 +173,8 @@ def main() -> None:
 
         baseline_pass_count = 0
         baseline_fail_count = 0
+        reinjected_pass_count = 0
+        reinjected_fail_count = 0
         compiler_pass_count = 0
         compiler_fail_count = 0
         compact_pass_count = 0
@@ -153,9 +185,13 @@ def main() -> None:
             if index > 0 and not args.verbose:
                 print()
             try:
-                result, info_report = _run(
-                    root / DEMO_FILES[key], verbose=args.verbose, llm_delay=args.llm_delay
-                )
+                run_kwargs = {
+                    "verbose": args.verbose,
+                    "llm_delay": args.llm_delay,
+                }
+                if args.context_size is not None:
+                    run_kwargs["context_size"] = args.context_size
+                result, info_report = _run(root / DEMO_FILES[key], **run_kwargs)
             except MissingDemoConfigError as exc:
                 _print_config_error(exc)
                 raise SystemExit(2) from exc
@@ -171,6 +207,7 @@ def main() -> None:
 
             if result is None:
                 baseline_fail_count += 1
+                reinjected_fail_count += 1
                 compiler_fail_count += 1
                 compact_fail_count += 1
                 continue
@@ -179,6 +216,17 @@ def main() -> None:
                 baseline_pass_count += 1
             else:
                 baseline_fail_count += 1
+
+            if "reinjected_state_pass" not in result:
+                print(
+                    f"ERROR: scored demo result missing `reinjected_state_pass`: {result['name']}"
+                )
+                raise SystemExit(2)
+            reinjected_pass = bool(result["reinjected_state_pass"])
+            if reinjected_pass:
+                reinjected_pass_count += 1
+            else:
+                reinjected_fail_count += 1
 
             if bool(result["compiler_pass"]):
                 compiler_pass_count += 1
@@ -199,6 +247,10 @@ def main() -> None:
         print()
         print("Evaluative demos:")
         print(f"Baseline results: {baseline_pass_count} passed, {baseline_fail_count} failed")
+        print(
+            "Reinjected-state results: "
+            f"{reinjected_pass_count} passed, {reinjected_fail_count} failed"
+        )
         print(f"Compiler results: {compiler_pass_count} passed, {compiler_fail_count} failed")
         print(f"Compiler+compact results: {compact_pass_count} passed, {compact_fail_count} failed")
         if compiler_regressions > 0:
@@ -243,6 +295,8 @@ def main() -> None:
             "verbose": args.verbose,
             "llm_delay": args.llm_delay,
         }
+        if args.context_size is not None:
+            run_kwargs["context_size"] = args.context_size
         if demo_args:
             run_kwargs["demo_args"] = demo_args
         result, _ = _run(root / DEMO_FILES[args.demo], **run_kwargs)
