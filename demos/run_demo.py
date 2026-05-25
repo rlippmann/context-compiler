@@ -183,7 +183,12 @@ def main() -> None:
             else:
                 baseline_fail_count += 1
 
-            reinjected_pass = bool(result.get("reinjected_state_pass", result["baseline_pass"]))
+            if "reinjected_state_pass" not in result:
+                print(
+                    f"ERROR: scored demo result missing `reinjected_state_pass`: {result['name']}"
+                )
+                raise SystemExit(2)
+            reinjected_pass = bool(result["reinjected_state_pass"])
             if reinjected_pass:
                 reinjected_pass_count += 1
             else:

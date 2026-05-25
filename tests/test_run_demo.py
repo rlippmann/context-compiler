@@ -13,8 +13,10 @@ from demos.common import consume_last_info_report  # noqa: E402
 from demos.llm_client import DemoLLMError  # noqa: E402
 
 
-def _demo_report(*, baseline_pass: bool, compiler_pass: bool) -> run_demo.DemoReport:
-    return {
+def _demo_report(
+    *, baseline_pass: bool, compiler_pass: bool, reinjected_state_pass: bool | None = None
+) -> run_demo.DemoReport:
+    report: run_demo.DemoReport = {
         "name": "01_fake — regression fixture",
         "expected": "expected behavior",
         "actual": "actual behavior",
@@ -23,6 +25,10 @@ def _demo_report(*, baseline_pass: bool, compiler_pass: bool) -> run_demo.DemoRe
         "compiler_compact_pass": compiler_pass,
         "demo_pass": compiler_pass,
     }
+    report["reinjected_state_pass"] = (
+        baseline_pass if reinjected_state_pass is None else reinjected_state_pass
+    )
+    return report
 
 
 def _info_report() -> run_demo.InfoReport:
@@ -338,6 +344,40 @@ def test_all_mode_scored_none_result_counts_as_failures(
     assert "Baseline results: 0 passed, 1 failed" in output
     assert "Compiler results: 0 passed, 1 failed" in output
     assert "Compiler+compact results: 0 passed, 1 failed" in output
+
+
+def test_all_mode_errors_when_scored_demo_missing_reinjected_result(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    def fake_run(
+        path: Path, *, verbose: bool, llm_delay: float
+    ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        assert not verbose
+        assert llm_delay == 0
+        if path.name == "fake_01.py":
+            return {
+                "name": "01_fake — missing reinjected fixture",
+                "expected": "expected behavior",
+                "actual": "actual behavior",
+                "baseline_pass": True,
+                "compiler_pass": True,
+                "compiler_compact_pass": True,
+                "demo_pass": True,
+            }, None
+        return None, None
+
+    monkeypatch.setattr(run_demo, "DEMO_FILES", {"1": "fake_01.py"})
+    monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1"})
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", lambda: None)
+    monkeypatch.setattr(run_demo, "_run", fake_run)
+    monkeypatch.setattr("sys.argv", ["run_demo", "all"])
+
+    with pytest.raises(SystemExit) as exc_info:
+        run_demo.main()
+    output = capsys.readouterr().out
+
+    assert exc_info.value.code == 2
+    assert "missing `reinjected_state_pass`" in output
 
 
 def test_all_mode_counts_baseline_fail_and_compiler_pass(
