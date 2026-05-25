@@ -2,6 +2,8 @@
 
 Canonical reference for the current LLM demo matrix and methodology.
 
+Note: this published matrix predates the `reinjected-state` path added in the 0.7.1 demo/evaluation experiment. It currently reports baseline/compiler/compiler+compact only.
+
 ## Scope
 
 - Scored demos: `01`, `02`, `03`, `04`, `05`, `07` (6 total)

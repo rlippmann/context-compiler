@@ -6,6 +6,7 @@ from context_compiler import State, create_engine
 from demos.common import (
     build_baseline_messages,
     build_compiled_system_prompt,
+    build_reinjected_messages,
     compact_user_turns,
     extract_tag_value,
     print_decision,
@@ -119,6 +120,17 @@ def main() -> None:
     strong_output = complete_messages(strong_messages)
     print_model_output("Strong baseline", strong_output)
 
+    _, reinjected_messages = build_reinjected_messages(
+        USER_INPUTS,
+        premise=EXPECTED_PREMISE,
+        use_policies=[],
+        prohibit_policies=[],
+        extra_system_prompt=STRONG_PROMPT_ENGINEERING_TEXT,
+    )
+    print_messages("reinjected-state", reinjected_messages)
+    reinjected_output = complete_messages(reinjected_messages)
+    print_model_output("Reinjected-state", reinjected_output)
+
     compiler_messages = build_compiler_messages(engine.state, USER_INPUTS)
     print_messages("compiler-mediated (full)", compiler_messages)
     compiler_output = complete_messages(compiler_messages)
@@ -137,10 +149,12 @@ def main() -> None:
 
     weak_premise = extract_tag_value(weak_output, "PREMISE")
     strong_premise = extract_tag_value(strong_output, "PREMISE")
+    reinjected_premise = extract_tag_value(reinjected_output, "PREMISE")
     compiler_premise = extract_tag_value(compiler_output, "PREMISE")
     compact_premise = extract_tag_value(compact_output, "PREMISE")
     weak_pass = premise_matches_expected(weak_output)
     strong_pass = premise_matches_expected(strong_output)
+    reinjected_pass = premise_matches_expected(reinjected_output)
     compiler_pass = premise_matches_expected(compiler_output)
     compact_pass = compacted_prompt is None and premise_matches_expected(compact_output)
 
@@ -160,6 +174,11 @@ def main() -> None:
         "STRONG_MATCHES_EXPECTED_PREMISE",
         f"{yes_no(strong_pass)}, premise_tag={strong_premise or 'MISSING'}",
         context="strong-baseline",
+    )
+    print_host_check(
+        "REINJECTED_MATCHES_EXPECTED_PREMISE",
+        f"{yes_no(reinjected_pass)}, premise_tag={reinjected_premise or 'MISSING'}",
+        context="reinjected-state",
     )
     print_host_check(
         "COMPILER_MATCHES_EXPECTED_PREMISE",
@@ -194,6 +213,7 @@ def main() -> None:
     print_spec_report(
         test_name=DEMO_NAME,
         baseline_pass=strong_pass,
+        reinjected_state_pass=reinjected_pass,
         compiler_pass=compiler_pass,
         compiler_compact_pass=compact_pass,
         assertion_outcome=assertion_outcome,

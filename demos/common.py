@@ -23,6 +23,7 @@ class DemoReport(TypedDict):
     expected: str
     actual: str
     baseline_pass: bool
+    reinjected_state_pass: NotRequired[bool]
     compiler_pass: bool
     compiler_compact_pass: NotRequired[bool]
     demo_pass: bool
@@ -163,6 +164,7 @@ def print_spec_report(
     *,
     test_name: str,
     baseline_pass: bool,
+    reinjected_state_pass: bool | None = None,
     compiler_pass: bool,
     compiler_compact_pass: bool | None = None,
     assertion_outcome: str | None = None,
@@ -181,11 +183,15 @@ def print_spec_report(
         "compiler_pass": compiler_pass,
         "demo_pass": passed,
     }
+    if reinjected_state_pass is not None:
+        report["reinjected_state_pass"] = reinjected_state_pass
     if compiler_compact_pass is not None:
         report["compiler_compact_pass"] = compiler_compact_pass
     LAST_REPORT = report
     print(test_name)
     print(f"baseline: {'PASS' if baseline_pass else 'FAIL'}")
+    if reinjected_state_pass is not None:
+        print(f"reinjected-state: {'PASS' if reinjected_state_pass else 'FAIL'}")
     print(f"compiler: {'PASS' if compiler_pass else 'FAIL'}")
     if compiler_compact_pass is not None:
         print(f"compiler+compact: {'PASS' if compiler_compact_pass else 'FAIL'}")
@@ -305,6 +311,50 @@ def build_compiled_system_prompt(state: State) -> str:
         "Compiled state overrides transcript drift and conflicts. "
         "Do not violate prohibited items."
     )
+
+
+def build_reinjected_state_block(
+    *,
+    premise: str | None,
+    use_policies: list[str],
+    prohibit_policies: list[str],
+) -> str:
+    premise_text = premise if premise is not None else "none"
+    lines = [
+        "Current application-managed state:",
+        f"- premise: {premise_text}",
+        "- policies:",
+    ]
+    for item in use_policies:
+        lines.append(f"  - {item}: use")
+    for item in prohibit_policies:
+        lines.append(f"  - {item}: prohibit")
+    if not use_policies and not prohibit_policies:
+        lines.append("  - none")
+    lines.append("")
+    lines.append("Follow this state when answering.")
+    return "\n".join(lines)
+
+
+def build_reinjected_messages(
+    user_turns: list[str],
+    *,
+    premise: str | None,
+    use_policies: list[str],
+    prohibit_policies: list[str],
+    extra_system_prompt: str | None = None,
+) -> tuple[str, list[Message]]:
+    state_block = build_reinjected_state_block(
+        premise=premise,
+        use_policies=use_policies,
+        prohibit_policies=prohibit_policies,
+    )
+    system_prompt = state_block
+    if extra_system_prompt:
+        system_prompt += "\n" + extra_system_prompt
+    messages: list[Message] = [{"role": "system", "content": system_prompt}]
+    messages.extend({"role": "user", "content": turn} for turn in user_turns)
+    return state_block, messages
 
 
 def build_baseline_messages(

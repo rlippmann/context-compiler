@@ -143,6 +143,8 @@ def main() -> None:
 
         baseline_pass_count = 0
         baseline_fail_count = 0
+        reinjected_pass_count = 0
+        reinjected_fail_count = 0
         compiler_pass_count = 0
         compiler_fail_count = 0
         compact_pass_count = 0
@@ -171,6 +173,7 @@ def main() -> None:
 
             if result is None:
                 baseline_fail_count += 1
+                reinjected_fail_count += 1
                 compiler_fail_count += 1
                 compact_fail_count += 1
                 continue
@@ -179,6 +182,12 @@ def main() -> None:
                 baseline_pass_count += 1
             else:
                 baseline_fail_count += 1
+
+            reinjected_pass = bool(result.get("reinjected_state_pass", result["baseline_pass"]))
+            if reinjected_pass:
+                reinjected_pass_count += 1
+            else:
+                reinjected_fail_count += 1
 
             if bool(result["compiler_pass"]):
                 compiler_pass_count += 1
@@ -199,6 +208,10 @@ def main() -> None:
         print()
         print("Evaluative demos:")
         print(f"Baseline results: {baseline_pass_count} passed, {baseline_fail_count} failed")
+        print(
+            "Reinjected-state results: "
+            f"{reinjected_pass_count} passed, {reinjected_fail_count} failed"
+        )
         print(f"Compiler results: {compiler_pass_count} passed, {compiler_fail_count} failed")
         print(f"Compiler+compact results: {compact_pass_count} passed, {compact_fail_count} failed")
         if compiler_regressions > 0:
