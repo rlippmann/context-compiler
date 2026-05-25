@@ -15,6 +15,14 @@ The model writes responses. The compiler stores premise and policy rules.
 
 Context Compiler is a deterministic control layer for LLM applications. It processes explicit user instructions before model calls so applications can reliably enforce premise and policy constraints.
 
+Context Compiler handles the cases that become operationally complicated quickly:
+
+- replacing a policy that may or may not exist yet
+- detecting contradictory directives before applying them
+- enforcing valid state transitions (you can't change what isn't set)
+- persisting authoritative state across stateless API boundaries
+- resuming after an interrupted clarification flow
+
 ## Does it work?
 
 Yes, on the current scored demo set.
@@ -116,9 +124,18 @@ The idea is similar to a traditional compiler: user directives are translated in
 ## FAQ
 
 **Is this just prompt reinjection?**
-Partly. Hosts still pass state to models as context. The difference is that
-state is maintained by a deterministic engine with explicit update rules,
-clarification behavior, and inspectable checkpoints.
+Reinjection helps with persistence, and it remains useful. Context Compiler
+addresses a different boundary: authoritative state transitions. It defines how
+state mutates before generation, with deterministic externalized semantics.
+
+Examples:
+- replacement semantics (`use X instead of Y`) when `Y` may not exist
+- contradiction detection before applying a mutation
+- lifecycle enforcement (for example, you cannot change an unset premise)
+- pending clarification flows that must be resolved before other mutations
+
+In short: reinjection carries state forward; Context Compiler governs how that
+state is created and changed.
 
 **Isn’t this just prompt engineering?**
 It complements prompt engineering, but solves a different problem. Prompting
@@ -149,7 +166,7 @@ Your app sends the saved state to the model so the rule still applies on later t
 
 ## Deterministic behavior (examples)
 
-LLMs interpret intent. Context Compiler enforces it.
+Context Compiler externalizes mutation semantics so transitions are deterministic.
 
 **Explicit directive**
 ```text
@@ -163,16 +180,16 @@ set premise concise replies
 clear state
 use podman instead of docker
 ```
-- Base model: generic explanation
-- Context Compiler: rejects (“No exact policy found for 'docker'…”)
+- Without explicit state transition rules: behavior depends on host/model handling
+- Context Compiler: returns deterministic clarify behavior before mutation
 
 **Lifecycle enforcement**
 ```text
 clear state
 change premise to formal tone
 ```
-- Base model: conversational rewrite guidance
-- Context Compiler: clarifies (“No premise exists yet…”)
+- Without explicit transition checks: behavior depends on host/model handling
+- Context Compiler: clarifies and preserves authoritative state
 
 ---
 
@@ -191,7 +208,7 @@ Decision
 Host Application
  ├─ clarify → ask user
  ├─ passthrough → call LLM
- └─ update → call LLM with compiled state
+ └─ update → authoritative state mutated; host may call LLM with compiled state
 ```
 
 The compiler owns state updates and never calls the LLM.
@@ -215,7 +232,7 @@ Meaning:
 | kind        | host behavior                                 |
 |:-----------:|-----------------------------------------------|
 | passthrough | forward user input to LLM                     |
-| update      | forward input with updated state              |
+| update      | authoritative state mutated; host may call LLM with updated state |
 | clarify     | show `prompt_to_user` and do not call the LLM |
 
 ---

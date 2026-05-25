@@ -13,6 +13,23 @@ Install path for integrations using this layer:
 Integration runtimes must use installed-package imports/resources for this
 layer. Do not rely on repo-relative preprocessor paths.
 
+## Architectural framing
+
+The preprocessor is a host adaptation layer, not an authoritative state engine.
+
+The preprocessor is a host adaptation layer for environments where no capable
+LLM is available to perform directive translation.
+
+When a capable LLM is present, it can translate user intent into canonical
+directives directly (for example via MCP tool descriptions, an embedded model,
+or another integration path).
+
+In simpler hosts without an embedded model, this preprocessor fills that
+translation role conservatively.
+
+Both paths feed canonical directives into the same deterministic engine. The
+compiler remains authoritative regardless of directive source.
+
 ## Required flow
 
 Recommended conceptual flow:
