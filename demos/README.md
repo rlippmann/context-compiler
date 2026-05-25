@@ -113,6 +113,10 @@ uv run python -m demos.run_demo all --context-size 2048
 
 `--context-size` is intended for local Ollama runs (`PROVIDER=ollama`) and maps to
 Ollama `num_ctx`. Using it with unsupported providers fails with a clear error.
+When `--context-size` is omitted on Ollama runs, the runner attempts best-effort
+default context discovery and reports either a discovered numeric default
+(`Context size: <n> (default)`) or `Context size: default` if numeric discovery
+is unavailable.
 
 ## Results
 

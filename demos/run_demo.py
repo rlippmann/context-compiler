@@ -146,6 +146,18 @@ def main() -> None:
     if args.demo == "all" and demo_args:
         parser.error("demo-specific args are only supported when running a single demo")
 
+    try:
+        context_size_label = llm_client.resolve_context_size_label(args.context_size)
+    except MissingDemoConfigError as exc:
+        _print_config_error(exc)
+        raise SystemExit(2) from exc
+    except DemoLLMError as exc:
+        print(str(exc))
+        raise SystemExit(2) from exc
+    if context_size_label is not None:
+        print(f"Context size: {context_size_label}")
+        print()
+
     if args.demo == "all":
         try:
             if args.context_size is None:

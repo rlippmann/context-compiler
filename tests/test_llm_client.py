@@ -114,6 +114,20 @@ class _FakeRateLimitError(RuntimeError):
         )()
 
 
+class _FakeHTTPResponse:
+    def __init__(self, payload: str) -> None:
+        self._payload = payload
+
+    def read(self) -> bytes:
+        return self._payload.encode("utf-8")
+
+    def __enter__(self) -> "_FakeHTTPResponse":
+        return self
+
+    def __exit__(self, exc_type: object, exc: object, tb: object) -> None:
+        del exc_type, exc, tb
+
+
 def _install_fake_litellm_module(monkeypatch: pytest.MonkeyPatch) -> type[Exception]:
     # Avoid importorskip here: an import-time litellm dependency would skip this
     # entire module in CI when extras are not installed. We stub litellm in
@@ -483,6 +497,70 @@ def test_complete_messages_context_size_rejected_for_non_ollama(
         str(exc_info.value) == "--context-size is only supported with PROVIDER=ollama "
         "(maps to Ollama num_ctx)."
     )
+
+
+def test_resolve_context_size_label_reports_explicit_ollama_value(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_ollama_config)
+
+    label = llm_client.resolve_context_size_label(4096)
+
+    assert label == "4096"
+
+
+def test_resolve_context_size_label_reports_discovered_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_ollama_config)
+    monkeypatch.setattr(llm_client, "_discover_ollama_default_context_size", lambda _cfg: 8192)
+
+    label = llm_client.resolve_context_size_label(None)
+
+    assert label == "8192 (default)"
+
+
+def test_resolve_context_size_label_reports_default_when_discovery_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_ollama_config)
+    monkeypatch.setattr(llm_client, "_discover_ollama_default_context_size", lambda _cfg: None)
+
+    label = llm_client.resolve_context_size_label(None)
+
+    assert label == "default"
+
+
+def test_discover_ollama_default_context_size_reads_model_info(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = _fake_ollama_config()
+    payload = '{"model_info":{"llama.context_length":32768}}'
+    monkeypatch.setattr(
+        llm_client,
+        "urlopen",
+        lambda _request, timeout=0: _FakeHTTPResponse(payload),
+    )
+
+    value = llm_client._discover_ollama_default_context_size(config)
+
+    assert value == 32768
+
+
+def test_discover_ollama_default_context_size_reads_parameters_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config = _fake_ollama_config()
+    payload = '{"parameters":"num_ctx 16384\\nnum_predict 128"}'
+    monkeypatch.setattr(
+        llm_client,
+        "urlopen",
+        lambda _request, timeout=0: _FakeHTTPResponse(payload),
+    )
+
+    value = llm_client._discover_ollama_default_context_size(config)
+
+    assert value == 16384
 
 
 def test_complete_messages_retries_once_without_temperature_on_unsupported_param(

@@ -9,7 +9,10 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from importlib import import_module
+from json import JSONDecodeError, dumps, loads
 from typing import Any, Literal, TypedDict, cast
+from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 from host_support.provider_mode import print_startup_config, resolve_provider_config
 
@@ -185,6 +188,72 @@ def _configured_context_size(context_size: int | None) -> int | None:
     if context_size is not None:
         return context_size
     return DEFAULT_CONTEXT_SIZE
+
+
+def _normalize_ollama_model_name(model: str) -> str:
+    if model.startswith("ollama/"):
+        return model[len("ollama/") :]
+    return model
+
+
+def _discover_ollama_default_context_size(config: LLMConfig) -> int | None:
+    if config.mode != "ollama":
+        return None
+    model_name = _normalize_ollama_model_name(config.model)
+    url = f"{config.base_url.rstrip('/')}/api/show"
+    body = dumps({"model": model_name}).encode("utf-8")
+    request = Request(
+        url,
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=2) as response:
+            payload = response.read().decode("utf-8", errors="replace")
+    except (URLError, OSError, TimeoutError):
+        return None
+    try:
+        data = loads(payload)
+    except JSONDecodeError:
+        return None
+    if not isinstance(data, dict):
+        return None
+
+    model_info = data.get("model_info")
+    if isinstance(model_info, dict):
+        for key in (
+            "general.context_length",
+            "llama.context_length",
+            "qwen2.context_length",
+            "context_length",
+        ):
+            value = model_info.get(key)
+            if isinstance(value, int) and value > 0:
+                return value
+
+    parameters = data.get("parameters")
+    if isinstance(parameters, str):
+        match = re.search(r"(?m)^\s*num_ctx\s+([0-9]+)\s*$", parameters)
+        if match is not None:
+            return int(match.group(1))
+    return None
+
+
+def resolve_context_size_label(context_size: int | None) -> str | None:
+    config = load_config()
+    if context_size is not None:
+        if config.mode != "ollama":
+            raise DemoLLMError(
+                "--context-size is only supported with PROVIDER=ollama (maps to Ollama num_ctx)."
+            )
+        return str(context_size)
+    if config.mode != "ollama":
+        return None
+    discovered = _discover_ollama_default_context_size(config)
+    if discovered is not None:
+        return f"{discovered} (default)"
+    return "default"
 
 
 def load_config() -> LLMConfig:
