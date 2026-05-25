@@ -474,6 +474,60 @@ def test_runner_passes_llm_delay_from_cli(monkeypatch: pytest.MonkeyPatch) -> No
     assert captured["llm_delay"] == 1.25
 
 
+def test_runner_passes_context_size_from_cli(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_run(
+        path: Path,
+        *,
+        verbose: bool,
+        llm_delay: float,
+        context_size: int | None = None,
+    ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        assert path.name == "fake_06.py"
+        assert not verbose
+        assert llm_delay == 0
+        captured["context_size"] = context_size
+        return None, None
+
+    monkeypatch.setattr(run_demo, "DEMO_FILES", {"6": "fake_06.py"})
+    monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1", "2", "3", "4", "5"})
+    monkeypatch.setattr(run_demo, "_run", fake_run)
+    monkeypatch.setattr("sys.argv", ["run_demo", "6", "--context-size", "4096"])
+
+    run_demo.main()
+
+    assert captured["context_size"] == 4096
+
+
+def test_all_mode_passes_context_size_to_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_preflight(*, context_size: int | None = None) -> None:
+        captured["context_size"] = context_size
+
+    def fake_run(
+        path: Path, *, verbose: bool, llm_delay: float, context_size: int | None = None
+    ) -> tuple[run_demo.DemoReport | None, run_demo.InfoReport | None]:
+        assert not verbose
+        assert llm_delay == 0
+        if path.name == "fake_01.py":
+            return _demo_report(
+                baseline_pass=True, compiler_pass=True, reinjected_state_pass=True
+            ), None
+        return None, _info_report()
+
+    monkeypatch.setattr(run_demo, "DEMO_FILES", {"1": "fake_01.py", "6": "fake_06.py"})
+    monkeypatch.setattr(run_demo, "SCORED_DEMOS", {"1"})
+    monkeypatch.setattr(run_demo, "_preflight_all_mode", fake_preflight)
+    monkeypatch.setattr(run_demo, "_run", fake_run)
+    monkeypatch.setattr("sys.argv", ["run_demo", "all", "--context-size", "2048"])
+
+    run_demo.main()
+
+    assert captured["context_size"] == 2048
+
+
 def test_runner_forwards_demo_specific_args_after_separator(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

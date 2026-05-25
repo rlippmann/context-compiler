@@ -103,6 +103,17 @@ Run all demos with detailed traces:
 uv run python -m demos.run_demo all --verbose
 ```
 
+Set Ollama context size (`num_ctx`) from the runner:
+
+```bash
+uv run python -m demos.run_demo all --context-size 8192
+uv run python -m demos.run_demo all --context-size 4096
+uv run python -m demos.run_demo all --context-size 2048
+```
+
+`--context-size` is intended for local Ollama runs (`PROVIDER=ollama`) and maps to
+Ollama `num_ctx`. Using it with unsupported providers fails with a clear error.
+
 ## Results
 
 The canonical cross-model results matrix is maintained in [docs/demos-results.md](../docs/demos-results.md).

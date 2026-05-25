@@ -44,6 +44,16 @@ def _fake_config() -> LLMConfig:
     )
 
 
+def _fake_ollama_config() -> LLMConfig:
+    return LLMConfig(
+        base_url="http://localhost:11434",
+        api_key=None,
+        model="ollama/llama3.1:8b",
+        mode="ollama",
+        source="PROVIDER",
+    )
+
+
 class _FakeLiteLLMCompletion:
     def __init__(self, outcomes: list[object]) -> None:
         self._outcomes = outcomes
@@ -445,6 +455,34 @@ def test_complete_messages_normal_path_uses_deterministic_decoding_first(
     assert result == "ok"
     assert len(fake_completion.calls) == 1
     assert fake_completion.calls[0]["deterministic_decoding"] is True
+
+
+def test_complete_messages_ollama_context_size_maps_to_num_ctx(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_ollama_config)
+    fake_completion = _RecordingLiteLLMCompletion([_FakeResponse("ok")])
+    monkeypatch.setattr(llm_client, "_litellm_completion", fake_completion)
+
+    result = complete_messages([{"role": "user", "content": "hello"}], context_size=4096)
+
+    assert result == "ok"
+    assert len(fake_completion.calls) == 1
+    assert fake_completion.calls[0]["context_size"] == 4096
+
+
+def test_complete_messages_context_size_rejected_for_non_ollama(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(llm_client, "load_config", _fake_config)
+
+    with pytest.raises(DemoLLMError) as exc_info:
+        complete_messages([{"role": "user", "content": "hello"}], context_size=4096)
+
+    assert (
+        str(exc_info.value) == "--context-size is only supported with PROVIDER=ollama "
+        "(maps to Ollama num_ctx)."
+    )
 
 
 def test_complete_messages_retries_once_without_temperature_on_unsupported_param(

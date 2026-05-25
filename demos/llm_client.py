@@ -46,6 +46,7 @@ class DemoLLMError(RuntimeError):
 _RETRY_DELAYS_SECONDS = (1, 2, 4)
 MAX_DEMO_RETRY_AFTER_SECONDS = 5
 DEFAULT_LLM_DELAY_SECONDS = 0.0
+DEFAULT_CONTEXT_SIZE: int | None = None
 
 
 def _is_model_not_found(exc_text: str, exc_name: str) -> bool:
@@ -180,6 +181,12 @@ def _configured_delay_seconds(delay_seconds: float) -> float:
     return DEFAULT_LLM_DELAY_SECONDS
 
 
+def _configured_context_size(context_size: int | None) -> int | None:
+    if context_size is not None:
+        return context_size
+    return DEFAULT_CONTEXT_SIZE
+
+
 def load_config() -> LLMConfig:
     """Load provider mode configuration from environment variables."""
     try:
@@ -215,6 +222,7 @@ def _litellm_completion(
     target_model: str,
     messages: list[Message],
     deterministic_decoding: bool = True,
+    context_size: int | None = None,
 ) -> Any:
     try:
         litellm_module = import_module("litellm")
@@ -238,6 +246,8 @@ def _litellm_completion(
     if deterministic_decoding:
         # Demos prefer deterministic decoding so PASS/FAIL results are reproducible.
         kwargs["temperature"] = 0
+    if context_size is not None:
+        kwargs["num_ctx"] = context_size
     kwargs["api_base"] = config.base_url
     return completion_fn(**kwargs)
 
@@ -247,11 +257,17 @@ def complete_messages(
     *,
     model: str | None = None,
     delay_seconds: float = 0,
+    context_size: int | None = None,
 ) -> str:
     """Send exact message list to chat completions and return the text output."""
     config = load_config()
     target_model = model or config.model
     configured_delay = _configured_delay_seconds(delay_seconds)
+    configured_context_size = _configured_context_size(context_size)
+    if configured_context_size is not None and config.mode != "ollama":
+        raise DemoLLMError(
+            "--context-size is only supported with PROVIDER=ollama (maps to Ollama num_ctx)."
+        )
     verbose_mode = os.getenv("CONTEXT_COMPILER_DEMO_VERBOSE", "").lower() in {
         "1",
         "true",
@@ -270,6 +286,7 @@ def complete_messages(
                         target_model=target_model,
                         messages=messages,
                         deterministic_decoding=True,
+                        context_size=configured_context_size,
                     )
             except Exception as first_exc:
                 if not _is_litellm_unsupported_param_error(first_exc):
@@ -286,6 +303,7 @@ def complete_messages(
                         target_model=target_model,
                         messages=messages,
                         deterministic_decoding=False,
+                        context_size=configured_context_size,
                     )
             break
         except Exception as exc:
