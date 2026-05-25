@@ -45,7 +45,9 @@ Environment variables (strict provider mode contract):
 - `OPENAI_API_KEY` (required in normal `openai` mode)
 - `OPENAI_BASE_URL` (explicit endpoint override; required for explicit `openai_compatible`)
 Note: Demos prefer fixed decoding (`temperature=0`) for reproducible PASS/FAIL behavior.
-If a model rejects that parameter (for example, some `gpt-5` paths), the demo client retries once without it.
+If a model rejects deterministic sampling parameters on the LiteLLM/OpenAI-compatible path
+(for example, some `gpt-5` and Claude paths), the demo client retries once without deterministic
+sampling parameters.
 
 Default (openai):
 
@@ -70,6 +72,15 @@ export PROVIDER=openai_compatible
 export OPENAI_BASE_URL=http://localhost:11434/v1
 export OPENAI_API_KEY=ollama
 export MODEL=openai/llama3.1:8b
+```
+
+Anthropic via an OpenAI-compatible endpoint (LiteLLM model name style):
+
+```bash
+export PROVIDER=openai_compatible
+export OPENAI_BASE_URL=http://localhost:4000/v1
+export OPENAI_API_KEY=your_key_here
+export MODEL=anthropic/claude-sonnet-4-6
 ```
 
 ## Quick run
