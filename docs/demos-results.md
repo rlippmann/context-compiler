@@ -67,6 +67,11 @@ Scoring behavior uses post-audit oracle/checker logic in demos and shared helper
 - `demos/09_llm_pending_clarification.py`
 - shared parsing/helpers in `demos/common.py`
 
+Anti-overfitting note: scored checks are designed around deterministic host/state
+invariants rather than preferred wording in model outputs. The `reinjected-state`
+path is intentionally limited to plain state text injection and does not include
+compiler precondition or pending-state semantics.
+
 ### Run metadata
 
 - Date: 2026-05-06
@@ -78,6 +83,10 @@ Scoring behavior uses post-audit oracle/checker logic in demos and shared helper
 
 - Live demo runs are **evidence/smoke tests** across real model/provider behavior.
 - Deterministic test suites (unit/property tests) are the **regression authority** for oracle and engine contracts.
+- Persistence demos and transition-semantics demos should be interpreted differently:
+- `01`-`05`, `07`: persistence and policy-following under transcript pressure.
+- `08`/`09`: host-side transition checks (for example, replacement preconditions and pending-confirmation handling).
+- Demos `08`/`09` are not general LLM quality benchmarks. Baseline and reinjected-state can produce plausible text and still `FAIL` when those host-side transition checks are missing.
 
 ## Demo 05 Long-Transcript Stress (Exploratory Frontier Runs)
 

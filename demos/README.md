@@ -148,6 +148,9 @@ Notes:
 - Anthropic runs in this repo are executed through the `openai_compatible` provider path.
 - `PASS` means the demo-specific expected-behavior check for that path succeeded; `FAIL` means it did not.
 - `reinjected-state` can be enough for some persistence cases; this comparison is intended to show where deterministic state semantics add value.
+- Anti-overfitting guardrail: demos score host/state-transition invariants (for example blocked mutation, pending continuation, confirmation-only resolution), not model prose quality. Reinjected-state remains plain text injection only and does not include hidden compiler semantics.
+- Interpretation: demos `01`-`05` and `07` focus on persistence and policy-following across turns, while demos `08`/`09` focus on fixed host-side state-transition rules.
+- For demos `08`/`09`, similar outcomes across models are about architecture limits, not provider/model leaderboard ranking.
 
 ### Demo 05 example (prompt drift under longer context)
 
