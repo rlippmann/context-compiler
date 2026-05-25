@@ -70,3 +70,54 @@ Scoring behavior uses post-audit oracle/checker logic in demos and shared helper
 
 - Live demo runs are **evidence/smoke tests** across real model/provider behavior.
 - Deterministic test suites (unit/property tests) are the **regression authority** for oracle and engine contracts.
+
+## Local Ollama Context-Size Sweep (0.7.1 Experiment)
+
+This section reports the refreshed local-only matrix with the `reinjected-state`
+path and explicit context-size ladder runs. Historical hosted-provider matrix rows
+above are preserved as originally recorded.
+
+### Commands Run
+
+```bash
+PROVIDER=ollama MODEL=ollama/llama3.1:8b uv run python -m demos.run_demo all --context-size 8192
+PROVIDER=ollama MODEL=ollama/llama3.1:8b uv run python -m demos.run_demo all --context-size 4096
+PROVIDER=ollama MODEL=ollama/llama3.1:8b uv run python -m demos.run_demo all --context-size 2048
+
+PROVIDER=ollama MODEL=ollama/qwen2.5:7b-instruct uv run python -m demos.run_demo all --context-size 8192
+PROVIDER=ollama MODEL=ollama/qwen2.5:7b-instruct uv run python -m demos.run_demo all --context-size 4096
+PROVIDER=ollama MODEL=ollama/qwen2.5:7b-instruct uv run python -m demos.run_demo all --context-size 2048
+
+PROVIDER=ollama MODEL=ollama/qwen2.5:14b-instruct uv run python -m demos.run_demo all --context-size 8192
+PROVIDER=ollama MODEL=ollama/qwen2.5:14b-instruct uv run python -m demos.run_demo all --context-size 4096
+PROVIDER=ollama MODEL=ollama/qwen2.5:14b-instruct uv run python -m demos.run_demo all --context-size 2048
+```
+
+### Results Matrix (Scored Demos 01-05, 07)
+
+| Provider | Model | Context size | Baseline (P/F) | Reinjected-state (P/F) | Compiler (P/F) | Compiler+compact (P/F) |
+| :-- | :-- | :--: | :--: | :--: | :--: | :--: |
+| `ollama` | `llama3.1:8b` | `8192` | 2 / 4 | 5 / 1 | 6 / 0 | 6 / 0 |
+| `ollama` | `llama3.1:8b` | `4096` | 2 / 4 | 5 / 1 | 6 / 0 | 6 / 0 |
+| `ollama` | `llama3.1:8b` | `2048` | 2 / 4 | 5 / 1 | 6 / 0 | 6 / 0 |
+| `ollama` | `qwen2.5:7b-instruct` | `8192` | 4 / 2 | 6 / 0 | 6 / 0 | 6 / 0 |
+| `ollama` | `qwen2.5:7b-instruct` | `4096` | 4 / 2 | 6 / 0 | 6 / 0 | 6 / 0 |
+| `ollama` | `qwen2.5:7b-instruct` | `2048` | 4 / 2 | 6 / 0 | 6 / 0 | 6 / 0 |
+| `ollama` | `qwen2.5:14b-instruct` | `8192` | 4 / 2 | 5 / 1 | 6 / 0 | 6 / 0 |
+| `ollama` | `qwen2.5:14b-instruct` | `4096` | 4 / 2 | 5 / 1 | 6 / 0 | 6 / 0 |
+| `ollama` | `qwen2.5:14b-instruct` | `2048` | 4 / 2 | 5 / 1 | 6 / 0 | 6 / 0 |
+
+### Concise Observations
+
+- `compiler` and `compiler+compact` were stable at `6 / 0` across all models and all context sizes.
+- `reinjected-state` stayed competitive:
+  - `6 / 0` for `qwen2.5:7b-instruct`
+  - `5 / 1` for `llama3.1:8b` and `qwen2.5:14b-instruct`
+- `baseline` varied by model but not by context size in this sweep:
+  - `2 / 4` for `llama3.1:8b`
+  - `4 / 2` for both Qwen models
+- For monitored demos:
+  - Demo `02` was the most persistent failure point for baseline, and remained a reinjected failure on `llama3.1:8b` and `qwen2.5:14b-instruct`.
+  - Demo `05` only failed baseline on `llama3.1:8b`; other paths passed.
+  - Demo `01` baseline failed on `llama3.1:8b` but passed on Qwen models.
+  - Demo `07` passed on all paths for all model/context combinations in this run set.
