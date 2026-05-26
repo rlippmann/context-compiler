@@ -2189,3 +2189,77 @@ def test_preprocessor_pipe_pending_clarification_bypasses_preprocessing_for_ambi
     assert "state injected: no" in second
     assert downstream_calls == 0
     assert heuristic_calls == ["use podman instead of kubectl"]
+
+
+def test_preprocessor_pipe_passthrough_injects_active_state_and_trace_reports_yes(
+    monkeypatch,
+) -> None:
+    module = _load_module_with_openwebui_stubs(
+        "owui_preproc_passthrough_state_injection", monkeypatch
+    )
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    monkeypatch.setattr(
+        module,
+        "preprocess_heuristic",
+        lambda text: (
+            {"outcome": module.PREPROCESS_OUTCOME_DIRECTIVE, "directive": "use docker"}
+            if text.strip().lower() == "use docker"
+            else {"outcome": "no_directive", "directive": None}
+        ),
+    )
+    monkeypatch.setattr(module, "parse_preprocessor_output", lambda value, **_kwargs: value)
+
+    forwarded_payloads: list[dict[str, object]] = []
+
+    async def _chat_completion(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        forwarded_payloads.append(payload)
+        return {"choices": [{"message": {"content": "answer"}}]}
+
+    monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.PREPROCESSOR_MODEL_ID = "prep-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+    chat_id = "chat-preproc-passthrough-injected-state"
+
+    update = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "use docker"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_id,
+        )
+    )
+    assert "State updated: Use docker." in update
+    assert len(forwarded_payloads) == 0
+
+    passthrough = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "what container runtime should i use?"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_id,
+        )
+    )
+    assert isinstance(passthrough, dict)
+    assert len(forwarded_payloads) == 2
+    messages = forwarded_payloads[-1]["messages"]
+    assert isinstance(messages, list)
+    assert any(
+        isinstance(msg, dict)
+        and msg.get("role") == "system"
+        and isinstance(msg.get("content"), str)
+        and msg["content"].startswith("[[cc_state]]")
+        and "Use: docker" in msg["content"]
+        for msg in messages
+    )
+    content = passthrough["choices"][0]["message"]["content"]
+    assert "state injected: yes" in content

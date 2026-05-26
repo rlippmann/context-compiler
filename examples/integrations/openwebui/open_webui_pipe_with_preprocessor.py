@@ -1,5 +1,5 @@
 """
-title: Context Compiler Preprocessor Pipe
+title: Context Compiler Pipe (Preprocessor)
 author: rlippmann
 author_url: https://github.com/rlippmann/context-compiler
 funding_url: https://github.com/rlippmann/context-compiler
@@ -196,6 +196,12 @@ def _normalize_state(value: object) -> State:
     if isinstance(value, dict):
         return cast(State, value)
     return {"premise": None, "policies": {}, "version": 2}
+
+
+def _has_non_empty_authoritative_state(state: State) -> bool:
+    if get_premise_value(state) is not None:
+        return True
+    return bool(get_policy_items(state, "use") or get_policy_items(state, "prohibit"))
 
 
 def _build_compact_trace_text(
@@ -693,6 +699,7 @@ class Pipe:
         request: Request,
         *,
         base_model_id: str | None,
+        state: State | None = None,
     ) -> Any:
         if base_model_id is None:
             if self._allow_missing_base_model_for_debug():
@@ -707,10 +714,20 @@ class Pipe:
         payload = {**body}
         payload["model"] = base_model_id
         raw_messages = body.get("messages")
-        if isinstance(raw_messages, list):
-            payload["messages"] = _strip_trace_blocks_from_messages(
+        messages = (
+            _strip_trace_blocks_from_messages(
                 [msg for msg in raw_messages if isinstance(msg, dict)]
             )
+            if isinstance(raw_messages, list)
+            else []
+        )
+        if state is not None and _has_non_empty_authoritative_state(state):
+            payload["messages"] = _replace_compiler_system_message(
+                messages,
+                _render_compiler_state_block(state),
+            )
+        elif isinstance(raw_messages, list):
+            payload["messages"] = messages
         user = Users.get_user_by_id(user_payload["id"])
         if inspect.isawaitable(user):
             user = await user
@@ -906,11 +923,14 @@ class Pipe:
                 llm_called=False,
             )
         if kind == DECISION_PASSTHROUGH:
+            compiled_state = _normalize_state(state_after)
+            state_injected = "yes" if _has_non_empty_authoritative_state(compiled_state) else "no"
             response = await self._forward_passthrough(
                 body,
                 __user__,
                 __request__,
                 base_model_id=base_model_id,
+                state=compiled_state,
             )
             return self._with_trace(
                 response,
@@ -921,6 +941,7 @@ class Pipe:
                 state_after=state_after,
                 preprocessor_output=preprocessd,
                 llm_called=base_model_id is not None,
+                state_injected=state_injected,
             )
         if kind == DECISION_UPDATE:
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
@@ -935,11 +956,14 @@ class Pipe:
                 llm_called=False,
             )
 
+        compiled_state = _normalize_state(state_after)
+        state_injected = "yes" if _has_non_empty_authoritative_state(compiled_state) else "no"
         response = await self._forward_passthrough(
             body,
             __user__,
             __request__,
             base_model_id=base_model_id,
+            state=compiled_state,
         )
         return self._with_trace(
             response,
@@ -950,4 +974,5 @@ class Pipe:
             state_after=state_after,
             preprocessor_output=preprocessd,
             llm_called=base_model_id is not None,
+            state_injected=state_injected,
         )

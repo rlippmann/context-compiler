@@ -162,7 +162,7 @@ def build_compact_trace_text(
 
     lines.append(f"active state: {_active_state_summary(state_after)}")
     lines.append(f"downstream LLM call: {'yes' if llm_called else 'no'}")
-    lines.append("state injected: no")
+    lines.append(f"state injected: {state_injected}")
     return "\n".join(lines)
 
 

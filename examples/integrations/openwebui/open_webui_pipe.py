@@ -193,6 +193,12 @@ def _normalize_state(value: object) -> State:
     return {"premise": None, "policies": {}, "version": 2}
 
 
+def _has_non_empty_authoritative_state(state: State) -> bool:
+    if get_premise_value(state) is not None:
+        return True
+    return bool(get_policy_items(state, "use") or get_policy_items(state, "prohibit"))
+
+
 def _build_compact_trace_text(
     *,
     decision: object,
@@ -475,15 +481,27 @@ class Pipe:
         body: dict[str, Any],
         user_payload: dict[str, Any],
         request: Request,
+        *,
+        state: State | None = None,
     ) -> Any:
-        """Forward with a shallow body copy and model override only."""
+        """Forward with model override and optional compiler-owned state injection."""
         payload = {**body}
         payload["model"] = self.valves.BASE_MODEL_ID
         raw_messages = body.get("messages")
-        if isinstance(raw_messages, list):
-            payload["messages"] = _strip_trace_blocks_from_messages(
+        messages = (
+            _strip_trace_blocks_from_messages(
                 [msg for msg in raw_messages if isinstance(msg, dict)]
             )
+            if isinstance(raw_messages, list)
+            else []
+        )
+        if state is not None and _has_non_empty_authoritative_state(state):
+            payload["messages"] = _replace_compiler_system_message(
+                messages,
+                _render_compiler_state_block(state),
+            )
+        elif isinstance(raw_messages, list):
+            payload["messages"] = messages
         user = Users.get_user_by_id(user_payload["id"])
         if inspect.isawaitable(user):
             user = await user
@@ -625,7 +643,11 @@ class Pipe:
                 llm_called=False,
             )
         if kind == DECISION_PASSTHROUGH:
-            response = await self._forward_passthrough(body, __user__, __request__)
+            compiled_state = _normalize_state(state_after)
+            state_injected = "yes" if _has_non_empty_authoritative_state(compiled_state) else "no"
+            response = await self._forward_passthrough(
+                body, __user__, __request__, state=compiled_state
+            )
             return self._with_trace(
                 response,
                 original_input=latest_user_text,
@@ -634,6 +656,7 @@ class Pipe:
                 state_before=state_before,
                 state_after=state_after,
                 llm_called=True,
+                state_injected=state_injected,
             )
         if kind == DECISION_UPDATE:
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
@@ -647,7 +670,11 @@ class Pipe:
                 llm_called=False,
             )
 
-        response = await self._forward_passthrough(body, __user__, __request__)
+        compiled_state = _normalize_state(state_after)
+        state_injected = "yes" if _has_non_empty_authoritative_state(compiled_state) else "no"
+        response = await self._forward_passthrough(
+            body, __user__, __request__, state=compiled_state
+        )
         return self._with_trace(
             response,
             original_input=latest_user_text,
@@ -656,4 +683,5 @@ class Pipe:
             state_before=state_before,
             state_after=state_after,
             llm_called=True,
+            state_injected=state_injected,
         )

@@ -1186,3 +1186,61 @@ def test_pipe_clear_state_strips_preexisting_contradictory_trace_from_model_outp
     assert second_content.count("Context Compiler trace") == 1
     assert "downstream LLM call: no" in second_content
     assert "downstream LLM call: yes" not in second_content
+
+
+def test_pipe_passthrough_injects_active_state_and_trace_reports_yes(monkeypatch) -> None:
+    module = _load_module_with_openwebui_stubs("owui_pipe_passthrough_state_injection", monkeypatch)
+    module._ENGINES_BY_CHAT_KEY.clear()
+    module._CHECKPOINTS_BY_CHAT_KEY.clear()
+
+    forwarded_payloads: list[dict[str, object]] = []
+
+    async def _chat_completion(
+        _: object, payload: dict[str, object], __: object
+    ) -> dict[str, object]:
+        forwarded_payloads.append(payload)
+        return {"choices": [{"message": {"content": "answer"}}]}
+
+    monkeypatch.setattr(module, "generate_chat_completion", _chat_completion)
+
+    pipe = module.Pipe()
+    pipe.valves.BASE_MODEL_ID = "base-model"
+    pipe.valves.SHOW_CONTEXT_COMPILER_TRACE = True
+    chat_id = "chat-passthrough-injected-state"
+
+    update = asyncio.run(
+        pipe.pipe(
+            {"model": "pipe-model", "messages": [{"role": "user", "content": "use docker"}]},
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_id,
+        )
+    )
+    assert "State updated: Use docker." in update
+    assert len(forwarded_payloads) == 0
+
+    passthrough = asyncio.run(
+        pipe.pipe(
+            {
+                "model": "pipe-model",
+                "messages": [{"role": "user", "content": "what container runtime should i use?"}],
+            },
+            __user__={"id": "u1"},
+            __request__=object(),
+            __chat_id__=chat_id,
+        )
+    )
+    assert isinstance(passthrough, dict)
+    assert len(forwarded_payloads) == 1
+    messages = forwarded_payloads[0]["messages"]
+    assert isinstance(messages, list)
+    assert any(
+        isinstance(msg, dict)
+        and msg.get("role") == "system"
+        and isinstance(msg.get("content"), str)
+        and msg["content"].startswith("[[cc_state]]")
+        and "Use: docker" in msg["content"]
+        for msg in messages
+    )
+    content = passthrough["choices"][0]["message"]["content"]
+    assert "state injected: yes" in content
