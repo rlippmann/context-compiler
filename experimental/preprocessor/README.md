@@ -1,13 +1,13 @@
 # Experimental Preprocessor Package
 
-This package provides optional host-layer preprocessing utilities for Context
+This package provides optional app-layer preprocessing utilities for Context
 Compiler integrations.
 
 It is experimental and separate from the deterministic core engine in `src/`.
 
 Model/tool-description translation can help with simple direct cases, but raw
-model output is not safe by itself for state changes. Outputs must be validated
-before anything is applied.
+model output is not safe by itself for state changes. The app must validate
+outputs before applying them.
 
 In MCP/tool-calling environments, over-eager tool calling on conversational or
 ambiguous input is a known failure mode. Conservative preprocessing and
@@ -25,7 +25,7 @@ Compatibility note:
 ## Modules
 
 - `heuristic_preprocessor.py`: conservative structural preprocessing pass.
-- `output_validation.py`: shared normalization/validation boundary.
+- `output_validation.py`: shared normalization and validation checks.
 - `prompt_utils.py`: state-aware prompt rendering helper.
 - `constants.py`: shared protocol literals and directive validation patterns.
 - `prompts/default.txt`: default runtime prompt.
@@ -102,7 +102,7 @@ Decision handling reminder:
 - `clarify`: mutation is blocked; surface `prompt_to_user` and do not treat
   state as updated.
 - `update`: validated canonical directive applied; use updated state as
-  authoritative.
+  the source of truth.
 
 ## Future direction (planning note)
 

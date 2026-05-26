@@ -16,9 +16,9 @@ Prompting and reinjection are useful. In many real systems, reinjecting saved
 state text is enough to keep instructions and policies persistent across turns.
 
 Context Compiler adds host-owned transition rules for behaviors that plain text
-reinjection does not implement by itself: replacement preconditions, blocked
-mutation with clarification, pending confirmation state, and checkpointed
-continuation.
+reinjection does not implement by itself: replace `X` only if `X` exists, block
+conflicting changes and ask for confirmation, and restore saved state plus
+pending confirmations from checkpoints.
 
 ## What prompting cannot do by itself
 
@@ -35,9 +35,9 @@ app controlled rules for when state can change. By itself, it does not provide:
 
 Context Compiler provides fixed host-side state machinery:
 
-- deterministic directive handling for explicit user state mutations
+- deterministic directive handling for explicit user state changes
 - clarification instead of silent overwrite for blocked/ambiguous changes
-- pending confirmation flows that must resolve before continuation
+- pending confirmation flows that must resolve before anything else changes
 - checkpoint export/import for restoring saved state and pending confirmation flow
 - structured saved state that the host can pass to the model
 
@@ -81,9 +81,9 @@ context-compiler --json < input.txt
 `context-compiler` launches the interactive REPL.
 
 `--with-preprocessor` enables the experimental preprocessor before each REPL turn
-(simple rule-based handling plus conservative validation). Near-miss inputs are not rewritten and are
-passed through to the engine, which continues to return clarify behavior for
-those forms.
+(simple rule-based checks plus conservative validation). For near-miss inputs,
+the preprocessor does not rewrite the text. It passes the input to the engine,
+and the engine can return `clarify`.
 
 `--json` enables machine-readable NDJSON output for non-interactive usage
 (one complete JSON object per processed input line).
@@ -95,7 +95,7 @@ Preload options keep saved rules separate from in-progress confirmation state:
   continuation checkpoint (saved state + pending confirmation state).
 
 REPL commands (controller layer, not engine directives):
-- `state` shows current authoritative state.
+- `state` shows current saved state.
 - `preview <input>` runs deterministic dry-run without mutating live state.
 - `step <input>` is an explicit alias of normal bare-input step behavior.
 
@@ -163,8 +163,8 @@ app should change state.
 
 **Isn’t this just prompt engineering?**
 It complements prompt engineering, but solves a different problem. Prompting
-shapes model behavior; Context Compiler provides a deterministic state layer
-that updates only through explicit directives.
+shapes model behavior. Context Compiler enforces state rules and updates state
+only through explicit directives.
 
 ---
 
@@ -199,7 +199,7 @@ Context Compiler makes mutation rules explicit so behavior stays repeatable.
 set premise concise replies
 ```
 - Base model: silently accepts / rewrites
-- Context Compiler: applies a deterministic state update
+- Context Compiler: applies a repeatable state update
 
 **State-dependent operation**
 ```text
@@ -207,7 +207,7 @@ clear state
 use podman instead of docker
 ```
 - Without explicit state transition rules: behavior depends on host/model handling
-- Context Compiler: returns deterministic clarify behavior before mutation
+- Context Compiler: returns `clarify` before changing state
 
 **Lifecycle enforcement**
 ```text

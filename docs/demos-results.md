@@ -108,8 +108,8 @@ provide explicit state-change rules.
 ## Local Ollama Context-Size Sweep (0.7.1 Experiment)
 
 This section reports the refreshed local-only matrix with the `reinjected-state`
-path and explicit context-size ladder runs. Historical hosted-provider matrix rows
-above are preserved as originally recorded.
+path and explicit context-size ladder runs. Historical hosted-provider matrix
+rows above remain as originally recorded.
 
 ### Commands Run
 

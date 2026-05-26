@@ -7,7 +7,7 @@ important instructions explicitly instead of relying only on the conversation
 history. The scripts are designed to produce consistent results so the
 behavior is easy to see.
 This demo set shows what users notice: rules and corrections can keep applying
-later in the conversation, and where app-side state rules are required.
+later in the conversation, and where your app needs explicit state rules.
 
 Scored demos now compare four paths:
 - baseline
@@ -154,7 +154,7 @@ Notes:
 - Demos `08`/`09` test rules for when state is allowed to change.
 - Demos `08` and `09` cover cases prompt text does not implement by itself, such as checking whether replacement is allowed and waiting for confirmation before saving changes.
 - Plain prompt reinjection can produce reasonable answers, but it does not run these checks by itself.
-- Similar outcomes across models in `08`/`09` are about app behavior limits, not model leaderboard ranking.
+- Similar outcomes across models in `08`/`09` reflect app behavior limits, not model leaderboard ranking.
 
 ### Demo 05 example (prompt drift under longer context)
 

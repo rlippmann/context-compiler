@@ -1,6 +1,6 @@
 # LLM Preprocessor (Optional, Experimental)
 
-The experimental preprocessor is an optional host-side layer that can convert
+The experimental preprocessor is an optional app-side layer that can convert
 natural-language messages into canonical Context Compiler directives before
 compilation.
 
@@ -25,10 +25,10 @@ state changes.
 In simpler hosts without an embedded model, this preprocessor provides a
 conservative translation path.
 
-In model-assisted hosts, outputs are still checked before being applied.
+In model-assisted hosts, the app still checks outputs before applying them.
 
-Both paths feed canonical directives into the same deterministic engine. The
-engine still controls state updates regardless of where the directive came from.
+Both paths send canonical directives to the same deterministic engine. The
+engine still controls state updates.
 
 In MCP/tool-calling environments, over-eager tool calling on conversational or
 ambiguous input is a known failure mode. Conservative preprocessing and
@@ -63,8 +63,8 @@ Host handling notes:
 - `passthrough`: no directive was applied; handle as ordinary user input.
 - `clarify`: mutation is blocked; surface `prompt_to_user` and do not treat
   state as updated.
-- `update`: a validated directive was applied; use updated state as
-  authoritative.
+- `update`: the app applied a validated directive; use updated state as the
+  source of truth.
 
 ## Limits
 
