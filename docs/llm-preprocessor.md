@@ -30,6 +30,10 @@ directives are suggestions until validated.
 Both paths feed canonical directives into the same deterministic engine. The
 compiler remains authoritative regardless of directive source.
 
+In MCP/tool-calling environments, over-eager tool calling on conversational or
+ambiguous input is a known failure mode. Conservative preprocessing and
+validation help reduce unintended mutation.
+
 ## Required flow
 
 Recommended conceptual flow:
@@ -56,12 +60,11 @@ Pending clarification rule:
 
 Host handling notes:
 
-- `passthrough` means no directive was applied; the host may call the model with
-  unchanged user input.
-- `clarify` means mutation is blocked; the host should surface
-  `prompt_to_user` and wait for confirmation-style input.
-- `update` means a validated canonical directive was applied to authoritative
-  state.
+- `passthrough`: no directive was applied; handle as ordinary user input.
+- `clarify`: mutation is blocked; surface `prompt_to_user` and do not treat
+  state as updated.
+- `update`: a validated directive was applied; use updated state as
+  authoritative.
 
 ## Limits
 
@@ -93,11 +96,11 @@ canonicalization.
 
 - Policy preprocessing and premise-like facts have different risk profiles.
 - Premise-like facts (for example, `I am vegetarian`) may be useful persistent
-  context, but are high risk to auto-persist.
+  context, but should not be auto-persisted without confirmation.
 - Likely direction:
-  - keep directive preprocessing conservative and non-expansive
-  - add a separate inspectable, non-mutating suggestion layer for possible
-    persistent context
+  - keep conservative directive preprocessing separate
+  - add a possible suggestion layer that is inspectable, non-mutating, and
+    previewable
   - require explicit host/user confirmation before any mutation
 
 This aligns with the post-0.7 / 0.8 direction: inspectable, previewable,

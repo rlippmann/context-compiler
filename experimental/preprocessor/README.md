@@ -9,6 +9,10 @@ Model/tool-description translation can help with simple direct cases, but raw
 model output is not a safe mutation boundary by itself. Candidate directives
 must be validated before they can mutate authoritative state.
 
+In MCP/tool-calling environments, over-eager tool calling on conversational or
+ambiguous input is a known failure mode. Conservative preprocessing and
+validation help reduce unintended mutation.
+
 Recommended install for integrations using this package:
 `pip install "context-compiler[experimental]"`.
 
@@ -58,6 +62,7 @@ Engine-owned near-misses are reject cases (for example `set premise to X`,
 `change premise X`) and must remain `unknown` (not rewritten).
 
 Raw preprocessor/LLM outputs must not be passed directly to the compiler.
+Raw model output must never directly mutate state.
 
 The preprocessor does not expand directive grammar. It may emit only validated
 canonical directives accepted by the compiler.
@@ -93,9 +98,26 @@ host-side assist workflow with preview/diff/confirmation, not this preprocessor.
    Otherwise pass the original user input unchanged.
 
 Decision handling reminder:
-- `passthrough`: no directive applied; host may call the model normally.
-- `clarify`: mutation blocked; host should surface `prompt_to_user`.
-- `update`: validated canonical directive applied to authoritative state.
+- `passthrough`: no directive was applied; handle as ordinary user input.
+- `clarify`: mutation is blocked; surface `prompt_to_user` and do not treat
+  state as updated.
+- `update`: validated canonical directive applied; use updated state as
+  authoritative.
+
+## Future direction (planning note)
+
+This section is architectural direction, not committed implementation.
+
+Future preprocessing may evolve beyond direct natural-language to directive
+canonicalization.
+
+- Policy directives and premise-like facts have different risk profiles.
+- Premise-like facts (for example, `I am vegetarian`) may be useful persistent
+  context, but should not be auto-persisted without confirmation.
+- Likely direction:
+  - conservative directive preprocessing remains separate
+  - a possible suggestion layer is inspectable, non-mutating, and previewable
+  - host/user confirmation is required before mutation
 
 ## Prompt guidance
 
