@@ -17,15 +17,15 @@ layer. Do not rely on repo-relative preprocessor paths.
 
 The preprocessor is a host adaptation layer, not an authoritative state engine.
 
-The preprocessor is a host adaptation layer for environments where no capable
-LLM is available to perform directive translation.
+Model/tool-description translation can help with simple direct cases, but
+integrations should not rely on model intent translation alone as the mutation
+boundary.
 
-When a capable LLM is present, it can translate user intent into canonical
-directives directly (for example via MCP tool descriptions, an embedded model,
-or another integration path).
+In simpler hosts without an embedded model, this preprocessor provides a
+conservative translation path.
 
-In simpler hosts without an embedded model, this preprocessor fills that
-translation role conservatively.
+In model-assisted hosts, the same conservative boundary still applies: candidate
+directives are suggestions until validated.
 
 Both paths feed canonical directives into the same deterministic engine. The
 compiler remains authoritative regardless of directive source.
@@ -45,6 +45,7 @@ All preprocessor outputs, including heuristic outputs, must be validated with
 `parse_preprocessor_output(...)` before being applied.
 
 Raw heuristic/LLM outputs must not be passed directly to the compiler.
+Raw model output must never directly mutate state.
 
 Pending clarification rule:
 
@@ -52,6 +53,15 @@ Pending clarification rule:
   raw user input directly to `engine.step(...)`.
 - This preserves deterministic continuation behavior because pending resolution
   accepts only confirmation tokens until resolved.
+
+Host handling notes:
+
+- `passthrough` means no directive was applied; the host may call the model with
+  unchanged user input.
+- `clarify` means mutation is blocked; the host should surface
+  `prompt_to_user` and wait for confirmation-style input.
+- `update` means a validated canonical directive was applied to authoritative
+  state.
 
 ## Limits
 
@@ -73,6 +83,26 @@ Boundary policy (explicit):
 
 Natural-language state proposal workflows should be handled by explicit host
 assist/proposal flows, not implicit preprocessing.
+
+## Future direction (planning note)
+
+This section is architectural direction, not committed implementation.
+
+Future preprocessing may evolve beyond direct natural-language to directive
+canonicalization.
+
+- Policy preprocessing and premise-like facts have different risk profiles.
+- Premise-like facts (for example, `I am vegetarian`) may be useful persistent
+  context, but are high risk to auto-persist.
+- Likely direction:
+  - keep directive preprocessing conservative and non-expansive
+  - add a separate inspectable, non-mutating suggestion layer for possible
+    persistent context
+  - require explicit host/user confirmation before any mutation
+
+This aligns with the post-0.7 / 0.8 direction: inspectable, previewable,
+non-mutating suggestions with host-mediated confirmation, while the
+authoritative engine remains deterministic and explicit.
 
 ## Status
 

@@ -1,27 +1,56 @@
-
 # Context Compiler
 
 [![PyPI version](https://img.shields.io/pypi/v/context-compiler)](https://pypi.org/project/context-compiler/)
 [![Python versions](https://img.shields.io/pypi/pyversions/context-compiler)](https://pypi.org/project/context-compiler/)
 [![License](https://img.shields.io/pypi/l/context-compiler)](https://pypi.org/project/context-compiler/)
 
-Context Compiler lets users set rules and corrections that actually stick.
-It helps applications keep explicit user instructions consistent across turns.
-It stores premise and policy rules outside the model, so corrections do not drift or conflict over time.
+Some behaviors require explicit host-side state machinery.
 
-LLMs are good at conversation, but bad at consistently following long-term rules and corrections. Constraints drift, corrections conflict, and long chats can become inconsistent.
+Context Compiler is a deterministic host-side state layer for LLM applications.
+It handles explicit state transitions for premise and policies so that mutation
+rules are fixed, inspectable, and repeatable.
 
-The model writes responses. The compiler stores premise and policy rules.
+## What prompting and reinjection can do
 
-Context Compiler is a deterministic control layer for LLM applications. It processes explicit user instructions before model calls so applications can reliably enforce premise and policy constraints.
+Prompting and reinjection are useful. In many real systems, reinjecting saved
+state text is enough to keep instructions and policies persistent across turns.
 
-Context Compiler handles the cases that become operationally complicated quickly:
+Context Compiler adds host-owned transition rules for behaviors that plain text
+reinjection does not implement by itself: replacement preconditions, blocked
+mutation with clarification, pending confirmation state, and checkpointed
+continuation.
 
-- replacing a policy that may or may not exist yet
-- detecting contradictory directives before applying them
-- enforcing valid state transitions (you can't change what isn't set)
-- persisting authoritative state across stateless API boundaries
-- resuming after an interrupted clarification flow
+## What prompting cannot do by itself
+
+Prompt text (including reinjected state text) does not, by itself, define a
+host-authoritative mutation boundary. By itself, it does not provide:
+
+- authoritative state transition rules
+- replacement precondition checks (`use X instead of Y` when `Y` may be absent)
+- pending clarification continuation state
+- deterministic decisions about when mutation is blocked
+- reliable persistence/checkpoint boundaries for restoring both state and pending flow
+
+## What Context Compiler provides
+
+Context Compiler provides fixed host-side state machinery:
+
+- deterministic directive handling for explicit user state mutations
+- clarification instead of silent overwrite for blocked/ambiguous changes
+- pending confirmation flows that must resolve before continuation
+- checkpoint export/import for restoring authoritative state and pending continuation
+- structured authoritative state that the host can pass to the model
+
+The model generates responses. The compiler owns state transitions.
+
+## How the compiler metaphor works
+
+Context Compiler treats important instructions as structured state instead of
+temporary prompt text.
+
+Like a compiler, it parses input, validates it, applies fixed rules, and
+produces a stable representation the host can use. It is not source-code
+compilation and not a reasoning model.
 
 ## Does it work?
 
@@ -32,12 +61,12 @@ Yes, on the current scored demo set.
 - Across tested models, compiler-mediated paths pass all scored scenarios; baseline behavior is model-dependent.
 
 Interpretation guide:
-- Persistence/policy-following demos test whether instructions keep applying across turns.
-- State-transition demos (`08`/`09`) test whether the host enforces state changes in a fixed, repeatable way.
-- Demos `08`/`09` are capability checks, not general model-quality rankings.
-- In those demos, baseline or reinjected-state can sound reasonable and still `FAIL` because required host-side transition checks are not present.
+- Demos `01`-`05` and `07` focus on persistence and policy-following behavior.
+- Demos `08`/`09` focus on fixed host-side state-transition rules.
+- Demos `08`/`09` are capability-boundary checks, not prompt-following leaderboard comparisons.
+- Plain reinjection can produce plausible responses, but it does not implement replacement precondition checks or pending confirmation flows by itself.
 
-→ [Full results and demo output](demos/README.md)  
+→ [Full results and demo output](demos/README.md)
 Canonical matrix: [docs/demos-results.md](docs/demos-results.md)
 
 ## Quickstart
@@ -52,7 +81,7 @@ context-compiler --json < input.txt
 `context-compiler` launches the interactive REPL.
 
 `--with-preprocessor` enables the experimental preprocessor before each REPL turn
-(heuristic + validation only). Near-miss inputs are not rewritten and are
+(simple rule-based handling plus conservative validation). Near-miss inputs are not rewritten and are
 passed through to the engine, which continues to return clarify behavior for
 those forms.
 
@@ -117,16 +146,6 @@ uv run pytest
 
 ---
 
-## Why “Compiler”?
-
-Context Compiler treats explicit user directives as inputs to a fixed, repeatable process.
-
-Instead of relying on the LLM to remember constraints across a conversation, user instructions are compiled into structured state before the model runs.
-
-The idea is similar to a traditional compiler: user directives are translated into a structured representation that the rest of the system can rely on.
-
----
-
 ## FAQ
 
 **Is this just prompt reinjection?**
@@ -166,7 +185,9 @@ Later in the conversation:
 User: how should I make this curry?
 ```
 
-Your app sends the saved state to the model so the rule still applies on later turns.
+Your host sends the saved policy state with this later request, so the model is
+constrained by explicit state (`peanuts: prohibit`) instead of relying on memory
+of earlier conversation text.
 
 ---
 

@@ -1,13 +1,14 @@
 # LLM Demos
 
-These scripts show common ways LLM conversations can go wrong.
+These scripts show common reliability boundaries in LLM application behavior.
 
 They compare normal prompting with an approach where the application tracks
 important instructions explicitly instead of relying only on the conversation
 history. The scripts are designed to produce consistent results so the
 behavior is easy to see.
-This demo set shows what users notice: rules and corrections keep applying
-later in the conversation instead of fading over time.
+This demo set shows what users notice: rules and corrections can keep applying
+later in the conversation, and where explicit host-side state machinery is
+required.
 
 Scored demos now compare four paths:
 - baseline
@@ -149,8 +150,12 @@ Notes:
 - `PASS` means the demo-specific expected-behavior check for that path succeeded; `FAIL` means it did not.
 - `reinjected-state` can be enough for some persistence cases; this comparison is intended to show where deterministic state semantics add value.
 - Anti-overfitting guardrail: demos score host/state-transition invariants (for example blocked mutation, pending continuation, confirmation-only resolution), not model prose quality. Reinjected-state remains plain text injection only and does not include hidden compiler semantics.
-- Interpretation: demos `01`-`05` and `07` focus on persistence and policy-following across turns, while demos `08`/`09` focus on fixed host-side state-transition rules.
-- For demos `08`/`09`, similar outcomes across models are about architecture limits, not provider/model leaderboard ranking.
+- Interpretation:
+- Demos `01`-`05` and `07` mostly test persistence and policy-following behavior across turns.
+- Demos `08`/`09` test fixed host-side state-transition rules.
+- Demos `08` and `09` cover scenarios that require fixed host-side state rules, such as replacement precondition checks and confirmation flows.
+- Plain prompt reinjection does not implement these behaviors by itself. These demos show a capability boundary rather than a prompt-following performance difference.
+- Similar outcomes across models in `08`/`09` are about architecture limits, not provider/model leaderboard ranking.
 
 ### Demo 05 example (prompt drift under longer context)
 

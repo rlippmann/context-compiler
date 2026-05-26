@@ -83,9 +83,11 @@ compiler precondition or pending-state semantics.
 
 - Live demo runs are **evidence/smoke tests** across real model/provider behavior.
 - Deterministic test suites (unit/property tests) are the **regression authority** for oracle and engine contracts.
-- Persistence demos and transition-semantics demos should be interpreted differently:
-- `01`-`05`, `07`: persistence and policy-following under transcript pressure.
-- `08`/`09`: host-side transition checks (for example, replacement preconditions and pending-confirmation handling).
+- Persistence demos and transition-semantics demos should be interpreted differently.
+- Demos `01`-`05` and `07` mostly test persistence and policy-following under transcript pressure.
+- Demos `08`/`09` test fixed host-side state-transition rules.
+- Demos `08` and `09` cover scenarios that require fixed host-side state rules, such as replacement precondition checks and confirmation flows.
+- Plain prompt reinjection does not implement these behaviors by itself. These demos show a capability boundary rather than a prompt-following performance difference.
 - Demos `08`/`09` are not general LLM quality benchmarks. Baseline and reinjected-state can produce plausible text and still `FAIL` when those host-side transition checks are missing.
 
 ## Demo 05 Long-Transcript Stress (Exploratory Frontier Runs)

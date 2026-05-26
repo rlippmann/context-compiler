@@ -5,6 +5,10 @@ Compiler integrations.
 
 It is experimental and separate from the deterministic core engine in `src/`.
 
+Model/tool-description translation can help with simple direct cases, but raw
+model output is not a safe mutation boundary by itself. Candidate directives
+must be validated before they can mutate authoritative state.
+
 Recommended install for integrations using this package:
 `pip install "context-compiler[experimental]"`.
 
@@ -87,6 +91,11 @@ host-side assist workflow with preview/diff/confirmation, not this preprocessor.
    - use `context_compiler.compile_transcript(...)` for stateless evaluation
    - use `engine.apply_transcript(...)` to update an existing engine
    Otherwise pass the original user input unchanged.
+
+Decision handling reminder:
+- `passthrough`: no directive applied; host may call the model normally.
+- `clarify`: mutation blocked; host should surface `prompt_to_user`.
+- `update`: validated canonical directive applied to authoritative state.
 
 ## Prompt guidance
 
