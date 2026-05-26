@@ -3,8 +3,8 @@ title: Context Compiler Pipe (Preprocessor)
 author: rlippmann
 author_url: https://github.com/rlippmann/context-compiler
 funding_url: https://github.com/rlippmann/context-compiler
-version: 0.9.0
-requirements: context-compiler[experimental]>=0.7.0
+version: 0.9.1
+requirements: context-compiler[experimental]>=0.7.2
 
 Open WebUI integration with Context Compiler preprocessor.
 
@@ -238,6 +238,25 @@ def _strip_trace_blocks_from_messages(messages: list[dict[str, Any]]) -> list[di
             msg["content"] = _strip_trace_block_from_text(content)
         cleaned.append(msg)
     return cleaned
+
+
+def _build_forward_messages(
+    raw_messages: object,
+    *,
+    state: State | None = None,
+) -> list[dict[str, Any]]:
+    """Build forwarded messages with trace stripping and optional state injection."""
+    messages = (
+        _strip_trace_blocks_from_messages([msg for msg in raw_messages if isinstance(msg, dict)])
+        if isinstance(raw_messages, list)
+        else []
+    )
+    if state is not None and _has_non_empty_authoritative_state(state):
+        return _replace_compiler_system_message(
+            messages,
+            _render_compiler_state_block(state),
+        )
+    return messages
 
 
 def _strip_existing_trace_from_chunk(chunk: object) -> object:
@@ -713,21 +732,7 @@ class Pipe:
             )
         payload = {**body}
         payload["model"] = base_model_id
-        raw_messages = body.get("messages")
-        messages = (
-            _strip_trace_blocks_from_messages(
-                [msg for msg in raw_messages if isinstance(msg, dict)]
-            )
-            if isinstance(raw_messages, list)
-            else []
-        )
-        if state is not None and _has_non_empty_authoritative_state(state):
-            payload["messages"] = _replace_compiler_system_message(
-                messages,
-                _render_compiler_state_block(state),
-            )
-        elif isinstance(raw_messages, list):
-            payload["messages"] = messages
+        payload["messages"] = _build_forward_messages(body.get("messages"), state=state)
         user = Users.get_user_by_id(user_payload["id"])
         if inspect.isawaitable(user):
             user = await user
@@ -765,18 +770,7 @@ class Pipe:
         payload = {**body}
         payload["model"] = base_model_id
 
-        raw_messages = body.get("messages")
-        messages = (
-            _strip_trace_blocks_from_messages(
-                [msg for msg in raw_messages if isinstance(msg, dict)]
-            )
-            if isinstance(raw_messages, list)
-            else []
-        )
-        payload["messages"] = _replace_compiler_system_message(
-            messages,
-            _render_compiler_state_block(state),
-        )
+        payload["messages"] = _build_forward_messages(body.get("messages"), state=state)
 
         user = Users.get_user_by_id(user_payload["id"])
         if inspect.isawaitable(user):
