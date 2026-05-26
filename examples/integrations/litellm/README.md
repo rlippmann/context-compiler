@@ -48,7 +48,7 @@ print(handle_turn("set premise to concise replies", engine))
 PY
 ```
 
-This near-miss input is expected to clarify rather than be canonicalized.
+This near-miss input should return `clarify` instead of being rewritten.
 
 ## Environment configuration
 
@@ -110,15 +110,17 @@ These files are importable integration references for host applications.
 - Import `handle_turn(...)` from either `basic.py` or `with_preprocessor.py`.
 - Create and retain an engine instance in host/session state.
 - Pass each user input through `handle_turn(user_input, engine)`.
-- Optional serialized continuation checkpointing: pass `session_key=...` and
-  let the example integration restore before first `engine.step(...)` and
-  persist after `update`/`clarify` decisions.
+- Optional checkpointing: pass `session_key=...`.
+  The example restores checkpoint data before the first `engine.step(...)` and
+  saves checkpoint data after `update`/`clarify`.
 - In this example, checkpoint/session storage is in-memory only.
-  Continuation state is limited to the current process lifetime; real restart
-  continuity requires external persistence (DB/Redis/etc.).
+  State lasts only for the current process. To survive restarts, store
+  checkpoints in external storage (DB/Redis/etc.).
 - Display the returned assistant text.
 
-Note: In these LiteLLM example integrations, update decisions are rendered locally in a fixed, repeatable way and do not call the downstream LLM. This makes state transitions explicit. Production hosts may choose different rendering behavior.
+Note: In these LiteLLM examples, `update` is rendered locally and does not call
+the downstream LLM. This makes state changes explicit. Production apps may
+choose different rendering behavior.
 
 ## Troubleshooting
 
@@ -137,6 +139,11 @@ Note: In these LiteLLM example integrations, update decisions are rendered local
   - If fallback yields nothing usable or errors, behavior safely remains equivalent to basic.
   - Behavior is reject-first and does not broaden the directive grammar.
 
+Decision flow in both examples:
+- `passthrough`: call the model with normal input.
+- `clarify`: show `prompt_to_user`; do not treat state as changed.
+- `update`: state changed; use updated state for the next model call.
+
 ## Example checks
 
 - Near-miss passthrough (`with_preprocessor.py`):
@@ -144,7 +151,7 @@ Note: In these LiteLLM example integrations, update decisions are rendered local
   - Engine returns clarify (`Did you mean 'set premise concise replies'?`).
 - Lifecycle enforcement (both):
   - `change premise to formal tone` with no premise -> clarify (`set premise ...` first).
-- Conflict semantics (both):
+- Conflict behavior (both):
   - `use docker` then `prohibit docker` -> conflict clarify.
 - Replacement precondition (both):
   - `use podman instead of docker` without prior `use docker` -> replacement clarify.

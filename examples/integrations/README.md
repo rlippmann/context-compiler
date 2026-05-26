@@ -1,6 +1,6 @@
 # Integrations
 
-These examples show how to integrate Context Compiler with external systems.
+These examples show how to use Context Compiler inside external app runtimes.
 
 ## LiteLLM (SDK)
 
@@ -26,9 +26,10 @@ See the LiteLLM examples README for setup and usage:
 
 ### Behavior
 
-- Context Compiler runs before any LLM call.
-- If clarification is required, no LLM call is made.
-- Otherwise, saved compiler state is added to the prompt before calling the model.
+- Context Compiler runs before each LLM call.
+- If result is `clarify`, show the question and do not call the LLM.
+- If result is `passthrough`, send normal user input.
+- If result is `update`, use updated state and call the model with saved state added to the prompt.
 
 ## LiteLLM Proxy
 
@@ -40,7 +41,7 @@ See: [LiteLLM Proxy README](litellm_proxy/README.md)
 
 Tested target: Open WebUI `v0.8.12`.
 
-Open WebUI is host-provided runtime infrastructure and must be installed/configured separately.
+Open WebUI is a separate runtime and must be installed/configured separately.
 
 Files:
 - Basic example: [open_webui_pipe.py](openwebui/open_webui_pipe.py)
