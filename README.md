@@ -1,27 +1,56 @@
-
 # Context Compiler
 
 [![PyPI version](https://img.shields.io/pypi/v/context-compiler)](https://pypi.org/project/context-compiler/)
 [![Python versions](https://img.shields.io/pypi/pyversions/context-compiler)](https://pypi.org/project/context-compiler/)
 [![License](https://img.shields.io/pypi/l/context-compiler)](https://pypi.org/project/context-compiler/)
 
-Context Compiler lets users set rules and corrections that actually stick.
-It helps applications keep explicit user instructions consistent across turns.
-It stores premise and policy rules outside the model, so corrections do not drift or conflict over time.
+Some behaviors require explicit host-side state machinery.
 
-LLMs are good at conversation, but bad at consistently following long-term rules and corrections. Constraints drift, corrections conflict, and long chats can become inconsistent.
+Context Compiler is a deterministic host-side state layer for LLM applications.
+It handles explicit state transitions for premise and policies so that mutation
+rules are fixed and repeatable.
 
-The model writes responses. The compiler stores premise and policy rules.
+## What prompting and reinjection can do
 
-Context Compiler is a deterministic control layer for LLM applications. It processes explicit user instructions before model calls so applications can reliably enforce premise and policy constraints.
+Prompting and reinjection are useful. In many real systems, reinjecting saved
+state text is enough to keep instructions and policies persistent across turns.
 
-Context Compiler handles the cases that become operationally complicated quickly:
+Context Compiler adds host-owned transition rules for behaviors that plain text
+reinjection does not implement by itself: replace `X` only if `X` exists, block
+conflicting changes and ask for confirmation, and restore saved state plus
+pending confirmations from checkpoints.
 
-- replacing a policy that may or may not exist yet
-- detecting contradictory directives before applying them
-- enforcing valid state transitions (you can't change what isn't set)
-- persisting authoritative state across stateless API boundaries
-- resuming after an interrupted clarification flow
+## What prompting cannot do by itself
+
+Prompt text (including reinjected state text) helps, but it does not give your
+app controlled rules for when state can change. By itself, it does not provide:
+
+- rules your app controls for state changes
+- replacement precondition checks (`use X instead of Y` when `Y` may be absent)
+- confirmation flows that must complete before anything else changes
+- clear decisions about when a change is blocked
+- reliable checkpoint restore for both saved state and pending confirmation flow
+
+## What Context Compiler provides
+
+Context Compiler provides fixed host-side state machinery:
+
+- deterministic directive handling for explicit user state changes
+- clarification instead of silent overwrite for blocked/ambiguous changes
+- pending confirmation flows that must resolve before anything else changes
+- checkpoint export/import for restoring saved state and pending confirmation flow
+- structured saved state that the host can pass to the model
+
+The model generates responses. The compiler owns state transitions.
+
+## How the compiler metaphor works
+
+Context Compiler treats important instructions as structured state instead of
+temporary prompt text.
+
+Like a compiler, it parses input, validates it, applies fixed rules, and
+produces a stable representation the host can use. It is not source-code
+compilation and not a reasoning model.
 
 ## Does it work?
 
@@ -32,12 +61,12 @@ Yes, on the current scored demo set.
 - Across tested models, compiler-mediated paths pass all scored scenarios; baseline behavior is model-dependent.
 
 Interpretation guide:
-- Persistence/policy-following demos test whether instructions keep applying across turns.
-- State-transition demos (`08`/`09`) test whether the host enforces state changes in a fixed, repeatable way.
-- Demos `08`/`09` are capability checks, not general model-quality rankings.
-- In those demos, baseline or reinjected-state can sound reasonable and still `FAIL` because required host-side transition checks are not present.
+- Demos `01`-`05` and `07` focus on persistence and policy-following behavior.
+- Demos `08`/`09` focus on rules for when state is allowed to change.
+- Demos `08`/`09` show what prompt text does not implement by itself.
+- Plain reinjection can produce plausible responses, but it does not check whether replacement is allowed or wait for confirmation before saving changes.
 
-→ [Full results and demo output](demos/README.md)  
+→ [Full results and demo output](demos/README.md)
 Canonical matrix: [docs/demos-results.md](docs/demos-results.md)
 
 ## Quickstart
@@ -52,9 +81,9 @@ context-compiler --json < input.txt
 `context-compiler` launches the interactive REPL.
 
 `--with-preprocessor` enables the experimental preprocessor before each REPL turn
-(heuristic + validation only). Near-miss inputs are not rewritten and are
-passed through to the engine, which continues to return clarify behavior for
-those forms.
+(simple rule-based checks plus conservative validation). For near-miss inputs,
+the preprocessor does not rewrite the text. It passes the input to the engine,
+and the engine can return `clarify`.
 
 `--json` enables machine-readable NDJSON output for non-interactive usage
 (one complete JSON object per processed input line).
@@ -66,7 +95,7 @@ Preload options keep saved rules separate from in-progress confirmation state:
   continuation checkpoint (saved state + pending confirmation state).
 
 REPL commands (controller layer, not engine directives):
-- `state` shows current authoritative state.
+- `state` shows current saved state.
 - `preview <input>` runs deterministic dry-run without mutating live state.
 - `step <input>` is an explicit alias of normal bare-input step behavior.
 
@@ -117,22 +146,11 @@ uv run pytest
 
 ---
 
-## Why “Compiler”?
-
-Context Compiler treats explicit user directives as inputs to a fixed, repeatable process.
-
-Instead of relying on the LLM to remember constraints across a conversation, user instructions are compiled into structured state before the model runs.
-
-The idea is similar to a traditional compiler: user directives are translated into a structured representation that the rest of the system can rely on.
-
----
-
 ## FAQ
 
 **Is this just prompt reinjection?**
 Reinjection helps with persistence, and it remains useful. Context Compiler
-addresses a different boundary: authoritative state transitions. It defines how
-state mutates before generation, with deterministic externalized semantics.
+handles a different problem: rules for when state is allowed to change.
 
 Examples:
 - replacement semantics (`use X instead of Y`) when `Y` may not exist
@@ -140,13 +158,13 @@ Examples:
 - lifecycle enforcement (for example, you cannot change an unset premise)
 - pending clarification flows that must be resolved before other mutations
 
-In short: reinjection carries state forward; Context Compiler governs how that
-state is created and changed.
+In short: reinjection carries state forward; Context Compiler decides when your
+app should change state.
 
 **Isn’t this just prompt engineering?**
 It complements prompt engineering, but solves a different problem. Prompting
-shapes model behavior; Context Compiler provides a deterministic state layer
-that updates only through explicit directives.
+shapes model behavior. Context Compiler enforces state rules and updates state
+only through explicit directives.
 
 ---
 
@@ -166,20 +184,22 @@ Later in the conversation:
 User: how should I make this curry?
 ```
 
-Your app sends the saved state to the model so the rule still applies on later turns.
+Your host sends the saved policy state with this later request, so the model is
+constrained by explicit state (`peanuts: prohibit`) instead of relying on memory
+of earlier conversation text.
 
 ---
 
 ## Deterministic behavior (examples)
 
-Context Compiler externalizes mutation semantics so transitions are deterministic.
+Context Compiler makes mutation rules explicit so behavior stays repeatable.
 
 **Explicit directive**
 ```text
 set premise concise replies
 ```
 - Base model: silently accepts / rewrites
-- Context Compiler: applies a deterministic state update
+- Context Compiler: applies a repeatable state update
 
 **State-dependent operation**
 ```text
@@ -187,7 +207,7 @@ clear state
 use podman instead of docker
 ```
 - Without explicit state transition rules: behavior depends on host/model handling
-- Context Compiler: returns deterministic clarify behavior before mutation
+- Context Compiler: returns `clarify` before changing state
 
 **Lifecycle enforcement**
 ```text
@@ -195,7 +215,7 @@ clear state
 change premise to formal tone
 ```
 - Without explicit transition checks: behavior depends on host/model handling
-- Context Compiler: clarifies and preserves authoritative state
+- Context Compiler: asks for clarification and keeps saved state unchanged
 
 ---
 
@@ -302,7 +322,7 @@ The internal structure of the state is intentionally opaque to host applications
 - `export_json()` / `import_json()` transport **authoritative state only**
 - checkpoint APIs transport **serialized continuation**:
   - authoritative state
-  - pending confirmation-required continuation state
+  - pending confirmation flow state
 
 Checkpoint object shape:
 
@@ -344,7 +364,7 @@ When to use checkpoint APIs:
 
 - stateless host/integration boundaries where engine instances are short-lived.
 - resume after interruption without losing pending clarification flow.
-- preserve confirmation-required continuation state (`pending`) across process/request boundaries.
+- preserve pending confirmation flow state (`pending`) across process/request boundaries.
 
 ---
 

@@ -1,9 +1,17 @@
 # Experimental Preprocessor Package
 
-This package provides optional host-layer preprocessing utilities for Context
+This package provides optional app-layer preprocessing utilities for Context
 Compiler integrations.
 
 It is experimental and separate from the deterministic core engine in `src/`.
+
+Model/tool-description translation can help with simple direct cases, but raw
+model output is not safe by itself for state changes. The app must validate
+outputs before applying them.
+
+In MCP/tool-calling environments, over-eager tool calling on conversational or
+ambiguous input is a known failure mode. Conservative preprocessing and
+validation help reduce unintended mutation.
 
 Recommended install for integrations using this package:
 `pip install "context-compiler[experimental]"`.
@@ -17,7 +25,7 @@ Compatibility note:
 ## Modules
 
 - `heuristic_preprocessor.py`: conservative structural preprocessing pass.
-- `output_validation.py`: shared normalization/validation boundary.
+- `output_validation.py`: shared normalization and validation checks.
 - `prompt_utils.py`: state-aware prompt rendering helper.
 - `constants.py`: shared protocol literals and directive validation patterns.
 - `prompts/default.txt`: default runtime prompt.
@@ -54,13 +62,14 @@ Engine-owned near-misses are reject cases (for example `set premise to X`,
 `change premise X`) and must remain `unknown` (not rewritten).
 
 Raw preprocessor/LLM outputs must not be passed directly to the compiler.
+Raw model output must never directly change state.
 
 The preprocessor does not expand directive grammar. It may emit only validated
 canonical directives accepted by the compiler.
 
 Conservative boundary policy:
 
-- Whole-message canonicalization only (no directive mining from prose).
+- Only process the full message, not pieces of it (no directive mining from prose).
 - Emit at most one canonical directive; otherwise abstain.
 - No sentence splitting or hidden multi-line extraction.
 - No mixed directive + task extraction.
@@ -70,8 +79,8 @@ Conservative boundary policy:
 - Quoted payload tokens inside an otherwise canonical directive (for example
   `use "docker"`) are preserved as-is; they are not silently unquoted.
 
-If you need natural-language proposal/orchestration behavior, use an explicit
-host-side assist workflow with preview/diff/confirmation, not this preprocessor.
+If you need natural-language proposal behavior, use an explicit host workflow
+that shows suggestions first and asks for confirmation.
 
 ## Safe usage pattern
 
@@ -87,6 +96,28 @@ host-side assist workflow with preview/diff/confirmation, not this preprocessor.
    - use `context_compiler.compile_transcript(...)` for stateless evaluation
    - use `engine.apply_transcript(...)` to update an existing engine
    Otherwise pass the original user input unchanged.
+
+Decision handling reminder:
+- `passthrough`: no directive was applied; handle as ordinary user input.
+- `clarify`: mutation is blocked; surface `prompt_to_user` and do not treat
+  state as updated.
+- `update`: validated canonical directive applied; use updated state as
+  the source of truth.
+
+## Future direction (planning note)
+
+This section is architectural direction, not committed implementation.
+
+Future preprocessing may evolve beyond direct natural-language to directive
+conversion.
+
+- Policy directives and premise-like facts have different risk profiles.
+- Premise-like facts (for example, `I am vegetarian`) may be useful persistent
+  context, but should not be auto-persisted without confirmation.
+- Likely direction:
+  - conservative directive preprocessing remains separate
+  - a possible suggestion layer is inspectable, non-mutating, and previewable
+  - user confirms before anything is saved
 
 ## Prompt guidance
 

@@ -23,7 +23,7 @@ The minimal pipe path below is the easiest first-run flow and was runtime-valida
 4. Set `BASE_MODEL_ID` to a valid Open WebUI model id (required).
 5. Select the pipe model in chat.
 
-Open WebUI is host-provided runtime infrastructure and must already be installed/configured separately.
+Open WebUI is a separate runtime and must already be installed/configured separately.
 Open WebUI also needs at least one real backend model/provider configured (for example Ollama or OpenAI) so `BASE_MODEL_ID` resolves to an actual model.
 Note: The `PROVIDER` environment contract used in LiteLLM examples/demos does not apply to OpenWebUI. OpenWebUI manages providers via its own connection settings and model IDs.
 
@@ -84,18 +84,27 @@ Use the Open WebUI model picker/list to copy exact model ids for `BASE_MODEL_ID`
 
 ## Manual Validation
 
-Validate clarify short-circuit, passthrough forwarding without state injection,
-update forwarding with compiler state (`[[cc_state]]`) added to the request, chat isolation
-with real chat ids, restart state loss, and non-text bypass behavior.
+Validate these behaviors:
+- `clarify` short-circuits the LLM call.
+- `passthrough` forwards input without state injection.
+- `update` forwards with compiler state (`[[cc_state]]`) added to the request.
+- chat isolation works with real chat ids.
+- state is lost after restart (no external persistence).
+- non-text input is bypassed.
 
 Note: In the OpenWebUI example pipes, recognized directive-only `update`
-decisions return deterministic local acknowledgments and do not call the
+decisions return fixed local acknowledgments and do not call the
 downstream LLM.
 Both pipes support an exact local inspection command: `show state`.
 When the latest user message is exactly `show state` (case-insensitive after trim),
 the pipe returns current compiler state locally and does not call the downstream model.
 When trace is enabled, responses include concise evidence of decision kind,
 active state, downstream LLM call/no-call, and whether state was injected.
+
+Decision flow in both pipes:
+- `passthrough`: call the downstream model with normal input.
+- `clarify`: show `prompt_to_user`; do not change saved state.
+- `update`: state changed; render local acknowledgment for directive-only input, or call downstream model with updated state injected.
 
 ## Behavioral comparisons
 
@@ -113,7 +122,7 @@ active state, downstream LLM call/no-call, and whether state was injected.
 - base model: generic Docker/prohibition guidance text
 - basic pipe: `'docker' is already in use. Only one policy per item is allowed. Use 'reset policies' to change it.`
 - preprocessor pipe: same conflict clarify
-- why this matters: explicit conflict semantics are preserved instead of conversational interpretation.
+- why this matters: the app asks before applying a conflicting change.
 
 **Case 3**
 
@@ -121,7 +130,7 @@ active state, downstream LLM call/no-call, and whether state was injected.
 - base model: generic “how to switch to Podman” tutorial
 - basic pipe: `No exact policy found for "docker". Replacement requires an exact policy match...`
 - preprocessor pipe: same replacement clarify
-- why this matters: replacement precondition (old item must exist) is enforced.
+- why this matters: the app only replaces a policy when the old item already exists.
 
 **Case 4**
 
@@ -129,7 +138,7 @@ active state, downstream LLM call/no-call, and whether state was injected.
 - base model: accepts conversational style phrasing
 - basic pipe: `Did you mean 'set premise concise replies'?`
 - preprocessor pipe: same clarify (near-miss is not rewritten)
-- why this matters: preprocessor stays reject-first and preserves engine-owned clarify behavior.
+- why this matters: near-miss text is not silently rewritten.
 
 **Case 5**
 
@@ -137,4 +146,4 @@ active state, downstream LLM call/no-call, and whether state was injected.
 - base model: generic “please clarify changes” response
 - basic pipe: `Did you mean 'change premise to concise replies'?`
 - preprocessor pipe: same clarify (near-miss is passed through unchanged)
-- why this matters: near-miss inputs are not canonicalized, so directive semantics stay engine-owned.
+- why this matters: the app waits for explicit, valid directive text before changing state.
