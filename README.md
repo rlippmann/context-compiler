@@ -8,7 +8,7 @@ Some behaviors require explicit host-side state machinery.
 
 Context Compiler is a deterministic host-side state layer for LLM applications.
 It handles explicit state transitions for premise and policies so that mutation
-rules are fixed, inspectable, and repeatable.
+rules are fixed and repeatable.
 
 ## What prompting and reinjection can do
 
@@ -22,14 +22,14 @@ continuation.
 
 ## What prompting cannot do by itself
 
-Prompt text (including reinjected state text) does not, by itself, define a
-host-authoritative mutation boundary. By itself, it does not provide:
+Prompt text (including reinjected state text) helps, but it does not give your
+app controlled rules for when state can change. By itself, it does not provide:
 
-- authoritative state transition rules
+- rules your app controls for state changes
 - replacement precondition checks (`use X instead of Y` when `Y` may be absent)
-- pending clarification continuation state
-- deterministic decisions about when mutation is blocked
-- reliable persistence/checkpoint boundaries for restoring both state and pending flow
+- confirmation flows that must complete before anything else changes
+- clear decisions about when a change is blocked
+- reliable checkpoint restore for both saved state and pending confirmation flow
 
 ## What Context Compiler provides
 
@@ -38,8 +38,8 @@ Context Compiler provides fixed host-side state machinery:
 - deterministic directive handling for explicit user state mutations
 - clarification instead of silent overwrite for blocked/ambiguous changes
 - pending confirmation flows that must resolve before continuation
-- checkpoint export/import for restoring authoritative state and pending continuation
-- structured authoritative state that the host can pass to the model
+- checkpoint export/import for restoring saved state and pending confirmation flow
+- structured saved state that the host can pass to the model
 
 The model generates responses. The compiler owns state transitions.
 
@@ -62,9 +62,9 @@ Yes, on the current scored demo set.
 
 Interpretation guide:
 - Demos `01`-`05` and `07` focus on persistence and policy-following behavior.
-- Demos `08`/`09` focus on fixed host-side state-transition rules.
-- Demos `08`/`09` are capability-boundary checks, not prompt-following leaderboard comparisons.
-- Plain reinjection can produce plausible responses, but it does not implement replacement precondition checks or pending confirmation flows by itself.
+- Demos `08`/`09` focus on rules for when state is allowed to change.
+- Demos `08`/`09` show what prompt text does not implement by itself.
+- Plain reinjection can produce plausible responses, but it does not check whether replacement is allowed or wait for confirmation before saving changes.
 
 → [Full results and demo output](demos/README.md)
 Canonical matrix: [docs/demos-results.md](docs/demos-results.md)
@@ -150,8 +150,7 @@ uv run pytest
 
 **Is this just prompt reinjection?**
 Reinjection helps with persistence, and it remains useful. Context Compiler
-addresses a different boundary: authoritative state transitions. It defines how
-state mutates before generation, with deterministic externalized semantics.
+handles a different problem: rules for when state is allowed to change.
 
 Examples:
 - replacement semantics (`use X instead of Y`) when `Y` may not exist
@@ -159,8 +158,8 @@ Examples:
 - lifecycle enforcement (for example, you cannot change an unset premise)
 - pending clarification flows that must be resolved before other mutations
 
-In short: reinjection carries state forward; Context Compiler governs how that
-state is created and changed.
+In short: reinjection carries state forward; Context Compiler decides when your
+app should change state.
 
 **Isn’t this just prompt engineering?**
 It complements prompt engineering, but solves a different problem. Prompting
@@ -193,7 +192,7 @@ of earlier conversation text.
 
 ## Deterministic behavior (examples)
 
-Context Compiler externalizes mutation semantics so transitions are deterministic.
+Context Compiler makes mutation rules explicit so behavior stays repeatable.
 
 **Explicit directive**
 ```text
@@ -216,7 +215,7 @@ clear state
 change premise to formal tone
 ```
 - Without explicit transition checks: behavior depends on host/model handling
-- Context Compiler: clarifies and preserves authoritative state
+- Context Compiler: asks for clarification and keeps saved state unchanged
 
 ---
 
@@ -323,7 +322,7 @@ The internal structure of the state is intentionally opaque to host applications
 - `export_json()` / `import_json()` transport **authoritative state only**
 - checkpoint APIs transport **serialized continuation**:
   - authoritative state
-  - pending confirmation-required continuation state
+  - pending confirmation flow state
 
 Checkpoint object shape:
 
@@ -365,7 +364,7 @@ When to use checkpoint APIs:
 
 - stateless host/integration boundaries where engine instances are short-lived.
 - resume after interruption without losing pending clarification flow.
-- preserve confirmation-required continuation state (`pending`) across process/request boundaries.
+- preserve pending confirmation flow state (`pending`) across process/request boundaries.
 
 ---
 

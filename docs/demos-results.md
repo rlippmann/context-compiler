@@ -9,8 +9,8 @@ Note: this published matrix predates the `reinjected-state` path added in the 0.
 - Scored demos: `01`, `02`, `03`, `04`, `05`, `07` (6 total)
 - Informational demo: `06_context_compaction` (excluded from PASS/FAIL totals)
 
-Methodology note (2026-05): the demo suite now also includes scored state-transition
-semantics demos `08` and `09`. The published matrix below predates those additions and
+Methodology note (2026-05): the demo suite now also includes scored demos `08`
+and `09` for rules about when state is allowed to change. The published matrix below predates those additions and
 has not yet been fully rerun with the expanded scored set.
 
 ## Results Matrix
@@ -67,10 +67,10 @@ Scoring behavior uses post-audit oracle/checker logic in demos and shared helper
 - `demos/09_llm_pending_clarification.py`
 - shared parsing/helpers in `demos/common.py`
 
-Anti-overfitting note: scored checks are designed around deterministic host/state
-invariants rather than preferred wording in model outputs. The `reinjected-state`
-path is intentionally limited to plain state text injection and does not include
-compiler precondition or pending-state semantics.
+Scored checks focus on app-side state rules rather than preferred wording in
+model outputs. The `reinjected-state` path is plain state text injection and
+does not include compiler checks like replacement preconditions or pending
+confirmation handling.
 
 ### Run metadata
 
@@ -83,12 +83,12 @@ compiler precondition or pending-state semantics.
 
 - Live demo runs are **evidence/smoke tests** across real model/provider behavior.
 - Deterministic test suites (unit/property tests) are the **regression authority** for oracle and engine contracts.
-- Persistence demos and transition-semantics demos should be interpreted differently.
+- Persistence demos and state-change-rule demos should be interpreted differently.
 - Demos `01`-`05` and `07` mostly test persistence and policy-following under transcript pressure.
-- Demos `08`/`09` test fixed host-side state-transition rules.
-- Demos `08` and `09` cover scenarios that require fixed host-side state rules, such as replacement precondition checks and confirmation flows.
-- Plain prompt reinjection does not implement these behaviors by itself. These demos show a capability boundary rather than a prompt-following performance difference.
-- Demos `08`/`09` are not general LLM quality benchmarks. Baseline and reinjected-state can produce plausible text and still `FAIL` when those host-side transition checks are missing.
+- Demos `08`/`09` test rules for when state is allowed to change.
+- Demos `08` and `09` cover cases prompt text does not implement by itself, such as checking whether replacement is allowed and waiting for confirmation before saving changes.
+- Plain prompt reinjection can produce reasonable answers, but it does not run these checks by itself.
+- Demos `08`/`09` are not general LLM quality benchmarks. Baseline and reinjected-state can produce plausible text and still `FAIL` when those app-side checks are missing.
 
 ## Demo 05 Long-Transcript Stress (Exploratory Frontier Runs)
 
@@ -101,9 +101,9 @@ records the standard scored demo configuration.
 - In those exploratory runs, `reinjected-state`, `compiler`, and `compiler+compact`
   continued to preserve premise-consistent behavior.
 
-This is exploratory evidence rather than deterministic benchmark authority. Reinjection can
-be sufficient in some persistence scenarios, while compiler-mediated paths still provide
-deterministic state-transition semantics.
+This is exploratory evidence, not benchmark authority. Reinjection can be
+enough in some persistence scenarios, while compiler-mediated paths still
+provide explicit state-change rules.
 
 ## Local Ollama Context-Size Sweep (0.7.1 Experiment)
 
