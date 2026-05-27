@@ -13,7 +13,7 @@ This directory contains multiple fixture suites with different contracts.
 
 ## API contract fixture
 
-[`conformance/api/public-api-v1.json`](conformance/api/public-api-v1.json) defines a small public API presence contract for the Python 0.6 surface that ports must expose.
+[`conformance/api/public-api-v1.json`](conformance/api/public-api-v1.json) defines a small public API presence contract for the Python 0.7.x surface that ports must expose.
 
 Ports may sync this artifact with conformance fixtures.
 
