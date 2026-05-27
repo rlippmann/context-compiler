@@ -1,0 +1,6 @@
+{
+  "name": "parse-no-directive-sentinel",
+  "kind": "parse",
+  "raw_output": "<NO_DIRECTIVE>",
+  "expected_parsed": null
+}

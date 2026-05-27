@@ -1,0 +1,6 @@
+{
+  "name": "parse-malformed-near-miss-rejected",
+  "kind": "parse",
+  "raw_output": "set premise to concise replies",
+  "expected_parsed": null
+}
