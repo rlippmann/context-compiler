@@ -1,0 +1,6 @@
+{
+  "name": "parse-unknown-directive-like-rejected",
+  "kind": "parse",
+  "raw_output": "<NO_DIRECTIPLE>",
+  "expected_parsed": null
+}

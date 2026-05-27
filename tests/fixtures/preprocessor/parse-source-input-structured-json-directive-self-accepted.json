@@ -1,0 +1,7 @@
+{
+  "name": "parse-source-input-structured-json-directive-self-accepted",
+  "kind": "parse",
+  "source_input": "{\"classification\":\"directive\",\"output\":\"prohibit peanuts\"}",
+  "raw_output": "{\"classification\":\"directive\",\"output\":\"prohibit peanuts\"}",
+  "expected_parsed": "prohibit peanuts"
+}

@@ -1,0 +1,6 @@
+{
+  "name": "parse-canonical-directive-prohibit-peanuts",
+  "kind": "parse",
+  "raw_output": "prohibit peanuts",
+  "expected_parsed": "prohibit peanuts"
+}
