@@ -2,11 +2,11 @@
 
 from _util import print_decision_summary, print_state_summary
 
-from context_compiler import State, create_engine, get_policy_items
+from context_compiler import POLICY_PROHIBIT, State, create_engine, get_policy_items
 
 
 def build_prompt(state: State, user_input: str) -> str:
-    prohibit = get_policy_items(state, "prohibit")
+    prohibit = get_policy_items(state, POLICY_PROHIBIT)
     prohibit_text = ", ".join(prohibit) if prohibit else "(none)"
     return (
         "System: Follow authoritative conversation state.\n"

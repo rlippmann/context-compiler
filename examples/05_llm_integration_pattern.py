@@ -3,12 +3,14 @@
 from _util import print_decision_summary, print_state_summary
 
 from context_compiler import (
-    DECISION_CLARIFY,
-    DECISION_PASSTHROUGH,
-    DECISION_UPDATE,
     Engine,
     State,
     create_engine,
+    get_clarify_prompt,
+    get_decision_state,
+    is_clarify,
+    is_passthrough,
+    is_update,
 )
 
 
@@ -27,15 +29,15 @@ def handle_turn(engine_input: str, engine: Engine) -> None:
     print(f"User: {engine_input}")
     print_decision_summary(decision)
 
-    if decision["kind"] == DECISION_PASSTHROUGH:
+    if is_passthrough(decision):
         print("Host action: passthrough -> call fake_llm() without state")
         fake_llm(None, engine_input)
-    elif decision["kind"] == DECISION_UPDATE:
+    elif is_update(decision):
         print("Host action: update -> call fake_llm() with compiled state")
-        fake_llm(decision["state"], engine_input)
-    elif decision["kind"] == DECISION_CLARIFY:
+        fake_llm(get_decision_state(decision), engine_input)
+    elif is_clarify(decision):
         print("Host action: clarify -> show prompt, DO NOT call LLM")
-        print("clarify prompt:", decision["prompt_to_user"])
+        print("clarify prompt:", get_clarify_prompt(decision))
     print()
 
 

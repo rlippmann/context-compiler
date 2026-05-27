@@ -103,16 +103,21 @@ Bare REPL input behavior remains unchanged.
 
 Or in code:
 ```python
-from context_compiler import DECISION_CLARIFY, DECISION_UPDATE, create_engine
+from context_compiler import (
+    create_engine,
+    get_clarify_prompt,
+    is_clarify,
+    is_update,
+)
 
 engine = create_engine()
 
 user_input = "prohibit peanuts"
 decision = engine.step(user_input)
 
-if decision["kind"] == DECISION_CLARIFY:
-    show_to_user(decision["prompt_to_user"])
-elif decision["kind"] == DECISION_UPDATE:
+if is_clarify(decision):
+    show_to_user(get_clarify_prompt(decision))
+elif is_update(decision):
     messages = build_messages(engine.state, user_input)
     render(call_llm(messages))
 else:
@@ -122,7 +127,14 @@ else:
 Controller quick example:
 
 ```python
-from context_compiler import create_engine, preview, state_diff, step
+from context_compiler import (
+    get_decision_state,
+    is_update,
+    create_engine,
+    preview,
+    state_diff,
+    step,
+)
 
 engine = create_engine()
 
@@ -136,7 +148,8 @@ after_preview = engine.state
 print(state_diff(before, after_preview)["changed"])  # False (preview does not mutate state)
 
 applied = step(engine, "prohibit peanuts")
-print(applied["decision"]["kind"])  # update
+print(is_update(applied["decision"]))  # True
+print(get_decision_state(applied["decision"]) is not None)  # True
 ```
 
 ## Installation
@@ -281,6 +294,10 @@ Meaning:
 | update      | authoritative state mutated; host may call LLM with updated state |
 | clarify     | show `prompt_to_user` and do not call the LLM |
 
+For normal app code, prefer exported decision helpers (`is_clarify`,
+`is_update`, `is_passthrough`, `get_clarify_prompt`, `get_decision_state`)
+instead of direct key traversal.
+
 ---
 
 ### API Reference
@@ -318,6 +335,17 @@ Decision-kind constants are also exported for host branching readability:
 - `DECISION_UPDATE`
 - `DECISION_CLARIFY`
 
+Decision helpers are also exported for common host-side checks:
+- `is_update(decision)`
+- `is_clarify(decision)`
+- `is_passthrough(decision)`
+- `get_clarify_prompt(decision)`
+- `get_decision_state(decision)`
+
+Policy value constants are exported for explicit policy comparisons:
+- `POLICY_USE`
+- `POLICY_PROHIBIT`
+
 ---
 
 ## State Model
@@ -332,6 +360,8 @@ The compiler keeps a current state snapshot that your app can trust.
 Identical input sequences always produce identical state.
 
 The internal structure of the state is intentionally opaque to host applications.
+For normal reads, prefer `get_premise_value(state)` and
+`get_policy_items(state, ...)` over direct key traversal.
 
 ---
 
@@ -367,6 +397,9 @@ Checkpoint object shape:
   }
 }
 ```
+
+The checkpoint shape above is an explicit serialization contract. At this
+boundary, direct key access is expected.
 
 Notes:
 
