@@ -17,7 +17,7 @@ export OPENAI_API_KEY=...
 export PROVIDER=openai
 ```
 
-Checkpoint continuation in these integration examples requires `context-compiler>=0.6.14`.
+Checkpoint continuation in these integration examples requires `context-compiler>=0.7.0`.
 
 ### Run
 

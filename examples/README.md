@@ -40,3 +40,9 @@ Shows `compile_transcript(messages)` from a fresh engine and `engine.apply_trans
 
 Demonstrates explicit single-policy correction without `reset policies`.  
 Shows `prohibit peanuts` -> `remove policy peanuts` -> `use peanuts`.
+
+## 08_controller_preview_diff.py
+
+Shows controller-layer dry-run behavior with `preview(engine, user_input)`.  
+Shows structural state inspection with `state_diff(state_before, state_after)`.  
+Shows `step(engine, user_input)` after preview to apply the same input.
