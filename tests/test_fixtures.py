@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from context_compiler import compile_transcript, create_engine
+from context_compiler.controller import preview, state_diff, step
 
 _STEP_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "conformance" / "step"
 _TRANSCRIPT_FIXTURES_DIR = (
@@ -14,6 +15,9 @@ _STATE_JSON_FIXTURES_DIR = (
 )
 _CHECKPOINT_FIXTURES_DIR = (
     Path(__file__).resolve().parent / "fixtures" / "conformance" / "checkpoint"
+)
+_CONTROLLER_FIXTURES_DIR = (
+    Path(__file__).resolve().parent / "fixtures" / "conformance" / "controller"
 )
 
 
@@ -185,3 +189,40 @@ def test_checkpoint_fixtures() -> None:
             assert decision == followup["decision"], fixture_id
             assert engine.state == followup["state"], fixture_id
             _assert_optional_pending_flag(followup, engine, fixture_id)
+
+
+def test_controller_fixtures() -> None:
+    for path in _json_files(_CONTROLLER_FIXTURES_DIR):
+        fixture = _load(path)
+        fixture_id = fixture["id"]
+
+        assert fixture["kind"] == "controller", fixture_id
+        engine = create_engine(state=fixture["initial_state"])
+        _apply_prelude(engine, fixture.get("prelude", []))
+
+        action = fixture["action"]
+        expected = fixture["expected"]
+        fn = action["fn"]
+
+        if fn == "step":
+            result = step(engine, action["input"])
+            assert result == expected["result"], fixture_id
+            assert engine.state == expected["state"], fixture_id
+            _assert_optional_pending_flag(expected, engine, fixture_id)
+            continue
+
+        if fn == "preview":
+            before = engine.state
+            pending_before = engine.has_pending_clarification()
+            result = preview(engine, action["input"])
+
+            assert result == expected["result"], fixture_id
+            assert engine.state == before, fixture_id
+            assert engine.state == expected["state_after_preview"], fixture_id
+            assert engine.has_pending_clarification() is pending_before, fixture_id
+            _assert_optional_pending_flag(expected, engine, fixture_id)
+            continue
+
+        assert fn == "state_diff", fixture_id
+        diff = state_diff(action["before"], action["after"])
+        assert diff == expected["diff"], fixture_id

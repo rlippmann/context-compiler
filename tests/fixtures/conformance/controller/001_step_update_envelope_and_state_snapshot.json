@@ -1,0 +1,39 @@
+{
+  "id": "controller_step_update_envelope_and_state_snapshot",
+  "kind": "controller",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "action": {
+    "fn": "step",
+    "input": "set premise concise replies"
+  },
+  "expected": {
+    "result": {
+      "output_version": 1,
+      "mode": "step",
+      "decision": {
+        "kind": "update",
+        "state": {
+          "premise": "concise replies",
+          "policies": {},
+          "version": 2
+        },
+        "prompt_to_user": null
+      },
+      "state": {
+        "premise": "concise replies",
+        "policies": {},
+        "version": 2
+      }
+    },
+    "state": {
+      "premise": "concise replies",
+      "policies": {},
+      "version": 2
+    },
+    "has_pending_clarification": false
+  }
+}

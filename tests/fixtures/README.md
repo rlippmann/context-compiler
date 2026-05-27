@@ -73,6 +73,18 @@ Portable checkpoint import contract coverage for
 `engine.import_checkpoint(...)`, including deterministic validation/error
 boundaries, atomic failure behavior, and pending-clarification clearing semantics.
 
+## Controller fixtures
+
+For [`conformance/controller/`](conformance/controller/):
+
+Portable controller contract coverage for:
+
+* `step(engine, user_input)` result envelope and state snapshot
+* `preview(engine, user_input)` result envelope, `would_mutate`, and non-mutation of live engine state
+* `state_diff(state_before, state_after)` deterministic structural diff output
+
+These fixtures keep a minimal, language-neutral contract matrix for controller APIs.
+
 ## Source of truth
 
 Fixtures reflect current Python behavior and tests.
