@@ -119,6 +119,26 @@ else:
     render(call_llm(user_input))
 ```
 
+Controller quick example:
+
+```python
+from context_compiler import create_engine, preview, state_diff, step
+
+engine = create_engine()
+
+before = engine.state
+dry_run = preview(engine, "prohibit peanuts")
+print(dry_run["would_mutate"])  # True
+planned_change = state_diff(before, dry_run["state_after"])
+print(planned_change["changed"])  # True
+
+after_preview = engine.state
+print(state_diff(before, after_preview)["changed"])  # False (preview does not mutate state)
+
+applied = step(engine, "prohibit peanuts")
+print(applied["decision"]["kind"])  # update
+```
+
 ## Installation
 
 Requirements:
