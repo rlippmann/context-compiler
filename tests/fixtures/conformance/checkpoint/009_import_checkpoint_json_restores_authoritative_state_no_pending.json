@@ -1,0 +1,39 @@
+{
+  "id": "checkpoint_import_checkpoint_json_restores_authoritative_state_no_pending",
+  "kind": "checkpoint",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "action": {
+    "fn": "import_checkpoint_json",
+    "payload": "{\"authoritative_state\":{\"policies\":{\"pytest\":\"use\"},\"premise\":\"baseline\",\"version\":2},\"checkpoint_version\":1,\"pending\":null}"
+  },
+  "expected": {
+    "has_pending_clarification": false,
+    "state": {
+      "premise": "baseline",
+      "policies": {
+        "pytest": "use"
+      },
+      "version": 2
+    },
+    "followup": {
+      "input": "yes",
+      "decision": {
+        "kind": "passthrough",
+        "state": null,
+        "prompt_to_user": null
+      },
+      "state": {
+        "premise": "baseline",
+        "policies": {
+          "pytest": "use"
+        },
+        "version": 2
+      },
+      "has_pending_clarification": false
+    }
+  }
+}

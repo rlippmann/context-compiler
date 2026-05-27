@@ -1,0 +1,37 @@
+{
+  "id": "checkpoint_checkpoint_json_round_trip_state_and_pending_parity",
+  "kind": "checkpoint",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "use kubectl instead of docker"
+  ],
+  "action": {
+    "fn": "checkpoint_json_round_trip"
+  },
+  "expected": {
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    },
+    "has_pending_clarification": true,
+    "followup": {
+      "input": "maybe",
+      "decision": {
+        "kind": "clarify",
+        "state": null,
+        "prompt_to_user": "Did you mean to use \"kubectl\" instead?"
+      },
+      "state": {
+        "premise": null,
+        "policies": {},
+        "version": 2
+      },
+      "has_pending_clarification": true
+    }
+  }
+}

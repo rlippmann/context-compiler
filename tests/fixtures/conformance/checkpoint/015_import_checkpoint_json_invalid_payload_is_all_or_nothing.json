@@ -1,0 +1,42 @@
+{
+  "id": "checkpoint_import_checkpoint_json_invalid_payload_is_all_or_nothing",
+  "kind": "checkpoint",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "use kubectl instead of docker"
+  ],
+  "action": {
+    "fn": "import_checkpoint_json",
+    "payload": "{\"checkpoint_version\":1,\"authoritative_state\":{\"premise\":\"new premise\",\"policies\":{\"pytest\":\"use\"},\"version\":2},\"pending\":{\"kind\":\"replacement\",\"replacement\":{\"kind\":\"use_only\",\"new_item\":\"kubectl\",\"old_item\":\"docker\"},\"prompt_to_user\":\"confirm?\"}}"
+  },
+  "expected": {
+    "error": {
+      "type": "ValueError",
+      "message_contains": "Invalid checkpoint payload"
+    },
+    "has_pending_clarification": true,
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    },
+    "followup": {
+      "input": "maybe",
+      "decision": {
+        "kind": "clarify",
+        "state": null,
+        "prompt_to_user": "Did you mean to use \"kubectl\" instead?"
+      },
+      "state": {
+        "premise": null,
+        "policies": {},
+        "version": 2
+      },
+      "has_pending_clarification": true
+    }
+  }
+}

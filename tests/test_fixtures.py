@@ -155,6 +155,24 @@ def test_checkpoint_fixtures() -> None:
             else:
                 with pytest.raises(ValueError, match=error["message_contains"]):
                     engine.import_checkpoint(payload)
+        elif fn == "export_checkpoint_json":
+            payload = engine.export_checkpoint_json()
+            if expected.get("payload_json_parseable"):
+                parsed = json.loads(payload)
+                assert parsed == expected["payload_object"], fixture_id
+        elif fn == "import_checkpoint_json":
+            payload = action["payload"]
+            error = expected.get("error")
+            if error is None:
+                engine.import_checkpoint_json(payload)
+            else:
+                with pytest.raises(ValueError, match=error["message_contains"]):
+                    engine.import_checkpoint_json(payload)
+        elif fn == "checkpoint_json_round_trip":
+            payload = engine.export_checkpoint_json()
+            target = create_engine()
+            target.import_checkpoint_json(payload)
+            engine = target
         else:
             raise AssertionError(f"Unknown checkpoint action: {fn}")
 
