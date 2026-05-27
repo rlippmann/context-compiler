@@ -22,9 +22,16 @@ from context_compiler import (
     DECISION_CLARIFY,
     DECISION_PASSTHROUGH,
     DECISION_UPDATE,
+    POLICY_PROHIBIT,
+    POLICY_USE,
     State,
+    get_clarify_prompt,
+    get_decision_state,
     get_policy_items,
     get_premise_value,
+    is_clarify,
+    is_passthrough,
+    is_update,
 )
 from context_compiler.engine import Engine
 from context_compiler.observability import build_trace
@@ -98,8 +105,8 @@ def _extract_response_content(response: object) -> str | None:
 
 def _render_compiled_state_contract(compiled_state: State) -> str:
     premise = get_premise_value(compiled_state)
-    use_items = sorted(get_policy_items(compiled_state, "use"))
-    prohibit_items = sorted(get_policy_items(compiled_state, "prohibit"))
+    use_items = sorted(get_policy_items(compiled_state, POLICY_USE))
+    prohibit_items = sorted(get_policy_items(compiled_state, POLICY_PROHIBIT))
 
     lines: list[str] = ["The following constraints are authoritative."]
     if premise:
@@ -272,13 +279,18 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
     checkpoint_before = engine.export_checkpoint() if has_pending_before else None
     logger.debug("litellm_basic: engine_input=%s", f"user_input len={len(user_input)}")
     decision = engine.step(user_input)
-    kind = cast(str, decision["kind"])
+    if is_clarify(decision):
+        kind = DECISION_CLARIFY
+    elif is_update(decision):
+        kind = DECISION_UPDATE
+    else:
+        kind = DECISION_PASSTHROUGH
     logger.debug("litellm_basic: decision=%s", kind)
     near_miss_prompt = _near_miss_directive_clarify(user_input)
 
-    if kind == DECISION_CLARIFY:
+    if is_clarify(decision):
         _persist_session_checkpoint_if_needed(engine, kind, session_key)
-        response_text = near_miss_prompt or decision["prompt_to_user"] or ""
+        response_text = near_miss_prompt or get_clarify_prompt(decision) or ""
         return _append_trace(
             response_text,
             original_input=user_input,
@@ -288,7 +300,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             state_after=engine.state,
             llm_called=False,
         )
-    if near_miss_prompt is not None and kind == DECISION_PASSTHROUGH:
+    if near_miss_prompt is not None and is_passthrough(decision):
         return _append_trace(
             near_miss_prompt,
             original_input=user_input,
@@ -299,11 +311,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             llm_called=False,
         )
     _persist_session_checkpoint_if_needed(engine, kind, session_key)
-    if (
-        kind == DECISION_UPDATE
-        and is_confirmation_text(user_input)
-        and checkpoint_before is not None
-    ):
+    if is_update(decision) and is_confirmation_text(user_input) and checkpoint_before is not None:
         response_text = _summarize_confirmation_update(user_input, checkpoint_before)
         return _append_trace(
             response_text,
@@ -314,7 +322,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             state_after=engine.state,
             llm_called=False,
         )
-    if kind == DECISION_UPDATE:
+    if is_update(decision):
         response_text = _summarize_update_from_input(user_input)
         return _append_trace(
             response_text,
@@ -326,7 +334,8 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             llm_called=False,
         )
 
-    compiled_state = decision["state"] if decision["state"] is not None else engine.state
+    decision_state = get_decision_state(decision)
+    compiled_state = decision_state if decision_state is not None else engine.state
     messages = _build_messages(user_input, compiled_state)
     response_text = _call_litellm(messages)
     return _append_trace(

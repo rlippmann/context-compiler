@@ -51,10 +51,17 @@ from context_compiler import (
     DECISION_CLARIFY,
     DECISION_PASSTHROUGH,
     DECISION_UPDATE,
+    POLICY_PROHIBIT,
+    POLICY_USE,
     State,
     create_engine,
+    get_clarify_prompt,
+    get_decision_state,
     get_policy_items,
     get_premise_value,
+    is_clarify,
+    is_passthrough,
+    is_update,
 )
 from context_compiler.engine import Engine
 from context_compiler.observability import build_compact_trace_text
@@ -136,11 +143,11 @@ def _render_compiler_state_block(state: State) -> str:
     if premise is not None:
         lines.append(f"Premise: {premise}")
 
-    use_items = sorted(get_policy_items(state, "use"))
+    use_items = sorted(get_policy_items(state, POLICY_USE))
     if use_items:
         lines.append("Use: " + ", ".join(use_items))
 
-    prohibit_items = sorted(get_policy_items(state, "prohibit"))
+    prohibit_items = sorted(get_policy_items(state, POLICY_PROHIBIT))
     if prohibit_items:
         lines.append("Prohibit: " + ", ".join(prohibit_items))
 
@@ -149,8 +156,8 @@ def _render_compiler_state_block(state: State) -> str:
 
 def _render_show_state_summary(engine: Engine) -> str:
     premise = get_premise_value(engine.state)
-    use_items = sorted(get_policy_items(engine.state, "use"))
-    prohibit_items = sorted(get_policy_items(engine.state, "prohibit"))
+    use_items = sorted(get_policy_items(engine.state, POLICY_USE))
+    prohibit_items = sorted(get_policy_items(engine.state, POLICY_PROHIBIT))
     pending = engine.has_pending_clarification()
 
     use_text = ", ".join(use_items) if use_items else "none"
@@ -201,7 +208,7 @@ def _normalize_state(value: object) -> State:
 def _has_non_empty_authoritative_state(state: State) -> bool:
     if get_premise_value(state) is not None:
         return True
-    return bool(get_policy_items(state, "use") or get_policy_items(state, "prohibit"))
+    return bool(get_policy_items(state, POLICY_USE) or get_policy_items(state, POLICY_PROHIBIT))
 
 
 def _build_compact_trace_text(
@@ -886,17 +893,22 @@ class Pipe:
 
         logger.debug("preprocessor: engine_input=%r", compile_input)
         decision = engine.step(compile_input)
-        kind = decision["kind"]
+        if is_clarify(decision):
+            kind = DECISION_CLARIFY
+        elif is_update(decision):
+            kind = DECISION_UPDATE
+        else:
+            kind = DECISION_PASSTHROUGH
         logger.debug("preprocessor: decision=%s", kind)
         near_miss_prompt = _near_miss_directive_clarify(latest_user_text)
-        state_after = decision.get("state") if isinstance(decision, dict) else None
+        state_after = get_decision_state(decision)
         if state_after is None:
             state_after = engine.state
 
-        if kind == DECISION_CLARIFY:
+        if is_clarify(decision):
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
             return self._with_trace(
-                near_miss_prompt or decision["prompt_to_user"] or "",
+                near_miss_prompt or get_clarify_prompt(decision) or "",
                 original_input=latest_user_text,
                 compiler_input=compile_input,
                 decision=decision,
@@ -905,7 +917,7 @@ class Pipe:
                 preprocessor_output=preprocessd,
                 llm_called=False,
             )
-        if near_miss_prompt is not None and kind == DECISION_PASSTHROUGH:
+        if near_miss_prompt is not None and is_passthrough(decision):
             return self._with_trace(
                 near_miss_prompt,
                 original_input=latest_user_text,
@@ -916,7 +928,7 @@ class Pipe:
                 preprocessor_output=preprocessd,
                 llm_called=False,
             )
-        if kind == DECISION_PASSTHROUGH:
+        if is_passthrough(decision):
             compiled_state = _normalize_state(state_after)
             state_injected = "yes" if _has_non_empty_authoritative_state(compiled_state) else "no"
             response = await self._forward_passthrough(
@@ -937,7 +949,7 @@ class Pipe:
                 llm_called=base_model_id is not None,
                 state_injected=state_injected,
             )
-        if kind == DECISION_UPDATE:
+        if is_update(decision):
             _CHECKPOINTS_BY_CHAT_KEY[chat_key] = engine.export_checkpoint_json()
             return self._with_trace(
                 _summarize_update_from_input(compile_input),
