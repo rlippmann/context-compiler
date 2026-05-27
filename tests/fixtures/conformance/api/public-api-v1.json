@@ -26,7 +26,8 @@
       "export_checkpoint",
       "import_checkpoint",
       "export_checkpoint_json",
-      "import_checkpoint_json"
+      "import_checkpoint_json",
+      "has_pending_clarification"
     ]
   }
 }
