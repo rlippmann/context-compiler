@@ -4,11 +4,11 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/context-compiler)](https://pypi.org/project/context-compiler/)
 [![License](https://img.shields.io/pypi/l/context-compiler)](https://pypi.org/project/context-compiler/)
 
-Some behaviors require explicit host-side state machinery.
+Some behaviors require explicit host-side state handling.
 
 Context Compiler is a deterministic host-side state layer for LLM applications.
-It handles explicit state transitions for premise and policies so that mutation
-rules are fixed and repeatable.
+It applies explicit premise and policy updates so state changes stay fixed and
+repeatable.
 
 ## What prompting and reinjection can do
 
@@ -23,17 +23,17 @@ pending confirmations from checkpoints.
 ## What prompting cannot do by itself
 
 Prompt text (including reinjected state text) helps, but it does not give your
-app controlled rules for when state can change. By itself, it does not provide:
+app clear rules for when state can change. By itself, it does not provide:
 
 - rules your app controls for state changes
 - replacement precondition checks (`use X instead of Y` when `Y` may be absent)
 - confirmation flows that must complete before anything else changes
-- clear decisions about when a change is blocked
+- clear rules for when to block a change
 - reliable checkpoint restore for both saved state and pending confirmation flow
 
 ## What Context Compiler provides
 
-Context Compiler provides fixed host-side state machinery:
+Context Compiler provides fixed host-side state handling:
 
 - deterministic directive handling for explicit user state changes
 - clarification instead of silent overwrite for blocked/ambiguous changes

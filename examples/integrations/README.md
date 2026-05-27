@@ -29,7 +29,7 @@ See the LiteLLM examples README for setup and usage:
 - Context Compiler runs before each LLM call.
 - If result is `clarify`, show the question and do not call the LLM.
 - If result is `passthrough`, send normal user input.
-- If result is `update`, use updated state and call the model with saved state added to the prompt.
+- If result is `update`, use updated state and call the model with saved state in the prompt.
 
 ## LiteLLM Proxy
 

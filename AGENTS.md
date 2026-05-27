@@ -75,12 +75,18 @@ Prefer modern typing syntax:
 
 ## PR guidance
 - Never open or merge a PR targeting `main` from `main`; always use a feature branch.
+- Always use the repository PR template when creating or updating PR descriptions.
 - PR titles must use the same format as commits: `<type>: <summary>`.
 - PR descriptions should include:
   - what changed
   - why the change was needed
 - Do not include a dedicated "Validation" section in PR text.
 - Keep PR scope aligned to the requested task; if scope grows, ask for guidance before expanding.
+
+## Issue guidance
+- Always use the repository issue templates when creating or updating issues.
+- Use `bug_report` for defects and regressions.
+- Use `feature_request` for new capabilities or enhancements.
 
 ## CI
 Do not modify GitHub CI workflows unless explicitly asked.
@@ -104,6 +110,10 @@ Prefer plain, concrete wording when accurate. Examples:
 - "explicit instructions stay consistent across turns"
 
 Avoid describing features only in architectural terms when a behavior-first explanation is possible.
+
+Prefer direct subjects and strong verbs.
+Avoid noun stacks and passive phrasing when a simpler active sentence is clearer.
+Use simpler wording unless technical precision requires formal terminology.
 
 Specification and contract documents are different:
 - preserve precise terminology

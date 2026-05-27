@@ -15,8 +15,7 @@ layer. Do not rely on repo-relative preprocessor paths.
 
 ## Architectural framing
 
-The preprocessor is a helper layer in your app, not the source of truth for
-state changes.
+The preprocessor helps your app, but it does not own state changes.
 
 Model/tool-description translation can help with simple direct cases, but
 integrations should not rely on model intent translation alone to decide when
@@ -25,10 +24,10 @@ state changes.
 In simpler hosts without an embedded model, this preprocessor provides a
 conservative translation path.
 
-In model-assisted hosts, the app still checks outputs before applying them.
+In model-assisted hosts, the app still validates outputs before applying them.
 
 Both paths send canonical directives to the same deterministic engine. The
-engine still controls state updates.
+engine controls state updates.
 
 In MCP/tool-calling environments, over-eager tool calling on conversational or
 ambiguous input is a known failure mode. Conservative preprocessing and
@@ -36,7 +35,7 @@ validation help reduce unintended mutation.
 
 ## Required flow
 
-Recommended conceptual flow:
+Recommended flow:
 
 1. heuristic preprocessing
 2. validate candidate output

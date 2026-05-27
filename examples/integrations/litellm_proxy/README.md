@@ -1,7 +1,7 @@
 # LiteLLM Proxy (pre-call hook)
 
 This example shows how to run Context Compiler inside a LiteLLM proxy pre-call hook.
-The hook applies fixed state handling before any upstream model call.
+The hook applies fixed state rules before any upstream model call.
 
 Available hook files:
 

@@ -2,7 +2,7 @@
 
 ## The Problem with Implicit State
 
-Modern LLM applications typically manage conversational state implicitly — the model reads the transcript, infers what constraints are active, and generates a response accordingly. This works well for short conversations and simple tasks.
+Modern LLM applications often manage conversational state implicitly: the model reads the transcript, infers active constraints, and generates a response. This works well for short conversations and simple tasks.
 
 It breaks down reliably in longer conversations, correction flows, and multi-turn constraint management. Constraints drift. Corrections get partially applied or treated as additive rather than authoritative replacements. Contradictions accumulate instead of resolving. The model interprets intent rather than enforcing it.
 
@@ -16,7 +16,7 @@ Explicit state management is not a new idea. Earlier AI systems maintained struc
 
 The core insight is simple: maintain an explicit active set of rules rather than inferring the relevant context from history each time. What is in the active set is known with certainty. What is not in it is not active.
 
-These approaches succeeded in narrow, well-defined domains precisely because explicit state gives you guarantees that implicit inference cannot. The limitation was not the state management approach — it was that handling natural language and ambiguity was extraordinarily difficult. Those problems consumed most of the design effort.
+These approaches succeeded in narrow, well-defined domains because explicit state gives guarantees that implicit inference cannot. The limitation was not state management itself. Handling natural language and ambiguity was the hard part, and that work consumed most of the design effort.
 
 Modern LLMs handle natural language interpretation and generation far more effectively than earlier systems. This changes the calculus: the language interface problem is largely addressed. As end-to-end neural approaches became dominant, many systems shifted toward transcript-driven implicit state management, assuming a capable model could handle state implicitly.
 
@@ -26,8 +26,8 @@ That assumption is incorrect in practice, for the structural reason described ab
 
 Context Compiler applies explicit state management to the modern LLM context, with a clear division of responsibilities:
 
-- The LLM handles what it is genuinely good at — language understanding, reasoning, generation, handling ambiguity in user intent
-- The deterministic engine handles what probabilistic systems handle poorly — maintaining explicit state across turns, enforcing constraints, guaranteeing that corrections replace rather than compete with prior state
+- The LLM handles what it does well: language understanding, reasoning, generation, and ambiguity in user intent
+- The deterministic engine handles what probabilistic systems handle poorly: keep explicit state across turns, enforce constraints, and make corrections replace prior state instead of competing with it
 
 The preprocessor layer bridges the two: it uses the LLM's language understanding to translate natural language directive intent into canonical form, which the deterministic engine can then process reliably. Fuzzy where it needs to be fuzzy, deterministic where determinism matters.
 

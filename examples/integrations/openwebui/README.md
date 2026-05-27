@@ -1,9 +1,9 @@
 # Open WebUI Pipe Integration
 
-Examples of Open WebUI Pipe Functions that run Context Compiler.
+Examples of Open WebUI Pipe Functions that use Context Compiler.
 
 Tested target: Open WebUI `v0.8.12` (latest at time of testing).
-Runtime-validated on stock Docker Open WebUI with a real backend model provider.
+Validated at runtime on stock Docker Open WebUI with a real backend model provider.
 
 Compatibility note: OpenWebUI `0.9.x` changed `Users.get_user_by_id` to async.
 These examples support both sync (`0.8.x`) and async (`0.9.x`) user lookup.
@@ -49,11 +49,11 @@ If using `open_webui_pipe_with_preprocessor.py`:
 - Optional: set `PREPROCESSOR_MODEL_ID` to route fallback precompilation through
   a separate model. If unset, fallback uses `BASE_MODEL_ID`.
 - Fallback routing is Open WebUI-native (no LiteLLM dependency for this pipe).
-- The heuristic preprocessor is intentionally conservative/high-precision and
+- The heuristic preprocessor is intentionally conservative and high-precision, and
   may abstain on mixed-prose natural language (for example, `i think we should
   use docker`). In those cases, behavior may remain passthrough unless fallback
   precompilation returns a validated canonical directive.
-- Invalid configured model ids return explicit runtime misconfiguration errors:
+- If you configure invalid model ids, the pipe returns explicit runtime errors:
   - `BASE_MODEL_ID` not found in Open WebUI models
   - `PREPROCESSOR_MODEL_ID` not found in Open WebUI models
 
@@ -80,7 +80,7 @@ Use the Open WebUI model picker/list to copy exact model ids for `BASE_MODEL_ID`
 - No Redis/DB/external storage.
 - No Filters or Pipelines.
 - No production hardening.
-- Version-coupled to Open WebUI internal helper/import paths.
+- Tied to Open WebUI internal helper/import paths by version.
 
 ## Manual Validation
 

@@ -73,7 +73,7 @@ Introduce multiple engines only when you need **independent lifecycle or isolati
 ## Combining Policies from Multiple Sources
 
 If you need to combine constraints from separate sources, do it explicitly in
-host code by replaying directives through `step(...)` into a target engine.
+host code: replay directives through `step(...)` into a target engine.
 
 Pattern:
 
@@ -81,5 +81,5 @@ Pattern:
 2. Replay each directive via `engine.step(...)`
 3. Handle any returned `clarify` decisions explicitly
 
-This keeps conflict handling in normal engine semantics and avoids adding merge
-semantics to core state APIs.
+This keeps conflict handling in normal engine behavior and avoids adding merge
+rules to core state APIs.
