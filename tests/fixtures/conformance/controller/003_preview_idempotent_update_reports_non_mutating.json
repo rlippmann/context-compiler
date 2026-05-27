@@ -1,0 +1,69 @@
+{
+  "id": "controller_preview_idempotent_update_reports_non_mutating",
+  "kind": "controller",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "use docker"
+  ],
+  "action": {
+    "fn": "preview",
+    "input": "use docker"
+  },
+  "expected": {
+    "result": {
+      "output_version": 1,
+      "mode": "preview",
+      "decision": {
+        "kind": "update",
+        "state": {
+          "premise": null,
+          "policies": {
+            "docker": "use"
+          },
+          "version": 2
+        },
+        "prompt_to_user": null
+      },
+      "state_before": {
+        "premise": null,
+        "policies": {
+          "docker": "use"
+        },
+        "version": 2
+      },
+      "state_after": {
+        "premise": null,
+        "policies": {
+          "docker": "use"
+        },
+        "version": 2
+      },
+      "diff": {
+        "changed": false,
+        "premise": {
+          "before": null,
+          "after": null,
+          "changed": false
+        },
+        "policies": {
+          "added": {},
+          "removed": {},
+          "changed": {}
+        }
+      },
+      "would_mutate": false
+    },
+    "state_after_preview": {
+      "premise": null,
+      "policies": {
+        "docker": "use"
+      },
+      "version": 2
+    },
+    "has_pending_clarification": false
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "id": "controller_preview_mutating_update_reports_would_mutate_and_no_live_mutation",
+  "kind": "controller",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "action": {
+    "fn": "preview",
+    "input": "set premise concise replies"
+  },
+  "expected": {
+    "result": {
+      "output_version": 1,
+      "mode": "preview",
+      "decision": {
+        "kind": "update",
+        "state": {
+          "premise": "concise replies",
+          "policies": {},
+          "version": 2
+        },
+        "prompt_to_user": null
+      },
+      "state_before": {
+        "premise": null,
+        "policies": {},
+        "version": 2
+      },
+      "state_after": {
+        "premise": "concise replies",
+        "policies": {},
+        "version": 2
+      },
+      "diff": {
+        "changed": true,
+        "premise": {
+          "before": null,
+          "after": "concise replies",
+          "changed": true
+        },
+        "policies": {
+          "added": {},
+          "removed": {},
+          "changed": {}
+        }
+      },
+      "would_mutate": true
+    },
+    "state_after_preview": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    },
+    "has_pending_clarification": false
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "id": "controller_preview_pending_yes_reports_mutation_but_preserves_live_pending",
+  "kind": "controller",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "use kubectl instead of docker"
+  ],
+  "action": {
+    "fn": "preview",
+    "input": "yes"
+  },
+  "expected": {
+    "result": {
+      "output_version": 1,
+      "mode": "preview",
+      "decision": {
+        "kind": "update",
+        "state": {
+          "premise": null,
+          "policies": {
+            "kubectl": "use"
+          },
+          "version": 2
+        },
+        "prompt_to_user": null
+      },
+      "state_before": {
+        "premise": null,
+        "policies": {},
+        "version": 2
+      },
+      "state_after": {
+        "premise": null,
+        "policies": {
+          "kubectl": "use"
+        },
+        "version": 2
+      },
+      "diff": {
+        "changed": true,
+        "premise": {
+          "before": null,
+          "after": null,
+          "changed": false
+        },
+        "policies": {
+          "added": {
+            "kubectl": "use"
+          },
+          "removed": {},
+          "changed": {}
+        }
+      },
+      "would_mutate": true
+    },
+    "state_after_preview": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    },
+    "has_pending_clarification": true
+  }
+}

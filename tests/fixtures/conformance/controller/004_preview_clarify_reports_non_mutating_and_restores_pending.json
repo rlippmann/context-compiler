@@ -1,0 +1,54 @@
+{
+  "id": "controller_preview_clarify_reports_non_mutating_and_restores_pending",
+  "kind": "controller",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "action": {
+    "fn": "preview",
+    "input": "use kubectl instead of docker"
+  },
+  "expected": {
+    "result": {
+      "output_version": 1,
+      "mode": "preview",
+      "decision": {
+        "kind": "clarify",
+        "state": null,
+        "prompt_to_user": "Did you mean to use \"kubectl\" instead?"
+      },
+      "state_before": {
+        "premise": null,
+        "policies": {},
+        "version": 2
+      },
+      "state_after": {
+        "premise": null,
+        "policies": {},
+        "version": 2
+      },
+      "diff": {
+        "changed": false,
+        "premise": {
+          "before": null,
+          "after": null,
+          "changed": false
+        },
+        "policies": {
+          "added": {},
+          "removed": {},
+          "changed": {}
+        }
+      },
+      "would_mutate": false
+    },
+    "state_after_preview": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    },
+    "has_pending_clarification": false
+  }
+}
