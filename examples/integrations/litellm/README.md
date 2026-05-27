@@ -105,7 +105,7 @@ Use `llama` only for LLM-only preprocessing with Llama-family models.
 
 ## Usage pattern
 
-These files are importable integration references for host applications.
+You can import these files as integration references in host applications.
 
 - Import `handle_turn(...)` from either `basic.py` or `with_preprocessor.py`.
 - Create and retain an engine instance in host/session state.

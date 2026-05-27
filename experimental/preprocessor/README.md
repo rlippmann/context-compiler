@@ -1,12 +1,12 @@
 # Experimental Preprocessor Package
 
-This package provides optional app-layer preprocessing utilities for Context
-Compiler integrations.
+This package provides optional preprocessing helpers for app integrations with
+Context Compiler.
 
 It is experimental and separate from the deterministic core engine in `src/`.
 
-Model/tool-description translation can help with simple direct cases, but raw
-model output is not safe by itself for state changes. The app must validate
+Model or tool-description translation can help in simple direct cases, but raw
+model output is not safe for state changes on its own. The app must validate
 outputs before applying them.
 
 In MCP/tool-calling environments, over-eager tool calling on conversational or
@@ -65,7 +65,7 @@ Raw preprocessor/LLM outputs must not be passed directly to the compiler.
 Raw model output must never directly change state.
 
 The preprocessor does not expand directive grammar. It may emit only validated
-canonical directives accepted by the compiler.
+canonical directives that the compiler accepts.
 
 Conservative boundary policy:
 

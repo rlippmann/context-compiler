@@ -10,9 +10,9 @@ conversations, and state can conflict over time.
 This project adds a deterministic state layer that is independent of the model.
 The model handles interpretation and generation; the engine handles premise and
 policies. Only explicit user directives can change state.
-By separating reasoning from state ownership, the system improves reliability
-without requiring model retraining. The system never derives authoritative state
-from model responses.
+When the model reasons and the engine owns state, behavior stays reliable
+without retraining the model. The system never derives authoritative state from
+model responses.
 The goal is not to make the model smarter, but to make interactions
 predictable: once a statement is corrected or scoped, future responses
 must respect that change.
@@ -64,7 +64,7 @@ After correcting or constraining the assistant once, the behavior remains consis
 ### M3 — Cross-Session Recall (implemented, engine-level / host-enabled)
 
 **Goal**
-Extend app-level workflows around persisted exported state safely and intentionally.
+Help apps safely reuse saved exported state.
 
 **Core capability:**
 
@@ -77,8 +77,8 @@ Extend app-level workflows around persisted exported state safely and intentiona
 
 **Deliverables:**
 
-- App-side storage/recovery patterns built on the existing import/export API
-- App-side storage/recovery patterns for checkpoint object/checkpoint JSON continuation restore
+- App-side storage and recovery patterns built on the existing import/export API
+- App-side storage and recovery patterns for checkpoint object and checkpoint JSON restore
 
 **User-visible outcome:**
 
