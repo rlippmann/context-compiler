@@ -1,6 +1,6 @@
 """Public helpers for safer decision inspection in host-side code."""
 
-from .decision_constants import DECISION_CLARIFY, DECISION_PASSTHROUGH, DECISION_UPDATE
+from .const import DECISION_CLARIFY, DECISION_PASSTHROUGH, DECISION_UPDATE
 from .engine import Decision, State
 
 
