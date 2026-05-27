@@ -105,6 +105,10 @@ Prefer plain, concrete wording when accurate. Examples:
 
 Avoid describing features only in architectural terms when a behavior-first explanation is possible.
 
+Prefer direct subjects and strong verbs.
+Avoid noun stacks and passive phrasing when a simpler active sentence is clearer.
+Use simpler wording unless technical precision requires formal terminology.
+
 Specification and contract documents are different:
 - preserve precise terminology
 - preserve unambiguous behavioral guarantees
