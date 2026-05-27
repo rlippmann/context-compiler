@@ -2,7 +2,7 @@
 
 from _util import print_decision_summary, print_state_summary
 
-from context_compiler import create_engine
+from context_compiler import create_engine, get_clarify_prompt, is_clarify
 
 
 def fake_llm(user_input: str) -> str:
@@ -23,9 +23,9 @@ def main() -> None:
     print_decision_summary(decision2)
     print()
 
-    if decision2["kind"] == "clarify":
+    if is_clarify(decision2):
         print("Host behavior: clarification pending, do NOT call LLM.")
-        print(f"Clarify prompt: {decision2['prompt_to_user']}")
+        print(f"Clarify prompt: {get_clarify_prompt(decision2)}")
     else:
         fake_llm("use peanuts")
     print()

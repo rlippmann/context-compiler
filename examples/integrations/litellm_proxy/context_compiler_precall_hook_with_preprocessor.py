@@ -26,6 +26,7 @@ except ModuleNotFoundError:
 
 
 from context_compiler import (
+    POLICY_PROHIBIT,
     State,
     Transcript,
     compile_transcript,
@@ -52,7 +53,7 @@ _PROMPTS_DIR = files("experimental.preprocessor").joinpath("prompts")
 
 
 def _render_compiled_state_contract(compiled_state: State) -> str:
-    prohibited = get_policy_items(compiled_state, "prohibit")
+    prohibited = get_policy_items(compiled_state, POLICY_PROHIBIT)
     premise = get_premise_value(compiled_state)
 
     lines: list[str] = ["The following constraints are authoritative."]

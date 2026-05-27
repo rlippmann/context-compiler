@@ -11,5 +11,10 @@ STATE_VERSION: Final = "version"
 POLICY_USE: Final = "use"
 POLICY_PROHIBIT: Final = "prohibit"
 
+# Decision kinds
+DECISION_PASSTHROUGH: Final = "passthrough"
+DECISION_UPDATE: Final = "update"
+DECISION_CLARIFY: Final = "clarify"
+
 # Schema version
 SCHEMA_VERSION: Final = 2

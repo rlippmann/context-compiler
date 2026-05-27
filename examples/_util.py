@@ -2,10 +2,14 @@ import json
 from typing import Any, Literal
 
 from context_compiler import (
-    DECISION_CLARIFY,
-    DECISION_UPDATE,
+    POLICY_PROHIBIT,
+    POLICY_USE,
+    get_clarify_prompt,
+    get_decision_state,
     get_policy_items,
     get_premise_value,
+    is_clarify,
+    is_update,
 )
 
 
@@ -28,22 +32,21 @@ def print_state_summary(state: Any, label: str = "state") -> None:
 
     print(f"{label}:")
     print(f"- premise: {premise_text}")
-    print(f"- use policies: {_format_policy_values(state, 'use')}")
-    print(f"- prohibit policies: {_format_policy_values(state, 'prohibit')}")
+    print(f"- use policies: {_format_policy_values(state, POLICY_USE)}")
+    print(f"- prohibit policies: {_format_policy_values(state, POLICY_PROHIBIT)}")
 
 
 def print_decision_summary(decision: Any) -> None:
-    kind = decision.get("kind")
-    if kind == DECISION_UPDATE:
+    if is_update(decision):
         print("result: updated")
-        state = decision.get("state")
+        state = get_decision_state(decision)
         assert isinstance(state, dict)
         print_state_summary(state, "compiled state")
         return
 
-    if kind == DECISION_CLARIFY:
+    if is_clarify(decision):
         print("result: clarify")
-        prompt = decision.get("prompt_to_user")
+        prompt = get_clarify_prompt(decision)
         if isinstance(prompt, str) and prompt:
             print("clarify prompt:")
             for line in prompt.splitlines():
