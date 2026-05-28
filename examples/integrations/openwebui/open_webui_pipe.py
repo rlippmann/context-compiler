@@ -643,7 +643,7 @@ class Pipe:
                 near_miss_prompt,
                 original_input=latest_user_text,
                 compiler_input=latest_user_text,
-                decision={"kind": "clarify", "prompt_to_user": near_miss_prompt},
+                decision={"kind": DECISION_CLARIFY, "prompt_to_user": near_miss_prompt},
                 state_before=state_before,
                 state_after=state_after,
                 llm_called=False,

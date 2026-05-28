@@ -286,7 +286,7 @@ def _persist_session_checkpoint_if_needed(
 ) -> None:
     if session_key is None:
         return
-    if kind not in {"update", "clarify"}:
+    if kind not in {DECISION_UPDATE, DECISION_CLARIFY}:
         return
     _CHECKPOINTS_BY_SESSION_KEY[session_key] = engine.export_checkpoint_json()
 
@@ -430,7 +430,7 @@ def handle_turn(user_input: str, engine: Engine, *, session_key: str | None = No
             original_input=user_input,
             compiler_input=compile_input,
             preprocessor_output=preprocessd,
-            decision={"kind": "clarify", "prompt_to_user": near_miss_prompt},
+            decision={"kind": DECISION_CLARIFY, "prompt_to_user": near_miss_prompt},
             state_before=state_before,
             state_after=engine.state,
             llm_called=False,
