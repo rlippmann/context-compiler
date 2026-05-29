@@ -85,6 +85,11 @@ def _block_optional_imports(
         (INTEGRATIONS_DIR / "litellm" / "basic.py", ("litellm",), False),
         (INTEGRATIONS_DIR / "litellm" / "with_preprocessor.py", ("litellm",), False),
         (
+            INTEGRATIONS_DIR / "ollama_structured_output" / "example.py",
+            (),
+            False,
+        ),
+        (
             INTEGRATIONS_DIR / "litellm_proxy" / "context_compiler_precall_hook.py",
             ("litellm",),
             False,
