@@ -37,6 +37,13 @@ Gateway-level integration using a LiteLLM pre-call hook.
 
 See: [LiteLLM Proxy README](litellm_proxy/README.md)
 
+## Ollama structured output (host-side schema selection)
+
+Minimal example showing host-side JSON Schema selection for Ollama `format` based on
+Context Compiler policy state.
+
+See: [ollama_structured_output/README.md](ollama_structured_output/README.md)
+
 ## Open WebUI Pipe Function
 
 Tested target: Open WebUI `v0.8.12`.
