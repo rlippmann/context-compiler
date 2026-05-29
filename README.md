@@ -185,19 +185,43 @@ uv run pytest
 Reinjection helps with persistence, and it remains useful. Context Compiler
 handles a different problem: rules for when state is allowed to change.
 
-Examples:
-- replacement semantics (`use X instead of Y`) when `Y` may not exist
-- contradiction detection before applying a mutation
-- lifecycle enforcement (for example, you cannot change an unset premise)
-- pending clarification flows that must be resolved before other mutations
-
 In short: reinjection carries state forward; Context Compiler decides when your
 app should change state.
+
+Prompt reinjection is one common way to consume compiler state, but it is not
+the only one.
+
+Hosts may also use compiler state to:
+- select output schemas
+- route requests
+- gate tool usage
+- choose backends
+- shape runtime request behavior
+
+Context Compiler determines when state changes are allowed with deterministic
+state-transition rules and clarification when needed.
+Hosts decide how that state is consumed.
 
 **Isn’t this just prompt engineering?**
 It complements prompt engineering, but solves a different problem. Prompting
 shapes model behavior. Context Compiler enforces state rules and updates state
 only through explicit directives.
+
+**Why not just use a plain dict?**
+A plain dict is enough to drive prompt construction, schema selection, and
+other host behavior.
+
+Context Compiler solves a different problem: who updates that state, under what
+rules, and what happens when instructions conflict.
+
+```text
+User: use python_script
+User: prohibit python_script
+```
+
+With a plain dict, the application must invent conflict-resolution rules.
+Context Compiler applies deterministic state-transition rules and can return
+clarification instead of silently overwriting state.
 
 ---
 
