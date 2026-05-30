@@ -6,9 +6,14 @@ model_list:
       model: openai/gpt-4o-mini
       api_key: os.environ/OPENAI_API_KEY
 
+  - model_name: llama3.1
+    litellm_params:
+      model: ollama/llama3.1:8b
+      api_base: http://localhost:11434
+
 litellm_settings:
   callbacks:
     # Basic replay-only hook:
-    - examples.integrations.litellm_proxy.context_compiler_precall_hook.proxy_handler_instance
+    - context_compiler_precall_hook.proxy_handler_instance
     # Preprocessor-enabled replay hook (use this instead of the basic hook):
-    # - examples.integrations.litellm_proxy.context_compiler_precall_hook_with_preprocessor.proxy_handler_instance
+    # - context_compiler_precall_hook_with_preprocessor.proxy_handler_instance
