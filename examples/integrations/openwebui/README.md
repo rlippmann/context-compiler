@@ -106,6 +106,8 @@ Decision flow in both pipes:
 - `clarify`: show `prompt_to_user`; do not change saved state.
 - `update`: state changed; render local acknowledgment for directive-only input, or call downstream model with updated state injected.
 
+For the preprocessor pipe, if `engine.has_pending_clarification()` is true, bypass preprocessing and pass raw input directly to `engine.step(...)`.
+
 ## Behavioral comparisons
 
 **Case 1**

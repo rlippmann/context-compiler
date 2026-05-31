@@ -311,7 +311,7 @@ instead of direct key traversal.
 | `step(user_input)` | Parse one user turn and return a deterministic `Decision`. |
 | `compile_transcript(messages: Transcript)` | Replay a transcript from a fresh engine and return either final state or a confirmation prompt. |
 | `engine.apply_transcript(messages: Transcript)` | Replay a transcript onto the current engine state and return either final state or a confirmation prompt. |
-| `engine.state` | Read current authoritative in-memory state snapshot. |
+| `engine.state` | Read the current opaque authoritative in-memory state snapshot; for normal host reads, prefer `get_premise_value(state)` and `get_policy_items(state, ...)`. |
 | `engine.has_pending_clarification()` | Return whether a confirmation-required clarification is currently pending. |
 | `get_premise_value(state)` | Read the current premise value from a state snapshot. |
 | `get_policy_items(state, value=None)` | Read policy items from a state snapshot (all, `use`, or `prohibit`). |
@@ -534,6 +534,9 @@ It is designed to be conservative and must be used with validation:
 - all outputs must be validated with `parse_preprocessor_output(...)`
 - no directive grammar expansion
 - raw outputs must not be passed directly to the compiler
+
+If `engine.has_pending_clarification()` is true, bypass preprocessing and pass raw input directly to `engine.step(...)`.
+Boundary policy is false-negative-preferred: abstain rather than risk unsafe state mutation.
 
 See [LLM preprocessor](docs/llm-preprocessor.md) and
 [`experimental/preprocessor/`](experimental/preprocessor/) for details.
