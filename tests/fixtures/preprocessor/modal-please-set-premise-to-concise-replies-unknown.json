@@ -1,0 +1,8 @@
+{
+  "name": "modal-please-set-premise-to-concise-replies-unknown",
+  "input": "please set premise to concise replies",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

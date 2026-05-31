@@ -1,0 +1,8 @@
+{
+  "name": "near-miss-change-premise-missing-to-keyword-unknown",
+  "input": "change premise formal tone",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

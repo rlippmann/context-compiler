@@ -1,0 +1,8 @@
+{
+  "name": "multi-instruction-use-docker-actually-prohibit-unknown",
+  "input": "use docker, actually prohibit docker",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

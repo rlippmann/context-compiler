@@ -1,0 +1,8 @@
+{
+  "name": "mixed-intent-use-docker-because-repo-has-docker-unknown",
+  "input": "use docker because this repo already has Docker",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}
