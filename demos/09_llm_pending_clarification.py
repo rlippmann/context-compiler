@@ -1,6 +1,13 @@
 """Demo 9: pending clarification requires confirmation-only continuation."""
 
-from context_compiler import DECISION_CLARIFY, DECISION_UPDATE, State, create_engine
+from context_compiler import (
+    DECISION_CLARIFY,
+    DECISION_UPDATE,
+    POLICY_USE,
+    State,
+    create_engine,
+    get_policy_items,
+)
 from demos.common import (
     build_baseline_messages,
     build_reinjected_messages,
@@ -19,17 +26,15 @@ DEMO_NAME = "09_pending_clarification_continuation — confirmation-only state t
 TURN_1 = "use podman instead of docker"
 TURN_2 = "maybe"
 TURN_3 = "yes"
+INITIAL_AUTHORITATIVE_STATE = create_engine().state
 
 
 def _has_podman_use(state: State) -> bool:
-    policies = state.get("policies")
-    if not isinstance(policies, dict):
-        return False
-    return policies.get("podman") == "use"
+    return "podman" in get_policy_items(state, POLICY_USE)
 
 
 def _is_initial_authoritative_state(state: State) -> bool:
-    return state == {"premise": None, "policies": {}, "version": 2}
+    return state == INITIAL_AUTHORITATIVE_STATE
 
 
 def main() -> None:

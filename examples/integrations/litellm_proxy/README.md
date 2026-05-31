@@ -97,6 +97,7 @@ Preprocessor-enabled variant behavior:
 
 - Only the latest user transcript message is preprocessed for compiler replay input.
 - Heuristic runs first; if no directive is found, LLM fallback is attempted.
+- If `engine.has_pending_clarification()` is true, bypass preprocessing and pass raw input directly to `engine.step(...)`.
 - Forwarded upstream request messages are not rewritten (except injected compiler system message).
 
 Optional env vars for preprocessor fallback:

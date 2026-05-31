@@ -137,6 +137,7 @@ choose different rendering behavior.
   - If heuristic returns a directive, that directive is passed to `engine.step(...)`.
   - If heuristic does not produce a directive (`no_directive` or `unknown`), LLM fallback prompt conversion runs.
   - If fallback yields nothing usable or errors, behavior safely remains equivalent to basic.
+  - If `engine.has_pending_clarification()` is true, bypass preprocessing and pass raw input directly to `engine.step(...)`.
   - Behavior is reject-first and does not broaden the directive grammar.
 
 Decision flow in both examples:
