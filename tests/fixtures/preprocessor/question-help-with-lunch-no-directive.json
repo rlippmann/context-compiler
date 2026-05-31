@@ -1,0 +1,8 @@
+{
+  "name": "question-help-with-lunch-no-directive",
+  "input": "can you help with lunch?",
+  "expected": {
+    "classification": "no_directive",
+    "output": null
+  }
+}

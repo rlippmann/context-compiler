@@ -1,0 +1,8 @@
+{
+  "name": "near-miss-set-premise-to-formal-tone-unknown",
+  "input": "set premise to formal tone",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}

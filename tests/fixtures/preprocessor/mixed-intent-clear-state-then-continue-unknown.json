@@ -1,0 +1,8 @@
+{
+  "name": "mixed-intent-clear-state-then-continue-unknown",
+  "input": "clear state then continue",
+  "expected": {
+    "classification": "unknown",
+    "output": null
+  }
+}
