@@ -4,7 +4,7 @@ These examples show how to use Context Compiler inside external app runtimes.
 
 ## LiteLLM (SDK)
 
-Minimal example showing how to run Context Compiler before sending a request to the LLM with LiteLLM.
+Minimal examples showing how to run Context Compiler before sending a request to the LLM with LiteLLM.
 
 Files:
 - Examples (basic + preprocessor): [litellm/README.md](litellm/README.md)
@@ -30,6 +30,7 @@ See the LiteLLM examples README for setup and usage:
 - If result is `clarify`, show the question and do not call the LLM.
 - If result is `passthrough`, send normal user input.
 - If result is `update`, use updated state and call the model with saved state in the prompt.
+- `response_format.py` shows a different boundary: saved compiler state changes the LiteLLM request shape instead of being reinjected into prompt text.
 
 ## LiteLLM Proxy
 

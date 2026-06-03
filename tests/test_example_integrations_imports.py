@@ -83,6 +83,7 @@ def _block_optional_imports(
     ("module_path", "blocked_prefixes", "needs_openwebui_stubs"),
     [
         (INTEGRATIONS_DIR / "litellm" / "basic.py", ("litellm",), False),
+        (INTEGRATIONS_DIR / "litellm" / "response_format.py", ("litellm",), False),
         (INTEGRATIONS_DIR / "litellm" / "with_preprocessor.py", ("litellm",), False),
         (
             INTEGRATIONS_DIR / "ollama_structured_output" / "example.py",

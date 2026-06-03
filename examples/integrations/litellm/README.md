@@ -1,8 +1,9 @@
 # LiteLLM examples
 
-This directory contains two small Context Compiler + LiteLLM integration examples:
+This directory contains three small Context Compiler + LiteLLM integration examples:
 
 - `basic.py`: compiler-only flow (no preprocessor)
+- `response_format.py`: host-side LiteLLM `response_format` selection from saved compiler state
 - `with_preprocessor.py`: heuristic-first preprocessor with optional LLM fallback before `engine.step(...)`
 
 ## Requirements
@@ -49,6 +50,21 @@ PY
 ```
 
 This near-miss input should return `clarify` instead of being rewritten.
+
+For host-side response shape selection:
+
+```shell
+pip install "context-compiler[integrations]"
+export OPENAI_API_KEY=...
+export MODEL=openai/gpt-4o-mini
+python - <<'PY'
+from context_compiler import create_engine
+from examples.integrations.litellm.response_format import plan_turn
+engine = create_engine()
+engine.step("use compact_summary")
+print(plan_turn("Summarize the release notes.", engine))
+PY
+```
 
 ## Environment configuration
 
@@ -122,6 +138,18 @@ Note: In these LiteLLM examples, `update` is rendered locally and does not call
 the downstream LLM. This makes state changes explicit. Production apps may
 choose different rendering behavior.
 
+## Response format example boundary
+
+`response_format.py` shows a different integration boundary from prompt reinjection:
+
+- Context Compiler owns authoritative state.
+- The host reads saved policy state and selects a LiteLLM `response_format` or omits it.
+- LiteLLM owns model invocation and provider behavior.
+- Context Compiler does not call LiteLLM on its own.
+- Context Compiler does not validate model output.
+- Context Compiler does not generate schemas dynamically.
+- This is application-layer use of authoritative state, not compiler semantics.
+
 ## Troubleshooting
 
 - `litellm is required`: install `context-compiler[integrations]` (or `context-compiler[experimental]` for preprocessor).
@@ -145,6 +173,11 @@ Decision flow in both examples:
 - `clarify`: show `prompt_to_user`; do not treat state as changed.
 - `update`: state changed; use updated state for the next model call.
 
+Decision flow in `response_format.py`:
+- `passthrough`: let the host decide whether to send `response_format`.
+- `clarify`: show `prompt_to_user`; do not call LiteLLM.
+- `update`: state changed; the next host request may use a different `response_format`.
+
 ## Example checks
 
 - Near-miss passthrough (`with_preprocessor.py`):
@@ -158,3 +191,20 @@ Decision flow in both examples:
   - `use podman instead of docker` without prior `use docker` -> replacement clarify.
 - Directive-adjacent abstain (`with_preprocessor.py`):
   - `change premise concise replies` is classified as `unknown`, not rewritten, and handled by engine clarify.
+- Host-side request shaping (`response_format.py`):
+  - `use compact_summary` -> host selects compact-summary `response_format`.
+  - `use action_plan` -> host selects action-plan `response_format`.
+  - `prohibit compact_summary` -> host omits that `response_format`.
+
+## Optional smoke run for `response_format.py`
+
+```shell
+export RUN_LITELLM_SMOKE=1
+export PROVIDER=ollama
+export MODEL=ollama/qwen2.5:1.5b-instruct
+uv run python examples/integrations/litellm/response_format.py
+```
+
+For local Ollama smoke runs in this repo, `PROVIDER=ollama` is required. A
+`MODEL=ollama/...` value by itself still follows the default OpenAI provider
+path.
