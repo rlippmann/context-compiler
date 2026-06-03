@@ -6,7 +6,7 @@
 
 Some behaviors require explicit host-side state handling.
 
-Context Compiler is a deterministic host-side state layer for LLM applications.
+Context Compiler is a deterministic conversational state authority for LLM applications.
 It applies explicit premise and policy updates so state changes stay fixed and
 repeatable.
 
@@ -69,160 +69,25 @@ Interpretation guide:
 → [Full results and demo output](demos/README.md)
 Canonical matrix: [docs/demos-results.md](docs/demos-results.md)
 
-## Quickstart
-
-```bash
-pip install context-compiler
-context-compiler
-context-compiler --with-preprocessor
-context-compiler --json < input.txt
-```
-
-`context-compiler` launches the interactive REPL.
-
-`--with-preprocessor` enables the experimental preprocessor before each REPL turn
-(simple rule-based checks plus conservative validation). For near-miss inputs,
-the preprocessor does not rewrite the text. It passes the input to the engine,
-and the engine can return `clarify`.
-
-`--json` enables machine-readable NDJSON output for non-interactive usage
-(one complete JSON object per processed input line).
-
-Preload options keep saved rules separate from in-progress confirmation state:
-- `--initial-state-json` / `--initial-state-file` load saved state
-  (via exported state JSON).
-- `--initial-checkpoint-json` / `--initial-checkpoint-file` restore full
-  continuation checkpoint (saved state + pending confirmation state).
-
-REPL commands (controller layer, not engine directives):
-- `state` shows current saved state.
-- `preview <input>` runs deterministic dry-run without mutating live state.
-- `step <input>` is an explicit alias of normal bare-input step behavior.
-
-Bare REPL input behavior remains unchanged.
-
-Or in code:
-```python
-from context_compiler import (
-    create_engine,
-    get_clarify_prompt,
-    is_clarify,
-    is_update,
-)
-
-engine = create_engine()
-
-user_input = "prohibit peanuts"
-decision = engine.step(user_input)
-
-if is_clarify(decision):
-    show_to_user(get_clarify_prompt(decision))
-elif is_update(decision):
-    messages = build_messages(engine.state, user_input)
-    render(call_llm(messages))
-else:
-    render(call_llm(user_input))
-```
-
-Controller quick example:
-
-```python
-from context_compiler import (
-    get_decision_state,
-    is_update,
-    create_engine,
-    preview,
-    state_diff,
-    step,
-)
-
-engine = create_engine()
-
-before = engine.state
-dry_run = preview(engine, "prohibit peanuts")
-print(dry_run["would_mutate"])  # True
-planned_change = state_diff(before, dry_run["state_after"])
-print(planned_change["changed"])  # True
-
-after_preview = engine.state
-print(state_diff(before, after_preview)["changed"])  # False (preview does not mutate state)
-
-applied = step(engine, "prohibit peanuts")
-print(is_update(applied["decision"]))  # True
-print(get_decision_state(applied["decision"]) is not None)  # True
-```
-
-## Installation
-
-Requirements:
-- Python 3.11+
-
-Install:
-```bash
-pip install context-compiler
-```
-
-Packaging notes:
-- Base install includes core engine modules and `examples/` artifacts.
-- LLM demos require: `pip install "context-compiler[demos]"`.
-- Optional preprocessor support: `pip install "context-compiler[experimental]"`.
-- Integration-oriented dependency support: `pip install "context-compiler[integrations]"`.
-- LiteLLM Proxy example dependency bundle: `pip install "context-compiler[litellm_proxy]"`.
-- Host runtimes (for example, Open WebUI) are not installed by `integrations`.
-
-### Development
-
-```bash
-uv sync --group dev
-uv run pytest
-```
-
----
-
-## FAQ
-
-**Isn’t this just prompt engineering?**
-It complements prompt engineering, but solves a different problem. Prompting
-shapes model behavior. Context Compiler enforces state rules and updates state
-only through explicit directives.
-
-**Why not just use a plain dict?**
-A plain dict is enough to drive prompt construction, schema selection, and
-other host behavior.
-
-Context Compiler solves a different problem: who updates that state, under what
-rules, and what happens when instructions conflict.
-
-```text
-User: use python_script
-User: prohibit python_script
-```
-
-With a plain dict, the application must invent conflict-resolution rules.
-Context Compiler applies deterministic state-transition rules and can return
-clarification instead of silently overwriting state.
-
----
-
 ## 10-Second Example
 
-User sets a constraint once:
+User sets a premise once:
 
 ```text
-User: prohibit peanuts
+User: set premise current project uses uv
 ```
 
-Outcome: policy state includes `"peanuts": "prohibit"`.
+Outcome: premise state includes `"current project uses uv"`.
 
 Later in the conversation:
 
 ```text
-User: how should I make this curry?
+User: how should I run the tests?
 ```
 
-Your host sends the saved policy state with this later request, so the model is
-constrained by explicit state (`peanuts: prohibit`) instead of relying on memory
-of earlier conversation text.
+Your host sends the saved authoritative state with this later request, so the
+model answers in the context of the saved premise (`current project uses uv`)
+instead of relying on memory of earlier conversation text.
 
 ---
 
@@ -278,6 +143,113 @@ Your app decides whether to call the model based on the returned `Decision`.
 
 ---
 
+## Quickstart
+
+```bash
+pip install context-compiler
+context-compiler
+context-compiler --with-preprocessor
+context-compiler --json < input.txt
+```
+
+`context-compiler` launches the interactive REPL.
+
+`--with-preprocessor` enables the experimental preprocessor before each REPL turn
+(simple rule-based checks plus conservative validation). For near-miss inputs,
+the preprocessor does not rewrite the text. It passes the input to the engine,
+and the engine can return `clarify`.
+
+`--json` enables machine-readable NDJSON output for non-interactive usage
+(one complete JSON object per processed input line).
+
+Preload options keep saved rules separate from in-progress confirmation state:
+- `--initial-state-json` / `--initial-state-file` load saved state
+  (via exported state JSON).
+- `--initial-checkpoint-json` / `--initial-checkpoint-file` restore full
+  continuation checkpoint (saved state + pending confirmation state).
+
+REPL commands (controller layer, not engine directives):
+- `state` shows current saved state.
+- `preview <input>` runs deterministic dry-run without mutating live state.
+- `step <input>` is an explicit alias of normal bare-input step behavior.
+
+Bare REPL input behavior remains unchanged.
+
+Or in code:
+```python
+from context_compiler import (
+    create_engine,
+    get_clarify_prompt,
+    is_clarify,
+    is_update,
+)
+
+engine = create_engine()
+
+user_input = "set premise current project uses uv"
+decision = engine.step(user_input)
+
+if is_clarify(decision):
+    show_to_user(get_clarify_prompt(decision))
+elif is_update(decision):
+    messages = build_messages(engine.state, user_input)
+    render(call_llm(messages))
+else:
+    render(call_llm(user_input))
+```
+
+## Installation
+
+Requirements:
+- Python 3.11+
+
+Install:
+```bash
+pip install context-compiler
+```
+
+Packaging notes:
+- Base install includes core engine modules and `examples/` artifacts.
+- LLM demos require: `pip install "context-compiler[demos]"`.
+- Optional preprocessor support: `pip install "context-compiler[experimental]"`.
+- Integration-oriented dependency support: `pip install "context-compiler[integrations]"`.
+- LiteLLM Proxy example dependency bundle: `pip install "context-compiler[litellm_proxy]"`.
+- Host runtimes (for example, Open WebUI) are not installed by `integrations`.
+
+### Development
+
+```bash
+uv sync --group dev
+uv run pytest
+```
+
+---
+
+## FAQ
+
+**Isn’t this just prompt engineering?**
+It complements prompt engineering, but solves a different problem. Prompting
+shapes model behavior. Context Compiler enforces state rules and updates state
+only through explicit directives.
+
+**Why not just use a plain dict?**
+A plain dict is enough to drive prompt construction, schema selection, and
+other host behavior.
+
+Context Compiler solves a different problem: who updates that state, under what
+rules, and what happens when instructions conflict.
+
+```text
+User: use python_script
+User: prohibit python_script
+```
+
+With a plain dict, the application must invent conflict-resolution rules.
+Context Compiler applies deterministic state-transition rules and can return
+clarification instead of silently overwriting state.
+
+---
+
 ## Decision API
 
 Each user message produces a `Decision`.
@@ -327,6 +299,34 @@ instead of direct key traversal.
 These controller APIs are public package exports and can be used directly
 in app code (not just inside the REPL).
 
+Controller quick example:
+
+```python
+from context_compiler import (
+    get_decision_state,
+    is_update,
+    create_engine,
+    preview,
+    state_diff,
+    step,
+)
+
+engine = create_engine()
+
+before = engine.state
+dry_run = preview(engine, "prohibit peanuts")
+print(dry_run["would_mutate"])  # True
+planned_change = state_diff(before, dry_run["state_after"])
+print(planned_change["changed"])  # True
+
+after_preview = engine.state
+print(state_diff(before, after_preview)["changed"])  # False (preview does not mutate state)
+
+applied = step(engine, "prohibit peanuts")
+print(is_update(applied["decision"]))  # True
+print(get_decision_state(applied["decision"]) is not None)  # True
+```
+
 | API | Description |
 |---|---|
 | `step(engine, user_input)` | Run one turn through the engine and return `StepResult` (`output_version`, `mode`, `decision`, `state`). |
@@ -353,7 +353,14 @@ Policy value constants are exported for explicit policy comparisons:
 
 ## State Model
 
-The compiler keeps a current state snapshot that your app can trust.
+The state model represents explicit user commitments that the host can treat as
+authoritative for future turns.
+
+- `premise` = authoritative context that changes how future answers should be interpreted
+- `use` = affirmative selection or preference
+- `prohibit` = explicit exclusion
+
+The compiler keeps this state snapshot in a form that your app can trust.
 
 - Premise is a single value that can be set or replaced
 - Policies are per-item (`use` or `prohibit`)
@@ -365,6 +372,46 @@ Identical input sequences always produce identical state.
 The internal structure of the state is intentionally opaque to host applications.
 For normal reads, prefer `get_premise_value(state)` and
 `get_policy_items(state, ...)` over direct key traversal.
+
+---
+
+### When to use `premise`
+
+The `premise` is intended for **persistent context that changes how all answers should be interpreted**, especially when it:
+
+- applies across many turns
+- significantly changes what solutions are valid
+- cannot be fully captured as simple `use` / `prohibit` policies
+
+Examples:
+
+- “Current medications: …”
+- “Outdoor event; no seating available”
+- “GDPR data handling requirements apply”
+- “System is deployed across multiple regions”
+- “Limited time available”
+
+In these cases, the premise acts as an **authoritative context anchor** that the host supplies to the model on every turn.
+
+Use policies instead when the constraint is explicit and enforceable:
+
+- “prohibit foods that may cause GI upset”
+- “use handheld foods”
+- “prohibit storing personal data beyond immediate use”
+- “prohibit introducing new external dependencies”
+- “use single-step preparation methods”
+
+### Example domains
+
+Hosts define what policy items and premise mean in context. Common patterns:
+
+- safety-oriented constraints (for example, prohibited materials or tools)
+- authority/evidence constraints (for example, cite only approved sources)
+- software workflow constraints (for example, require `uv`, prohibit `npm`)
+- accessibility/environment constraints (for example, no audio-only outputs)
+
+Context Compiler enforces explicit directive/state mechanics. Domain reasoning
+still belongs to the host and model workflow.
 
 ---
 
@@ -424,46 +471,6 @@ When to use checkpoint APIs:
 
 ---
 
-### When to use `premise`
-
-The `premise` is intended for **persistent context that changes how all answers should be interpreted**, especially when it:
-
-- applies across many turns
-- significantly changes what solutions are valid
-- cannot be fully captured as simple `use` / `prohibit` policies
-
-Examples:
-
-- “Current medications: …”
-- “Outdoor event; no seating available”
-- “GDPR data handling requirements apply”
-- “System is deployed across multiple regions”
-- “Limited time available”
-
-In these cases, the premise acts as an **authoritative context anchor** that the host supplies to the model on every turn.
-
-Use policies instead when the constraint is explicit and enforceable:
-
-- “prohibit foods that may cause GI upset”
-- “use handheld foods”
-- “prohibit storing personal data beyond immediate use”
-- “prohibit introducing new external dependencies”
-- “use single-step preparation methods”
-
-### Example domains
-
-Hosts define what policy items and premise mean in context. Common patterns:
-
-- safety-oriented constraints (for example, prohibited materials or tools)
-- authority/evidence constraints (for example, cite only approved sources)
-- software workflow constraints (for example, require `uv`, prohibit `npm`)
-- accessibility/environment constraints (for example, no audio-only outputs)
-
-Context Compiler enforces explicit directive/state mechanics. Domain reasoning
-still belongs to the host and model workflow.
-
----
-
 ## Directive Examples
 
 Set and change premise:
@@ -512,7 +519,9 @@ those turns to the downstream LLM.
 
 ---
 
-## Guarantees
+## Advanced topics
+
+### Guarantees
 
 - State changes only through explicit user directives or confirmation.
 - Identical input sequences produce identical compiler state.
@@ -521,9 +530,7 @@ those turns to the downstream LLM.
 
 These invariants are verified through behavioral tests and Hypothesis-based property tests.
 
----
-
-## Optional: LLM Preprocessor (Experimental)
+### Optional: LLM Preprocessor (Experimental)
 
 An optional host-side preprocessor can conservatively convert some natural-language instructions
 into canonical directives before compilation.
@@ -541,8 +548,7 @@ Boundary policy is false-negative-preferred: abstain rather than risk unsafe sta
 See [LLM preprocessor](docs/llm-preprocessor.md) and
 [`experimental/preprocessor/`](experimental/preprocessor/) for details.
 
-
-## Advanced topics
+### Multiple engines
 
 - [Multiple engines](docs/multi-engine.md)
 
@@ -550,22 +556,18 @@ For a full documentation map, see [docs/README.md](docs/README.md).
 
 ---
 
-## Design Rationale
-
-- [Design philosophy](docs/DesignPhilosophy.md)
-
----
-
 ## Design Notes
 
 More detailed design and milestone documents are available in:
 
+- [Design philosophy](docs/DesignPhilosophy.md)
+- [Architecture boundaries](docs/architecture.md)
 - [Project overview](docs/DescriptionAndMilestones.md)
 - [Directive grammar specification](docs/DirectiveGrammarSpec.md)
 
 ---
 
-## Conformance Fixtures
+### Conformance Fixtures
 
 Cross-language conformance tests are defined in [`tests/fixtures/`](tests/fixtures/).
 These fixtures serve as the behavioral contract for compiler semantics across implementations.

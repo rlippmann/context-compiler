@@ -6,8 +6,9 @@ They compare normal prompting with an approach where the application tracks
 important instructions explicitly instead of relying only on the conversation
 history. The scripts are designed to produce consistent results so the
 behavior is easy to see.
-This demo set shows what users notice: rules and corrections can keep applying
-later in the conversation, and where your app needs explicit state rules.
+This demo set shows what users notice: saved authoritative state continues to
+affect later turns, and where your app needs deterministic state-transition
+rules.
 
 Scored demos now compare four paths:
 - baseline
@@ -19,15 +20,15 @@ Scored demos now compare four paths:
 
 | Demo | Behavior | Concept | Most visible with |
 | :--: | --- | :--: | --- |
+| [03](./03_llm_premise_guardrail.py) | Premise updates stay authoritative | fixed, repeatable premise updates | models that summarize conversation |
 | [01](./01_llm_contradiction_clarify.py) | Contradiction blocking | clarification gate | small instruct models |
-| [02](./02_llm_constraint_guardrail.py) | Rules stop applying over time | persistent policy enforcement | small or quantized models |
-| [03](./03_llm_premise_guardrail.py) | Premise updates stop sticking | fixed, repeatable premise updates | models that summarize conversation |
-| [04](./04_llm_tool_denylist_guardrail.py) | Tool governance | host-side denylist | general assistant models |
-| [05](./05_llm_prompt_drift_vs_state.py) | Prompt drift | long transcript failure | weaker long-context models ([see Demo 5 note](#demo-5-stress-ladder-turns)) |
-| [06](./06_llm_context_compaction.py) | Context compaction | saved compiler state replacing transcript context | small or local models |
-| [07](./07_llm_prompt_vs_state.py) | Prompt engineering comparison | prompting vs saved compiler state | any model with long transcript sensitivity |
 | [08](./08_llm_replacement_precondition.py) | Replacement precondition | invalid replacement blocked without state mutation | any model |
 | [09](./09_llm_pending_clarification.py) | Pending clarification continuation | confirmation-only resolution of suspended mutation | any model |
+| [06](./06_llm_context_compaction.py) | Context compaction | saved compiler state replacing transcript context | small or local models |
+| [07](./07_llm_prompt_vs_state.py) | Prompt engineering comparison | prompting vs saved compiler state | any model with long transcript sensitivity |
+| [02](./02_llm_constraint_guardrail.py) | Policy state stays active across turns | authoritative policy state | small or quantized models |
+| [04](./04_llm_tool_denylist_guardrail.py) | Tool governance | application-layer tool gating from saved state | general assistant models |
+| [05](./05_llm_prompt_drift_vs_state.py) | Prompt drift | long transcript failure | weaker long-context models ([see Demo 5 note](#demo-5-stress-ladder-turns)) |
 
 Stronger frontier models may show these behaviors less often, but the same
 patterns still appear in real applications.
