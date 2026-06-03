@@ -6,7 +6,14 @@ from experimental.preprocessor.output_validation import parse_preprocessor_outpu
 
 from . import __version__, create_engine, get_policy_items, get_premise_value
 from .const import DECISION_CLARIFY, DECISION_PASSTHROUGH
-from .controller import OUTPUT_VERSION, PreviewResult, StepResult
+from .controller import (
+    OUTPUT_VERSION,
+    PreviewResult,
+    StepResult,
+    get_preview_decision,
+    get_step_decision,
+    preview_would_mutate,
+)
 from .controller import preview as controller_preview
 from .controller import step as controller_step
 from .engine import Decision, DecisionKind, Engine, State
@@ -125,7 +132,7 @@ def _print_decision_lines(decision: Decision, out_stream: TextIO, *, leading_bla
 
 def _render_diff_lines(preview_result: PreviewResult) -> list[str]:
     diff = preview_result["diff"]
-    lines = [f"would_mutate: {'yes' if preview_result['would_mutate'] else 'no'}", "diff:"]
+    lines = [f"would_mutate: {'yes' if preview_would_mutate(preview_result) else 'no'}", "diff:"]
 
     premise = diff["premise"]
     if premise["changed"]:
@@ -156,7 +163,7 @@ def _print_preview_lines(
     if leading_blank:
         print("", file=out_stream)
     print(command_name, file=out_stream)
-    for line in _render_decision_lines(preview_result["decision"]):
+    for line in _render_decision_lines(get_preview_decision(preview_result)):
         print(line, file=out_stream)
     for line in _render_diff_lines(preview_result):
         print(line, file=out_stream)
@@ -364,7 +371,7 @@ def run_repl(
                         payload, active_engine, use_preprocessor=use_preprocessor
                     )
                     result: StepResult = controller_step(active_engine, compile_input)
-                    _print_decision_lines(result["decision"], out_stream, leading_blank=True)
+                    _print_decision_lines(get_step_decision(result), out_stream, leading_blank=True)
                     continue
 
             preview_command = None
@@ -399,7 +406,7 @@ def run_repl(
                 user_input, active_engine, use_preprocessor=use_preprocessor
             )
             result = controller_step(active_engine, compile_input)
-            _print_decision_lines(result["decision"], out_stream, leading_blank=True)
+            _print_decision_lines(get_step_decision(result), out_stream, leading_blank=True)
         return
 
     for line in in_stream:
@@ -475,7 +482,9 @@ def run_repl(
                 if json_mode:
                     _write_json_line(out_stream, _json_step_payload(result, command="step"))
                 else:
-                    _print_decision_lines(result["decision"], out_stream, leading_blank=False)
+                    _print_decision_lines(
+                        get_step_decision(result), out_stream, leading_blank=False
+                    )
                 continue
 
         preview_command = None
@@ -526,7 +535,7 @@ def run_repl(
         if json_mode:
             _write_json_line(out_stream, _json_step_payload(result, command="input"))
         else:
-            _print_decision_lines(result["decision"], out_stream, leading_blank=False)
+            _print_decision_lines(get_step_decision(result), out_stream, leading_blank=False)
 
 
 def main() -> int:  # pragma: no cover
