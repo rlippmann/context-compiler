@@ -69,17 +69,17 @@ Out of scope:
 ## Composition Layer
 
 Responsibilities:
-- combine outputs from multiple authorities
-- track provenance and resolve conflicts across authorities
-- coordinate host behavior across multiple authorities
+- coordinate multiple authority instances when a host uses them
+- decide which authority outputs apply to a request
 
 Examples:
-- host-owned coordination that merges multiple state authorities
-- provenance-aware conflict handling across authority outputs
+- separate project contexts
+- separate user profiles
+- independent authority instances
 
 Out of scope:
 - current Context Compiler core behavior
-- any implied built-in coordinator semantics today
+- built-in coordination behavior
 
 The preprocessor belongs to the Acquisition Layer. It is optional,
 conservative, and never the source of truth. Context Compiler core belongs to

@@ -6,9 +6,9 @@ They compare normal prompting with an approach where the application tracks
 important instructions explicitly instead of relying only on the conversation
 history. The scripts are designed to produce consistent results so the
 behavior is easy to see.
-This demo set shows what users notice: saved authoritative state and explicit
-corrections continue to affect later turns, and where your app needs
-deterministic state-transition rules.
+This demo set shows what users notice: saved authoritative state continues to
+affect later turns, and where your app needs deterministic state-transition
+rules.
 
 Scored demos now compare four paths:
 - baseline
