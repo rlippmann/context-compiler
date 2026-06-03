@@ -4,6 +4,7 @@
 - [Project README](../README.md)
 
 ## Core Concepts
+- [Architecture boundaries](architecture.md)
 - [Directive Grammar (exact command forms the engine accepts)](DirectiveGrammarSpec.md)
 
 ## Integrations

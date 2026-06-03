@@ -112,7 +112,7 @@ from context_compiler import (
 
 engine = create_engine()
 
-user_input = "prohibit peanuts"
+user_input = "set premise current project uses uv"
 decision = engine.step(user_input)
 
 if is_clarify(decision):
@@ -206,23 +206,23 @@ clarification instead of silently overwriting state.
 
 ## 10-Second Example
 
-User sets a constraint once:
+User sets a premise once:
 
 ```text
-User: prohibit peanuts
+User: set premise current project uses uv
 ```
 
-Outcome: policy state includes `"peanuts": "prohibit"`.
+Outcome: premise state includes `"current project uses uv"`.
 
 Later in the conversation:
 
 ```text
-User: how should I make this curry?
+User: how should I run the tests?
 ```
 
-Your host sends the saved policy state with this later request, so the model is
-constrained by explicit state (`peanuts: prohibit`) instead of relying on memory
-of earlier conversation text.
+Your host sends the saved authoritative state with this later request, so the
+model answers in the context of the saved premise (`current project uses uv`)
+instead of relying on memory of earlier conversation text.
 
 ---
 
@@ -353,7 +353,14 @@ Policy value constants are exported for explicit policy comparisons:
 
 ## State Model
 
-The compiler keeps a current state snapshot that your app can trust.
+The state model represents explicit user commitments that the host can treat as
+authoritative for future turns.
+
+- `premise` = authoritative context that changes how future answers should be interpreted
+- `use` = affirmative selection or preference
+- `prohibit` = explicit exclusion
+
+The compiler keeps this state snapshot in a form that your app can trust.
 
 - Premise is a single value that can be set or replaced
 - Policies are per-item (`use` or `prohibit`)
@@ -365,6 +372,46 @@ Identical input sequences always produce identical state.
 The internal structure of the state is intentionally opaque to host applications.
 For normal reads, prefer `get_premise_value(state)` and
 `get_policy_items(state, ...)` over direct key traversal.
+
+---
+
+### When to use `premise`
+
+The `premise` is intended for **persistent context that changes how all answers should be interpreted**, especially when it:
+
+- applies across many turns
+- significantly changes what solutions are valid
+- cannot be fully captured as simple `use` / `prohibit` policies
+
+Examples:
+
+- “Current medications: …”
+- “Outdoor event; no seating available”
+- “GDPR data handling requirements apply”
+- “System is deployed across multiple regions”
+- “Limited time available”
+
+In these cases, the premise acts as an **authoritative context anchor** that the host supplies to the model on every turn.
+
+Use policies instead when the constraint is explicit and enforceable:
+
+- “prohibit foods that may cause GI upset”
+- “use handheld foods”
+- “prohibit storing personal data beyond immediate use”
+- “prohibit introducing new external dependencies”
+- “use single-step preparation methods”
+
+### Example domains
+
+Hosts define what policy items and premise mean in context. Common patterns:
+
+- safety-oriented constraints (for example, prohibited materials or tools)
+- authority/evidence constraints (for example, cite only approved sources)
+- software workflow constraints (for example, require `uv`, prohibit `npm`)
+- accessibility/environment constraints (for example, no audio-only outputs)
+
+Context Compiler enforces explicit directive/state mechanics. Domain reasoning
+still belongs to the host and model workflow.
 
 ---
 
@@ -421,46 +468,6 @@ When to use checkpoint APIs:
 - stateless host/integration boundaries where engine instances are short-lived.
 - resume after interruption without losing pending clarification flow.
 - preserve pending confirmation flow state (`pending`) across process/request boundaries.
-
----
-
-### When to use `premise`
-
-The `premise` is intended for **persistent context that changes how all answers should be interpreted**, especially when it:
-
-- applies across many turns
-- significantly changes what solutions are valid
-- cannot be fully captured as simple `use` / `prohibit` policies
-
-Examples:
-
-- “Current medications: …”
-- “Outdoor event; no seating available”
-- “GDPR data handling requirements apply”
-- “System is deployed across multiple regions”
-- “Limited time available”
-
-In these cases, the premise acts as an **authoritative context anchor** that the host supplies to the model on every turn.
-
-Use policies instead when the constraint is explicit and enforceable:
-
-- “prohibit foods that may cause GI upset”
-- “use handheld foods”
-- “prohibit storing personal data beyond immediate use”
-- “prohibit introducing new external dependencies”
-- “use single-step preparation methods”
-
-### Example domains
-
-Hosts define what policy items and premise mean in context. Common patterns:
-
-- safety-oriented constraints (for example, prohibited materials or tools)
-- authority/evidence constraints (for example, cite only approved sources)
-- software workflow constraints (for example, require `uv`, prohibit `npm`)
-- accessibility/environment constraints (for example, no audio-only outputs)
-
-Context Compiler enforces explicit directive/state mechanics. Domain reasoning
-still belongs to the host and model workflow.
 
 ---
 
@@ -560,6 +567,7 @@ For a full documentation map, see [docs/README.md](docs/README.md).
 
 More detailed design and milestone documents are available in:
 
+- [Architecture boundaries](docs/architecture.md)
 - [Project overview](docs/DescriptionAndMilestones.md)
 - [Directive grammar specification](docs/DirectiveGrammarSpec.md)
 

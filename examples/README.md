@@ -7,12 +7,12 @@ Non-integration example files in this directory are standalone scripts and can b
 
 ## 01_persistent_guardrails.py
 
-Shows how a prohibition stays in saved state across later turns.  
-Shows the app sending saved state so the rule keeps applying.
+Shows how explicit policy state stays authoritative across later turns.  
+Shows the app sending saved state so later answers are interpreted in that context.
 
 ## 02_configuration_and_correction.py
 
-Demonstrates explicit premise lifecycle in 0.5.  
+Demonstrates premise as authoritative context for future turns.  
 Shows `set premise ...` followed by `change premise to ...`.
 
 ## 03_ambiguity_with_clarification.py
@@ -20,10 +20,11 @@ Shows `set premise ...` followed by `change premise to ...`.
 Shows `clarify` behavior before state changes.  
 Shows how the app handles `clarify` and skips the LLM call.
 
-## 04_tool_governance_denylist.py
+## 08_controller_preview_diff.py
 
-Shows tool-governance policy handling via `prohibit ...` directives.  
-Shows how apps can prevent denied tools from being selected.
+Shows controller-layer dry-run behavior with `preview(engine, user_input)`.  
+Shows structural state inspection with `state_diff(state_before, state_after)`.  
+Shows `step(engine, user_input)` after preview to apply the same input.
 
 ## 05_llm_integration_pattern.py
 
@@ -41,8 +42,7 @@ Shows `compile_transcript(messages)` from a fresh engine and `engine.apply_trans
 Demonstrates explicit single-policy correction without `reset policies`.  
 Shows `prohibit peanuts` -> `remove policy peanuts` -> `use peanuts`.
 
-## 08_controller_preview_diff.py
+## 04_tool_governance_denylist.py
 
-Shows controller-layer dry-run behavior with `preview(engine, user_input)`.  
-Shows structural state inspection with `state_diff(state_before, state_after)`.  
-Shows `step(engine, user_input)` after preview to apply the same input.
+Shows an application-layer use of authoritative policy state for tool selection.  
+Shows how apps can prevent denied tools from being selected without changing compiler identity.
