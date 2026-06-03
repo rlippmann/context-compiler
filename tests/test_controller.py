@@ -3,7 +3,15 @@ from pathlib import Path
 
 import pytest
 
-from context_compiler import create_engine
+from context_compiler import (
+    create_engine,
+    diff_has_changes,
+    get_preview_decision,
+    get_preview_state_after,
+    get_step_decision,
+    get_step_state,
+    preview_would_mutate,
+)
 from context_compiler.controller import preview, state_diff, step
 
 _CONTROLLER_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "controller"
@@ -196,6 +204,31 @@ def test_controller_result_surface_contract_stability() -> None:
     assert preview_result["output_version"] == 1
     assert preview_result["mode"] == "preview"
     assert preview_result["would_mutate"] is preview_result["diff"]["changed"]
+
+
+def test_controller_helpers_match_public_result_keys() -> None:
+    engine = create_engine()
+
+    step_result = step(engine, "set premise concise replies")
+    assert get_step_decision(step_result) is step_result["decision"]
+    assert get_step_state(step_result) == step_result["state"]
+
+    preview_result = preview(engine, "use docker")
+    assert get_preview_decision(preview_result) is preview_result["decision"]
+    assert get_preview_state_after(preview_result) == preview_result["state_after"]
+    assert preview_would_mutate(preview_result) is preview_result["would_mutate"]
+
+    diff = state_diff(preview_result["state_before"], preview_result["state_after"])
+    assert diff_has_changes(diff) is diff["changed"]
+
+
+def test_controller_helpers_are_importable_from_package_root() -> None:
+    assert callable(get_step_decision)
+    assert callable(get_step_state)
+    assert callable(get_preview_decision)
+    assert callable(get_preview_state_after)
+    assert callable(preview_would_mutate)
+    assert callable(diff_has_changes)
 
 
 @pytest.mark.parametrize(
