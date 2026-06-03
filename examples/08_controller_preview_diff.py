@@ -2,7 +2,17 @@
 
 from _util import print_decision_summary, print_state_summary
 
-from context_compiler import create_engine, preview, state_diff, step
+from context_compiler import (
+    create_engine,
+    diff_has_changes,
+    get_preview_decision,
+    get_step_decision,
+    get_step_state,
+    preview,
+    preview_would_mutate,
+    state_diff,
+    step,
+)
 
 
 def main() -> None:
@@ -13,17 +23,17 @@ def main() -> None:
 
     print("\nPreview: prohibit peanuts")
     preview_result = preview(engine, "prohibit peanuts")
-    print("would_mutate:", preview_result["would_mutate"])
-    print_decision_summary(preview_result["decision"])
+    print("would_mutate:", preview_would_mutate(preview_result))
+    print_decision_summary(get_preview_decision(preview_result))
 
     state_after_preview = engine.state
     diff_after_preview = state_diff(state_before, state_after_preview)
-    print("state changed after preview:", diff_after_preview["changed"])
+    print("state changed after preview:", diff_has_changes(diff_after_preview))
 
     print("\nApply: prohibit peanuts")
     step_result = step(engine, "prohibit peanuts")
-    print_decision_summary(step_result["decision"])
-    print_state_summary(step_result["state"], "state after step")
+    print_decision_summary(get_step_decision(step_result))
+    print_state_summary(get_step_state(step_result), "state after step")
 
 
 if __name__ == "__main__":

@@ -47,6 +47,30 @@ class PreviewResult(TypedDict):
     would_mutate: bool
 
 
+def get_step_decision(step_result: StepResult) -> Decision:
+    return step_result["decision"]
+
+
+def get_step_state(step_result: StepResult) -> State:
+    return step_result["state"]
+
+
+def get_preview_decision(preview_result: PreviewResult) -> Decision:
+    return preview_result["decision"]
+
+
+def get_preview_state_after(preview_result: PreviewResult) -> State:
+    return preview_result["state_after"]
+
+
+def preview_would_mutate(preview_result: PreviewResult) -> bool:
+    return preview_result["would_mutate"]
+
+
+def diff_has_changes(diff: StructuralDiff) -> bool:
+    return diff["changed"]
+
+
 def state_diff(before: State, after: State) -> StructuralDiff:
     before_premise = before["premise"]
     after_premise = after["premise"]

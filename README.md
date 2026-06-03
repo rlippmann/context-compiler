@@ -303,10 +303,14 @@ Controller quick example:
 
 ```python
 from context_compiler import (
-    get_decision_state,
+    diff_has_changes,
+    get_step_decision,
+    get_step_state,
     is_update,
+    get_preview_state_after,
     create_engine,
     preview,
+    preview_would_mutate,
     state_diff,
     step,
 )
@@ -315,16 +319,16 @@ engine = create_engine()
 
 before = engine.state
 dry_run = preview(engine, "prohibit peanuts")
-print(dry_run["would_mutate"])  # True
-planned_change = state_diff(before, dry_run["state_after"])
-print(planned_change["changed"])  # True
+print(preview_would_mutate(dry_run))  # True
+planned_change = state_diff(before, get_preview_state_after(dry_run))
+print(diff_has_changes(planned_change))  # True
 
 after_preview = engine.state
-print(state_diff(before, after_preview)["changed"])  # False (preview does not mutate state)
+print(diff_has_changes(state_diff(before, after_preview)))  # False (preview does not mutate state)
 
 applied = step(engine, "prohibit peanuts")
-print(is_update(applied["decision"]))  # True
-print(get_decision_state(applied["decision"]) is not None)  # True
+print(is_update(get_step_decision(applied)))  # True
+print(get_step_state(applied) is not None)  # True
 ```
 
 | API | Description |
