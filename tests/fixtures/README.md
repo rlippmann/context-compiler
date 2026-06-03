@@ -21,6 +21,15 @@ Ports should check equivalent public exports and methods using language-appropri
 
 Behavioral semantics remain covered by conformance and structured fixtures.
 
+The API presence contract includes the public controller helper accessors:
+
+* `get_step_decision`
+* `get_step_state`
+* `get_preview_decision`
+* `get_preview_state_after`
+* `preview_would_mutate`
+* `diff_has_changes`
+
 ## Step fixtures
 
 For [`conformance/step/`](conformance/step/):
@@ -84,6 +93,8 @@ Portable controller contract coverage for:
 * `state_diff(state_before, state_after)` deterministic structural diff output
 
 These fixtures keep a minimal, language-neutral contract matrix for controller APIs.
+They intentionally validate the raw controller result envelopes; helper accessors
+are covered separately by the public API presence contract above.
 
 ## Source of truth
 
