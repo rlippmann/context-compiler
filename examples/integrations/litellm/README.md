@@ -200,7 +200,11 @@ Decision flow in `response_format.py`:
 
 ```shell
 export RUN_LITELLM_SMOKE=1
-export OPENAI_API_KEY=...
-export MODEL=openai/gpt-4o-mini
+export PROVIDER=ollama
+export MODEL=ollama/qwen2.5:1.5b-instruct
 uv run python examples/integrations/litellm/response_format.py
 ```
+
+For local Ollama smoke runs in this repo, `PROVIDER=ollama` is required. A
+`MODEL=ollama/...` value by itself still follows the default OpenAI provider
+path.
