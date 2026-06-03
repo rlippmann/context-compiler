@@ -69,6 +69,80 @@ Interpretation guide:
 → [Full results and demo output](demos/README.md)
 Canonical matrix: [docs/demos-results.md](docs/demos-results.md)
 
+## 10-Second Example
+
+User sets a premise once:
+
+```text
+User: set premise current project uses uv
+```
+
+Outcome: premise state includes `"current project uses uv"`.
+
+Later in the conversation:
+
+```text
+User: how should I run the tests?
+```
+
+Your host sends the saved authoritative state with this later request, so the
+model answers in the context of the saved premise (`current project uses uv`)
+instead of relying on memory of earlier conversation text.
+
+---
+
+## Deterministic behavior (examples)
+
+Context Compiler makes mutation rules explicit so behavior stays repeatable.
+
+**Explicit directive**
+```text
+set premise concise replies
+```
+- Base model: silently accepts / rewrites
+- Context Compiler: applies a repeatable state update
+
+**State-dependent operation**
+```text
+clear state
+use podman instead of docker
+```
+- Without explicit state transition rules: behavior depends on host/model handling
+- Context Compiler: returns `clarify` before changing state
+
+**Lifecycle enforcement**
+```text
+clear state
+change premise to formal tone
+```
+- Without explicit transition checks: behavior depends on host/model handling
+- Context Compiler: asks for clarification and keeps saved state unchanged
+
+---
+
+## Architecture
+
+```text
+User Input
+     │
+     ▼
+Context Compiler
+     │
+     ▼
+Decision
+     │
+     ▼
+Host Application
+ ├─ clarify → ask user
+ ├─ passthrough → call LLM
+ └─ update → authoritative state mutated; host may call LLM with compiled state
+```
+
+The compiler owns state updates and never calls the LLM.
+Your app decides whether to call the model based on the returned `Decision`.
+
+---
+
 ## Quickstart
 
 ```bash
@@ -201,80 +275,6 @@ User: prohibit python_script
 With a plain dict, the application must invent conflict-resolution rules.
 Context Compiler applies deterministic state-transition rules and can return
 clarification instead of silently overwriting state.
-
----
-
-## 10-Second Example
-
-User sets a premise once:
-
-```text
-User: set premise current project uses uv
-```
-
-Outcome: premise state includes `"current project uses uv"`.
-
-Later in the conversation:
-
-```text
-User: how should I run the tests?
-```
-
-Your host sends the saved authoritative state with this later request, so the
-model answers in the context of the saved premise (`current project uses uv`)
-instead of relying on memory of earlier conversation text.
-
----
-
-## Deterministic behavior (examples)
-
-Context Compiler makes mutation rules explicit so behavior stays repeatable.
-
-**Explicit directive**
-```text
-set premise concise replies
-```
-- Base model: silently accepts / rewrites
-- Context Compiler: applies a repeatable state update
-
-**State-dependent operation**
-```text
-clear state
-use podman instead of docker
-```
-- Without explicit state transition rules: behavior depends on host/model handling
-- Context Compiler: returns `clarify` before changing state
-
-**Lifecycle enforcement**
-```text
-clear state
-change premise to formal tone
-```
-- Without explicit transition checks: behavior depends on host/model handling
-- Context Compiler: asks for clarification and keeps saved state unchanged
-
----
-
-## Architecture
-
-```text
-User Input
-     │
-     ▼
-Context Compiler
-     │
-     ▼
-Decision
-     │
-     ▼
-Host Application
- ├─ clarify → ask user
- ├─ passthrough → call LLM
- └─ update → authoritative state mutated; host may call LLM with compiled state
-```
-
-The compiler owns state updates and never calls the LLM.
-Your app decides whether to call the model based on the returned `Decision`.
 
 ---
 
@@ -519,7 +519,9 @@ those turns to the downstream LLM.
 
 ---
 
-## Guarantees
+## Advanced topics
+
+### Guarantees
 
 - State changes only through explicit user directives or confirmation.
 - Identical input sequences produce identical compiler state.
@@ -528,9 +530,7 @@ those turns to the downstream LLM.
 
 These invariants are verified through behavioral tests and Hypothesis-based property tests.
 
----
-
-## Optional: LLM Preprocessor (Experimental)
+### Optional: LLM Preprocessor (Experimental)
 
 An optional host-side preprocessor can conservatively convert some natural-language instructions
 into canonical directives before compilation.
@@ -549,17 +549,9 @@ See [LLM preprocessor](docs/llm-preprocessor.md) and
 [`experimental/preprocessor/`](experimental/preprocessor/) for details.
 
 
-## Advanced topics
-
 - [Multiple engines](docs/multi-engine.md)
 
 For a full documentation map, see [docs/README.md](docs/README.md).
-
----
-
-## Design Rationale
-
-- [Design philosophy](docs/DesignPhilosophy.md)
 
 ---
 
@@ -567,13 +559,14 @@ For a full documentation map, see [docs/README.md](docs/README.md).
 
 More detailed design and milestone documents are available in:
 
+- [Design philosophy](docs/DesignPhilosophy.md)
 - [Architecture boundaries](docs/architecture.md)
 - [Project overview](docs/DescriptionAndMilestones.md)
 - [Directive grammar specification](docs/DirectiveGrammarSpec.md)
 
 ---
 
-## Conformance Fixtures
+### Conformance Fixtures
 
 Cross-language conformance tests are defined in [`tests/fixtures/`](tests/fixtures/).
 These fixtures serve as the behavioral contract for compiler semantics across implementations.
