@@ -206,6 +206,7 @@ def test_controller_result_surface_contract_stability() -> None:
     assert preview_result["would_mutate"] is preview_result["diff"]["changed"]
 
 
+@pytest.mark.contract
 def test_controller_helpers_match_public_result_keys() -> None:
     engine = create_engine()
 
