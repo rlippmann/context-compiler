@@ -6,7 +6,7 @@
 
 Some behaviors require explicit host-side state handling.
 
-Context Compiler is a deterministic host-side state layer for LLM applications.
+Context Compiler is a deterministic conversational state authority for LLM applications.
 It applies explicit premise and policy updates so state changes stay fixed and
 repeatable.
 
@@ -198,34 +198,6 @@ else:
     render(call_llm(user_input))
 ```
 
-Controller quick example:
-
-```python
-from context_compiler import (
-    get_decision_state,
-    is_update,
-    create_engine,
-    preview,
-    state_diff,
-    step,
-)
-
-engine = create_engine()
-
-before = engine.state
-dry_run = preview(engine, "prohibit peanuts")
-print(dry_run["would_mutate"])  # True
-planned_change = state_diff(before, dry_run["state_after"])
-print(planned_change["changed"])  # True
-
-after_preview = engine.state
-print(state_diff(before, after_preview)["changed"])  # False (preview does not mutate state)
-
-applied = step(engine, "prohibit peanuts")
-print(is_update(applied["decision"]))  # True
-print(get_decision_state(applied["decision"]) is not None)  # True
-```
-
 ## Installation
 
 Requirements:
@@ -326,6 +298,34 @@ instead of direct key traversal.
 
 These controller APIs are public package exports and can be used directly
 in app code (not just inside the REPL).
+
+Controller quick example:
+
+```python
+from context_compiler import (
+    get_decision_state,
+    is_update,
+    create_engine,
+    preview,
+    state_diff,
+    step,
+)
+
+engine = create_engine()
+
+before = engine.state
+dry_run = preview(engine, "prohibit peanuts")
+print(dry_run["would_mutate"])  # True
+planned_change = state_diff(before, dry_run["state_after"])
+print(planned_change["changed"])  # True
+
+after_preview = engine.state
+print(state_diff(before, after_preview)["changed"])  # False (preview does not mutate state)
+
+applied = step(engine, "prohibit peanuts")
+print(is_update(applied["decision"]))  # True
+print(get_decision_state(applied["decision"]) is not None)  # True
+```
 
 | API | Description |
 |---|---|
@@ -548,6 +548,7 @@ Boundary policy is false-negative-preferred: abstain rather than risk unsafe sta
 See [LLM preprocessor](docs/llm-preprocessor.md) and
 [`experimental/preprocessor/`](experimental/preprocessor/) for details.
 
+### Multiple engines
 
 - [Multiple engines](docs/multi-engine.md)
 
