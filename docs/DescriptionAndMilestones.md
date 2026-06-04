@@ -26,6 +26,8 @@ The state engine is the source of truth and is model-independent.
 Model output is never interpreted to derive or modify state.
 All state transitions originate from explicit user directives.
 
+Context Compiler remains deterministic conversational state authority.
+
 Behavioral details are defined in `docs/DirectiveGrammarSpec.md`.
 
 ## Project Milestones
@@ -127,12 +129,109 @@ Make engine behavior inspectable and externally controllable without guessing.
 - No heuristic-heavy parsing
 - Preserve separation between engine, preprocessor, and host/controller layers
 
-### Post-0.7 Direction
+### 0.8 — Architectural Decomposition (approved direction)
 
-- 0.8 candidate direction: model-assisted state suggestions (inspectable, previewable,
-  and never directly mutating authoritative state)
-- MCP adapter likely as a separate/later track after 0.8 direction is clearer
-- Optional 0.7.1 MCP-readiness helpers only if narrowly justified
+The approved 0.8 direction is to document and preserve the architectural
+decomposition that has emerged around the current engine and experimental
+preprocessor work. Behavior is expected to be preserved initially rather than
+redesigned.
+
+#### Authority Layer
+
+Context Compiler core remains the Authority Layer and continues to serve as
+deterministic conversational state authority.
+
+Responsibilities:
+
+- deterministic state transitions
+- contradiction handling
+- clarification handling
+- pending confirmation flows
+- checkpoints
+- preview/diff
+- authoritative state ownership
+
+The Authority Layer remains the only layer that applies directives and the only
+layer that mutates authoritative state.
+
+#### Acquisition Layer
+
+The current experimental preprocessor direction belongs to the Acquisition
+Layer.
+
+Planned 0.8 extraction target:
+`context-compiler-directive-drafter`
+
+Responsibilities:
+
+- directive-adjacent interpretation
+- conservative natural-language-to-directive drafting
+- candidate directive generation
+- possible future suggestion/proposal workflows outside the initial 0.8 extraction scope
+
+Important boundary:
+
+- drafts are non-authoritative
+- drafting proposes
+- authority decides
+- only core applies directives
+- only core mutates authoritative state
+
+The Directive Drafter may draft candidate directive strings.
+
+It must not:
+
+- mutate authoritative state
+- bypass `engine.step(...)`
+- edit `engine.state`
+- become a second authority
+
+0.8 direction:
+
+> Extraction of the experimental preprocessor into a separate package:
+>
+> `context-compiler-directive-drafter`
+
+The initial goal is extraction with preserved behavior, not API redesign.
+
+#### Composition Layer
+
+The Composition Layer is a future possibility only and is not planned for 0.8.
+
+Examples:
+
+- multiple authorities
+- profiles
+- domain-specific authorities
+- provenance
+- conflict resolution
+- effective-state computation
+
+### 0.9 Candidate Direction — Canonical Export Integrity / Hashing
+
+This is future planning only. No 0.9 implementation is defined here.
+
+Candidate goals:
+
+- canonical serialization
+- deterministic hashes of exported artifacts
+- Python/TypeScript verification
+- auditability
+- future signing compatibility
+
+Explicitly out of scope:
+
+- signing
+- key management
+- trust infrastructure
+- security guarantees from hashes alone
+- hashes embedded inside semantic engine state
+
+### Post-0.8 Direction
+
+- 0.9 candidate direction: canonical export integrity and hashing
+- MCP adapter likely as a separate/later track after 0.8 extraction direction is clearer
+- Optional MCP-readiness helpers only if narrowly justified
 - Additional tooling built on auditability surfaces
 
 ### 1.0 Target
