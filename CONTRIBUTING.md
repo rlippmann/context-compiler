@@ -35,6 +35,35 @@ pre-commit run --all-files
 - include tests if behavior changes
 - open an issue first for large design changes
 
+## Architectural Boundaries
+
+The flat policy model is intentional.
+
+Policies in core compiler state are modeled as independent flat assertions.
+They are not designed to carry relationship semantics such as:
+
+- policy interaction
+- policy grouping
+- policy inheritance
+- synonym handling
+- antonym handling
+- dependency modeling
+- hierarchy modeling
+- ontology-style reasoning
+
+Before proposing changes in those areas, understand that this boundary is part
+of the core architecture rather than a missing convenience layer.
+
+Relationship semantics are generally expected to live in:
+
+- drafting layers
+- orchestration layers
+- composition layers
+- domain-specific packages
+
+Changes to policy independence should be treated as architectural proposals,
+not routine feature requests.
+
 ## Documentation Style
 
 For README, demo, integration, and package-listing docs, explain user-visible behavior before architecture.
