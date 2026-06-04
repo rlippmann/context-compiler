@@ -52,7 +52,7 @@ Like a compiler, it parses input, validates it, applies fixed rules, and
 produces a stable representation the host can use. It is not source-code
 compilation and not a reasoning model.
 
-## Does it work?
+## Results
 
 Yes, on the current scored demo set.
 
@@ -145,37 +145,8 @@ Your app decides whether to call the model based on the returned `Decision`.
 
 ## Quickstart
 
-```bash
-pip install context-compiler
-context-compiler
-context-compiler --with-preprocessor
-context-compiler --json < input.txt
-```
+Use Context Compiler in your host application first:
 
-`context-compiler` launches the interactive REPL.
-
-`--with-preprocessor` enables the experimental preprocessor before each REPL turn
-(simple rule-based checks plus conservative validation). For near-miss inputs,
-the preprocessor does not rewrite the text. It passes the input to the engine,
-and the engine can return `clarify`.
-
-`--json` enables machine-readable NDJSON output for non-interactive usage
-(one complete JSON object per processed input line).
-
-Preload options keep saved rules separate from in-progress confirmation state:
-- `--initial-state-json` / `--initial-state-file` load saved state
-  (via exported state JSON).
-- `--initial-checkpoint-json` / `--initial-checkpoint-file` restore full
-  continuation checkpoint (saved state + pending confirmation state).
-
-REPL commands (controller layer, not engine directives):
-- `state` shows current saved state.
-- `preview <input>` runs deterministic dry-run without mutating live state.
-- `step <input>` is an explicit alias of normal bare-input step behavior.
-
-Bare REPL input behavior remains unchanged.
-
-Or in code:
 ```python
 from context_compiler import (
     create_engine,
@@ -197,6 +168,61 @@ elif is_update(decision):
 else:
     render(call_llm(user_input))
 ```
+
+This is the primary integration path: your app owns the model call, and the
+compiler owns deterministic state transitions.
+
+## Interactive Playground
+
+Use the REPL to explore behavior, learn the directive grammar, and debug or
+test host-side state handling.
+
+```bash
+pip install context-compiler
+context-compiler
+context-compiler --with-preprocessor
+```
+
+`context-compiler` launches the interactive REPL.
+
+`--with-preprocessor` enables the experimental preprocessor before each input
+(simple rule-based checks plus conservative validation). For near-miss inputs,
+the preprocessor does not rewrite the text. It passes the input to the engine,
+and the engine can return `clarify`.
+
+Preload options keep saved rules separate from in-progress confirmation state:
+- `--initial-state-json` / `--initial-state-file` load saved state
+  (via exported state JSON).
+- `--initial-checkpoint-json` / `--initial-checkpoint-file` restore full
+  continuation checkpoint (saved state + pending confirmation state).
+
+REPL commands (controller layer, not engine directives):
+- `state` shows current saved state.
+- `preview <input>` runs deterministic dry-run without mutating live state.
+- `step <input>` is an explicit alias of normal bare-input step behavior.
+
+Bare REPL input behavior remains unchanged.
+
+## Machine-Readable CLI Usage
+
+Use `--json` when you want one complete JSON object per processed input line
+for non-interactive usage.
+
+```bash
+context-compiler --json < input.txt
+```
+
+`--json` enables machine-readable NDJSON output for non-interactive usage
+(one complete JSON object per processed input line).
+
+You can combine `--with-preprocessor` with `--json` when you want the same
+preprocessing path in non-interactive usage.
+
+Preload options keep saved rules separate from in-progress confirmation state:
+- `--initial-state-json` / `--initial-state-file` load saved state
+  (via exported state JSON).
+- `--initial-checkpoint-json` / `--initial-checkpoint-file` restore full
+  continuation checkpoint (saved state + pending confirmation state).
 
 ## Installation
 
