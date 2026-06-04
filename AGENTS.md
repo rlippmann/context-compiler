@@ -98,6 +98,30 @@ Do not change specification documents unless explicitly instructed.
 
 If implementation behavior does not match the specification, report the mismatch instead of modifying the specification.
 
+Documentation is not commentary.
+
+README examples, demos, integration examples, migration guides, CLI usage
+documentation, and explicitly requested documentation changes are part of the
+project contract.
+
+Treat documentation requirements in a task as acceptance criteria.
+
+Do not treat documentation as illustrative unless explicitly stated.
+Do not silently change documented behavior because implementation is easier.
+Do not update documentation merely to match unintended behavior.
+Do not weaken or remove user-facing tests to accommodate implementation.
+
+Documentation examples explicitly referenced by a task are part of the
+expected deliverable.
+
+If implementation, documentation, examples, tests, fixtures, and
+specifications disagree:
+
+1. Specifications and fixtures are authoritative.
+2. Report the mismatch.
+3. Request review before changing documented behavior.
+4. Do not resolve disagreements by silently changing docs.
+
 ## Documentation style
 
 For README, demo, integration, and package-listing docs, explain user-visible behavior before architecture.
