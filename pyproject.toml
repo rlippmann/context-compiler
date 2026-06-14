@@ -40,6 +40,7 @@ packages = ["src/context_compiler", "experimental"]
 [tool.hatch.build.targets.wheel.force-include]
 "examples" = "examples"
 "host_support" = "host_support"
+"src/context_compiler/py.typed" = "context_compiler/py.typed"
 
 [project.optional-dependencies]
 demos = [
