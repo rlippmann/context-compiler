@@ -1,8 +1,0 @@
-{
-  "name": "canonical-directive-quoted-payload-use-docker",
-  "input": "use \"docker\"",
-  "expected": {
-    "classification": "directive",
-    "output": "use \"docker\""
-  }
-}

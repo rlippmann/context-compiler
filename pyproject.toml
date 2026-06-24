@@ -35,25 +35,15 @@ Issues = "https://github.com/rlippmann/context-compiler/issues"
 context-compiler = "context_compiler.repl:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/context_compiler", "experimental"]
+packages = ["src/context_compiler"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "examples" = "examples"
-"host_support" = "host_support"
 "src/context_compiler/py.typed" = "context_compiler/py.typed"
 
 [project.optional-dependencies]
 demos = [
   "litellm>=1.0.0",
-]
-experimental = [
-  "litellm>=1.0.0",
-]
-integrations = [
-  "litellm>=1.0.0",
-]
-litellm_proxy = [
-  "litellm[proxy]>=1.0.0",
 ]
 dev = [
   "pytest",

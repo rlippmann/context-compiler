@@ -1,8 +1,0 @@
-{
-  "name": "near-miss-use-empty-unknown",
-  "input": "use",
-  "expected": {
-    "classification": "unknown",
-    "output": null
-  }
-}

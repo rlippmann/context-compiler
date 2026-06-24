@@ -29,7 +29,7 @@ Context Compiler applies explicit state management to the modern LLM context, wi
 - The LLM handles what it does well: language understanding, reasoning, generation, and ambiguity in user intent
 - The deterministic engine handles what probabilistic systems handle poorly: keep explicit state across turns, enforce constraints, and make corrections replace prior state instead of competing with it
 
-The preprocessor layer bridges the two: it uses the LLM's language understanding to translate natural language directive intent into canonical form, which the deterministic engine can then process reliably. Fuzzy where it needs to be fuzzy, deterministic where determinism matters.
+If a host adds acquisition-layer drafting, that belongs outside the core authority package. Core stays deterministic; host-owned drafting stays non-authoritative.
 
 This is not a workaround for LLM limitations. It is an appropriate allocation of responsibilities based on what each component is actually suited for.
 

@@ -1,8 +1,0 @@
-{
-  "name": "sentence-adjacent-directive-unknown",
-  "input": "ok. prohibit peanuts",
-  "expected": {
-    "classification": "unknown",
-    "output": null
-  }
-}

@@ -12,7 +12,7 @@ Responsibilities:
 - draft candidate directives without becoming a second authority
 
 Examples:
-- the optional heuristic/LLM preprocessor, including a future extracted directive drafter package
+- external directive-drafter or host-owned drafting packages
 - host-side input shaping before `engine.step(...)`
 
 Out of scope:
@@ -85,9 +85,9 @@ Out of scope:
 - current Context Compiler core behavior
 - built-in coordination behavior
 
-The preprocessor belongs to the Acquisition Layer. It is optional,
-conservative, and never the source of truth. Context Compiler core belongs to
-the Authority Layer. Host applications own Application Layer behavior.
+Acquisition-layer drafting belongs outside Context Compiler core. Context
+Compiler core belongs to the Authority Layer. Host applications own
+Application Layer behavior.
 
 Composition remains exploratory. It is a future possibility, not a planned 0.8
 core change.
