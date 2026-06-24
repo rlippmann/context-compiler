@@ -1,8 +1,0 @@
-{
-  "name": "quoted-reported-unknown",
-  "input": "he said \"use docker\".",
-  "expected": {
-    "classification": "unknown",
-    "output": null
-  }
-}

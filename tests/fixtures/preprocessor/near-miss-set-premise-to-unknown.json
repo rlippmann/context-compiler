@@ -1,8 +1,0 @@
-{
-  "name": "near-miss-set-premise-to-unknown",
-  "input": "set premise to concise replies",
-  "expected": {
-    "classification": "unknown",
-    "output": null
-  }
-}

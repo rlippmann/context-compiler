@@ -7,9 +7,7 @@ This directory contains multiple fixture suites with different contracts.
 * [`conformance/`](conformance/) — core engine cross-language conformance contract.
   Includes a small public API presence contract under `conformance/api/`.
 * [`engine-regression/structured/`](engine-regression/structured/) — deterministic per-turn engine regression fixtures (including checkpoint snapshots).
-* [`preprocessor/`](preprocessor/) — preprocessor heuristic and validation fixtures.
-
-`conformance/` and `engine-regression/structured/` both cover engine behavior at different layers; preprocessor fixtures are intentionally separate from the core engine conformance contract.
+`conformance/` and `engine-regression/structured/` both cover engine behavior at different layers.
 
 ## API contract fixture
 
@@ -115,41 +113,6 @@ They validate:
 * clarification prompt behavior
 * checkpoint export parity against expected snapshots
 * continuation state restoration from checkpoints
-
-## Preprocessor fixtures
-
-[`preprocessor/`](preprocessor/)
-
-These fixtures cover preprocessor behavior (heuristic classification plus output validation), separate from the core engine conformance contract above.
-
-They are exercised by [`tests/test_preprocessor_conformance.py`](../test_preprocessor_conformance.py), including deterministic replay and validation-boundary checks (only validated directive output may pass through).
-
-Portable fixture scope:
-- deterministic heuristic and validator input/output contracts intended for cross-language parity
-- source-aware parse contract fixtures (`parse_preprocessor_output(raw_output, source_input=...)`) for fallback-boundary parity
-
-Python-local test scope:
-- property/fuzz invariants and filesystem/template behaviors (for example `render_prompt` file-loading behavior) remain in Python unit/property tests and are not portable fixture requirements.
-
-Supported `preprocessor/` fixture kinds:
-
-* `heuristic`
-  * fields: `input`, `expected`
-  * asserts normalized heuristic classification/output
-* `validator`
-  * fields: `raw_output`, optional `source_input`, `expected`
-  * asserts `validate_preprocessor_output(...)` classification/output
-* `parse`
-  * fields: `raw_output`, optional `source_input`, `expected_parsed`
-  * asserts `parse_preprocessor_output(...)` return (`string` or `null`)
-
-They validate:
-
-* heuristic classification determinism
-* directive extraction and normalization
-* output validation boundaries
-* source-aware fallback parse boundaries
-* reject/unknown safety handling for ambiguous and near-miss inputs
 
 ## Test runner
 

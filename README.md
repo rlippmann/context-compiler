@@ -180,15 +180,9 @@ test host-side state handling.
 ```bash
 pip install context-compiler
 context-compiler
-context-compiler --with-preprocessor
 ```
 
 `context-compiler` launches the interactive REPL.
-
-`--with-preprocessor` enables the experimental preprocessor before each input
-(simple rule-based checks plus conservative validation). For near-miss inputs,
-the preprocessor does not rewrite the text. It passes the input to the engine,
-and the engine can return `clarify`.
 
 Preload options keep saved rules separate from in-progress confirmation state:
 - `--initial-state-json` / `--initial-state-file` load saved state
@@ -215,9 +209,6 @@ context-compiler --json < input.txt
 `--json` enables machine-readable NDJSON output for non-interactive usage
 (one complete JSON object per processed input line).
 
-You can combine `--with-preprocessor` with `--json` when you want the same
-preprocessing path in non-interactive usage.
-
 Preload options keep saved rules separate from in-progress confirmation state:
 - `--initial-state-json` / `--initial-state-file` load saved state
   (via exported state JSON).
@@ -237,10 +228,6 @@ pip install context-compiler
 Packaging notes:
 - Base install includes core engine modules and `examples/` artifacts.
 - LLM demos require: `pip install "context-compiler[demos]"`.
-- Optional preprocessor support: `pip install "context-compiler[experimental]"`.
-- Integration-oriented dependency support: `pip install "context-compiler[integrations]"`.
-- LiteLLM Proxy example dependency bundle: `pip install "context-compiler[litellm_proxy]"`.
-- Host runtimes (for example, Open WebUI) are not installed by `integrations`.
 
 ### Development
 
@@ -541,11 +528,6 @@ For full directive grammar and edge-case behavior, see [DirectiveGrammarSpec.md]
 
 - [examples](examples/) — minimal usage patterns and core integration primitives
 - [demos](demos/) — concrete scenarios showing how behavior differs with and without the compiler
-- [integrations](examples/integrations/) — production-style host integrations (OpenWebUI, LiteLLM, etc.)
-
-Integration note: current OpenWebUI example pipes return deterministic local
-acknowledgements for directive-only `update` decisions instead of forwarding
-those turns to the downstream LLM.
 
 ---
 
@@ -559,24 +541,6 @@ those turns to the downstream LLM.
 - Ambiguous directives trigger clarification instead of changing state.
 
 These invariants are verified through behavioral tests and Hypothesis-based property tests.
-
-### Optional: LLM Preprocessor (Experimental)
-
-An optional host-side preprocessor can conservatively convert some natural-language instructions
-into canonical directives before compilation.
-
-It is designed to be conservative and must be used with validation:
-
-- reject-first; directive-adjacent unsafe forms abstain instead of rewriting
-- all outputs must be validated with `parse_preprocessor_output(...)`
-- no directive grammar expansion
-- raw outputs must not be passed directly to the compiler
-
-If `engine.has_pending_clarification()` is true, bypass preprocessing and pass raw input directly to `engine.step(...)`.
-Boundary policy is false-negative-preferred: abstain rather than risk unsafe state mutation.
-
-See [LLM preprocessor](docs/llm-preprocessor.md) and
-[`experimental/preprocessor/`](experimental/preprocessor/) for details.
 
 ### Multiple engines
 

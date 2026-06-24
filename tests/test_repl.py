@@ -88,15 +88,13 @@ def test_main_help_flag_prints_usage_and_exits_zero(
     assert result == 0
     assert captured.out == (
         "Usage:\n"
-        "  context-compiler [--help] [--version] [--with-preprocessor] [--json]\n"
+        "  context-compiler [--help] [--version] [--json]\n"
         "                   [--initial-state-json <json> | --initial-state-file <path>]\n"
         "                   [--initial-checkpoint-json <json> | --initial-checkpoint-file <path>]\n"
         "\n"
         "Options:\n"
         "  --help                Show this help message and exit.\n"
         "  --version             Show the installed context-compiler version and exit.\n"
-        "  --with-preprocessor   Enable preprocessor before each REPL turn "
-        "(heuristic + validation only)\n"
         "  --json                Emit machine-readable NDJSON output (non-interactive only)\n"
         "  --initial-state-json  Initialize authoritative state from exported state JSON text\n"
         "  --initial-state-file  Initialize authoritative state from UTF-8 state JSON file\n"
@@ -128,13 +126,11 @@ def test_main_without_args_runs_repl_as_before(monkeypatch: pytest.MonkeyPatch) 
         in_stream: TextIO,
         out_stream: TextIO,
         *,
-        use_preprocessor: bool = False,
         json_mode: bool = False,
         engine: object | None = None,
     ) -> None:
         called["in_stream"] = in_stream
         called["out_stream"] = out_stream
-        called["use_preprocessor"] = use_preprocessor
         called["json_mode"] = json_mode
         called["engine"] = engine
 
@@ -146,37 +142,8 @@ def test_main_without_args_runs_repl_as_before(monkeypatch: pytest.MonkeyPatch) 
     assert result == 0
     assert called["in_stream"] is sys.stdin
     assert called["out_stream"] is sys.stdout
-    assert called["use_preprocessor"] is False
     assert called["json_mode"] is False
     assert called["engine"] is None
-
-
-def test_main_with_preprocessor_flag_runs_repl_with_flag(monkeypatch: pytest.MonkeyPatch) -> None:
-    called: dict[str, object] = {}
-
-    def _fake_run_repl(
-        in_stream: TextIO,
-        out_stream: TextIO,
-        *,
-        use_preprocessor: bool = False,
-        json_mode: bool = False,
-        engine: object | None = None,
-    ) -> None:
-        called["in_stream"] = in_stream
-        called["out_stream"] = out_stream
-        called["use_preprocessor"] = use_preprocessor
-        called["json_mode"] = json_mode
-
-    monkeypatch.setattr(repl_module, "run_repl", _fake_run_repl)
-    monkeypatch.setattr(sys, "argv", ["context-compiler", "--with-preprocessor"])
-
-    result = repl_module.main()
-
-    assert result == 0
-    assert called["in_stream"] is sys.stdin
-    assert called["out_stream"] is sys.stdout
-    assert called["use_preprocessor"] is True
-    assert called["json_mode"] is False
 
 
 def test_main_with_json_flag_runs_repl_with_json_mode(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -186,13 +153,11 @@ def test_main_with_json_flag_runs_repl_with_json_mode(monkeypatch: pytest.Monkey
         in_stream: TextIO,
         out_stream: TextIO,
         *,
-        use_preprocessor: bool = False,
         json_mode: bool = False,
         engine: object | None = None,
     ) -> None:
         called["in_stream"] = in_stream
         called["out_stream"] = out_stream
-        called["use_preprocessor"] = use_preprocessor
         called["json_mode"] = json_mode
 
     monkeypatch.setattr(repl_module, "run_repl", _fake_run_repl)
@@ -204,38 +169,6 @@ def test_main_with_json_flag_runs_repl_with_json_mode(monkeypatch: pytest.Monkey
     assert result == 0
     assert called["in_stream"] is sys.stdin
     assert called["out_stream"] is sys.stdout
-    assert called["use_preprocessor"] is False
-    assert called["json_mode"] is True
-
-
-def test_main_with_json_and_preprocessor_runs_repl_with_both(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    called: dict[str, object] = {}
-
-    def _fake_run_repl(
-        in_stream: TextIO,
-        out_stream: TextIO,
-        *,
-        use_preprocessor: bool = False,
-        json_mode: bool = False,
-        engine: object | None = None,
-    ) -> None:
-        called["in_stream"] = in_stream
-        called["out_stream"] = out_stream
-        called["use_preprocessor"] = use_preprocessor
-        called["json_mode"] = json_mode
-
-    monkeypatch.setattr(repl_module, "run_repl", _fake_run_repl)
-    monkeypatch.setattr(repl_module, "_is_interactive", lambda _in, _out: False)
-    monkeypatch.setattr(sys, "argv", ["context-compiler", "--with-preprocessor", "--json"])
-
-    result = repl_module.main()
-
-    assert result == 0
-    assert called["in_stream"] is sys.stdin
-    assert called["out_stream"] is sys.stdout
-    assert called["use_preprocessor"] is True
     assert called["json_mode"] is True
 
 
@@ -268,7 +201,7 @@ def test_main_unknown_flag_prints_error_hint_and_exits_nonzero(
     )
 
 
-@pytest.mark.parametrize("args", [["--help", "--version"], ["--version", "--with-preprocessor"]])
+@pytest.mark.parametrize("args", [["--help", "--version"], ["--version", "--json"]])
 def test_cli_rejects_non_single_flag_argument_forms(args: list[str]) -> None:
     result = _run_repl_cli(*args)
 
@@ -279,7 +212,7 @@ def test_cli_rejects_non_single_flag_argument_forms(args: list[str]) -> None:
 
 
 def test_cli_rejects_unknown_positional_after_flag() -> None:
-    result = _run_repl_cli("--with-preprocessor", "foo")
+    result = _run_repl_cli("--json", "foo")
     assert result.returncode != 0
     assert result.stdout == ""
     assert (
@@ -524,7 +457,7 @@ def test_apply_preload_from_options_state_and_checkpoint_file_paths(
     state_engine = create_engine()
     repl_module._apply_preload_from_options(
         state_engine,
-        {"use_preprocessor": False, "json_mode": False, "initial_state_file": str(state_path)},
+        {"json_mode": False, "initial_state_file": str(state_path)},
     )
     assert state_engine.state["premise"] == "concise"
 
@@ -532,7 +465,6 @@ def test_apply_preload_from_options_state_and_checkpoint_file_paths(
     repl_module._apply_preload_from_options(
         checkpoint_engine,
         {
-            "use_preprocessor": False,
             "json_mode": False,
             "initial_checkpoint_file": str(checkpoint_path),
         },
@@ -552,7 +484,6 @@ def test_apply_preload_from_options_state_and_checkpoint_json() -> None:
     repl_module._apply_preload_from_options(
         state_engine,
         {
-            "use_preprocessor": False,
             "json_mode": False,
             "initial_state_json": source_state.export_json(),
         },
@@ -563,7 +494,6 @@ def test_apply_preload_from_options_state_and_checkpoint_json() -> None:
     repl_module._apply_preload_from_options(
         checkpoint_engine,
         {
-            "use_preprocessor": False,
             "json_mode": False,
             "initial_checkpoint_json": source_checkpoint.export_checkpoint_json(),
         },
@@ -913,83 +843,6 @@ def test_repl_preview_idempotent_admin_action_reports_no_mutation() -> None:
         lines, ["preview", "updated", "premise: (none)", "policies: (none)"]
     )
     assert _contains_subsequence(lines, ["would_mutate: no", "diff:", "- (none)"])
-
-
-def test_repl_with_preprocessor_parses_directive_before_engine_step() -> None:
-    out = StringIO()
-    run_repl(
-        StringIO('{"classification":"directive","output":"prohibit peanuts"}\nquit\n'),
-        out,
-        use_preprocessor=True,
-    )
-
-    lines = out.getvalue().splitlines()
-    assert lines == ["updated", "premise: (none)", "policies:", "- prohibit peanuts"]
-
-
-def test_repl_with_preprocessor_near_miss_passes_through_and_clarifies() -> None:
-    out = StringIO()
-    run_repl(StringIO("set premise to concise replies\nquit\n"), out, use_preprocessor=True)
-
-    lines = out.getvalue().splitlines()
-    assert lines == ["confirm: Did you mean 'set premise concise replies'?"]
-
-
-def test_repl_with_preprocessor_non_directive_passthrough() -> None:
-    out = StringIO()
-    run_repl(StringIO("what is a simple curry recipe?\nquit\n"), out, use_preprocessor=True)
-
-    lines = out.getvalue().splitlines()
-    assert lines == ["passthrough"]
-
-
-def test_cli_with_preprocessor_pipe_smoke_emits_clarify_without_update() -> None:
-    result = _run_repl_cli("--with-preprocessor", input_text="set premise to concise replies\n")
-
-    assert result.returncode == 0
-    assert "Did you mean 'set premise concise replies'?" in result.stdout
-    assert "updated" not in result.stdout
-    assert result.stderr == ""
-
-
-def test_repl_with_preprocessor_bypasses_parsing_while_pending(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    seen: list[tuple[object, str | None]] = []
-
-    def _parse(raw_output: object, *, source_input: str | None = None) -> str | None:
-        seen.append((raw_output, source_input))
-        if raw_output == "use podman instead of docker":
-            return "use podman instead of docker"
-        raise AssertionError("parse_preprocessor_output should be bypassed while pending")
-
-    monkeypatch.setattr(repl_module, "parse_preprocessor_output", _parse)
-
-    out = StringIO()
-    run_repl(
-        StringIO("use podman instead of docker\nyes\nquit\n"),
-        out,
-        use_preprocessor=True,
-    )
-
-    assert seen == [("use podman instead of docker", "use podman instead of docker")]
-    lines = out.getvalue().splitlines()
-    assert _contains_subsequence(lines, ['confirm: Did you mean to use "podman" instead?'])
-    assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use podman"])
-
-
-def test_repl_without_preprocessor_does_not_parse_inputs(monkeypatch: pytest.MonkeyPatch) -> None:
-    def _fail_parse(_raw: object, *, source_input: str | None = None) -> str | None:
-        del source_input
-        raise AssertionError("parse_preprocessor_output should not be called")
-
-    monkeypatch.setattr(repl_module, "parse_preprocessor_output", _fail_parse)
-
-    out = StringIO()
-    run_repl(StringIO('{"classification":"directive","output":"prohibit peanuts"}\nquit\n'), out)
-
-    lines = out.getvalue().splitlines()
-    assert lines == ["passthrough"]
 
 
 def test_repl_interactive_rejects_multi_command_chunk() -> None:

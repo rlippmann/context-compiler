@@ -1,8 +1,0 @@
-{
-  "name": "fenced-code-block-directive-unknown",
-  "input": "```\nuse docker\n```",
-  "expected": {
-    "classification": "unknown",
-    "output": null
-  }
-}

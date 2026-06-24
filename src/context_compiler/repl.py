@@ -2,8 +2,6 @@ import json
 import sys
 from typing import TextIO
 
-from experimental.preprocessor.output_validation import parse_preprocessor_output
-
 from . import __version__, create_engine, get_policy_items, get_premise_value
 from .const import DECISION_CLARIFY, DECISION_PASSTHROUGH
 from .controller import (
@@ -28,14 +26,13 @@ _STEP_PENDING_CONFIRMATION_ERROR = (
     "Use yes/no (or variants), or use preview/state."
 )
 _CLI_HELP_TEXT = """Usage:
-  context-compiler [--help] [--version] [--with-preprocessor] [--json]
+  context-compiler [--help] [--version] [--json]
                    [--initial-state-json <json> | --initial-state-file <path>]
                    [--initial-checkpoint-json <json> | --initial-checkpoint-file <path>]
 
 Options:
   --help                Show this help message and exit.
   --version             Show the installed context-compiler version and exit.
-  --with-preprocessor   Enable preprocessor before each REPL turn (heuristic + validation only)
   --json                Emit machine-readable NDJSON output (non-interactive only)
   --initial-state-json  Initialize authoritative state from exported state JSON text
   --initial-state-file  Initialize authoritative state from UTF-8 state JSON file
@@ -216,7 +213,6 @@ def _read_utf8_file(path: str) -> str:
 
 def _parse_cli_options(args: list[str]) -> tuple[dict[str, str | bool], str | None]:
     options: dict[str, str | bool] = {
-        "use_preprocessor": False,
         "json_mode": False,
     }
 
@@ -230,10 +226,6 @@ def _parse_cli_options(args: list[str]) -> tuple[dict[str, str | bool], str | No
     idx = 0
     while idx < len(args):
         arg = args[idx]
-        if arg == "--with-preprocessor":
-            options["use_preprocessor"] = True
-            idx += 1
-            continue
         if arg == "--json":
             options["json_mode"] = True
             idx += 1
@@ -302,20 +294,10 @@ def _is_confirmation_input(value: str) -> bool:
     return normalized in _AFFIRMATIVE_CONFIRMATIONS or normalized in _NEGATIVE_CONFIRMATIONS
 
 
-def _compile_input(raw_input: str, engine: Engine, *, use_preprocessor: bool) -> str:
-    if not use_preprocessor:
-        return raw_input
-    if _has_pending_clarification(engine):
-        return raw_input
-    parsed = parse_preprocessor_output(raw_input, source_input=raw_input)
-    return parsed if parsed is not None else raw_input
-
-
 def run_repl(
     in_stream: TextIO,
     out_stream: TextIO,
     *,
-    use_preprocessor: bool = False,
     json_mode: bool = False,
     engine: Engine | None = None,
 ) -> None:
@@ -367,10 +349,7 @@ def run_repl(
                             message=_STEP_PENDING_CONFIRMATION_ERROR,
                         )
                         continue
-                    compile_input = _compile_input(
-                        payload, active_engine, use_preprocessor=use_preprocessor
-                    )
-                    result: StepResult = controller_step(active_engine, compile_input)
+                    result: StepResult = controller_step(active_engine, payload)
                     _print_decision_lines(get_step_decision(result), out_stream, leading_blank=True)
                     continue
 
@@ -390,10 +369,7 @@ def run_repl(
                         message="preview requires input.\nUse 'preview <input>'.",
                     )
                     continue
-                compile_input = _compile_input(
-                    payload, active_engine, use_preprocessor=use_preprocessor
-                )
-                preview_result = controller_preview(active_engine, compile_input)
+                preview_result = controller_preview(active_engine, payload)
                 _print_preview_lines(
                     preview_result,
                     out_stream,
@@ -402,10 +378,7 @@ def run_repl(
                 )
                 continue
 
-            compile_input = _compile_input(
-                user_input, active_engine, use_preprocessor=use_preprocessor
-            )
-            result = controller_step(active_engine, compile_input)
+            result = controller_step(active_engine, user_input)
             _print_decision_lines(get_step_decision(result), out_stream, leading_blank=True)
         return
 
@@ -475,10 +448,7 @@ def run_repl(
                             message=_STEP_PENDING_CONFIRMATION_ERROR,
                         )
                     continue
-                compile_input = _compile_input(
-                    payload, active_engine, use_preprocessor=use_preprocessor
-                )
-                result = controller_step(active_engine, compile_input)
+                result = controller_step(active_engine, payload)
                 if json_mode:
                     _write_json_line(out_stream, _json_step_payload(result, command="step"))
                 else:
@@ -513,10 +483,7 @@ def run_repl(
                         message="preview requires input.\nUse 'preview <input>'.",
                     )
                 continue
-            compile_input = _compile_input(
-                payload, active_engine, use_preprocessor=use_preprocessor
-            )
-            preview_result = controller_preview(active_engine, compile_input)
+            preview_result = controller_preview(active_engine, payload)
             if json_mode:
                 _write_json_line(
                     out_stream, _json_preview_payload(preview_result, command="preview")
@@ -530,8 +497,7 @@ def run_repl(
                 )
             continue
 
-        compile_input = _compile_input(user_input, active_engine, use_preprocessor=use_preprocessor)
-        result = controller_step(active_engine, compile_input)
+        result = controller_step(active_engine, user_input)
         if json_mode:
             _write_json_line(out_stream, _json_step_payload(result, command="input"))
         else:
@@ -570,13 +536,7 @@ def main() -> int:  # pragma: no cover
         print(f"error: preload failed: {exc}", file=sys.stderr)
         return 1
 
-    run_repl(
-        sys.stdin,
-        sys.stdout,
-        use_preprocessor=bool(options["use_preprocessor"]),
-        json_mode=json_mode,
-        engine=engine,
-    )
+    run_repl(sys.stdin, sys.stdout, json_mode=json_mode, engine=engine)
     return 0
 
 

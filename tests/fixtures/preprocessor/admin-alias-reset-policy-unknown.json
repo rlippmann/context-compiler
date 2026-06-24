@@ -1,8 +1,0 @@
-{
-  "name": "admin-alias-reset-policy-unknown",
-  "input": "reset policy",
-  "expected": {
-    "classification": "unknown",
-    "output": null
-  }
-}

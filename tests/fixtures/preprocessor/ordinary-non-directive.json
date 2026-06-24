@@ -1,8 +1,0 @@
-{
-  "name": "ordinary-non-directive",
-  "input": "thanks for the help today",
-  "expected": {
-    "classification": "no_directive",
-    "output": null
-  }
-}

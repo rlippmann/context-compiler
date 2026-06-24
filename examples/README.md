@@ -1,6 +1,6 @@
 # Examples
 
-This directory contains small integration examples showing typical app-side usage of Context Compiler.
+This directory contains small authority-layer examples showing typical app-side usage of Context Compiler.
 
 These files are included in the base package install (`pip install context-compiler`).
 Non-integration example files in this directory are standalone scripts and can be run directly.

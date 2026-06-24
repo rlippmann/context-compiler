@@ -1,8 +1,0 @@
-{
-  "name": "multiline-multi-directive-unknown",
-  "input": "clear premise\nreset policies",
-  "expected": {
-    "classification": "unknown",
-    "output": null
-  }
-}

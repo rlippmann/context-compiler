@@ -1,6 +1,0 @@
-{
-  "name": "parse-multiple-directives-rejected",
-  "kind": "parse",
-  "raw_output": "prohibit peanuts and use almonds",
-  "expected_parsed": null
-}

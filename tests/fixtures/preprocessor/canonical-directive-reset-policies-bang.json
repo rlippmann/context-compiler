@@ -1,8 +1,0 @@
-{
-  "name": "canonical-directive-reset-policies-bang",
-  "input": "reset policies!",
-  "expected": {
-    "classification": "directive",
-    "output": "reset policies"
-  }
-}
