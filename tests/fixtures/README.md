@@ -11,15 +11,21 @@ This directory contains multiple fixture suites with different contracts.
 
 ## API contract fixture
 
-[`conformance/api/public-api-v1.json`](conformance/api/public-api-v1.json) defines a small public API presence contract for the Python 0.7.x surface that ports must expose.
+[`conformance/api/public-api-v1.json`](conformance/api/public-api-v1.json) defines the current portable core public API contract for Python and ports.
 
 Ports may sync this artifact with conformance fixtures.
 
-Ports should check equivalent public exports and methods using language-appropriate names where casing differs.
+The contract encodes:
+
+* exact exported `context_compiler.__all__` names
+* exact public `Engine` members
+* stable callable signatures where parameter shape is part of the contract
+
+Ports should check equivalent public exports, members, and signatures using language-appropriate names where casing differs.
 
 Behavioral semantics remain covered by conformance and structured fixtures.
 
-The API presence contract includes the public controller helper accessors:
+The API contract includes the public controller helper accessors:
 
 * `get_step_decision`
 * `get_step_state`

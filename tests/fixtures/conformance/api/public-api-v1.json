@@ -3,44 +3,321 @@
   "kind": "api-contract",
   "target": "context-compiler-ports",
   "module": "context_compiler",
-  "required_exports": [
-    "create_engine",
-    "compile_transcript",
-    "get_premise_value",
-    "get_policy_items",
-    "is_update",
-    "is_clarify",
-    "is_passthrough",
-    "get_clarify_prompt",
-    "get_decision_state",
-    "get_step_decision",
-    "get_step_state",
-    "get_preview_decision",
-    "get_preview_state_after",
-    "preview_would_mutate",
-    "diff_has_changes",
-    "DECISION_PASSTHROUGH",
-    "DECISION_UPDATE",
-    "DECISION_CLARIFY",
-    "POLICY_USE",
-    "POLICY_PROHIBIT",
-    "TranscriptMessage",
-    "Transcript",
-    "ApplyResult"
-  ],
+  "exports": {
+    "mode": "exact",
+    "names": [
+      "ApplyResult",
+      "Checkpoint",
+      "Decision",
+      "DECISION_CLARIFY",
+      "DECISION_PASSTHROUGH",
+      "DECISION_UPDATE",
+      "Engine",
+      "POLICY_PROHIBIT",
+      "POLICY_USE",
+      "PreviewResult",
+      "State",
+      "StepResult",
+      "StructuralDiff",
+      "Transcript",
+      "TranscriptMessage",
+      "diff_has_changes",
+      "compile_transcript",
+      "create_engine",
+      "get_clarify_prompt",
+      "get_decision_state",
+      "get_preview_decision",
+      "get_preview_state_after",
+      "get_premise_value",
+      "get_policy_items",
+      "get_step_decision",
+      "get_step_state",
+      "is_clarify",
+      "is_passthrough",
+      "is_update",
+      "preview",
+      "preview_would_mutate",
+      "state_diff",
+      "step"
+    ],
+    "signatures": {
+      "diff_has_changes": {
+        "params": [
+          {
+            "name": "diff",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          }
+        ]
+      },
+      "compile_transcript": {
+        "params": [
+          {
+            "name": "messages",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          }
+        ]
+      },
+      "create_engine": {
+        "params": [
+          {
+            "name": "state",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": true
+          }
+        ]
+      },
+      "get_clarify_prompt": {
+        "params": [
+          {
+            "name": "decision",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          }
+        ]
+      },
+      "get_decision_state": {
+        "params": [
+          {
+            "name": "decision",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          }
+        ]
+      },
+      "get_preview_decision": {
+        "params": [
+          {
+            "name": "preview_result",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          }
+        ]
+      },
+      "get_preview_state_after": {
+        "params": [
+          {
+            "name": "preview_result",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          }
+        ]
+      },
+      "get_premise_value": {
+        "params": [
+          {
+            "name": "state",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          }
+        ]
+      },
+      "get_policy_items": {
+        "params": [
+          {
+            "name": "state",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          },
+          {
+            "name": "value",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": true
+          }
+        ]
+      },
+      "get_step_decision": {
+        "params": [
+          {
+            "name": "step_result",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          }
+        ]
+      },
+      "get_step_state": {
+        "params": [
+          {
+            "name": "step_result",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          }
+        ]
+      },
+      "is_clarify": {
+        "params": [
+          {
+            "name": "decision",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          }
+        ]
+      },
+      "is_passthrough": {
+        "params": [
+          {
+            "name": "decision",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          }
+        ]
+      },
+      "is_update": {
+        "params": [
+          {
+            "name": "decision",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          }
+        ]
+      },
+      "preview": {
+        "params": [
+          {
+            "name": "engine",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          },
+          {
+            "name": "user_input",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          }
+        ]
+      },
+      "preview_would_mutate": {
+        "params": [
+          {
+            "name": "preview_result",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          }
+        ]
+      },
+      "state_diff": {
+        "params": [
+          {
+            "name": "before",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          },
+          {
+            "name": "after",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          }
+        ]
+      },
+      "step": {
+        "params": [
+          {
+            "name": "engine",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          },
+          {
+            "name": "user_input",
+            "kind": "POSITIONAL_OR_KEYWORD",
+            "has_default": false
+          }
+        ]
+      }
+    }
+  },
   "engine": {
     "type": "Engine",
-    "required_members": [
-      "step",
-      "state",
-      "export_json",
-      "import_json",
-      "apply_transcript",
-      "export_checkpoint",
-      "import_checkpoint",
-      "export_checkpoint_json",
-      "import_checkpoint_json",
-      "has_pending_clarification"
-    ]
+    "public_members": {
+      "mode": "exact",
+      "members": {
+        "apply_transcript": {
+          "kind": "method",
+          "signature": {
+            "params": [
+              {
+                "name": "messages",
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "has_default": false
+              }
+            ]
+          }
+        },
+        "export_checkpoint": {
+          "kind": "method",
+          "signature": {
+            "params": []
+          }
+        },
+        "export_checkpoint_json": {
+          "kind": "method",
+          "signature": {
+            "params": []
+          }
+        },
+        "export_json": {
+          "kind": "method",
+          "signature": {
+            "params": []
+          }
+        },
+        "has_pending_clarification": {
+          "kind": "method",
+          "signature": {
+            "params": []
+          }
+        },
+        "import_checkpoint": {
+          "kind": "method",
+          "signature": {
+            "params": [
+              {
+                "name": "payload",
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "has_default": false
+              }
+            ]
+          }
+        },
+        "import_checkpoint_json": {
+          "kind": "method",
+          "signature": {
+            "params": [
+              {
+                "name": "payload",
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "has_default": false
+              }
+            ]
+          }
+        },
+        "import_json": {
+          "kind": "method",
+          "signature": {
+            "params": [
+              {
+                "name": "payload",
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "has_default": false
+              }
+            ]
+          }
+        },
+        "state": {
+          "kind": "property"
+        },
+        "step": {
+          "kind": "method",
+          "signature": {
+            "params": [
+              {
+                "name": "user_input",
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "has_default": false
+              }
+            ]
+          }
+        }
+      }
+    }
   }
 }
