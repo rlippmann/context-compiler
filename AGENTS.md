@@ -27,8 +27,10 @@ User-facing behavior includes:
 * engine decision outcomes (`kind`, `prompt_to_user`)
 * checkpoint export/import and continuation behavior
 * clarify/confirmation flows (`yes` / `no`)
-* integration behavior (LiteLLM, OpenWebUI)
-* integration error-path normalization
+* controller behavior (`step`, `preview`, `state_diff`)
+* REPL / CLI behavior
+* authoritative state semantics
+* conformance fixture behavior
 
 If a user-facing behavior is changed or introduced, add or update tests to cover it.
 
@@ -100,7 +102,7 @@ If implementation behavior does not match the specification, report the mismatch
 
 Documentation is not commentary.
 
-README examples, demos, integration examples, migration guides, CLI usage
+README examples, demos, migration guides, CLI usage
 documentation, and explicitly requested documentation changes are part of the
 project contract.
 
@@ -124,7 +126,7 @@ specifications disagree:
 
 ## Documentation style
 
-For README, demo, integration, and package-listing docs, explain user-visible behavior before architecture.
+For README, demo, and package-listing docs, explain user-visible behavior before architecture.
 
 Prefer plain, concrete wording when accurate. Examples:
 - "rules and corrections that stick"
