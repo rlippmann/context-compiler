@@ -1,19 +1,28 @@
-# Demo Results
+# Historical Demo Results
 
-Canonical reference for the current LLM demo matrix and methodology.
+Historical LLM demo evidence for an earlier published matrix.
 
-Note: this published matrix predates the `reinjected-state` path added in the 0.7.1 demo/evaluation experiment. It currently reports baseline/compiler/compiler+compact only.
+This document is not the current release-evidence summary for the repository's
+present demo suite. It preserves earlier published results so readers can see
+what was measured at the time.
 
-## Scope
+The matrix below:
+
+- was recorded against Context Compiler `0.6.15`
+- covers the earlier scored set `01`-`05`, `07` only
+- predates the later scored additions `08` and `09`
+- predates the published `reinjected-state` comparison in the cross-model matrix
+
+## Historical Scope
 
 - Scored demos: `01`, `02`, `03`, `04`, `05`, `07` (6 total)
 - Informational demo: `06_context_compaction` (excluded from PASS/FAIL totals)
 
-Methodology note (2026-05): the demo suite now also includes scored demos `08`
-and `09` for rules about when state is allowed to change. The published matrix below predates those additions and
-has not yet been fully rerun with the expanded scored set.
+Current repository note (2026-06): the demo suite now also includes scored demos
+`08` and `09` for rules about when state is allowed to change. No published
+cross-model rerun is included here for that expanded scored set.
 
-## Results Matrix
+## Historical Results Matrix
 
 | Provider Path | Model | Baseline (P/F) | Compiler (P/F) | Compiler+Compact (P/F) |
 | :-- | :-- | :--: | :--: | :--: |
@@ -25,7 +34,7 @@ has not yet been fully rerun with the expanded scored set.
 | `openai_compatible` | `anthropic/claude-sonnet-4-5-20250929` | 4 / 2 | 6 / 0 | 6 / 0 |
 | `openai_compatible` | `anthropic/claude-opus-4-1-20250805` | 4 / 2 | 6 / 0 | 6 / 0 |
 
-## Totals (Derived from Matrix)
+## Historical Totals (Derived from Matrix)
 
 - Model runs: `7`
 - Scored demos per run: `6`
@@ -37,7 +46,7 @@ Aggregate pass totals:
 - Compiler: `42 / 42`
 - Compiler+compact: `42 / 42`
 
-## Methodology
+## Historical Methodology
 
 Primary command:
 
@@ -72,7 +81,7 @@ model outputs. The `reinjected-state` path is plain state text injection and
 does not include compiler checks like replacement preconditions or pending
 confirmation handling.
 
-### Run metadata
+### Historical Run Metadata
 
 - Date: 2026-05-06
 - Context Compiler: 0.6.15
@@ -90,7 +99,7 @@ confirmation handling.
 - Plain prompt reinjection can produce reasonable answers, but it does not run these checks by itself.
 - Demos `08`/`09` are not general LLM quality benchmarks. Baseline and reinjected-state can produce plausible text and still `FAIL` when those app-side checks are missing.
 
-## Demo 05 Long-Transcript Stress (Exploratory Frontier Runs)
+## Historical Demo 05 Long-Transcript Stress (Exploratory Frontier Runs)
 
 Additional exploratory runs extended Demo 05 to higher transcript lengths for selected
 frontier models. These runs are separate from the full cross-model matrix above, which
@@ -105,7 +114,7 @@ This is exploratory evidence, not benchmark authority. Reinjection can be
 enough in some persistence scenarios, while compiler-mediated paths still
 provide explicit state-change rules.
 
-## Local Ollama Context-Size Sweep (0.7.1 Experiment)
+## Historical Local Ollama Context-Size Sweep (0.7.1 Experiment)
 
 This section reports the refreshed local-only matrix with the `reinjected-state`
 path and explicit context-size ladder runs. Historical hosted-provider matrix

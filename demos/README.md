@@ -142,7 +142,12 @@ is unavailable.
 
 ## Results
 
-The canonical cross-model results matrix is maintained in [docs/demos-results.md](../docs/demos-results.md).
+This README describes the current demo suite in this repository.
+
+The published cross-model matrix in [docs/demos-results.md](../docs/demos-results.md)
+is historical evidence, not current release evidence. That matrix was recorded
+against Context Compiler `0.6.15` and predates the later scored additions
+`08` and `09`.
 
 Notes:
 - There are **8 scored demos** (`01`–`05`, `07`, `08`, `09`). `06_context_compaction` is informational and excluded from PASS/FAIL totals.
@@ -156,6 +161,7 @@ Notes:
 - Demos `08` and `09` cover cases prompt text does not implement by itself, such as checking whether replacement is allowed and waiting for confirmation before saving changes.
 - Plain prompt reinjection can produce reasonable answers, but it does not run these checks by itself.
 - Similar outcomes across models in `08`/`09` reflect app behavior limits, not model leaderboard ranking.
+- No current cross-model rerun is published here for the full 8-demo scored set.
 
 ### Demo 05 example (prompt drift under longer context)
 
