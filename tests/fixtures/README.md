@@ -18,8 +18,11 @@ Ports may sync this artifact with conformance fixtures.
 The contract encodes:
 
 * exact exported `context_compiler.__all__` names
+* export kinds (`callable`, `constant`, `type_alias`, `type`, `class`)
 * exact public `Engine` members
 * stable callable signatures where parameter shape is part of the contract
+* forbidden package-root names that must not become public exports
+* lightweight deterministic return-shape probes for selected stable helpers
 
 Ports should check equivalent public exports, members, and signatures using language-appropriate names where casing differs.
 

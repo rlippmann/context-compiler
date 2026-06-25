@@ -3,6 +3,14 @@
   "kind": "api-contract",
   "target": "context-compiler-ports",
   "module": "context_compiler",
+  "forbidden_exports": [
+    "DecisionKind",
+    "PolicyValue",
+    "CheckpointPending",
+    "CheckpointPendingReplacement",
+    "PendingReplacement",
+    "_PASSTHROUGH"
+  ],
   "exports": {
     "mode": "exact",
     "names": [
@@ -40,186 +48,512 @@
       "state_diff",
       "step"
     ],
-    "signatures": {
+    "members": {
+      "ApplyResult": {
+        "kind": "type_alias"
+      },
+      "Checkpoint": {
+        "kind": "type"
+      },
+      "Decision": {
+        "kind": "type"
+      },
+      "DECISION_CLARIFY": {
+        "kind": "constant",
+        "value": "clarify"
+      },
+      "DECISION_PASSTHROUGH": {
+        "kind": "constant",
+        "value": "passthrough"
+      },
+      "DECISION_UPDATE": {
+        "kind": "constant",
+        "value": "update"
+      },
+      "Engine": {
+        "kind": "class"
+      },
+      "POLICY_PROHIBIT": {
+        "kind": "constant",
+        "value": "prohibit"
+      },
+      "POLICY_USE": {
+        "kind": "constant",
+        "value": "use"
+      },
+      "PreviewResult": {
+        "kind": "type"
+      },
+      "State": {
+        "kind": "type"
+      },
+      "StepResult": {
+        "kind": "type"
+      },
+      "StructuralDiff": {
+        "kind": "type"
+      },
+      "Transcript": {
+        "kind": "type_alias"
+      },
+      "TranscriptMessage": {
+        "kind": "type"
+      },
       "diff_has_changes": {
-        "params": [
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "diff",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
           {
-            "name": "diff",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
+            "kwargs": {
+              "diff": {
+                "changed": true,
+                "premise": {
+                  "before": null,
+                  "after": "concise",
+                  "changed": true
+                },
+                "policies": {
+                  "added": {},
+                  "removed": {},
+                  "changed": {}
+                }
+              }
+            },
+            "return_shape": {
+              "type": "boolean",
+              "const": true
+            }
           }
         ]
       },
       "compile_transcript": {
-        "params": [
-          {
-            "name": "messages",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
-          }
-        ]
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "messages",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        }
       },
       "create_engine": {
-        "params": [
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "state",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": true
+            }
+          ]
+        },
+        "shape_probes": [
           {
-            "name": "state",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": true
+            "kwargs": {},
+            "return_shape": {
+              "kind": "engine_instance"
+            }
           }
         ]
       },
       "get_clarify_prompt": {
-        "params": [
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "decision",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
           {
-            "name": "decision",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
+            "kwargs": {
+              "decision": {
+                "kind": "clarify",
+                "state": null,
+                "prompt_to_user": "confirm?"
+              }
+            },
+            "return_shape": {
+              "type": "string",
+              "const": "confirm?"
+            }
           }
         ]
       },
       "get_decision_state": {
-        "params": [
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "decision",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
           {
-            "name": "decision",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
+            "kwargs": {
+              "decision": {
+                "kind": "update",
+                "prompt_to_user": null,
+                "state": {
+                  "premise": null,
+                  "policies": {
+                    "docker": "use"
+                  },
+                  "version": 2
+                }
+              }
+            },
+            "return_shape": {
+              "type": "object",
+              "required_keys": [
+                "premise",
+                "policies",
+                "version"
+              ],
+              "properties": {
+                "policies": {
+                  "type": "object"
+                }
+              }
+            }
           }
         ]
       },
       "get_preview_decision": {
-        "params": [
-          {
-            "name": "preview_result",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
-          }
-        ]
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "preview_result",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        }
       },
       "get_preview_state_after": {
-        "params": [
-          {
-            "name": "preview_result",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
-          }
-        ]
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "preview_result",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        }
       },
       "get_premise_value": {
-        "params": [
-          {
-            "name": "state",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
-          }
-        ]
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "state",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        }
       },
       "get_policy_items": {
-        "params": [
-          {
-            "name": "state",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
-          },
-          {
-            "name": "value",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": true
-          }
-        ]
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "state",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            },
+            {
+              "name": "value",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": true
+            }
+          ]
+        }
       },
       "get_step_decision": {
-        "params": [
-          {
-            "name": "step_result",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
-          }
-        ]
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "step_result",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        }
       },
       "get_step_state": {
-        "params": [
-          {
-            "name": "step_result",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
-          }
-        ]
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "step_result",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        }
       },
       "is_clarify": {
-        "params": [
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "decision",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
           {
-            "name": "decision",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
+            "kwargs": {
+              "decision": {
+                "kind": "clarify",
+                "state": null,
+                "prompt_to_user": "confirm?"
+              }
+            },
+            "return_shape": {
+              "type": "boolean",
+              "const": true
+            }
           }
         ]
       },
       "is_passthrough": {
-        "params": [
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "decision",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
           {
-            "name": "decision",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
+            "kwargs": {
+              "decision": {
+                "kind": "passthrough",
+                "state": null,
+                "prompt_to_user": null
+              }
+            },
+            "return_shape": {
+              "type": "boolean",
+              "const": true
+            }
           }
         ]
       },
       "is_update": {
-        "params": [
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "decision",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
           {
-            "name": "decision",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
+            "kwargs": {
+              "decision": {
+                "kind": "update",
+                "prompt_to_user": null,
+                "state": {
+                  "premise": null,
+                  "policies": {},
+                  "version": 2
+                }
+              }
+            },
+            "return_shape": {
+              "type": "boolean",
+              "const": true
+            }
           }
         ]
       },
       "preview": {
-        "params": [
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "engine",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            },
+            {
+              "name": "user_input",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
           {
-            "name": "engine",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
-          },
-          {
-            "name": "user_input",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
+            "kwargs": {
+              "engine": {
+                "fixture": "empty_engine"
+              },
+              "user_input": "use docker"
+            },
+            "return_shape": {
+              "type": "object",
+              "required_keys": [
+                "output_version",
+                "mode",
+                "decision",
+                "state_before",
+                "state_after",
+                "diff",
+                "would_mutate"
+              ],
+              "properties": {
+                "output_version": {
+                  "type": "number",
+                  "const": 1
+                },
+                "mode": {
+                  "type": "string",
+                  "const": "preview"
+                },
+                "would_mutate": {
+                  "type": "boolean",
+                  "const": true
+                }
+              }
+            }
           }
         ]
       },
       "preview_would_mutate": {
-        "params": [
-          {
-            "name": "preview_result",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
-          }
-        ]
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "preview_result",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        }
       },
       "state_diff": {
-        "params": [
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "before",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            },
+            {
+              "name": "after",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
           {
-            "name": "before",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
-          },
-          {
-            "name": "after",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
+            "kwargs": {
+              "before": {
+                "premise": null,
+                "policies": {},
+                "version": 2
+              },
+              "after": {
+                "premise": null,
+                "policies": {
+                  "docker": "use"
+                },
+                "version": 2
+              }
+            },
+            "return_shape": {
+              "type": "object",
+              "required_keys": [
+                "changed",
+                "premise",
+                "policies"
+              ],
+              "properties": {
+                "changed": {
+                  "type": "boolean",
+                  "const": true
+                }
+              }
+            }
           }
         ]
       },
       "step": {
-        "params": [
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "engine",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            },
+            {
+              "name": "user_input",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
           {
-            "name": "engine",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
-          },
-          {
-            "name": "user_input",
-            "kind": "POSITIONAL_OR_KEYWORD",
-            "has_default": false
+            "kwargs": {
+              "engine": {
+                "fixture": "empty_engine"
+              },
+              "user_input": "use docker"
+            },
+            "return_shape": {
+              "type": "object",
+              "required_keys": [
+                "output_version",
+                "mode",
+                "decision",
+                "state"
+              ],
+              "properties": {
+                "output_version": {
+                  "type": "number",
+                  "const": 1
+                },
+                "mode": {
+                  "type": "string",
+                  "const": "step"
+                }
+              }
+            }
           }
         ]
       }
