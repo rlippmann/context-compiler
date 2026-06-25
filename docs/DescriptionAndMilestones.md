@@ -93,8 +93,10 @@ Long-term memory remains an app persistence responsibility, not an engine-owned 
 
 ### 0.6.x
 
-The 0.6.x line completed checkpoint support, preprocessor boundary hardening, and
-regression/conformance surfaces that prepare the project for the next milestone.
+The 0.6.x line completed checkpoint support, authority-layer boundary hardening,
+and regression/conformance surfaces that prepared the project for the later
+clean break between core authority behavior, acquisition-layer drafting, and
+runnable integrations.
 
 ### 0.7 — Auditability & Boundary Hardening
 
@@ -115,97 +117,43 @@ Make engine behavior inspectable and externally controllable without guessing.
   - `--initial-state-file`
   - `--initial-checkpoint-json`
   - `--initial-checkpoint-file`
-- Explicit preprocessor policy for multi-line, multi-sentence, and conversational-prefix input
-  (for example `ok. prohibit peanuts`, `sure - use docker`, mixed conversational + directive content)
-  that is rule-based, fixture-covered, and inspectable
-- Define policy for directive-adjacent mixed-intent payloads
-  (for example `use docker and explain why containers matter`),
-  ensuring explicit, inspectable behavior without implicit interpretation
 
 **Constraints:**
 
 - No expansion of authoritative state model
 - No implicit behavior
 - No heuristic-heavy parsing
-- Preserve separation between engine, preprocessor, and host/controller layers
+- Preserve separation between engine/controller authority behavior and
+  host-owned acquisition or application layers
 
 ### 0.8 — Architectural Decomposition (approved direction)
 
-The approved 0.8 direction is to document and preserve the architectural
-decomposition that has emerged around the current engine and experimental
-preprocessor work. Behavior is expected to be preserved initially rather than
-redesigned.
+0.8 documented the clean-break repository split and removed ambiguity about
+which package owns which behavior.
 
-#### Authority Layer
+Current ownership after 0.8:
 
-Context Compiler core remains the Authority Layer and continues to serve as
-deterministic conversational state authority.
+- `context-compiler` owns the Authority Layer:
+  deterministic state transitions, directive application, clarification and
+  confirmation handling, checkpoints, preview/diff, controller behavior, and
+  authoritative state
+- `context-compiler-directive-drafter` owns Acquisition Layer drafting:
+  natural-language-to-directive drafting, candidate directive generation,
+  prompt/resource usage for drafting, and drafting-oriented surfaces
+- `context-compiler-example-integrations` owns runnable integrations:
+  LiteLLM, OpenWebUI, Ollama, and other proxy/runtime/provider examples
 
-Responsibilities:
+Boundary:
 
-- deterministic state transitions
-- contradiction handling
-- clarification handling
-- pending confirmation flows
-- checkpoints
-- preview/diff
-- authoritative state ownership
-
-The Authority Layer remains the only layer that applies directives and the only
-layer that mutates authoritative state.
-
-#### Acquisition Layer
-
-The current experimental preprocessor direction belongs to the Acquisition
-Layer.
-
-Planned 0.8 extraction target:
-`context-compiler-directive-drafter`
-
-Responsibilities:
-
-- directive-adjacent interpretation
-- conservative natural-language-to-directive drafting
-- candidate directive generation
-- possible future suggestion/proposal workflows outside the initial 0.8 extraction scope
-
-Important boundary:
-
-- drafts are non-authoritative
-- drafting proposes
-- authority decides
+- drafting is non-authoritative
 - only core applies directives
 - only core mutates authoritative state
 
-The Directive Drafter may draft candidate directive strings.
+Historical note:
 
-It must not:
-
-- mutate authoritative state
-- bypass `engine.step(...)`
-- edit `engine.state`
-- become a second authority
-
-0.8 direction:
-
-> Extraction of the experimental preprocessor into a separate package:
+> The experimental preprocessor work was extracted from core into:
 >
 > `context-compiler-directive-drafter`
-
-The initial goal is extraction with preserved behavior, not API redesign.
-
-#### Composition Layer
-
-The Composition Layer is a future possibility only and is not planned for 0.8.
-
-Examples:
-
-- multiple authorities
-- profiles
-- domain-specific authorities
-- provenance
-- conflict resolution
-- effective-state computation
 
 ### 0.9 Candidate Direction — Canonical Export Integrity / Hashing
 
@@ -230,7 +178,8 @@ Explicitly out of scope:
 ### Post-0.8 Direction
 
 - 0.9 candidate direction: canonical export integrity and hashing
-- MCP adapter likely as a separate/later track after 0.8 extraction direction is clearer
+- MCP adapter likely as a separate/later track after post-clean-break package
+  boundaries are fully settled
 - Optional MCP-readiness helpers only if narrowly justified
 - Additional tooling built on auditability surfaces
 
@@ -240,7 +189,7 @@ Conceptual completion is a stable minimal contract, not feature accumulation.
 
 - Stable minimal engine contract
 - Deterministic and inspectable behavior
-- Strict compiler / preprocessor / host separation
+- Strict authority / acquisition / application separation
 - No implicit behavior
 - No authoritative state-model expansion
 - Cross-language consistency with Python as source of truth

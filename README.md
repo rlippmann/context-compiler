@@ -4,42 +4,19 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/context-compiler)](https://pypi.org/project/context-compiler/)
 [![License](https://img.shields.io/pypi/l/context-compiler)](https://pypi.org/project/context-compiler/)
 
-Some behaviors require explicit host-side state handling.
-
 Context Compiler is a deterministic conversational state authority for LLM applications.
-It applies explicit premise and policy updates so state changes stay fixed and
-repeatable.
-
-## What prompting and reinjection can do
-
-Prompting and reinjection are useful. In many real systems, reinjecting saved
-state text is enough to keep instructions and policies persistent across turns.
-
-Context Compiler adds host-owned transition rules for behaviors that plain text
-reinjection does not implement by itself: replace `X` only if `X` exists, block
-conflicting changes and ask for confirmation, and restore saved state plus
-pending confirmations from checkpoints.
-
-## What prompting cannot do by itself
-
-Prompt text (including reinjected state text) helps, but it does not give your
-app clear rules for when state can change. By itself, it does not provide:
-
-- rules your app controls for state changes
-- replacement precondition checks (`use X instead of Y` when `Y` may be absent)
-- confirmation flows that must complete before anything else changes
-- clear rules for when to block a change
-- reliable checkpoint restore for both saved state and pending confirmation flow
+It handles explicit state changes, clarification and confirmation flows,
+checkpoint restore, and structured authoritative state for the host.
 
 ## What Context Compiler provides
 
-Context Compiler provides fixed host-side state handling:
+Context Compiler gives hosts fixed state rules:
 
-- deterministic directive handling for explicit user state changes
+- handle explicit user state changes with deterministic rules
 - clarification instead of silent overwrite for blocked/ambiguous changes
 - pending confirmation flows that must resolve before anything else changes
-- checkpoint export/import for restoring saved state and pending confirmation flow
-- structured saved state that the host can pass to the model
+- export and import checkpoints to restore saved state and pending confirmation flow
+- produce structured saved state that the host can pass to the model
 
 The model generates responses. The compiler owns state transitions.
 
@@ -49,25 +26,8 @@ Context Compiler treats important instructions as structured state instead of
 temporary prompt text.
 
 Like a compiler, it parses input, validates it, applies fixed rules, and
-produces a stable representation the host can use. It is not source-code
+produces a stable result the host can use. It is not source-code
 compilation and not a reasoning model.
-
-## Results
-
-Yes, on the current scored demo set.
-
-- Scope: evaluated across **7 models** and **3 provider paths** (`ollama`, `openai`, `openai_compatible`).
-- Scored checks (**6 demos per model**; Demo 6 excluded): baseline **26 / 42**, compiler **42 / 42**, compiler+compact **42 / 42**.
-- Across tested models, compiler-mediated paths pass all scored scenarios; baseline behavior is model-dependent.
-
-Interpretation guide:
-- Demos `01`-`05` and `07` focus on persistence and policy-following behavior.
-- Demos `08`/`09` focus on rules for when state is allowed to change.
-- Demos `08`/`09` show what prompt text does not implement by itself.
-- Plain reinjection can produce plausible responses, but it does not check whether replacement is allowed or wait for confirmation before saving changes.
-
-→ [Full results and demo output](demos/README.md)
-Canonical matrix: [docs/demos-results.md](docs/demos-results.md)
 
 ## 10-Second Example
 
@@ -93,7 +53,7 @@ instead of relying on memory of earlier conversation text.
 
 ## Deterministic behavior (examples)
 
-Context Compiler makes mutation rules explicit so behavior stays repeatable.
+Context Compiler makes state-change rules explicit so behavior stays repeatable.
 
 **Explicit directive**
 ```text
@@ -138,7 +98,7 @@ Host Application
  └─ update → authoritative state mutated; host may call LLM with compiled state
 ```
 
-The compiler owns state updates and never calls the LLM.
+The compiler updates state and never calls the LLM.
 Your app decides whether to call the model based on the returned `Decision`.
 
 ---
@@ -169,13 +129,31 @@ else:
     render(call_llm(user_input))
 ```
 
-This is the primary integration path: your app owns the model call, and the
+This is the main integration path: your app owns the model call, and the
 compiler owns deterministic state transitions.
+
+## Does it Work?
+
+Yes, on the current scored demo set, compiler-mediated paths pass every scored
+scenario.
+
+- Scope: evaluated across **7 models** and **3 provider paths** (`ollama`, `openai`, `openai_compatible`).
+- Scored checks (**6 demos per model**; Demo 6 excluded): baseline **26 / 42**, compiler **42 / 42**, compiler+compact **42 / 42**.
+- Baseline behavior remains model-dependent.
+
+Interpretation guide:
+- Demos `01`-`05` and `07` focus on persistence and policy-following behavior.
+- Demos `08`/`09` focus on rules for when state is allowed to change.
+- Demos `08`/`09` show what prompt text does not implement by itself.
+- Plain reinjection can produce plausible responses, but it does not check whether replacement is allowed or wait for confirmation before saving changes.
+
+→ [Full results and demo output](demos/README.md)
+Canonical matrix: [docs/demos-results.md](docs/demos-results.md)
 
 ## Interactive Playground
 
 Use the REPL to explore behavior, learn the directive grammar, and debug or
-test host-side state handling.
+test host-side state rules.
 
 ```bash
 pip install context-compiler
@@ -184,7 +162,7 @@ context-compiler
 
 `context-compiler` launches the interactive REPL.
 
-Preload options keep saved rules separate from in-progress confirmation state:
+Preload options keep saved rules separate from confirmation state in progress:
 - `--initial-state-json` / `--initial-state-file` load saved state
   (via exported state JSON).
 - `--initial-checkpoint-json` / `--initial-checkpoint-file` restore full
@@ -206,10 +184,10 @@ for non-interactive usage.
 context-compiler --json < input.txt
 ```
 
-`--json` enables machine-readable NDJSON output for non-interactive usage
+`--json` writes machine-readable NDJSON for non-interactive usage
 (one complete JSON object per processed input line).
 
-Preload options keep saved rules separate from in-progress confirmation state:
+Preload options keep saved rules separate from confirmation state in progress:
 - `--initial-state-json` / `--initial-state-file` load saved state
   (via exported state JSON).
 - `--initial-checkpoint-json` / `--initial-checkpoint-file` restore full
@@ -226,8 +204,9 @@ pip install context-compiler
 ```
 
 Packaging notes:
-- Base install includes core engine modules and `examples/` artifacts.
-- LLM demos require: `pip install "context-compiler[demos]"`.
+- Base install includes the core authority-layer engine and CLI.
+- Demo/evaluation workflows live outside the core package or behind optional
+  extras.
 
 ### Development
 
@@ -235,33 +214,6 @@ Packaging notes:
 uv sync --group dev
 uv run pytest
 ```
-
----
-
-## FAQ
-
-**Isn’t this just prompt engineering?**
-It complements prompt engineering, but solves a different problem. Prompting
-shapes model behavior. Context Compiler enforces state rules and updates state
-only through explicit directives.
-
-**Why not just use a plain dict?**
-A plain dict is enough to drive prompt construction, schema selection, and
-other host behavior.
-
-Context Compiler solves a different problem: who updates that state, under what
-rules, and what happens when instructions conflict.
-
-```text
-User: use python_script
-User: prohibit python_script
-```
-
-With a plain dict, the application must invent conflict-resolution rules.
-Context Compiler applies deterministic state-transition rules and can return
-clarification instead of silently overwriting state.
-
----
 
 ## Decision API
 
@@ -282,7 +234,7 @@ Meaning:
 | update      | authoritative state mutated; host may call LLM with updated state |
 | clarify     | show `prompt_to_user` and do not call the LLM |
 
-For normal app code, prefer exported decision helpers (`is_clarify`,
+For normal app code, prefer the exported decision helpers (`is_clarify`,
 `is_update`, `is_passthrough`, `get_clarify_prompt`, `get_decision_state`)
 instead of direct key traversal.
 
@@ -309,7 +261,7 @@ instead of direct key traversal.
 
 ### Controller API (Reusable Outside REPL)
 
-These controller APIs are public package exports and can be used directly
+These controller APIs are public package exports. You can use them directly
 in app code (not just inside the REPL).
 
 Controller quick example:
@@ -350,19 +302,19 @@ print(get_step_state(applied) is not None)  # True
 | `preview(engine, user_input)` | Run deterministic dry-run preview and return `PreviewResult` (`output_version`, `mode`, `decision`, `state_before`, `state_after`, `diff`, `would_mutate`). Live engine state is restored after preview. |
 | `state_diff(state_before, state_after)` | Return a structural `StructuralDiff` (`changed`, premise before/after, policies added/removed/changed). |
 
-Decision-kind constants are also exported for host branching readability:
+The package also exports decision-kind constants for clearer host branching:
 - `DECISION_PASSTHROUGH`
 - `DECISION_UPDATE`
 - `DECISION_CLARIFY`
 
-Decision helpers are also exported for common host-side checks:
+The package also exports decision helpers for common host-side checks:
 - `is_update(decision)`
 - `is_clarify(decision)`
 - `is_passthrough(decision)`
 - `get_clarify_prompt(decision)`
 - `get_decision_state(decision)`
 
-Policy value constants are exported for explicit policy comparisons:
+The package exports policy value constants for explicit policy comparisons:
 - `POLICY_USE`
 - `POLICY_PROHIBIT`
 
@@ -370,14 +322,14 @@ Policy value constants are exported for explicit policy comparisons:
 
 ## State Model
 
-The state model represents explicit user commitments that the host can treat as
-authoritative for future turns.
+The state model holds explicit user commitments that the host can treat as
+authoritative in future turns.
 
 - `premise` = authoritative context that changes how future answers should be interpreted
 - `use` = affirmative selection or preference
 - `prohibit` = explicit exclusion
 
-The compiler keeps this state snapshot in a form that your app can trust.
+The compiler keeps this state in a form that your app can trust.
 
 - Premise is a single value that can be set or replaced
 - Policies are per-item (`use` or `prohibit`)
@@ -394,7 +346,7 @@ For normal reads, prefer `get_premise_value(state)` and
 
 ### When to use `premise`
 
-The `premise` is intended for **persistent context that changes how all answers should be interpreted**, especially when it:
+Use `premise` for **persistent context that changes how all answers should be interpreted**, especially when it:
 
 - applies across many turns
 - significantly changes what solutions are valid
@@ -420,21 +372,21 @@ Use policies instead when the constraint is explicit and enforceable:
 
 ### Example domains
 
-Hosts define what policy items and premise mean in context. Common patterns:
+Hosts define what policy items and premise mean in context. Common patterns include:
 
 - safety-oriented constraints (for example, prohibited materials or tools)
 - authority/evidence constraints (for example, cite only approved sources)
 - software workflow constraints (for example, require `uv`, prohibit `npm`)
 - accessibility/environment constraints (for example, no audio-only outputs)
 
-Context Compiler enforces explicit directive/state mechanics. Domain reasoning
+Context Compiler enforces explicit directive and state rules. Domain reasoning
 still belongs to the host and model workflow.
 
 ---
 
 ## Checkpoint Contract
 
-`export_json()` / `import_json()` and checkpoint APIs serve different boundaries:
+`export_json()` / `import_json()` and the checkpoint APIs serve different boundaries:
 
 - `export_json()` / `import_json()` transport **authoritative state only**
 - checkpoint APIs transport **serialized continuation**:
@@ -475,14 +427,14 @@ Notes:
 - `old_item` may be `null` for `"use_only"` when confirming “use X instead?” without an existing exact policy to replace.
 - imported policy keys are normalized during `import_json` / checkpoint authoritative-state restore.
 - if a policy key normalizes to `""`, the payload is invalid and is rejected.
-- this keeps import-time state integrity aligned with directive-time behavior where empty policy items are not allowed.
-- checkpoint restore is full and deterministic: authoritative state and pending continuation are restored together.
+- this keeps import-time state integrity aligned with directive-time behavior, where empty policy items are not allowed.
+- checkpoint restore is full and deterministic: it restores authoritative state and pending continuation together.
 - checkpoint validation is all-or-nothing; invalid payloads raise and no partial restore occurs.
 - `checkpoint_version` is independent of authoritative state `version` and must be bumped when checkpoint contract shape changes (especially `pending`).
 
 When to use checkpoint APIs:
 
-- stateless host/integration boundaries where engine instances are short-lived.
+- stateless host or integration boundaries where engine instances are short-lived.
 - resume after interruption without losing pending clarification flow.
 - preserve pending confirmation flow state (`pending`) across process/request boundaries.
 
@@ -526,8 +478,35 @@ For full directive grammar and edge-case behavior, see [DirectiveGrammarSpec.md]
 
 ## Examples
 
-- [examples](examples/) — minimal usage patterns and core integration primitives
+- [examples](examples/) — minimal usage patterns for the core authority layer
 - [demos](demos/) — concrete scenarios showing how behavior differs with and without the compiler
+
+---
+
+## FAQ
+
+**Isn't this just prompt reinjection?**
+No. Prompt reinjection is one way a host can use Context Compiler's
+authoritative state, but Context Compiler is not a prompt-reinjection system.
+It decides when state changes are allowed, when clarification is required, and
+how state plus pending confirmation flow are restored. For runnable host
+examples, see `context-compiler-example-integrations`.
+
+**Why not just use a plain dict?**
+A plain dict is enough to drive prompt construction, schema selection, and
+other host behavior.
+
+Context Compiler solves a different problem: who updates that state, under which
+rules, and what happens when instructions conflict.
+
+```text
+User: use python_script
+User: prohibit python_script
+```
+
+With a plain dict, the application must invent rules to resolve conflicts.
+Context Compiler applies deterministic state-transition rules and can return
+clarification instead of silently overwriting state.
 
 ---
 
@@ -540,7 +519,7 @@ For full directive grammar and edge-case behavior, see [DirectiveGrammarSpec.md]
 - Model responses never modify compiler state.
 - Ambiguous directives trigger clarification instead of changing state.
 
-These invariants are verified through behavioral tests and Hypothesis-based property tests.
+Behavioral tests and Hypothesis-based property tests verify these invariants.
 
 ### Multiple engines
 
@@ -552,7 +531,7 @@ For a full documentation map, see [docs/README.md](docs/README.md).
 
 ## Design Notes
 
-More detailed design and milestone documents are available in:
+These docs cover the design and milestone details:
 
 - [Design philosophy](docs/DesignPhilosophy.md)
 - [Architecture boundaries](docs/architecture.md)
@@ -563,7 +542,7 @@ More detailed design and milestone documents are available in:
 
 ### Conformance Fixtures
 
-Cross-language conformance tests are defined in [`tests/fixtures/`](tests/fixtures/).
+[`tests/fixtures/`](tests/fixtures/) defines the cross-language conformance tests.
 These fixtures serve as the behavioral contract for compiler semantics across implementations.
 
 ---
