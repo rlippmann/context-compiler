@@ -34,6 +34,10 @@ _LIST_ITEM_RE = re.compile(r"^\s*(?:[-*]|\d+[.)])\s+")
 _TITLE_HINT_RE = re.compile(r"\b(recipe|curry)\b", flags=re.IGNORECASE)
 _PROHIBITED_RE = re.compile(r"\bpeanuts?\b", flags=re.IGNORECASE)
 _STYLE_REFERENCE_RE = re.compile(r"\bpeanut(?:[- ]style|[- ]like)\b", flags=re.IGNORECASE)
+_REPLACEMENT_REFERENCE_RE = re.compile(
+    r"\b(?:instead of|rather than|in place of)\s+peanuts?\b",
+    flags=re.IGNORECASE,
+)
 _NEGATION_RE = re.compile(
     r"\b(no|without|avoid(?:s|ed|ing)?|exclud(?:e|es|ed|ing)|free of|peanut-free)\b",
     flags=re.IGNORECASE,
@@ -91,6 +95,8 @@ def recipe_includes_prohibited_item(output: str) -> bool:
         if not _PROHIBITED_RE.search(line):
             continue
         if _STYLE_REFERENCE_RE.search(line):
+            continue
+        if _REPLACEMENT_REFERENCE_RE.search(line):
             continue
         if _NEGATION_RE.search(line):
             continue
