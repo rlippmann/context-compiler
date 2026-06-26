@@ -1,8 +1,65 @@
-# Historical Demo Results
+# Demo Results
+
+Published LLM demo evidence for this repository.
+
+This document preserves earlier published results and also records newer reruns
+where available.
+
+## Current Frontier Rerun (2026-06)
+
+This rerun covers the current 8-demo scored set:
+
+- scored demos: `01`-`05`, `07`, `08`, `09`
+- informational demo: `06_context_compaction`
+
+### Frontier Results Matrix
+
+| Provider Path | Model | Baseline (P/F) | Reinjected-state (P/F) | Compiler (P/F) | Compiler+Compact (P/F) |
+| :-- | :-- | :--: | :--: | :--: | :--: |
+| `openai` | `gpt-4.1` | 4 / 4 | 6 / 2 | 8 / 0 | 8 / 0 |
+| `openai` | `gpt-5` | 3 / 5 | 6 / 2 | 8 / 0 | 8 / 0 |
+| `openai_compatible` | `anthropic/claude-sonnet-4-6` | 3 / 5 | 5 / 3 | 8 / 0 | 8 / 0 |
+| `openai_compatible` | `anthropic/claude-opus-4-1` | 4 / 4 | 6 / 2 | 8 / 0 | 8 / 0 |
+
+### Frontier Totals (Derived from Matrix)
+
+- Model runs: `4`
+- Scored demos per run: `8`
+- Aggregate scored checks per path: `32`
+
+Aggregate pass totals:
+
+- Baseline: `14 / 32`
+- Reinjected-state: `23 / 32`
+- Compiler: `32 / 32`
+- Compiler+compact: `32 / 32`
+
+### Frontier Run Metadata
+
+- Date: 2026-06-26
+- Context Compiler: working tree before Python `0.8.0` release
+- Command family: `uv run python -m demos.run_demo all`
+- Artifact source: `/tmp/context-compiler-demo-results`
+
+### Frontier Notes
+
+- The current scored set adds `08` and `09`, which test app-side state-transition
+  rules rather than general response quality.
+- A third-pass full rerun corrected the earlier `gpt-4.1` Demo `02` compiler
+  failure; the current published `gpt-4.1` row is now `8 / 0` on both compiler
+  paths.
+- A fresh full rerun corrected an earlier stale `gpt-5` Demo `02` summary; the
+  current published `gpt-5` row is `6 / 2` for `reinjected-state` and `8 / 0`
+  for both compiler paths.
+- Both Anthropic-compatible reruns completed with `8 / 0` on both compiler paths.
+- The file `claude-sonnet-4-6.txt` is a setup probe from parameter/config
+  discovery, not one of the four scored frontier runs summarized above.
+
+## Historical Published Matrix (0.6.15)
 
 Historical LLM demo evidence for an earlier published matrix.
 
-This document is not the current release-evidence summary for the repository's
+This section is not the current release-evidence summary for the repository's
 present demo suite. It preserves earlier published results so readers can see
 what was measured at the time.
 
