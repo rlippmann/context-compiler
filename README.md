@@ -134,21 +134,16 @@ compiler owns deterministic state transitions.
 
 ## Does it Work?
 
-Yes, on the current scored demo set, compiler-mediated paths pass every scored
-scenario.
+Yes. The current demo suite in this repository contains 8 scored demos
+(`01`-`05`, `07`, `08`, `09`) plus 1 informational demo (`06`).
 
-- Scope: evaluated across **7 models** and **3 provider paths** (`ollama`, `openai`, `openai_compatible`).
-- Scored checks (**6 demos per model**; Demo 6 excluded): baseline **26 / 42**, compiler **42 / 42**, compiler+compact **42 / 42**.
-- Baseline behavior remains model-dependent.
+The current published verification matrix combines 7 current model runs across
+hosted/frontier providers and local Ollama models. In those current runs,
+baseline passed **24 / 56**, reinjected-state passed **40 / 56**, and both
+compiler paths passed **56 / 56**.
 
-Interpretation guide:
-- Demos `01`-`05` and `07` focus on persistence and policy-following behavior.
-- Demos `08`/`09` focus on rules for when state is allowed to change.
-- Demos `08`/`09` show what prompt text does not implement by itself.
-- Plain reinjection can produce plausible responses, but it does not check whether replacement is allowed or wait for confirmation before saving changes.
-
-→ [Full results and demo output](demos/README.md)
-Canonical matrix: [docs/demos-results.md](docs/demos-results.md)
+→ [Current demo set and output modes](demos/README.md)
+Current and historical published results: [docs/demos-results.md](docs/demos-results.md)
 
 ## Interactive Playground
 
@@ -205,8 +200,8 @@ pip install context-compiler
 
 Packaging notes:
 - Base install includes the core authority-layer engine and CLI.
-- Demo/evaluation workflows live outside the core package or behind optional
-  extras.
+- Install example files with `pip install "context-compiler[examples]"`.
+- Install demo files and demo dependencies with `pip install "context-compiler[demos]"`.
 
 ### Development
 

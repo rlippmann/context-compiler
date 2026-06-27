@@ -142,7 +142,13 @@ is unavailable.
 
 ## Results
 
-The canonical cross-model results matrix is maintained in [docs/demos-results.md](../docs/demos-results.md).
+This README describes the current demo suite in this repository.
+
+The published results page in [docs/demos-results.md](../docs/demos-results.md)
+includes:
+
+- a current 2026-06 verification matrix covering frontier-provider reruns and local Ollama runs
+- the older historical 0.6.15 matrix for the earlier 6-demo scored set
 
 Notes:
 - There are **8 scored demos** (`01`–`05`, `07`, `08`, `09`). `06_context_compaction` is informational and excluded from PASS/FAIL totals.

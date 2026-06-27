@@ -155,6 +155,30 @@ Historical note:
 >
 > `context-compiler-directive-drafter`
 
+### Future Consideration — Engine Thread Safety
+
+Current contract:
+
+- Engine instances are deterministic.
+- Engine instances are not currently advertised as thread-safe.
+- Hosts should serialize access to a shared engine instance.
+
+Design notes:
+
+- Simple locking around `step()` is likely insufficient.
+- `preview()` is the primary complication because it performs a temporary mutate-and-restore sequence.
+- Any future thread-safety work should evaluate:
+  - atomic preview semantics
+  - export/import consistency
+  - checkpoint operations
+  - concurrency testing
+- Thread-safety should be designed holistically rather than added through ad hoc locking.
+
+Status:
+
+- Future infrastructure hardening.
+- Not planned for the 0.8.x series.
+
 ### 0.9 Candidate Direction — Canonical Export Integrity / Hashing
 
 This is future planning only. No 0.9 implementation is defined here.

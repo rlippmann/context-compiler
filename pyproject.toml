@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "context-compiler"
-version = "0.7.10"
+version = "0.8.0"
 description = "Deterministic conversational state engine for LLM applications."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -13,8 +13,11 @@ authors = [{ name = "Robert Lippmann" }]
 dependencies = []
 keywords = [
   "llm",
+  "conversational-ai",
   "conversation-state",
+  "state-management",
   "state-machine",
+  "deterministic",
   "ai-infrastructure",
 ]
 classifiers = [
@@ -38,10 +41,23 @@ context-compiler = "context_compiler.repl:main"
 packages = ["src/context_compiler"]
 
 [tool.hatch.build.targets.wheel.force-include]
+"demos" = "demos"
 "examples" = "examples"
+"host_support" = "host_support"
 "src/context_compiler/py.typed" = "context_compiler/py.typed"
 
+[tool.hatch.build.targets.sdist]
+include = [
+  "/README.md",
+  "/pyproject.toml",
+  "/src/context_compiler",
+  "/demos",
+  "/examples",
+  "/host_support",
+]
+
 [project.optional-dependencies]
+examples = []
 demos = [
   "litellm>=1.0.0",
 ]
