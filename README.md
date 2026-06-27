@@ -137,22 +137,13 @@ compiler owns deterministic state transitions.
 Yes. The current demo suite in this repository contains 8 scored demos
 (`01`-`05`, `07`, `08`, `09`) plus 1 informational demo (`06`).
 
-A published historical cross-model matrix is available for an earlier scored
-demo set.
-
-- Historical matrix scope: **7 models** and **3 provider paths** (`ollama`, `openai`, `openai_compatible`).
-- Historical scored checks (**6 demos per model**; Demo 6 excluded): baseline **26 / 42**, compiler **42 / 42**, compiler+compact **42 / 42**.
-- That published matrix was recorded against Context Compiler **0.6.15** and predates the later scored additions (`08` and `09`) plus the published `reinjected-state` comparison.
-- Baseline behavior in those historical runs remained model-dependent.
-
-Interpretation guide:
-- Demos `01`-`05` and `07` focus on persistence and policy-following behavior.
-- Demos `08`/`09` focus on rules for when state is allowed to change.
-- Demos `08`/`09` show what prompt text does not implement by itself.
-- Plain reinjection can produce plausible responses, but it does not check whether replacement is allowed or wait for confirmation before saving changes.
+The current published verification matrix combines 7 current model runs across
+hosted/frontier providers and local Ollama models. In those current runs,
+baseline passed **24 / 56**, reinjected-state passed **40 / 56**, and both
+compiler paths passed **56 / 56**.
 
 → [Current demo set and output modes](demos/README.md)
-Historical published matrix: [docs/demos-results.md](docs/demos-results.md)
+Current and historical published results: [docs/demos-results.md](docs/demos-results.md)
 
 ## Interactive Playground
 
