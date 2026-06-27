@@ -200,8 +200,8 @@ pip install context-compiler
 
 Packaging notes:
 - Base install includes the core authority-layer engine and CLI.
-- Demo/evaluation workflows live outside the core package or behind optional
-  extras.
+- Install example files with `pip install "context-compiler[examples]"`.
+- Install demo files and demo dependencies with `pip install "context-compiler[demos]"`.
 
 ### Development
 
