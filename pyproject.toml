@@ -13,8 +13,11 @@ authors = [{ name = "Robert Lippmann" }]
 dependencies = []
 keywords = [
   "llm",
+  "conversational-ai",
   "conversation-state",
+  "state-management",
   "state-machine",
+  "deterministic",
   "ai-infrastructure",
 ]
 classifiers = [
