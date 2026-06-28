@@ -2,13 +2,13 @@
 
 This directory contains small authority-layer examples showing typical app-side usage of Context Compiler.
 
-Install examples with:
+Install the core package with:
 
 ```bash
-pip install "context-compiler[examples]"
+pip install context-compiler
 ```
 
-Non-integration example files in this directory are standalone scripts and can be run directly.
+Example files in this directory are included in the repository and source distribution, and can be run directly.
 
 ## 01_persistent_guardrails.py
 

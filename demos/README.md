@@ -35,11 +35,15 @@ patterns still appear in real applications.
 
 ## Requirements
 
-Install demo dependencies:
+To run the demos from this repository, clone the repo and install the demo dependency extra:
 
 ```bash
+git clone https://github.com/rlippmann/context-compiler.git
+cd context-compiler
 pip install "context-compiler[demos]"
 ```
+
+The `[demos]` extra installs optional dependencies such as LiteLLM. It does not install demo source files into site-packages.
 
 Environment variables (strict provider mode contract):
 
