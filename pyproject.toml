@@ -40,12 +40,6 @@ context-compiler = "context_compiler.repl:main"
 [tool.hatch.build.targets.wheel]
 packages = ["src/context_compiler"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"demos" = "demos"
-"examples" = "examples"
-"host_support" = "host_support"
-"src/context_compiler/py.typed" = "context_compiler/py.typed"
-
 [tool.hatch.build.targets.sdist]
 include = [
   "/README.md",
@@ -57,7 +51,6 @@ include = [
 ]
 
 [project.optional-dependencies]
-examples = []
 demos = [
   "litellm>=1.0.0",
 ]
