@@ -6,6 +6,7 @@
 ## Core Concepts
 - [Architecture boundaries](architecture.md)
 - [Directive Grammar (exact command forms the engine accepts)](DirectiveGrammarSpec.md)
+- [Public API reference](api-reference.md)
 
 ## Evaluation & Evidence
 - [Demo results matrix](demos-results.md)
