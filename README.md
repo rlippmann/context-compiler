@@ -16,17 +16,15 @@ Context Compiler gives hosts fixed state rules:
 - clarification instead of silent overwrite for blocked/ambiguous changes
 - pending confirmation flows that must resolve before anything else changes
 - export and import checkpoints to restore saved state and pending confirmation flow
-- produce structured saved state that the host can pass to the model
+- produce structured authoritative state for downstream host decisions
 
-The model generates responses. The compiler owns state transitions.
+The model generates responses. The compiler owns state.
 
 ## How the compiler metaphor works
 
-Context Compiler treats important instructions as structured state instead of
-temporary prompt text.
-
 Like a compiler, it parses input, validates it, applies fixed rules, and
-produces a stable result the host can use. It is not source-code
+produces a stable result the host can use. It treats important instructions as
+structured state instead of temporary prompt text. It is not source-code
 compilation and not a reasoning model.
 
 ## 10-Second Example
@@ -98,8 +96,8 @@ Host Application
  └─ update → authoritative state mutated; host may call LLM with compiled state
 ```
 
-The compiler updates state and never calls the LLM.
-Your app decides whether to call the model based on the returned `Decision`.
+The compiler never calls the LLM. Your app decides what to do with the returned
+`Decision`.
 
 ---
 
@@ -129,8 +127,8 @@ else:
     render(call_llm(user_input))
 ```
 
-This is the main integration path: your app owns the model call, and the
-compiler owns deterministic state transitions.
+This is the main integration path: your app owns the model call and uses the
+compiler as the authority layer for state transitions.
 
 For runnable application-layer examples, see
 [`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations).
@@ -162,8 +160,6 @@ pip install context-compiler
 context-compiler
 ```
 
-`context-compiler` launches the interactive REPL.
-
 Preload options keep saved rules separate from confirmation state in progress:
 - `--initial-state-json` / `--initial-state-file` load saved state
   (via exported state JSON).
@@ -185,9 +181,6 @@ for non-interactive usage.
 ```bash
 context-compiler --json < input.txt
 ```
-
-`--json` writes machine-readable NDJSON for non-interactive usage
-(one complete JSON object per processed input line).
 
 Preload options keep saved rules separate from confirmation state in progress:
 - `--initial-state-json` / `--initial-state-file` load saved state
@@ -258,9 +251,6 @@ Common API entry points:
 
 ### Controller API (Reusable Outside REPL)
 
-These controller APIs are public package exports. You can use them directly
-in app code (not just inside the REPL).
-
 - `preview(engine, user_input)` performs a deterministic dry run and restores
   live engine state afterward
 - `step(engine, user_input)` returns a reusable result envelope around one
@@ -281,8 +271,6 @@ authoritative in future turns.
 - `premise` = authoritative context that changes how future answers should be interpreted
 - `use` = affirmative selection or preference
 - `prohibit` = explicit exclusion
-
-The compiler keeps this state in a form that your app can trust.
 
 - Premise is a single value that can be set or replaced
 - Policies are per-item (`use` or `prohibit`)
@@ -347,8 +335,8 @@ still belongs to the host and model workflow.
   - pending confirmation flow state
 
 Use state JSON when you only need authoritative state. Use checkpoint APIs when
-you also need resumable continuation state, especially pending clarification or
-confirmation flows across process or request boundaries.
+you also need resumable continuation state across process or request
+boundaries.
 
 For the checkpoint object shape, API-level usage notes, and serialization
 details, see [docs/api-reference.md](docs/api-reference.md#checkpoint-apis).
