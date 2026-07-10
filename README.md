@@ -241,85 +241,35 @@ For normal app code, prefer the exported decision helpers (`is_clarify`,
 `is_update`, `is_passthrough`, `get_clarify_prompt`, `get_decision_state`)
 instead of direct key traversal.
 
----
+See [docs/api-reference.md](docs/api-reference.md) for the full public API
+reference.
 
-### API Reference
+Common API entry points:
 
-| API | Description |
-|---|---|
-| `create_engine(state=None)` | Create a new compiler engine; optional `state` provides initial authoritative state (validated/canonicalized). |
-| `step(user_input)` | Parse one user turn and return a deterministic `Decision`. |
-| `compile_transcript(messages: Transcript)` | Replay a transcript from a fresh engine and return either final state or a confirmation prompt. |
-| `engine.apply_transcript(messages: Transcript)` | Replay a transcript onto the current engine state and return either final state or a confirmation prompt. |
-| `engine.state` | Read the current opaque authoritative in-memory state snapshot; for normal host reads, prefer `get_premise_value(state)` and `get_policy_items(state, ...)`. |
-| `engine.has_pending_clarification()` | Return whether a confirmation-required clarification is currently pending. |
-| `get_premise_value(state)` | Read the current premise value from a state snapshot. |
-| `get_policy_items(state, value=None)` | Read policy items from a state snapshot (all, `use`, or `prohibit`). |
-| `engine.export_json()` | Export authoritative state as JSON (`str`) for state transport/persistence. |
-| `engine.import_json(payload)` | Load/restore authoritative state from exported JSON (`str`). |
-| `engine.export_checkpoint()` | Export resumable checkpoint object (`Checkpoint`). |
-| `engine.import_checkpoint(payload)` | Restore full checkpoint (`Checkpoint`) and return `None`. |
-| `engine.export_checkpoint_json()` | Export checkpoint as canonical JSON (`str`). |
-| `engine.import_checkpoint_json(payload)` | Restore checkpoint from JSON (`str`) and return `None`. |
+- engine lifecycle: `create_engine(...)`, `engine.step(...)`, `engine.state`,
+  `engine.has_pending_clarification()`
+- decision helpers: `is_clarify(...)`, `is_update(...)`, `is_passthrough(...)`,
+  `get_clarify_prompt(...)`, `get_decision_state(...)`
+- state helpers: `get_premise_value(...)`, `get_policy_items(...)`
+- transcript APIs: `compile_transcript(...)`, `engine.apply_transcript(...)`
+- state and checkpoint transport: `export_json(...)`, `import_json(...)`,
+  `export_checkpoint(...)`, `import_checkpoint(...)`
+- controller APIs: `preview(...)`, `step(...)`, `state_diff(...)`
 
 ### Controller API (Reusable Outside REPL)
 
 These controller APIs are public package exports. You can use them directly
 in app code (not just inside the REPL).
 
-Controller quick example:
+- `preview(engine, user_input)` performs a deterministic dry run and restores
+  live engine state afterward
+- `step(engine, user_input)` returns a reusable result envelope around one
+  engine turn
+- `state_diff(state_before, state_after)` summarizes structural state changes
 
-```python
-from context_compiler import (
-    diff_has_changes,
-    get_step_decision,
-    get_step_state,
-    is_update,
-    get_preview_state_after,
-    create_engine,
-    preview,
-    preview_would_mutate,
-    state_diff,
-    step,
-)
-
-engine = create_engine()
-
-before = engine.state
-dry_run = preview(engine, "prohibit peanuts")
-print(preview_would_mutate(dry_run))  # True
-planned_change = state_diff(before, get_preview_state_after(dry_run))
-print(diff_has_changes(planned_change))  # True
-
-after_preview = engine.state
-print(diff_has_changes(state_diff(before, after_preview)))  # False (preview does not mutate state)
-
-applied = step(engine, "prohibit peanuts")
-print(is_update(get_step_decision(applied)))  # True
-print(get_step_state(applied) is not None)  # True
-```
-
-| API | Description |
-|---|---|
-| `step(engine, user_input)` | Run one turn through the engine and return `StepResult` (`output_version`, `mode`, `decision`, `state`). |
-| `preview(engine, user_input)` | Run deterministic dry-run preview and return `PreviewResult` (`output_version`, `mode`, `decision`, `state_before`, `state_after`, `diff`, `would_mutate`). Live engine state is restored after preview. |
-| `state_diff(state_before, state_after)` | Return a structural `StructuralDiff` (`changed`, premise before/after, policies added/removed/changed). |
-
-The package also exports decision-kind constants for clearer host branching:
-- `DECISION_PASSTHROUGH`
-- `DECISION_UPDATE`
-- `DECISION_CLARIFY`
-
-The package also exports decision helpers for common host-side checks:
-- `is_update(decision)`
-- `is_clarify(decision)`
-- `is_passthrough(decision)`
-- `get_clarify_prompt(decision)`
-- `get_decision_state(decision)`
-
-The package exports policy value constants for explicit policy comparisons:
-- `POLICY_USE`
-- `POLICY_PROHIBIT`
+For examples and helper accessors such as `get_step_decision(...)`,
+`get_preview_state_after(...)`, `preview_would_mutate(...)`, and
+`diff_has_changes(...)`, see [docs/api-reference.md](docs/api-reference.md).
 
 ---
 
@@ -396,50 +346,12 @@ still belongs to the host and model workflow.
   - authoritative state
   - pending confirmation flow state
 
-Checkpoint object shape:
+Use state JSON when you only need authoritative state. Use checkpoint APIs when
+you also need resumable continuation state, especially pending clarification or
+confirmation flows across process or request boundaries.
 
-```json
-{
-  "checkpoint_version": 1,
-  "authoritative_state": {
-    "premise": "concise replies",
-    "policies": {
-      "docker": "use"
-    },
-    "version": 2
-  },
-  "pending": {
-    "kind": "replacement",
-    "replacement": {
-      "kind": "use_only",
-      "new_item": "kubectl",
-      "old_item": null
-    },
-    "prompt_to_user": "..."
-  }
-}
-```
-
-The checkpoint shape above is an explicit serialization contract. At this
-boundary, direct key access is expected.
-
-Notes:
-
-- `pending` is `null` when no continuation is waiting for confirmation.
-- `pending` captures confirmation-required operations (for example replacement flows).
-- `old_item` may be `null` for `"use_only"` when confirming “use X instead?” without an existing exact policy to replace.
-- imported policy keys are normalized during `import_json` / checkpoint authoritative-state restore.
-- if a policy key normalizes to `""`, the payload is invalid and is rejected.
-- this keeps import-time state integrity aligned with directive-time behavior, where empty policy items are not allowed.
-- checkpoint restore is full and deterministic: it restores authoritative state and pending continuation together.
-- checkpoint validation is all-or-nothing; invalid payloads raise and no partial restore occurs.
-- `checkpoint_version` is independent of authoritative state `version` and must be bumped when checkpoint contract shape changes (especially `pending`).
-
-When to use checkpoint APIs:
-
-- stateless host or integration boundaries where engine instances are short-lived.
-- resume after interruption without losing pending clarification flow.
-- preserve pending confirmation flow state (`pending`) across process/request boundaries.
+For the checkpoint object shape, API-level usage notes, and serialization
+details, see [docs/api-reference.md](docs/api-reference.md#checkpoint-apis).
 
 ---
 
