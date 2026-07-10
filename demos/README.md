@@ -10,25 +10,32 @@ This demo set shows what users notice: saved authoritative state continues to
 affect later turns, and where your app needs deterministic state-transition
 rules.
 
+These demos are proof-of-concept and evaluation surfaces. They isolate
+authority semantics with dependency-light comparisons instead of requiring
+deeper framework integration layers.
+
 Scored demos now compare four paths:
 - baseline
-- reinjected-state (application-managed state text injected into the prompt, without compiler semantics)
+- reinjected-state (application-managed state text injected into the prompt, used here as a simple prompt-only comparison baseline without compiler semantics)
 - compiler-mediated (full transcript + saved compiler state added to the prompt)
 - compiler+compact (compacted transcript + saved compiler state added to the prompt)
+
+Runnable application-layer enforcement-point integrations live in
+[`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations).
 
 ## Demo overview
 
 | Demo | Behavior | Concept | Most visible with |
 | :--: | --- | :--: | --- |
-| [03](./03_llm_premise_guardrail.py) | Premise updates stay authoritative | fixed, repeatable premise updates | models that summarize conversation |
 | [01](./01_llm_contradiction_clarify.py) | Contradiction blocking | clarification gate | small instruct models |
-| [08](./08_llm_replacement_precondition.py) | Replacement precondition | invalid replacement blocked without state mutation | any model |
-| [09](./09_llm_pending_clarification.py) | Pending clarification continuation | confirmation-only resolution of suspended mutation | any model |
-| [06](./06_llm_context_compaction.py) | Context compaction | saved compiler state replacing transcript context | small or local models |
-| [07](./07_llm_prompt_vs_state.py) | Prompt engineering comparison | prompting vs saved compiler state | any model with long transcript sensitivity |
 | [02](./02_llm_constraint_guardrail.py) | Policy state stays active across turns | authoritative policy state | small or quantized models |
+| [03](./03_llm_premise_guardrail.py) | Premise updates stay authoritative | fixed, repeatable premise updates | models that summarize conversation |
 | [04](./04_llm_tool_denylist_guardrail.py) | Tool governance | application-layer tool gating from saved state | general assistant models |
 | [05](./05_llm_prompt_drift_vs_state.py) | Prompt drift | long transcript failure | weaker long-context models ([see Demo 5 note](#demo-5-stress-ladder-turns)) |
+| [06](./06_llm_context_compaction.py) | Context compaction | saved compiler state replacing transcript context | small or local models |
+| [07](./07_llm_prompt_vs_state.py) | Prompt engineering comparison | prompting vs saved compiler state | any model with long transcript sensitivity |
+| [08](./08_llm_replacement_precondition.py) | Replacement precondition | invalid replacement blocked without state mutation | any model |
+| [09](./09_llm_pending_clarification.py) | Pending clarification continuation | confirmation-only resolution of suspended mutation | any model |
 
 Stronger frontier models may show these behaviors less often, but the same
 patterns still appear in real applications.
@@ -158,13 +165,13 @@ Notes:
 - There are **8 scored demos** (`01`–`05`, `07`, `08`, `09`). `06_context_compaction` is informational and excluded from PASS/FAIL totals.
 - Anthropic runs in this repo are executed through the `openai_compatible` provider path.
 - `PASS` means the demo-specific expected-behavior check for that path succeeded; `FAIL` means it did not.
-- `reinjected-state` can be enough for some persistence cases; this comparison shows where app-side state rules add value.
-- Scored checks focus on app-side state rules (for example blocked mutation and confirmation-only resolution), not model prose quality. `reinjected-state` remains plain text injection only.
+- `reinjected-state` can be enough for some persistence cases; in this demo set it is intentionally used as a prompt-only comparison baseline.
+- Scored checks focus on app-side authority rules (for example blocked mutation and confirmation-only resolution), not model prose quality. `reinjected-state` remains plain text injection only.
 - Interpretation:
 - Demos `01`-`05` and `07` mostly test persistence and policy-following behavior across turns.
 - Demos `08`/`09` test rules for when state is allowed to change.
-- Demos `08` and `09` cover cases prompt text does not implement by itself, such as checking whether replacement is allowed and waiting for confirmation before saving changes.
-- Plain prompt reinjection can produce reasonable answers, but it does not run these checks by itself.
+- Demos `08` and `09` cover authority semantics prompt text does not implement by itself, such as replacement preconditions, blocked mutations, and waiting for confirmation before saving changes.
+- Plain prompt reinjection can produce reasonable answers, but it does not run these authority checks by itself and is not the only or preferred production integration pattern.
 - Similar outcomes across models in `08`/`09` reflect app behavior limits, not model leaderboard ranking.
 
 ### Demo 05 example (prompt drift under longer context)

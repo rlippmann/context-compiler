@@ -1,6 +1,18 @@
 # Examples
 
-This directory contains small authority-layer examples showing typical app-side usage of Context Compiler.
+This directory contains small authority-layer examples showing core engine usage
+patterns in Context Compiler.
+
+These examples are intended to teach:
+
+- directive grammar
+- `Decision` handling
+- engine lifecycle
+- state access
+- checkpoints
+- transcript replay
+- controller APIs
+- authority-layer usage patterns
 
 Install the core package with:
 
@@ -10,10 +22,17 @@ pip install context-compiler
 
 Example files in this directory are included in the repository and source distribution, and can be run directly.
 
+They are not intended to be the primary source of framework, provider, or
+production runtime integration guidance.
+
+For runnable application-layer enforcement-point and host integration examples,
+see
+[`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations).
+
 ## 01_persistent_guardrails.py
 
 Shows how explicit policy state stays authoritative across later turns.  
-Shows the app sending saved state so later answers are interpreted in that context.
+Shows core authority-layer state being used in later turns.
 
 ## 02_configuration_and_correction.py
 
@@ -25,21 +44,21 @@ Shows `set premise ...` followed by `change premise to ...`.
 Shows `clarify` behavior before state changes.  
 Shows how the app handles `clarify` and skips the LLM call.
 
-## 08_controller_preview_diff.py
+## 04_tool_governance_denylist.py
 
-Shows controller-layer dry-run behavior with `preview(engine, user_input)`.  
-Shows structural state inspection with `state_diff(state_before, state_after)`.  
-Shows `step(engine, user_input)` after preview to apply the same input.
+Shows an application-layer use of authoritative policy state for tool selection.  
+Shows how apps can prevent denied tools from being selected without changing compiler identity.
 
 ## 05_llm_integration_pattern.py
 
 Shows end-to-end app control flow around compiler outcomes.  
-Shows what to do on `clarify`, when to call the model, and how to include saved state in prompts.
+Shows what to do on `clarify`, when to call the model, and how host code can
+use saved state downstream.
 Includes a single-item policy removal step via `remove policy <item>`.
 
 ## 06_transcript_replay.py
 
-Shows transcript replay helpers for app integration.
+Shows transcript replay helpers for authority-layer integration.
 Shows `compile_transcript(messages)` from a fresh engine and `engine.apply_transcript(messages)` on current engine state.
 
 ## 07_single_policy_correction.py
@@ -47,7 +66,8 @@ Shows `compile_transcript(messages)` from a fresh engine and `engine.apply_trans
 Demonstrates explicit single-policy correction without `reset policies`.  
 Shows `prohibit peanuts` -> `remove policy peanuts` -> `use peanuts`.
 
-## 04_tool_governance_denylist.py
+## 08_controller_preview_diff.py
 
-Shows an application-layer use of authoritative policy state for tool selection.  
-Shows how apps can prevent denied tools from being selected without changing compiler identity.
+Shows controller-layer dry-run behavior with `preview(engine, user_input)`.  
+Shows structural state inspection with `state_diff(state_before, state_after)`.  
+Shows `step(engine, user_input)` after preview to apply the same input.

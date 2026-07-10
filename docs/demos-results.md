@@ -5,6 +5,9 @@ Published LLM demo evidence for this repository.
 This page answers a practical release question: does Context Compiler work, and
 what evidence supports that claim?
 
+For runnable application-layer enforcement-point integrations, see
+[`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations).
+
 ## Current Verification Results (2026-06)
 
 Current release-facing verification covers the current 8-demo scored set:
@@ -41,7 +44,9 @@ Current release-facing verification covers the current 8-demo scored set:
 - Baseline and reinjected-state vary by model, but the compiler-mediated paths stay perfect across all listed current runs.
 - The current Ollama rows are current 8-demo reruns recorded at each model's discovered default context size.
 - `PASS` means the demo-specific expected behavior succeeded for that path.
-- `reinjected-state` is plain application-managed state text added to the prompt; `compiler` and `compiler+compact` add compiler-managed state and checks.
+- `baseline` reflects model behavior without added saved-state authority.
+- `reinjected-state` is a prompt-only baseline: plain application-managed state text added to the prompt, without authority semantics.
+- `compiler` and `compiler+compact` reflect compiler-mediated authority behavior rather than prompt-only persistence.
 
 ### Methodology
 
@@ -106,4 +111,5 @@ records the standard scored demo configuration.
 
 This is exploratory evidence, not benchmark authority. Reinjection can be
 enough in some persistence scenarios, while compiler-mediated paths still
-provide explicit state-change rules.
+provide authority semantics such as replacement preconditions, blocked
+mutations, pending confirmation handling, and checkpoint continuation.
