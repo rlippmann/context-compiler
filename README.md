@@ -132,6 +132,13 @@ else:
 This is the main integration path: your app owns the model call, and the
 compiler owns deterministic state transitions.
 
+For runnable application-layer examples, see
+[`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations).
+That companion repository shows enforcement points built on compiler state,
+including retrieval filtering, schema selection, tool gating, execution
+authorization, gateway middleware, checkpoint continuation, and prompt
+construction.
+
 ## Does it Work?
 
 Yes. The current demo suite in this repository contains 8 scored demos
@@ -476,33 +483,35 @@ For full directive grammar and edge-case behavior, see [DirectiveGrammarSpec.md]
 
 - [examples](examples/) — minimal usage patterns for the core authority layer
 - [demos](demos/) — concrete scenarios showing how behavior differs with and without the compiler
+- [`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations) — runnable application-layer enforcement examples built around compiler state
 
 ---
 
 ## FAQ
 
 **Isn't this just prompt reinjection?**
-No. Prompt reinjection is one way a host can use Context Compiler's
-authoritative state, but Context Compiler is not a prompt-reinjection system.
-It decides when state changes are allowed, when clarification is required, and
-how state plus pending confirmation flow are restored. For runnable host
-examples, see `context-compiler-example-integrations`.
+No. Prompt construction is one downstream use of authoritative state.
+Context Compiler is the authority layer that decides when state changes are
+allowed, when clarification is required, and how continuation state is
+restored. For runnable application-layer examples, see
+[`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations).
 
 **Why not just use a plain dict?**
-A plain dict is enough to drive prompt construction, schema selection, and
-other host behavior.
+A plain dict can hold state for prompt construction, schema selection, tool
+gating, and other host behavior.
 
-Context Compiler solves a different problem: who updates that state, under which
-rules, and what happens when instructions conflict.
+Context Compiler solves the authority problem: who updates that state, under
+which rules, and what happens when instructions conflict.
 
 ```text
 User: use python_script
 User: prohibit python_script
 ```
 
-With a plain dict, the application must invent rules to resolve conflicts.
-Context Compiler applies deterministic state-transition rules and can return
-clarification instead of silently overwriting state.
+Without an authority layer, the application must invent conflict-resolution and
+continuation rules itself. Context Compiler applies deterministic
+state-transition rules and can return clarification instead of silently
+overwriting state.
 
 ---
 
