@@ -82,6 +82,7 @@ ApplyResult = ApplyResultState | ApplyResultConfirm
 @dataclass(frozen=True)
 class Action:
     kind: Literal[
+        "compound_directive_invalid",
         "set_premise",
         "change_premise",
         "set_premise_to_variant",
@@ -118,6 +119,30 @@ _AFFIRMATIVE_CONFIRMATIONS = {"yes", "yes please", "yep", "yeah", "sure", "ok", 
 _NEGATIVE_CONFIRMATIONS = {"no", "nope", "no thanks"}
 _TRAILING_CONFIRM_PUNCT_RE = re.compile(r"[.,!?]+$")
 _CHECKPOINT_VERSION: Literal[1] = 1
+_COMPOUND_DIRECTIVE_PROMPT = (
+    "Multiple directives are not supported in one input.\nSubmit each directive separately."
+)
+_CLEAR_PREMISE = "clear premise"
+_RESET_POLICIES = "reset policies"
+_CLEAR_STATE = "clear state"
+_REMOVE_POLICY_BASE = "remove policy"
+_SET_PREMISE_TO_PREFIX = "set premise to "
+_CHANGE_PREMISE_PREFIX = "change premise "
+_CHANGE_PREMISE_BASE = "change premise to"
+_SET_PREMISE_BASE = "set premise"
+_USE_PREFIX = "use "
+_PROHIBIT_BASE = "prohibit"
+_PROHIBIT_PREFIX = "prohibit "
+_CANONICAL_DIRECTIVE_STARTS: tuple[tuple[str, bool], ...] = (
+    (_CHANGE_PREMISE_BASE, True),
+    (_SET_PREMISE_BASE, True),
+    (_REMOVE_POLICY_BASE, True),
+    (_RESET_POLICIES, False),
+    (_CLEAR_PREMISE, False),
+    (_CLEAR_STATE, False),
+    (_PROHIBIT_BASE, True),
+    ("use", True),
+)
 
 
 def create_engine(state: State | None = None) -> "Engine":
@@ -254,6 +279,9 @@ class Engine:
 
     def _pre_mutation_clarify(self, action: Action) -> Decision | None:
         # Single clarify path: all clarify outcomes are detected before any mutation.
+        if action.kind == "compound_directive_invalid":
+            return _clarify(_COMPOUND_DIRECTIVE_PROMPT)
+
         if action.kind in {"set_premise", "change_premise"}:
             assert action.value is not None
             if _sanitize_premise_value(action.value) == "":
@@ -439,48 +467,46 @@ class Engine:
 
 
 def _parse_directive(user_input: str) -> Action | None:
-    if user_input == "clear premise":
+    if _contains_compound_directive(user_input):
+        return Action(kind="compound_directive_invalid")
+
+    if user_input == _CLEAR_PREMISE:
         return Action(kind="clear_premise")
-    if user_input == "reset policies":
+    if user_input == _RESET_POLICIES:
         return Action(kind="reset_policies")
-    if user_input == "clear state":
+    if user_input == _CLEAR_STATE:
         return Action(kind="clear_state")
 
-    remove_policy_base = "remove policy"
-    if user_input == remove_policy_base:
+    if user_input == _REMOVE_POLICY_BASE:
         return Action(kind="remove_policy_item", item="")
-    remove_policy_prefix = f"{remove_policy_base} "
+    remove_policy_prefix = f"{_REMOVE_POLICY_BASE} "
     if user_input.startswith(remove_policy_prefix):
         return Action(kind="remove_policy_item", item=user_input[len(remove_policy_prefix) :])
 
-    set_to_prefix = "set premise to "
-    if user_input.startswith(set_to_prefix):
-        value = user_input[len(set_to_prefix) :].strip()
+    if user_input.startswith(_SET_PREMISE_TO_PREFIX):
+        value = user_input[len(_SET_PREMISE_TO_PREFIX) :].strip()
         if value != "":
             return Action(kind="set_premise_to_variant", value=value)
 
-    change_missing_to_prefix = "change premise "
     if (
-        user_input.startswith(change_missing_to_prefix)
-        and not user_input.startswith("change premise to ")
-        and user_input != "change premise to"
+        user_input.startswith(_CHANGE_PREMISE_PREFIX)
+        and not user_input.startswith(f"{_CHANGE_PREMISE_BASE} ")
+        and user_input != _CHANGE_PREMISE_BASE
     ):
-        value = user_input[len(change_missing_to_prefix) :].strip()
+        value = user_input[len(_CHANGE_PREMISE_PREFIX) :].strip()
         if value != "":
             return Action(kind="change_premise_missing_to_variant", value=value)
 
-    set_base = "set premise"
-    if user_input == set_base:
+    if user_input == _SET_PREMISE_BASE:
         return Action(kind="set_premise", value="")
-    set_prefix = f"{set_base} "
+    set_prefix = f"{_SET_PREMISE_BASE} "
     if user_input.startswith(set_prefix):
         value = user_input[len(set_prefix) :]
         return Action(kind="set_premise", value=value)
 
-    change_base = "change premise to"
-    if user_input == change_base:
+    if user_input == _CHANGE_PREMISE_BASE:
         return Action(kind="change_premise", value="")
-    change_prefix = f"{change_base} "
+    change_prefix = f"{_CHANGE_PREMISE_BASE} "
     if user_input.startswith(change_prefix):
         value = user_input[len(change_prefix) :]
         return Action(kind="change_premise", value=value)
@@ -488,9 +514,8 @@ def _parse_directive(user_input: str) -> Action | None:
     if user_input == "use":
         return Action(kind="use_item", item="")
 
-    use_prefix = "use "
-    if user_input.startswith(use_prefix):
-        payload = user_input[len(use_prefix) :]
+    if user_input.startswith(_USE_PREFIX):
+        payload = user_input[len(_USE_PREFIX) :]
         left, sep, right = payload.partition(" instead of ")
         if sep:
             if left.strip() != "" and right.strip() != "":
@@ -502,15 +527,64 @@ def _parse_directive(user_input: str) -> Action | None:
             return Action(kind="replace_use_incomplete")
         return Action(kind="use_item", item=payload)
 
-    if user_input == "prohibit":
+    if user_input == _PROHIBIT_BASE:
         return Action(kind="prohibit_item", item="")
 
-    prohibit_prefix = "prohibit "
-    if user_input.startswith(prohibit_prefix):
-        item = user_input[len(prohibit_prefix) :]
+    if user_input.startswith(_PROHIBIT_PREFIX):
+        item = user_input[len(_PROHIBIT_PREFIX) :]
         return Action(kind="prohibit_item", item=item)
 
     return None
+
+
+def _contains_compound_directive(user_input: str) -> bool:
+    first_start = _match_canonical_directive_start(user_input, 0)
+    if first_start is None:
+        return False
+
+    for index in range(first_start, len(user_input)):
+        next_start = _match_canonical_directive_start(user_input, index)
+        if next_start is not None:
+            return True
+
+    return False
+
+
+def _match_canonical_directive_start(user_input: str, start: int) -> int | None:
+    if start < 0 or start >= len(user_input):
+        return None
+
+    if start > 0 and user_input[start - 1].isalpha():
+        return None
+
+    for token, require_space_or_end in _CANONICAL_DIRECTIVE_STARTS:
+        if _matches_directive_token(
+            user_input, start, token, require_space_or_end=require_space_or_end
+        ):
+            return start + len(token)
+
+    return None
+
+
+def _matches_directive_token(
+    user_input: str,
+    start: int,
+    token: str,
+    *,
+    require_space_or_end: bool = False,
+) -> bool:
+    if not user_input.startswith(token, start):
+        return False
+
+    end = start + len(token)
+    if end == len(user_input):
+        return True
+
+    next_char = user_input[end]
+    if require_space_or_end:
+        return next_char == " "
+
+    return not next_char.isalpha()
 
 
 def _initial_state() -> State:
