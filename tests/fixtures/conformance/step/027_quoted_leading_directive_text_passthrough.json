@@ -1,0 +1,23 @@
+{
+  "id": "step_quoted_leading_directive_text_passthrough",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "input": "\"use docker and prohibit peanuts\"",
+  "expected": {
+    "decision": {
+      "kind": "passthrough",
+      "prompt_to_user": null,
+      "state": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    },
+    "has_pending_clarification": false
+  }
+}

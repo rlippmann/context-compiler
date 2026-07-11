@@ -1,0 +1,23 @@
+{
+  "id": "step_compound_use_or_prohibit_clarify",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "input": "use docker or prohibit peanuts",
+  "expected": {
+    "decision": {
+      "kind": "clarify",
+      "prompt_to_user": "Multiple directives are not supported in one input.\nSubmit each directive separately.",
+      "state": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    },
+    "has_pending_clarification": false
+  }
+}

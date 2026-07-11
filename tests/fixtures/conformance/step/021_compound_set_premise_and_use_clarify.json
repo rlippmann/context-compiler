@@ -1,0 +1,23 @@
+{
+  "id": "step_compound_set_premise_and_use_clarify",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "input": "set premise vegetarian and use docker",
+  "expected": {
+    "decision": {
+      "kind": "clarify",
+      "prompt_to_user": "Multiple directives are not supported in one input.\nSubmit each directive separately.",
+      "state": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    },
+    "has_pending_clarification": false
+  }
+}
