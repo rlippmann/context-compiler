@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from context_compiler import compile_transcript, create_engine, get_policy_items, get_premise_value
+from context_compiler import create_engine, get_policy_items, get_premise_value
 from context_compiler.engine import DecisionKind, Engine
 
 pytestmark = pytest.mark.contract
@@ -858,6 +858,19 @@ def test_set_premise_to_variant_clarifies_with_canonical_suggestion_without_muta
     assert engine.state == before
 
 
+def test_set_premise_to_with_whitespace_payload_falls_through_to_literal_set_behavior() -> None:
+    engine = create_engine()
+
+    decision = engine.step("set premise to   ")
+
+    assert decision == {
+        "kind": "update",
+        "state": {"premise": "to", "policies": {}, "version": 2},
+        "prompt_to_user": None,
+    }
+    assert engine.state == {"premise": "to", "policies": {}, "version": 2}
+
+
 def test_change_premise_requires_existing_premise() -> None:
     engine = create_engine()
 
@@ -945,6 +958,15 @@ def test_change_premise_missing_to_variant_clarifies_without_mutation() -> None:
         "prompt_to_user": "Did you mean 'change premise to concise replies'?",
     }
     assert engine.state == before
+
+
+def test_change_premise_with_whitespace_after_prefix_remains_passthrough() -> None:
+    engine = create_engine(state={"premise": "baseline", "policies": {}, "version": 2})
+
+    decision = engine.step("change premise   ")
+
+    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert engine.state == {"premise": "baseline", "policies": {}, "version": 2}
 
 
 def test_canonical_premise_forms_still_update_normally() -> None:
@@ -1753,43 +1775,6 @@ def test_pending_confirmation_takes_precedence_over_compound_detection() -> None
     assert decision == first
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
     assert engine.has_pending_clarification() is True
-
-
-def test_compile_transcript_ignores_non_user_messages() -> None:
-    result = compile_transcript(
-        [
-            {"role": "system", "content": "set premise concise"},
-            {"role": "assistant", "content": "ok"},
-            {"role": "user", "content": "set premise concise"},
-        ]
-    )
-
-    assert result == {
-        "kind": "state",
-        "state": {"premise": "concise", "policies": {}, "version": 2},
-    }
-
-
-def test_apply_transcript_matches_manual_step_replay() -> None:
-    messages: list[dict[str, object]] = [
-        {"role": "assistant", "content": "ignore me"},
-        {"role": "user", "content": "set premise concise"},
-        {"role": "user", "content": "use docker"},
-    ]
-
-    replay_engine = create_engine()
-    replay_result = replay_engine.apply_transcript(messages)
-
-    manual_engine = create_engine()
-    manual_result: dict[str, object] = {"kind": "state", "state": manual_engine.state}
-    for message in messages:
-        if message.get("role") != "user" or not isinstance(message.get("content"), str):
-            continue
-        manual_engine.step(message["content"])
-        manual_result = {"kind": "state", "state": manual_engine.state}
-
-    assert replay_result == manual_result
-    assert replay_engine.state == manual_engine.state
 
 
 def test_constructor_with_state_initializes_from_valid_state() -> None:

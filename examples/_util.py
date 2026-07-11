@@ -54,21 +54,3 @@ def print_decision_summary(decision: Any) -> None:
         return
 
     print("result: passthrough")
-
-
-def print_replay_result_summary(result: Any) -> None:
-    kind = result.get("kind")
-    if kind == "state":
-        print("result: state")
-        state = result.get("state")
-        assert isinstance(state, dict)
-        print_state_summary(state, "compiled state")
-        return
-
-    if kind == "confirm":
-        print("result: confirm")
-        prompt = result.get("prompt_to_user")
-        if isinstance(prompt, str) and prompt:
-            print("confirm prompt:")
-            for line in prompt.splitlines():
-                print(f"- {line}")

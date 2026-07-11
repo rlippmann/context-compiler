@@ -249,14 +249,14 @@ def print_info_report(
 def compact_user_turns(
     user_turns: list[str],
 ) -> tuple[list[str], State, str | None]:
-    """Compact transcript using compiler boundaries.
+    """Compact transcript using compiler boundaries and normal step sequencing.
 
     Rules:
     - drop update lines
     - keep passthrough lines
     - keep first clarify line and stop
     - return prompt_to_user for clarify, else None
-    - returned state is replay state at stop point
+    - returned state is engine state at stop point
     """
 
     engine = create_engine()

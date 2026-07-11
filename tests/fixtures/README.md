@@ -55,24 +55,6 @@ Then asserts:
 
 `prelude` simulates prior user inputs to reach states that are not representable via `initial_state` (for example, pending clarification).
 
-## Transcript fixtures
-
-For [`conformance/transcript/`](conformance/transcript/):
-
-Replay messages using `compile_transcript(messages)`.
-
-Results are normalized to:
-
-* `{ "state": ... }`
-* `{ "clarify": { "prompt_to_user": ... } }`
-
-## Prompt matching
-
-For conformance transcript fixtures:
-
-* If `prompt_to_user` is a string → exact match
-* If `prompt_to_user` is `null` → any non-empty string is accepted
-
 ## State JSON fixtures
 
 For [`conformance/state-json/`](conformance/state-json/):

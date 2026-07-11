@@ -251,7 +251,6 @@ Common API entry points:
 - decision helpers: `is_clarify(...)`, `is_update(...)`, `is_passthrough(...)`,
   `get_clarify_prompt(...)`, `get_decision_state(...)`
 - state helpers: `get_premise_value(...)`, `get_policy_items(...)`
-- transcript APIs: `compile_transcript(...)`, `engine.apply_transcript(...)`
 - state and checkpoint transport: `export_json(...)`, `import_json(...)`,
   `export_checkpoint(...)`, `import_checkpoint(...)`
 - controller APIs: `preview(...)`, `step(...)`, `state_diff(...)`

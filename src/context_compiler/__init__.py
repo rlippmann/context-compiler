@@ -29,14 +29,10 @@ from .decision_helpers import (
     is_update,
 )
 from .engine import (
-    ApplyResult,
     Checkpoint,
     Decision,
     Engine,
     State,
-    Transcript,
-    TranscriptMessage,
-    compile_transcript,
     create_engine,
     get_policy_items,
     get_premise_value,
@@ -45,7 +41,6 @@ from .engine import (
 __version__ = version("context-compiler")
 
 __all__ = [
-    "ApplyResult",
     "Checkpoint",
     "Decision",
     "DECISION_CLARIFY",
@@ -58,10 +53,7 @@ __all__ = [
     "State",
     "StepResult",
     "StructuralDiff",
-    "Transcript",
-    "TranscriptMessage",
     "diff_has_changes",
-    "compile_transcript",
     "create_engine",
     "get_clarify_prompt",
     "get_decision_state",

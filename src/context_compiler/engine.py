@@ -58,27 +58,6 @@ class Decision(TypedDict):
     prompt_to_user: str | None
 
 
-class TranscriptMessage(TypedDict):
-    role: str
-    content: object
-
-
-Transcript = list[TranscriptMessage]
-
-
-class ApplyResultState(TypedDict):
-    kind: Literal["state"]
-    state: State
-
-
-class ApplyResultConfirm(TypedDict):
-    kind: Literal["confirm"]
-    prompt_to_user: str
-
-
-ApplyResult = ApplyResultState | ApplyResultConfirm
-
-
 @dataclass(frozen=True)
 class Action:
     kind: Literal[
@@ -147,11 +126,6 @@ _CANONICAL_DIRECTIVE_STARTS: tuple[tuple[str, bool], ...] = (
 
 def create_engine(state: State | None = None) -> "Engine":
     return Engine(state=state)
-
-
-def compile_transcript(messages: Transcript) -> ApplyResult:
-    engine = create_engine()
-    return engine.apply_transcript(messages)
 
 
 def get_premise_value(state: State) -> str | None:
@@ -237,16 +211,6 @@ class Engine:
             return clarify_decision
 
         return self._apply_action(action)
-
-    def apply_transcript(self, messages: Transcript) -> ApplyResult:
-        for content in _iter_user_contents(messages):
-            decision = self.step(content)
-            if decision["kind"] == DecisionKind.CLARIFY:
-                prompt = decision["prompt_to_user"]
-                assert prompt is not None
-                return {"kind": "confirm", "prompt_to_user": prompt}
-
-        return {"kind": "state", "state": self.state}
 
     def _replace_state(self, state: State) -> None:
         self._state = state
@@ -593,16 +557,6 @@ def _initial_state() -> State:
         STATE_POLICIES: {},
         STATE_VERSION: SCHEMA_VERSION,
     }
-
-
-def _iter_user_contents(messages: Transcript) -> list[str]:
-    user_contents: list[str] = []
-    for message in messages:
-        role = message.get("role")
-        content = message.get("content")
-        if role == "user" and isinstance(content, str):
-            user_contents.append(content)
-    return user_contents
 
 
 def _load_state_json(payload: str) -> State:
