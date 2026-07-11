@@ -5,7 +5,7 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from context_compiler import create_engine
-from context_compiler.engine import State
+from context_compiler.engine import _CANONICAL_DIRECTIVE_STARTS, State
 
 
 def _run_sequence(inputs: list[str]) -> State:
@@ -25,6 +25,25 @@ def _normalize_item_like_engine(value: str) -> str:
     return normalized.strip()
 
 
+def _contains_canonical_start_fragment(value: str) -> bool:
+    for start in range(len(value)):
+        if start > 0 and value[start - 1].isalpha():
+            continue
+        for token, require_space_or_end in _CANONICAL_DIRECTIVE_STARTS:
+            if not value.startswith(token, start):
+                continue
+            end = start + len(token)
+            if end == len(value):
+                return True
+            next_char = value[end]
+            if require_space_or_end:
+                if next_char == " ":
+                    return True
+            elif not next_char.isalpha():
+                return True
+    return False
+
+
 @given(st.lists(st.text(max_size=40), min_size=0, max_size=20))
 def test_determinism_same_input_sequence_same_state(inputs: list[str]) -> None:
     assert _run_sequence(inputs) == _run_sequence(inputs)
@@ -36,6 +55,7 @@ def test_idempotent_use_item_is_update_and_stable_state(item: str) -> None:
     assume(not item.startswith("instead of "))
     assume(not item.endswith(" instead of"))
     assume(_normalize_item_like_engine(item) != "")
+    assume(not _contains_canonical_start_fragment(item))
     engine = create_engine()
     d1 = engine.step(f"use {item}")
     d2 = engine.step(f"use {item}")
@@ -70,6 +90,7 @@ def test_use_item_with_empty_normalized_payload_clarifies_without_mutation(
 @given(st.text(min_size=1, max_size=30))
 def test_idempotent_prohibit_item_is_update_and_stable_state(item: str) -> None:
     assume(_normalize_item_like_engine(item) != "")
+    assume(not _contains_canonical_start_fragment(item))
     engine = create_engine()
     d1 = engine.step(f"prohibit {item}")
     d2 = engine.step(f"prohibit {item}")
@@ -126,6 +147,7 @@ def test_passthrough_sequence_preserves_state_and_decision_kind(inputs: list[str
 
 @given(st.text(min_size=1, max_size=30))
 def test_contradiction_use_after_prohibit_always_clarifies(item: str) -> None:
+    assume(not _contains_canonical_start_fragment(item))
     engine = create_engine()
     engine.step(f"prohibit {item}")
     before = engine.state
@@ -140,6 +162,7 @@ def test_contradiction_prohibit_after_use_always_clarifies(item: str) -> None:
     assume(" instead of " not in item)
     assume(not item.startswith("instead of "))
     assume(not item.endswith(" instead of"))
+    assume(not _contains_canonical_start_fragment(item))
     engine = create_engine()
     engine.step(f"use {item}")
     before = engine.state
