@@ -60,6 +60,13 @@ set premise concise replies
 - Base model: silently accepts / rewrites
 - Context Compiler: applies a repeatable state update
 
+**Single-directive grammar**
+```text
+use docker and prohibit peanuts
+```
+- Without an authority layer: host/model behavior varies
+- Context Compiler: returns `clarify`, keeps authoritative state unchanged, and asks for separate directives
+
 **State-dependent operation**
 ```text
 clear state
@@ -373,7 +380,40 @@ User: reset policies
 User: clear state
 ```
 
-Conflicting directives trigger clarification instead of changing state.
+Grammar invariant: one input may contain at most one canonical directive.
+If another canonical directive start appears later in the same input, the
+input is invalid and Context Compiler returns `clarify` without mutating
+authoritative state or creating pending confirmation state.
+
+Examples:
+
+```text
+Valid:
+use docker
+use podman instead of docker
+clear state
+
+Invalid:
+use docker and prohibit peanuts
+set premise vegetarian and use docker
+clear state then set premise new project
+```
+
+Quote behavior follows the current grammar literally:
+
+```text
+Passthrough:
+"use docker and prohibit peanuts"
+
+Invalid:
+use "docker and prohibit peanuts"
+set premise "use docker and prohibit peanuts"
+```
+
+Quotes do not create protected literal regions inside a recognized directive
+payload.
+
+Conflicting directives also trigger clarification instead of changing state.
 
 For full directive grammar and edge-case behavior, see [DirectiveGrammarSpec.md](docs/DirectiveGrammarSpec.md).
 
