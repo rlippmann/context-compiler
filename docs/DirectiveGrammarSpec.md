@@ -131,6 +131,9 @@ CLEAR_STATE      := "clear state"
 Notes:
 
 - `ITEM` is a non-empty raw substring after its prefix.
+- One input may contain at most one canonical directive. If another canonical
+  directive start appears later in the same input, the input is invalid under
+  the current grammar and must return `clarify`.
 - Recognized policy directives with empty or whitespace-only `ITEM` payload return `clarify`.
 - Premise directive payload must contain at least one non-whitespace character after the prefix.
   Empty and whitespace-only premise payloads are invalid and must return `clarify`.
@@ -140,6 +143,11 @@ Notes:
   This does not broaden directive grammar acceptance.
 - `ITEM` is normalized via `normalize_item` before policy lookup/storage.
 - `VALUE` is stored using premise sanitation from Section 6.
+- Quote characters do not create protected literal regions for directive
+  parsing. A fully quoted input remains ordinary `passthrough` unless the raw
+  input begins with a canonical directive. Quote characters inside a
+  recognized directive payload do not suppress later canonical directive
+  detection.
 - No conversational aliases are directives (for example: `actually`, `I meant`, `allow`, `you can`, `set X`, `I'm using X`).
 
 ## 8. State Transition Semantics
@@ -219,6 +227,35 @@ This operation is authoritative replacement, not recency resolution.
 - `remove policy ITEM`: remove one normalized policy key from `policies` if present
 - `clear state`: reset all authoritative state by setting `premise = null` and `policies = {}`
 
+### 8.5 Compound directives
+
+If an input begins with a canonical directive and a later canonical directive
+start also appears in the same input, the input is invalid under the current
+grammar.
+
+Behavior:
+
+- return `Decision.kind = "clarify"`
+- do not mutate authoritative state
+- do not create pending clarification or pending replacement state
+- reuse the normal public clarify contract; there is no separate decision kind
+
+Deterministic prompt:
+
+`Multiple directives are not supported in one input.`
+`Submit each directive separately.`
+
+Examples:
+
+- valid: `use docker`
+- valid: `use docker instead of podman`
+- invalid: `use docker and prohibit peanuts`
+- invalid: `set premise vegetarian and use docker`
+- invalid: `clear state then set premise new project`
+- passthrough: `"use docker and prohibit peanuts"`
+- invalid: `use "docker and prohibit peanuts"`
+- invalid: `set premise "use docker and prohibit peanuts"`
+
 ## 9. Clarification Rules (Exhaustive)
 
 The compiler returns `Decision.kind = "clarify"` only in these cases:
@@ -240,6 +277,7 @@ The compiler returns `Decision.kind = "clarify"` only in these cases:
 15. `use X instead of Y` when replacement syntax is recognized but `X` or `Y` is empty/whitespace-only.
 16. `set premise to X` near-miss with non-empty `X`.
 17. `change premise X` near-miss with non-empty `X`.
+18. An input contains more than one canonical directive start.
 
 Contradictions never silently overwrite state.
 
@@ -292,6 +330,9 @@ When `Decision.kind = "clarify"`, prompt text is deterministic only for the case
   `Did you mean 'set premise X'?`
 - Premise near-miss `change premise X` (Section 9 case 17):
   `Did you mean 'change premise to X'?`
+- Compound directive rejection (Section 9 case 18):
+  `Multiple directives are not supported in one input.`
+  `Submit each directive separately.`
 
 ## 10. Pending Clarification
 
@@ -401,6 +442,7 @@ Checkpoint semantics:
 6. Policy state is per-item authoritative (`"use" | "prohibit"`), never ordered/additive by history.
 7. Contradictions always clarify; they never overwrite.
 8. Premise can be explicitly cleared via `clear premise` (`premise = null`).
+9. A single input never applies more than one canonical directive.
 
 ## 13. Non-Goals
 

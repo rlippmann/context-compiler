@@ -45,6 +45,16 @@ decision = engine.step("set premise current project uses uv")
 Behavior for directive handling, clarification, and confirmation flows is
 defined by the [Directive Grammar Specification](DirectiveGrammarSpec.md).
 
+Important grammar contract:
+
+- one input may contain at most one canonical directive
+- if a later canonical directive start appears in the same input, `engine.step(...)`
+  returns the normal `clarify` decision contract
+- compound directives do not mutate authoritative state and do not create
+  pending clarification or replacement state
+- quote characters do not create protected literal regions inside recognized
+  directive payloads
+
 ### `engine.state`
 
 Read the current authoritative in-memory state snapshot.
@@ -147,6 +157,11 @@ state snapshot.
 
 Transcript replay behavior is governed by the engine semantics and transcript
 fixture contracts, not by this page.
+
+In particular, replay preserves normal `engine.step(...)` behavior for invalid
+compound directives: replay stops at the first `clarify` result, does not
+apply any directive from that input, and does not create pending replacement
+state for that turn.
 
 ## State Import/Export
 
