@@ -53,33 +53,41 @@ instead of relying on memory of earlier conversation text.
 
 Context Compiler makes state-change rules explicit so behavior stays repeatable.
 
-**Explicit directive**
+### Explicit directive
+
 ```text
 set premise concise replies
 ```
+
 - Base model: silently accepts / rewrites
 - Context Compiler: applies a repeatable state update
 
-**Single-directive grammar**
+### Single-directive grammar
+
 ```text
 use docker and prohibit peanuts
 ```
+
 - Without an authority layer: host/model behavior varies
 - Context Compiler: returns `clarify`, keeps authoritative state unchanged, and asks for separate directives
 
-**State-dependent operation**
+### State-dependent operation
+
 ```text
 clear state
 use podman instead of docker
 ```
+
 - Without explicit state transition rules: behavior depends on host/model handling
 - Context Compiler: returns `clarify` before changing state
 
-**Lifecycle enforcement**
+### Lifecycle enforcement
+
 ```text
 clear state
 change premise to formal tone
 ```
+
 - Without explicit transition checks: behavior depends on host/model handling
 - Context Compiler: asks for clarification and keeps saved state unchanged
 
@@ -168,12 +176,14 @@ context-compiler
 ```
 
 Preload options keep saved rules separate from confirmation state in progress:
+
 - `--initial-state-json` / `--initial-state-file` load saved state
   (via exported state JSON).
 - `--initial-checkpoint-json` / `--initial-checkpoint-file` restore full
   continuation checkpoint (saved state + pending confirmation state).
 
 REPL commands (controller layer, not engine directives):
+
 - `state` shows current saved state.
 - `preview <input>` runs deterministic dry-run without mutating live state.
 - `step <input>` is an explicit alias of normal bare-input step behavior.
@@ -190,6 +200,7 @@ context-compiler --json < input.txt
 ```
 
 Preload options keep saved rules separate from confirmation state in progress:
+
 - `--initial-state-json` / `--initial-state-file` load saved state
   (via exported state JSON).
 - `--initial-checkpoint-json` / `--initial-checkpoint-file` restore full
@@ -198,14 +209,17 @@ Preload options keep saved rules separate from confirmation state in progress:
 ## Installation
 
 Requirements:
+
 - Python 3.11+
 
 Install:
+
 ```bash
 pip install context-compiler
 ```
 
 Packaging notes:
+
 - Base install includes the core authority-layer engine and CLI.
 - Example and demo source files are available in the repository and source distribution.
 - To run the demos from this repository, clone the repo and install `context-compiler[demos]`.
@@ -231,11 +245,11 @@ class Decision(TypedDict):
 
 Meaning:
 
-| kind        | host behavior                                 |
-|:-----------:|-----------------------------------------------|
-| passthrough | forward user input to LLM                     |
-| update      | authoritative state mutated; host may call LLM with updated state |
-| clarify     | show `prompt_to_user` and do not call the LLM |
+| kind | host behavior |
+| --- | --- |
+| passthrough | forward user input to LLM |
+| update | authoritative state mutated; host may call LLM with updated state |
+| clarify | show `prompt_to_user` and do not call the LLM |
 
 For normal app code, prefer the exported decision helpers (`is_clarify`,
 `is_update`, `is_passthrough`, `get_clarify_prompt`, `get_decision_state`)

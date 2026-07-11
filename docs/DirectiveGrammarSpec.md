@@ -11,7 +11,7 @@ or interpretation of assistant output.
 ## 1. Terminology
 
 | Term | Meaning |
-|---|---|
+| --- | --- |
 | User Input | Raw text from the user |
 | Directive | A string that matches one of the explicit grammar productions in Section 5 |
 | Premise | Single sticky explicit slot controlled only by premise directives |

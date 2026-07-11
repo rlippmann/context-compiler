@@ -5,6 +5,19 @@ on:
   pull_request:
 
 jobs:
+  markdownlint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+
+      - name: Run Markdown lint
+        run: ./scripts/validate_markdown.sh
+
   test:
     runs-on: ubuntu-latest
     strategy:

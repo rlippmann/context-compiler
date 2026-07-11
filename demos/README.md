@@ -15,6 +15,7 @@ authority semantics with dependency-light comparisons instead of requiring
 deeper framework integration layers.
 
 Scored demos now compare four paths:
+
 - baseline
 - reinjected-state (application-managed state text injected into the prompt, used here as a simple prompt-only comparison baseline without compiler semantics)
 - compiler-mediated (full transcript + saved compiler state added to the prompt)
@@ -31,7 +32,7 @@ Runnable application-layer enforcement-point integrations live in
 | [02](./02_llm_constraint_guardrail.py) | Policy state stays active across turns | authoritative policy state | small or quantized models |
 | [03](./03_llm_premise_guardrail.py) | Premise updates stay authoritative | fixed, repeatable premise updates | models that summarize conversation |
 | [04](./04_llm_tool_denylist_guardrail.py) | Tool governance | application-layer tool gating from saved state | general assistant models |
-| [05](./05_llm_prompt_drift_vs_state.py) | Prompt drift | long transcript failure | weaker long-context models ([see Demo 5 note](#demo-5-stress-ladder-turns)) |
+| [05](./05_llm_prompt_drift_vs_state.py) | Prompt drift | long transcript failure | weaker long-context models ([see Demo 05 example](#demo-05-example-prompt-drift-under-longer-context)) |
 | [06](./06_llm_context_compaction.py) | Context compaction | saved compiler state replacing transcript context | small or local models |
 | [07](./07_llm_prompt_vs_state.py) | Prompt engineering comparison | prompting vs saved compiler state | any model with long transcript sensitivity |
 | [08](./08_llm_replacement_precondition.py) | Replacement precondition | invalid replacement blocked without state mutation | any model |
@@ -58,6 +59,7 @@ Environment variables (strict provider mode contract):
 - `MODEL` (optional)
 - `OPENAI_API_KEY` (required in normal `openai` mode)
 - `OPENAI_BASE_URL` (explicit endpoint override; required for explicit `openai_compatible`)
+
 Note: Demos prefer fixed decoding (`temperature=0`) for reproducible PASS/FAIL behavior.
 If a model rejects deterministic sampling parameters on the LiteLLM/OpenAI-compatible path
 (for example, some `gpt-5` and Claude paths), the demo client retries once without deterministic
@@ -98,6 +100,7 @@ export MODEL=claude-sonnet-4-6
 ```
 
 Notes:
+
 - For direct Anthropic usage, `MODEL` should use the endpoint-native model ID.
 - Do not use the `anthropic/` prefix unless your endpoint/router expects it.
 - This repo passes `MODEL` through unchanged.
@@ -113,6 +116,7 @@ export MODEL=anthropic/claude-sonnet-4-6
 ```
 
 Notes:
+
 - Provider-prefixed model IDs such as `anthropic/...` are appropriate when the gateway/router expects them.
 - Model naming follows the endpoint/router contract.
 
@@ -162,12 +166,14 @@ includes:
 - the older historical 0.6.15 matrix for the earlier 6-demo scored set
 
 Notes:
+
 - There are **8 scored demos** (`01`–`05`, `07`, `08`, `09`). `06_context_compaction` is informational and excluded from PASS/FAIL totals.
 - Anthropic runs in this repo are executed through the `openai_compatible` provider path.
 - `PASS` means the demo-specific expected-behavior check for that path succeeded; `FAIL` means it did not.
 - `reinjected-state` can be enough for some persistence cases; in this demo set it is intentionally used as a prompt-only comparison baseline.
 - Scored checks focus on app-side authority rules (for example blocked mutation and confirmation-only resolution), not model prose quality. `reinjected-state` remains plain text injection only.
 - Interpretation:
+
 - Demos `01`-`05` and `07` mostly test persistence and policy-following behavior across turns.
 - Demos `08`/`09` test rules for when state is allowed to change.
 - Demos `08` and `09` cover authority semantics prompt text does not implement by itself, such as replacement preconditions, blocked mutations, and waiting for confirmation before saving changes.

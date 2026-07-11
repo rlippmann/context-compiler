@@ -6,37 +6,45 @@ authority inside a larger host application stack.
 ## Authority Layer
 
 Responsibilities:
+
 - apply deterministic state transitions
 - enforce clarification and confirmation gates
 - export/import authoritative state and checkpoints
 
 Examples:
+
 - Context Compiler core engine
 - checkpoint continuation behavior
 
 Repository:
+
 - `context-compiler`
 
 Boundary:
+
 - only core applies directives
 - only core mutates authoritative state
 
 ## Acquisition Layer
 
 Responsibilities:
+
 - recognize possible user state updates before core compilation
 - normalize candidate inputs conservatively
 - abstain when intent is uncertain
 - draft candidate directives without becoming a second authority
 
 Examples:
+
 - external directive-drafter or host-owned drafting packages
 - host-side input shaping before `engine.step(...)`
 
 Repository:
+
 - `context-compiler-directive-drafter`
 
 Boundary:
+
 - drafting is non-authoritative
 - drafting must not bypass `engine.step(...)`
 - drafting must not edit `engine.state`
@@ -44,17 +52,20 @@ Boundary:
 ## Application Layer
 
 Responsibilities:
+
 - decide how compiler state affects runtime behavior
 - render prompts and acknowledgements
 - select schemas, gate tools, route workflows, and apply runtime controls
 
 Examples:
+
 - runnable integrations owned outside core (for example
   `context-compiler-example-integrations` for OpenWebUI, LiteLLM, Ollama, or
   proxy/runtime/provider examples)
 - host-controlled prompt construction from saved state
 
 Repository:
+
 - `context-compiler-example-integrations` or host applications
 
 ## Architectural Rationale: Flat Policy Independence
