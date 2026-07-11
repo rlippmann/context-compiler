@@ -88,7 +88,7 @@ class Decision(TypedDict):
 Decision kinds:
 
 | kind | Intended host use |
-|---|---|
+| --- | --- |
 | `passthrough` | forward the user input to the model/runtime |
 | `update` | authoritative state changed; host may apply downstream behavior using updated state |
 | `clarify` | show `prompt_to_user`; do not continue normal downstream processing yet |

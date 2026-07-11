@@ -41,19 +41,19 @@ A full checkpoint is stored and compared on every turn so regressions are visibl
 
 These fixtures validate **deterministic engine behavior only**:
 
-- `engine.step(...)` outputs (`Decision.kind`, `prompt_to_user`)
-- post-turn checkpoint (`authoritative_state` + `pending`)
+* `engine.step(...)` outputs (`Decision.kind`, `prompt_to_user`)
+* post-turn checkpoint (`authoritative_state` + `pending`)
 
 They do **not** cover:
 
-- REPL / user-facing formatting
-- LLM integration behavior
-- acquisition-layer directive drafting
+* REPL / user-facing formatting
+* LLM integration behavior
+* acquisition-layer directive drafting
 
 These surfaces are tested separately because:
 
-- REPL output may intentionally differ from the underlying state representation
-- acquisition-layer drafting is outside the engine contract
+* REPL output may intentionally differ from the underlying state representation
+* acquisition-layer drafting is outside the engine contract
 
 This fixture set is the **canonical engine-level conformance surface**, and may be reused by other implementations (e.g., TypeScript) to validate identical engine behavior.
 

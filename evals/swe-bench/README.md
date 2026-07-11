@@ -7,7 +7,7 @@ Across 6 models and 6 tasks, this compiler-mediated flow produces higher scores 
 ## Top-level summary
 
 | Model | Tasks | Compiler Enabled | Scored | + / 0 / - | Avg Delta |
-|---|---:|---:|---:|---:|---:|
+| --- | ---: | ---: | ---: | ---: | ---: |
 | `anthropic/claude-opus-4-20250514` | 6 | 6 | 6 | 5 / 0 / 1 | 17.33 |
 | `anthropic/claude-sonnet-4-20250514` | 6 | 6 | 6 | 5 / 1 / 0 | 19.33 |
 | `openai/gpt-4.1` | 6 | 6 | 6 | 5 / 1 / 0 | 9.83 |
@@ -27,7 +27,9 @@ Across 6 models and 6 tasks, this compiler-mediated flow produces higher scores 
 ## Task callouts
 
 ### `psf__requests-1963`
+
 Per-model score deltas:
+
 - Opus4: `+48`
 - Sonnet4: `+31`
 - GPT-4.1: `+13`
@@ -38,7 +40,9 @@ Per-model score deltas:
 Interpretation: This task shows broad, consistent uplift and appears highly aligned with compiler-style state framing (state propagation constraints across redirect hops).
 
 ### `django__django-13158`
+
 Per-model score deltas:
+
 - Opus4: `+10`
 - Sonnet4: `+18`
 - GPT-4.1: `+21`
@@ -49,7 +53,9 @@ Per-model score deltas:
 Interpretation: Very consistent positive movement across all models; the absorbing-element framing for `QuerySet.none()` appears to transfer well.
 
 ### `django__django-13964`
+
 Per-model score deltas:
+
 - Opus4: `+29`
 - Sonnet4: `+32`
 - GPT-4.1: `0`

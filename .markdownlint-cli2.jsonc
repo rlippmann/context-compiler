@@ -1,0 +1,45 @@
+{
+  "globs": [
+    "**/*.md",
+    "!**/node_modules/**",
+    "!**/.venv/**",
+    "!**/.next/**",
+    "!**/.pytest_cache/**",
+    "!**/.tmp-uv-cache/**"
+  ],
+  "config": {
+    "default": true,
+    "MD013": false,
+    "MD024": {
+      "siblings_only": true
+    },
+    "MD033": false,
+    "MD046": {
+      "style": "fenced"
+    }
+  },
+  "overrides": [
+    {
+      "filter": [
+        ".github/ISSUE_TEMPLATE/*.md",
+        ".github/pull_request_template.md",
+        "evals/swe-bench/RUBRIC.md"
+      ],
+      "config": {
+        "MD041": false
+      },
+      "combine": "merge"
+    },
+    {
+      "filter": [
+        "AGENTS.md"
+      ],
+      "config": {
+        "MD004": false,
+        "MD022": false,
+        "MD032": false
+      },
+      "combine": "merge"
+    }
+  ]
+}
