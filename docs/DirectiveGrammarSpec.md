@@ -143,7 +143,7 @@ Notes:
   This does not broaden directive grammar acceptance.
 - `ITEM` is normalized via `normalize_item` before policy lookup/storage.
 - `VALUE` is stored using premise sanitation from Section 6.
-- Quote characters have no special parsing semantics.A fully quoted input remains ordinary `passthrough` unless the raw
+- Quote characters have no special parsing semantics. A fully quoted input remains ordinary `passthrough` unless the raw
   input begins with a canonical directive. Quote characters inside a
   recognized directive payload do not suppress later canonical directive
   detection.
@@ -330,6 +330,8 @@ When `Decision.kind = "clarify"`, prompt text is deterministic only for the case
 - Premise near-miss `change premise X` (Section 9 case 17):
   `Did you mean 'change premise to X'?`
 - Compound directive rejection when no pending clarification exists (Section 9 case 18):
+  `Multiple directives are not supported in one input.`
+  `Submit each directive separately.`
 
 ## 10. Pending Clarification
 
