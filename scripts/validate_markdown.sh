@@ -6,4 +6,4 @@ repo_root="$(cd "${script_dir}/.." && pwd)"
 
 cd "${repo_root}"
 
-npx --yes markdownlint-cli2
+npx --yes markdownlint-cli2@0.23.0
