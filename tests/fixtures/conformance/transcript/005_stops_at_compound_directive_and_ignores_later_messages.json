@@ -1,0 +1,23 @@
+{
+  "id": "transcript_stops_at_compound_directive_and_ignores_later_messages",
+  "kind": "transcript",
+  "messages": [
+    {
+      "role": "user",
+      "content": "set premise concise"
+    },
+    {
+      "role": "user",
+      "content": "use docker and prohibit peanuts"
+    },
+    {
+      "role": "user",
+      "content": "prohibit shellfish"
+    }
+  ],
+  "expected": {
+    "clarify": {
+      "prompt_to_user": "Multiple directives are not supported in one input.\nSubmit each directive separately."
+    }
+  }
+}

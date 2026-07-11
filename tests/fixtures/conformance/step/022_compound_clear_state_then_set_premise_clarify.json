@@ -1,0 +1,27 @@
+{
+  "id": "step_compound_clear_state_then_set_premise_clarify",
+  "kind": "step",
+  "initial_state": {
+    "premise": "baseline",
+    "policies": {
+      "docker": "use"
+    },
+    "version": 2
+  },
+  "input": "clear state then set premise project",
+  "expected": {
+    "decision": {
+      "kind": "clarify",
+      "prompt_to_user": "Multiple directives are not supported in one input.\nSubmit each directive separately.",
+      "state": null
+    },
+    "state": {
+      "premise": "baseline",
+      "policies": {
+        "docker": "use"
+      },
+      "version": 2
+    },
+    "has_pending_clarification": false
+  }
+}
