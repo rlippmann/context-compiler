@@ -143,8 +143,7 @@ Notes:
   This does not broaden directive grammar acceptance.
 - `ITEM` is normalized via `normalize_item` before policy lookup/storage.
 - `VALUE` is stored using premise sanitation from Section 6.
-- Quote characters do not create protected literal regions for directive
-  parsing. A fully quoted input remains ordinary `passthrough` unless the raw
+- Quote characters have no special parsing semantics.A fully quoted input remains ordinary `passthrough` unless the raw
   input begins with a canonical directive. Quote characters inside a
   recognized directive payload do not suppress later canonical directive
   detection.
@@ -229,9 +228,9 @@ This operation is authoritative replacement, not recency resolution.
 
 ### 8.5 Compound directives
 
-If an input begins with a canonical directive and a later canonical directive
-start also appears in the same input, the input is invalid under the current
-grammar.
+When no pending clarification exists, if an input begins with a canonical directive and a later canonical directive start also appears in the same input, the input is invalid under the current grammar.
+
+Pending clarification handling in Section 10 takes precedence over compound-directive detection. While pending clarification exists, directive parsing is suspended and the input is processed only as a possible confirmation response.
 
 Behavior:
 
@@ -277,7 +276,7 @@ The compiler returns `Decision.kind = "clarify"` only in these cases:
 15. `use X instead of Y` when replacement syntax is recognized but `X` or `Y` is empty/whitespace-only.
 16. `set premise to X` near-miss with non-empty `X`.
 17. `change premise X` near-miss with non-empty `X`.
-18. An input contains more than one canonical directive start.
+18. When no pending clarification exists, an input contains more than one canonical directive start.
 
 Contradictions never silently overwrite state.
 
@@ -330,9 +329,7 @@ When `Decision.kind = "clarify"`, prompt text is deterministic only for the case
   `Did you mean 'set premise X'?`
 - Premise near-miss `change premise X` (Section 9 case 17):
   `Did you mean 'change premise to X'?`
-- Compound directive rejection (Section 9 case 18):
-  `Multiple directives are not supported in one input.`
-  `Submit each directive separately.`
+- Compound directive rejection when no pending clarification exists (Section 9 case 18):
 
 ## 10. Pending Clarification
 
