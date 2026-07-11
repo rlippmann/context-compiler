@@ -47,10 +47,10 @@ pytestmark = pytest.mark.contract
             ),
         ),
         (
-            "06_transcript_replay.py",
+            "06_step_sequence_and_checkpoint.py",
             (
-                "Replay from fresh engine (compile_transcript):",
-                "Replay onto current engine (engine.apply_transcript):",
+                "Sequence directives through engine.step():",
+                "Checkpoint restore keeps authority state:",
             ),
         ),
         (

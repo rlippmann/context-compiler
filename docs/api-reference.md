@@ -139,30 +139,6 @@ blocked_tools = get_policy_items(state, POLICY_PROHIBIT)
 See the README’s [State Model](../README.md#state-model) section for conceptual
 guidance on premise vs policy usage.
 
-## Transcript APIs
-
-### `compile_transcript(messages: Transcript)`
-
-Replay a transcript from a fresh engine.
-
-Use this when you want transcript-derived state or clarification outcome
-without starting from an existing in-memory engine instance.
-
-### `engine.apply_transcript(messages: Transcript)`
-
-Replay a transcript onto the current engine state.
-
-Use this when you want transcript replay relative to an existing authoritative
-state snapshot.
-
-Transcript replay behavior is governed by the engine semantics and transcript
-fixture contracts, not by this page.
-
-In particular, replay preserves normal `engine.step(...)` behavior for invalid
-compound directives: replay stops at the first `clarify` result, does not
-apply any directive from that input, and does not create pending replacement
-state for that turn.
-
 ## State Import/Export
 
 ### `engine.export_json()`
@@ -343,12 +319,9 @@ Public result and data object names exported at package root include:
 - `Decision`
 - `State`
 - `Checkpoint`
-- `Transcript`
-- `TranscriptMessage`
 - `StepResult`
 - `PreviewResult`
 - `StructuralDiff`
-- `ApplyResult`
 - `Engine`
 
 These names are part of the public package surface. For the exact portable API

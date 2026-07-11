@@ -12,7 +12,6 @@ Responsibilities:
 
 Examples:
 - Context Compiler core engine
-- transcript replay
 - checkpoint continuation behavior
 
 Repository:

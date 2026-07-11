@@ -10,7 +10,6 @@ These examples are intended to teach:
 - engine lifecycle
 - state access
 - checkpoints
-- transcript replay
 - controller APIs
 - authority-layer usage patterns
 
@@ -56,10 +55,10 @@ Shows what to do on `clarify`, when to call the model, and how host code can
 use saved state downstream.
 Includes a single-item policy removal step via `remove policy <item>`.
 
-## 06_transcript_replay.py
+## 06_step_sequence_and_checkpoint.py
 
-Shows transcript replay helpers for authority-layer integration.
-Shows `compile_transcript(messages)` from a fresh engine and `engine.apply_transcript(messages)` on current engine state.
+Shows the recommended authority-layer sequencing pattern with `engine.step(...)`.
+Shows checkpoint export/import for restoring authoritative state without replay helpers.
 
 ## 07_single_policy_correction.py
 

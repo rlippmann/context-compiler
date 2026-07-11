@@ -3,13 +3,10 @@ from pathlib import Path
 
 import pytest
 
-from context_compiler import compile_transcript, create_engine
+from context_compiler import create_engine
 from context_compiler.controller import preview, state_diff, step
 
 _STEP_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "conformance" / "step"
-_TRANSCRIPT_FIXTURES_DIR = (
-    Path(__file__).resolve().parent / "fixtures" / "conformance" / "transcript"
-)
 _STATE_JSON_FIXTURES_DIR = (
     Path(__file__).resolve().parent / "fixtures" / "conformance" / "state-json"
 )
@@ -74,31 +71,6 @@ def test_step_fixtures() -> None:
 
         assert engine.state == expected["state"], fixture_id
         _assert_optional_pending_flag(expected, engine, fixture_id)
-
-
-def test_transcript_fixtures() -> None:
-    for path in _json_files(_TRANSCRIPT_FIXTURES_DIR):
-        fixture = _load(path)
-        fixture_id = fixture["id"]
-
-        assert fixture["kind"] == "transcript", fixture_id
-
-        result = compile_transcript(fixture["messages"])
-
-        if (
-            isinstance(result, dict)
-            and set(result.keys()) == {"kind", "prompt_to_user"}
-            and isinstance(result.get("prompt_to_user"), str)
-        ):
-            normalized = {
-                "clarify": {
-                    "prompt_to_user": result["prompt_to_user"],
-                }
-            }
-        else:
-            normalized = {"state": result}
-
-        assert normalized == fixture["expected"], fixture_id
 
 
 def _apply_prelude(engine: object, prelude: object) -> None:

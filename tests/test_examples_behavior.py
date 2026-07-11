@@ -113,49 +113,52 @@ def test_example_05_dispatches_passthrough_update_and_clarify_correctly(
     assert llm_calls[1][1] == "set premise concise replies"
 
 
-def test_example_06_wires_compile_and_apply_replay_entry_points(
+def test_example_06_sequences_steps_and_restores_checkpoint(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    module = _load_example_module("06_transcript_replay.py")
-    original_compile = module.compile_transcript
+    module = _load_example_module("06_step_sequence_and_checkpoint.py")
     original_create_engine = module.create_engine
-    compile_calls: list[list[dict[str, str]]] = []
-    apply_calls: list[list[dict[str, str]]] = []
-    replay_result_kinds: list[str] = []
-
-    def compile_wrapper(transcript: list[dict[str, str]]) -> object:
-        compile_calls.append(transcript)
-        result = original_compile(transcript)
-        assert isinstance(result, dict)
-        kind = result.get("kind")
-        assert isinstance(kind, str)
-        replay_result_kinds.append(kind)
-        return result
+    step_calls: list[str] = []
+    checkpoint_exports = 0
+    checkpoint_imports = 0
 
     def create_engine_wrapper() -> object:
+        nonlocal checkpoint_exports, checkpoint_imports
         engine = original_create_engine()
-        original_apply = engine.apply_transcript
+        original_step = engine.step
+        original_export = engine.export_checkpoint_json
+        original_import = engine.import_checkpoint_json
 
-        def apply_wrapper(transcript: list[dict[str, str]]) -> object:
-            apply_calls.append(transcript)
-            result = original_apply(transcript)
-            assert isinstance(result, dict)
-            kind = result.get("kind")
-            assert isinstance(kind, str)
-            replay_result_kinds.append(kind)
-            return result
+        def step_wrapper(user_input: str) -> object:
+            step_calls.append(user_input)
+            return original_step(user_input)
 
-        engine.apply_transcript = apply_wrapper  # type: ignore[assignment]
+        def export_wrapper() -> str:
+            nonlocal checkpoint_exports
+            checkpoint_exports += 1
+            return original_export()
+
+        def import_wrapper(payload: str) -> None:
+            nonlocal checkpoint_imports
+            checkpoint_imports += 1
+            original_import(payload)
+
+        engine.step = step_wrapper  # type: ignore[assignment]
+        engine.export_checkpoint_json = export_wrapper  # type: ignore[assignment]
+        engine.import_checkpoint_json = import_wrapper  # type: ignore[assignment]
         return engine
 
-    monkeypatch.setattr(module, "compile_transcript", compile_wrapper)
     monkeypatch.setattr(module, "create_engine", create_engine_wrapper)
 
     module.main()
     output = capsys.readouterr().out
 
-    assert "Replay from fresh engine (compile_transcript):" in output
-    assert "Replay onto current engine (engine.apply_transcript):" in output
-    assert len(compile_calls) == 1
-    assert len(apply_calls) == 1
-    assert replay_result_kinds == ["state", "state"]
+    assert "Sequence directives through engine.step():" in output
+    assert "Checkpoint restore keeps authority state:" in output
+    assert step_calls == [
+        "prohibit peanuts",
+        "set premise vegetarian curry",
+        "change premise to vegan curry",
+    ]
+    assert checkpoint_exports == 1
+    assert checkpoint_imports == 1

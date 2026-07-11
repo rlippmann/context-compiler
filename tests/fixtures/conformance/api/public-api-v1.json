@@ -14,7 +14,6 @@
   "exports": {
     "mode": "exact",
     "names": [
-      "ApplyResult",
       "Checkpoint",
       "Decision",
       "DECISION_CLARIFY",
@@ -27,10 +26,7 @@
       "State",
       "StepResult",
       "StructuralDiff",
-      "Transcript",
-      "TranscriptMessage",
       "diff_has_changes",
-      "compile_transcript",
       "create_engine",
       "get_clarify_prompt",
       "get_decision_state",
@@ -49,9 +45,6 @@
       "step"
     ],
     "members": {
-      "ApplyResult": {
-        "kind": "type_alias"
-      },
       "Checkpoint": {
         "kind": "type"
       },
@@ -93,12 +86,6 @@
       "StructuralDiff": {
         "kind": "type"
       },
-      "Transcript": {
-        "kind": "type_alias"
-      },
-      "TranscriptMessage": {
-        "kind": "type"
-      },
       "diff_has_changes": {
         "kind": "callable",
         "signature": {
@@ -133,18 +120,6 @@
             }
           }
         ]
-      },
-      "compile_transcript": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "messages",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        }
       },
       "create_engine": {
         "kind": "callable",
@@ -564,18 +539,6 @@
     "public_members": {
       "mode": "exact",
       "members": {
-        "apply_transcript": {
-          "kind": "method",
-          "signature": {
-            "params": [
-              {
-                "name": "messages",
-                "kind": "POSITIONAL_OR_KEYWORD",
-                "has_default": false
-              }
-            ]
-          }
-        },
         "export_checkpoint": {
           "kind": "method",
           "signature": {
