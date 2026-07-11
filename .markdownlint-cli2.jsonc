@@ -40,6 +40,15 @@
         "MD032": false
       },
       "combine": "merge"
+    },
+    {
+      "filter": [
+        "tests/fixtures/engine-regression/structured/README.md"
+      ],
+      "config": {
+        "MD004": false
+      },
+      "combine": "merge"
     }
   ]
 }
