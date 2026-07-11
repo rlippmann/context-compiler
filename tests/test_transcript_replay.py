@@ -4,6 +4,10 @@ from context_compiler import compile_transcript, create_engine
 
 pytestmark = pytest.mark.contract
 
+COMPOUND_DIRECTIVE_PROMPT = (
+    "Multiple directives are not supported in one input.\nSubmit each directive separately."
+)
+
 
 def test_only_user_messages_affect_transcript_replay() -> None:
     result = compile_transcript(
@@ -180,3 +184,33 @@ def test_apply_transcript_matches_manual_step_replay() -> None:
 
     assert replay_result == manual_result
     assert replay_engine.state == manual_engine.state
+
+
+def test_transcript_stops_at_compound_directive_turn_and_returns_confirm() -> None:
+    result = compile_transcript(
+        [
+            {"role": "user", "content": "set premise concise"},
+            {"role": "user", "content": "use docker and prohibit peanuts"},
+            {"role": "user", "content": "prohibit shellfish"},
+        ]
+    )
+
+    assert result == {"kind": "confirm", "prompt_to_user": COMPOUND_DIRECTIVE_PROMPT}
+
+
+def test_apply_transcript_stops_at_compound_directive_turn_without_applying_either_directive() -> (
+    None
+):
+    engine = create_engine()
+
+    result = engine.apply_transcript(
+        [
+            {"role": "user", "content": "set premise concise"},
+            {"role": "user", "content": "use docker and prohibit peanuts"},
+            {"role": "user", "content": "prohibit shellfish"},
+        ]
+    )
+
+    assert result == {"kind": "confirm", "prompt_to_user": COMPOUND_DIRECTIVE_PROMPT}
+    assert engine.state == {"premise": "concise", "policies": {}, "version": 2}
+    assert engine.has_pending_clarification() is False

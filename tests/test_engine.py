@@ -7,6 +7,10 @@ from context_compiler.engine import DecisionKind, Engine
 
 pytestmark = pytest.mark.contract
 
+COMPOUND_DIRECTIVE_PROMPT = (
+    "Multiple directives are not supported in one input.\nSubmit each directive separately."
+)
+
 
 def test_decision_kind_strenum_behavior() -> None:
     for kind in DecisionKind:
@@ -1513,6 +1517,242 @@ def test_remove_policy_uses_normalized_item_matching() -> None:
     decision = engine.step("remove policy the docker")
     assert decision["kind"] == "update"
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
+
+
+@pytest.mark.parametrize(
+    ("user_input", "initial_state"),
+    [
+        ("use docker and prohibit peanuts", {"premise": None, "policies": {}, "version": 2}),
+        ("use docker or prohibit peanuts", {"premise": None, "policies": {}, "version": 2}),
+        ("use docker xor prohibit peanuts", {"premise": None, "policies": {}, "version": 2}),
+        ("use docker but prohibit peanuts", {"premise": None, "policies": {}, "version": 2}),
+        ("use docker; prohibit peanuts", {"premise": None, "policies": {}, "version": 2}),
+        ("use docker. prohibit peanuts", {"premise": None, "policies": {}, "version": 2}),
+        (
+            "use docker for development and prohibit peanuts",
+            {"premise": None, "policies": {}, "version": 2},
+        ),
+        (
+            "set premise vegetarian curry and prohibit peanuts",
+            {"premise": None, "policies": {}, "version": 2},
+        ),
+        (
+            "change premise to vegan curry or use docker",
+            {"premise": "baseline", "policies": {}, "version": 2},
+        ),
+        (
+            "remove policy docker and use podman",
+            {"premise": None, "policies": {"docker": "use"}, "version": 2},
+        ),
+        (
+            "clear premise and prohibit peanuts",
+            {"premise": "baseline", "policies": {}, "version": 2},
+        ),
+        (
+            "reset policies; use docker",
+            {"premise": None, "policies": {"docker": "prohibit"}, "version": 2},
+        ),
+        (
+            "clear state then set premise new project",
+            {"premise": "baseline", "policies": {"docker": "use"}, "version": 2},
+        ),
+        (
+            'use "docker and prohibit peanuts"',
+            {"premise": None, "policies": {}, "version": 2},
+        ),
+        (
+            'set premise "use docker and prohibit peanuts"',
+            {"premise": None, "policies": {}, "version": 2},
+        ),
+        (
+            "use docker instead of prohibit peanuts",
+            {"premise": None, "policies": {}, "version": 2},
+        ),
+    ],
+)
+def test_compound_directives_clarify_without_mutation(
+    user_input: str, initial_state: dict[str, object]
+) -> None:
+    engine = create_engine(state=initial_state)
+    before = engine.state
+
+    decision = engine.step(user_input)
+
+    assert decision == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": COMPOUND_DIRECTIVE_PROMPT,
+    }
+    assert engine.state == before
+    assert engine.has_pending_clarification() is False
+
+
+def test_quoted_non_directive_leading_input_remains_passthrough() -> None:
+    engine = create_engine()
+
+    decision = engine.step('"use docker and prohibit peanuts"')
+
+    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+    assert engine.has_pending_clarification() is False
+
+
+@pytest.mark.parametrize(
+    ("user_input", "initial_state", "expected_decision_kind", "expected_state"),
+    [
+        (
+            "use docker for prohibitively expensive builds",
+            {"premise": None, "policies": {}, "version": 2},
+            "update",
+            {
+                "premise": None,
+                "policies": {"docker for prohibitively expensive builds": "use"},
+                "version": 2,
+            },
+        ),
+        (
+            "set premise reusable docker-prohibit-safe workflow",
+            {"premise": None, "policies": {}, "version": 2},
+            "update",
+            {"premise": "reusable docker-prohibit-safe workflow", "policies": {}, "version": 2},
+        ),
+        (
+            "change premise to reset policieset ownership",
+            {"premise": "baseline", "policies": {}, "version": 2},
+            "update",
+            {"premise": "reset policieset ownership", "policies": {}, "version": 2},
+        ),
+        (
+            "remove policy clear stateful systems",
+            {"premise": None, "policies": {"docker": "use"}, "version": 2},
+            "update",
+            {"premise": None, "policies": {"docker": "use"}, "version": 2},
+        ),
+    ],
+)
+def test_directive_like_substrings_inside_larger_words_do_not_trigger_compound_rejection(
+    user_input: str,
+    initial_state: dict[str, object],
+    expected_decision_kind: str,
+    expected_state: dict[str, object],
+) -> None:
+    engine = create_engine(state=initial_state)
+
+    decision = engine.step(user_input)
+
+    assert not (
+        decision["kind"] == "clarify" and decision["prompt_to_user"] == COMPOUND_DIRECTIVE_PROMPT
+    )
+    assert decision["kind"] == expected_decision_kind
+    assert engine.state == expected_state
+    assert engine.has_pending_clarification() is False
+
+
+@pytest.mark.parametrize(
+    ("user_input", "initial_state", "expected_state"),
+    [
+        (
+            "use docker",
+            {"premise": None, "policies": {}, "version": 2},
+            {"premise": None, "policies": {"docker": "use"}, "version": 2},
+        ),
+        (
+            "prohibit peanuts",
+            {"premise": None, "policies": {}, "version": 2},
+            {"premise": None, "policies": {"peanuts": "prohibit"}, "version": 2},
+        ),
+        (
+            "set premise vegetarian curry",
+            {"premise": None, "policies": {}, "version": 2},
+            {"premise": "vegetarian curry", "policies": {}, "version": 2},
+        ),
+        (
+            "change premise to vegan curry",
+            {"premise": "vegetarian curry", "policies": {}, "version": 2},
+            {"premise": "vegan curry", "policies": {}, "version": 2},
+        ),
+        (
+            "remove policy docker",
+            {"premise": None, "policies": {"docker": "use"}, "version": 2},
+            {"premise": None, "policies": {}, "version": 2},
+        ),
+        (
+            "clear premise",
+            {"premise": "vegetarian curry", "policies": {}, "version": 2},
+            {"premise": None, "policies": {}, "version": 2},
+        ),
+        (
+            "reset policies",
+            {"premise": None, "policies": {"docker": "use"}, "version": 2},
+            {"premise": None, "policies": {}, "version": 2},
+        ),
+        (
+            "clear state",
+            {"premise": "baseline", "policies": {"docker": "use"}, "version": 2},
+            {"premise": None, "policies": {}, "version": 2},
+        ),
+        (
+            "use docker instead of podman",
+            {"premise": None, "policies": {"podman": "use"}, "version": 2},
+            {"premise": None, "policies": {"docker": "use"}, "version": 2},
+        ),
+    ],
+)
+def test_valid_single_directives_still_work(
+    user_input: str, initial_state: dict[str, object], expected_state: dict[str, object]
+) -> None:
+    engine = create_engine(state=initial_state)
+
+    decision = engine.step(user_input)
+
+    assert decision == {"kind": "update", "state": expected_state, "prompt_to_user": None}
+    assert engine.state == expected_state
+    assert engine.has_pending_clarification() is False
+
+
+@pytest.mark.parametrize(
+    "directive_start",
+    [
+        "set premise vegetarian curry",
+        "change premise to vegan curry",
+        "use docker",
+        "prohibit peanuts",
+        "remove policy docker",
+        "use docker instead of podman",
+        "clear premise",
+        "reset policies",
+        "clear state",
+    ],
+)
+def test_all_canonical_directive_starts_remain_single_directive_when_valid(
+    directive_start: str,
+) -> None:
+    engine = create_engine(
+        state={"premise": "baseline", "policies": {"podman": "use"}, "version": 2}
+    )
+
+    decision = engine.step(directive_start)
+
+    assert not (
+        decision["kind"] == "clarify" and decision["prompt_to_user"] == COMPOUND_DIRECTIVE_PROMPT
+    )
+
+
+def test_pending_confirmation_takes_precedence_over_compound_detection() -> None:
+    engine = create_engine()
+    first = engine.step("use kubectl instead of docker")
+    assert first == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": 'Did you mean to use "kubectl" instead?',
+    }
+    assert engine.has_pending_clarification() is True
+
+    decision = engine.step("use docker and prohibit peanuts")
+
+    assert decision == first
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+    assert engine.has_pending_clarification() is True
 
 
 def test_compile_transcript_ignores_non_user_messages() -> None:
