@@ -48,6 +48,8 @@ jobs:
         run: uv run ruff format --check .
 
       - name: Install mypy demo dependencies
+        env:
+          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: "1"
         run: uv pip install --python .venv/bin/python litellm
 
       - name: Mypy
@@ -134,3 +136,24 @@ jobs:
 
       - name: Contract tests with strict controller coverage gate (100%)
         run: uv run pytest -m contract --cov=context_compiler.controller --cov-report=term-missing --cov-fail-under=100
+
+  contract-grammar-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dev dependencies
+        run: uv sync --extra dev
+
+      - name: Contract tests with strict grammar coverage gate (100%)
+        run: uv run pytest tests/test_grammar.py tests/test_grammar_api_contract_fixture.py tests/test_fixtures.py::test_grammar_fixtures --cov=context_compiler.grammar --cov-report=term-missing --cov-fail-under=100
