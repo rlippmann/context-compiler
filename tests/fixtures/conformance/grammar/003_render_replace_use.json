@@ -1,0 +1,16 @@
+{
+  "id": "grammar_render_replace_use",
+  "kind": "grammar",
+  "action": {
+    "fn": "render_directive",
+    "kind": "replace_use",
+    "operands": {
+      "new_item": "podman",
+      "old_item": "docker"
+    }
+  },
+  "expected": {
+    "text": "use podman instead of docker",
+    "validated_kind": "replace_use"
+  }
+}

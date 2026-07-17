@@ -5,6 +5,7 @@ import pytest
 
 from context_compiler import create_engine
 from context_compiler.controller import preview, state_diff, step
+from context_compiler.grammar import DirectiveKind, render_directive, validate_directive
 
 _STEP_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "conformance" / "step"
 _STATE_JSON_FIXTURES_DIR = (
@@ -16,6 +17,7 @@ _CHECKPOINT_FIXTURES_DIR = (
 _CONTROLLER_FIXTURES_DIR = (
     Path(__file__).resolve().parent / "fixtures" / "conformance" / "controller"
 )
+_GRAMMAR_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "conformance" / "grammar"
 
 
 def _json_files(dir_path: Path) -> list[Path]:
@@ -198,3 +200,32 @@ def test_controller_fixtures() -> None:
         assert fn == "state_diff", fixture_id
         diff = state_diff(action["before"], action["after"])
         assert diff == expected["diff"], fixture_id
+
+
+def test_grammar_fixtures() -> None:
+    for path in _json_files(_GRAMMAR_FIXTURES_DIR):
+        fixture = _load(path)
+        fixture_id = fixture["id"]
+
+        assert fixture["kind"] == "grammar", fixture_id
+        action = fixture["action"]
+        expected = fixture["expected"]
+        fn = action["fn"]
+
+        if fn == "validate_directive":
+            validated = validate_directive(action["text"])
+            expected_validated = expected["validated"]
+            if expected_validated is None:
+                assert validated is None, fixture_id
+            else:
+                assert validated is not None, fixture_id
+                assert validated.text == expected_validated["text"], fixture_id
+                assert validated.kind.value == expected_validated["kind"], fixture_id
+            continue
+
+        assert fn == "render_directive", fixture_id
+        rendered = render_directive(DirectiveKind(action["kind"]), **action["operands"])
+        assert rendered == expected["text"], fixture_id
+        validated = validate_directive(rendered)
+        assert validated is not None, fixture_id
+        assert validated.kind.value == expected["validated_kind"], fixture_id
