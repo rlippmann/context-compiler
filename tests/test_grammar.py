@@ -200,3 +200,18 @@ def test_internal_grammar_specs_use_immutable_mapping() -> None:
     spec = specs[DirectiveKind.SET_PREMISE]
     with pytest.raises(FrozenInstanceError):
         spec.kind = DirectiveKind.CHANGE_PREMISE  # type: ignore[misc]
+
+
+def test_internal_canonical_start_match_rejects_out_of_range_positions() -> None:
+    assert grammar_module._match_canonical_directive_start("use docker", -1) is None
+    assert grammar_module._match_canonical_directive_start("use docker", len("use docker")) is None
+
+
+def test_validate_directive_rejects_near_miss_without_required_delimiter() -> None:
+    assert validate_directive("clear statex") is None
+    assert validate_directive("usex docker") is None
+
+
+def test_render_directive_rejects_non_string_operands() -> None:
+    with pytest.raises(ValueError, match="must be a string"):
+        render_directive(DirectiveKind.SET_PREMISE, value=123)  # type: ignore[arg-type]
