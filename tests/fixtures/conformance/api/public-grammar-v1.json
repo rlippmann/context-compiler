@@ -1,0 +1,105 @@
+{
+  "id": "public-grammar-v1",
+  "kind": "api-contract",
+  "module": "context_compiler.grammar",
+  "exports": {
+    "names": [
+      "DirectiveKind",
+      "ValidatedDirective",
+      "is_canonical_directive",
+      "render_directive",
+      "validate_directive"
+    ],
+    "members": {
+      "DirectiveKind": {
+        "kind": "class"
+      },
+      "ValidatedDirective": {
+        "kind": "class"
+      },
+      "is_canonical_directive": {
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "text",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
+          {
+            "kwargs": {
+              "text": "clear state"
+            },
+            "return_shape": {
+              "type": "boolean",
+              "const": true
+            }
+          }
+        ]
+      },
+      "render_directive": {
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "kind",
+              "kind": "POSITIONAL_ONLY",
+              "has_default": false
+            },
+            {
+              "name": "operands",
+              "kind": "VAR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
+          {
+            "args": [
+              "clear_state"
+            ],
+            "return_shape": {
+              "type": "string",
+              "const": "clear state"
+            }
+          }
+        ]
+      },
+      "validate_directive": {
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "text",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
+          {
+            "kwargs": {
+              "text": "use docker"
+            },
+            "return_shape": {
+              "kind": "validated_directive",
+              "text": "use docker",
+              "directive_kind": "use_item"
+            }
+          },
+          {
+            "kwargs": {
+              "text": "please use docker"
+            },
+            "return_shape": {
+              "type": "null"
+            }
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "id": "grammar_validate_set_premise",
+  "kind": "grammar",
+  "action": {
+    "fn": "validate_directive",
+    "text": "set premise concise replies"
+  },
+  "expected": {
+    "validated": {
+      "text": "set premise concise replies",
+      "kind": "set_premise"
+    }
+  }
+}

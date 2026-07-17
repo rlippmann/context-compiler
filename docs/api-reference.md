@@ -55,6 +55,31 @@ Important grammar contract:
 - quote characters do not create protected literal regions inside recognized
   directive payloads
 
+### `context_compiler.grammar`
+
+Canonical grammar helpers are available from the `context_compiler.grammar`
+submodule.
+
+Public grammar surface:
+
+- `DirectiveKind`
+- `ValidatedDirective`
+- `validate_directive(text)`
+- `is_canonical_directive(text)`
+- `render_directive(kind, /, **operands)`
+
+Use this surface for exact canonical validation or canonical directive string
+construction only.
+
+Boundary notes:
+
+- no public parser is exposed
+- validation returns `None` for any non-canonical input, including near misses,
+  compounds, and ordinary prose
+- rendering is syntax-only and performs no state interpretation
+- `engine.step(...)` remains the authority for clarification, state
+  transitions, pending confirmation, and mutation behavior
+
 ### `engine.state`
 
 Read the current authoritative in-memory state snapshot.
