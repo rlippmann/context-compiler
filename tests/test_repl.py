@@ -172,6 +172,53 @@ def test_main_with_json_flag_runs_repl_with_json_mode(monkeypatch: pytest.Monkey
     assert called["json_mode"] is True
 
 
+def test_render_decision_lines_uses_confirm_prefix_for_question_prompts() -> None:
+    lines = repl_module._render_decision_lines(
+        {
+            "kind": "clarify",
+            "state": None,
+            "prompt_to_user": "Proceed?",
+        }
+    )
+
+    assert lines == ["confirm: Proceed?"]
+
+
+def test_render_diff_lines_includes_added_policy_entries() -> None:
+    preview = {
+        "would_mutate": True,
+        "decision": {
+            "kind": "update",
+            "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
+            "prompt_to_user": None,
+        },
+        "diff": {
+            "premise": {"changed": False, "before": None, "after": None},
+            "policies": {"added": {"docker": "use"}, "removed": {}, "changed": {}},
+        },
+    }
+
+    assert repl_module._render_diff_lines(preview) == [
+        "would_mutate: yes",
+        "diff:",
+        "- + use docker",
+    ]
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("yes", True),
+        (" no! ", True),
+        ("maybe", False),
+    ],
+)
+def test_is_confirmation_input_recognizes_affirmative_and_negative_tokens(
+    value: str, expected: bool
+) -> None:
+    assert repl_module._is_confirmation_input(value) is expected
+
+
 def test_main_json_requires_non_interactive_stdio(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -184,6 +231,69 @@ def test_main_json_requires_non_interactive_stdio(
     assert result == 1
     assert captured.out == ""
     assert captured.err == "error: --json requires non-interactive stdin/stdout.\n"
+
+
+def test_interactive_step_without_payload_prints_command_error() -> None:
+    lines = _run_interactive_lines("step\nquit\n")
+
+    assert _contains_subsequence(lines, ["error: step requires input.", "Use 'step <input>'."])
+
+
+def test_interactive_step_command_with_non_confirmation_payload_prints_pending_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine = create_engine()
+    monkeypatch.setattr(engine, "has_pending_clarification", lambda: True)
+
+    out = _TTYStringIO()
+    run_repl(_TTYStringIO("step set premise concise\nquit\n"), out, engine=engine)
+    lines = [line for line in out.getvalue().splitlines() if line.strip()]
+
+    assert _contains_subsequence(
+        lines,
+        [
+            "error: step command only accepts confirmation while clarification is pending.",
+            "Use yes/no (or variants), or use preview/state.",
+        ],
+    )
+
+
+def test_non_interactive_step_command_with_non_confirmation_payload_emits_json_pending_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine = create_engine()
+    monkeypatch.setattr(engine, "has_pending_clarification", lambda: True)
+
+    out = StringIO()
+    run_repl(StringIO("step set premise concise\n"), out, json_mode=True, engine=engine)
+
+    assert json.loads(out.getvalue()) == {
+        "mode": "error",
+        "output_version": 1,
+        "command": "step",
+        "error": {
+            "code": "pending_confirmation_required",
+            "message": (
+                "step command only accepts confirmation while clarification is pending.\n"
+                "Use yes/no (or variants), or use preview/state."
+            ),
+        },
+    }
+
+
+def test_non_interactive_step_command_with_non_confirmation_payload_prints_text_pending_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine = create_engine()
+    monkeypatch.setattr(engine, "has_pending_clarification", lambda: True)
+
+    out = StringIO()
+    run_repl(StringIO("step set premise concise\n"), out, engine=engine)
+
+    assert out.getvalue() == (
+        "error: step command only accepts confirmation while clarification is pending.\n"
+        "Use yes/no (or variants), or use preview/state.\n"
+    )
 
 
 def test_main_unknown_flag_prints_error_hint_and_exits_nonzero(
