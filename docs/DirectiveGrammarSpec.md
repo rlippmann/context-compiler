@@ -4,9 +4,12 @@
 
 Provide deterministic, explicit, and model-independent conversational state updates.
 
-This specification defines the authoritative state machine for directive handling.
-It does not perform reasoning, inference, entity modeling, natural-language understanding,
-or interpretation of assistant output.
+This specification defines the authoritative state machine for canonical
+directive handling.
+It does not perform reasoning, inference, entity modeling,
+natural-language understanding, or interpretation of assistant output.
+Human-facing normalization, malformed-input recovery, and intent drafting are
+outside the core canonical directive contract.
 
 ## 1. Terminology
 
@@ -17,17 +20,19 @@ or interpretation of assistant output.
 | Premise | Single sticky explicit slot controlled only by premise directives |
 | Policy | Per-item authoritative state: `"use"` or `"prohibit"` |
 | State | Current authoritative snapshot |
-| Pending Clarification | A blocked mutation awaiting explicit user confirmation |
+| Pending Clarification | A blocked canonical mutation awaiting explicit user confirmation |
 | Decision | Compiler instruction returned to host |
 
 ## 2. System Responsibilities
 
 The compiler:
 
-1. Parses user input against explicit grammar
-2. Applies deterministic state transitions only when valid
-3. Rejects contradictory or invalid mutations with `clarify`
-4. Returns a deterministic `Decision`
+1. Parses canonical user input against explicit grammar
+2. Validates canonical directives and authoritative state
+3. Applies deterministic state transitions only when valid
+4. Returns `clarify` when a canonical operation cannot proceed under the core
+   state rules
+5. Returns a deterministic `Decision`
 
 The compiler never calls an LLM.
 All authoritative mutations originate from user directives passed to `step()`.
@@ -39,6 +44,7 @@ The host:
 - Displays clarification prompts
 - Calls the LLM only when `Decision.kind` allows it
 - Formats model context from compiler state
+- May perform non-canonical input processing before core execution
 
 ## 4. Decision API Contract
 
@@ -113,7 +119,7 @@ No stemming, synonym mapping, ontology, or semantic interpretation is allowed.
 
 ## 7. Directive Grammar (Explicit Only)
 
-Only the exact productions below are directives.
+Only the exact productions below are canonical directives.
 All other input is `passthrough` unless Section 8 says `clarify`.
 
 ```text
@@ -137,10 +143,6 @@ Notes:
 - Recognized policy directives with empty or whitespace-only `ITEM` payload return `clarify`.
 - Premise directive payload must contain at least one non-whitespace character after the prefix.
   Empty and whitespace-only premise payloads are invalid and must return `clarify`.
-- Narrow near-miss clarify exceptions are supported for premise `to` variants only:
-  - `set premise to X` -> `clarify` with canonical suggestion
-  - `change premise X` -> `clarify` with canonical suggestion
-  This does not broaden directive grammar acceptance.
 - `ITEM` is normalized via `normalize_item` before policy lookup/storage.
 - `VALUE` is stored using premise sanitation from Section 6.
 - Quote characters have no special parsing semantics. A fully quoted input remains ordinary `passthrough` unless the raw
@@ -188,63 +190,32 @@ Let `k = normalize_item(ITEM)`.
 
 ### 8.3 Explicit replacement
 
-Pending-confirmation eligibility for any repair in this section:
-
-- Core may create pending confirmation only for a uniquely recoverable,
-  semantics-preserving repair.
-- Accepting `yes` must authorize at most one repair that preserves the
-  directive already submitted in substance.
-- Core must not create pending confirmation when accepting `yes` would
-  authorize:
-  - additional policy mutations
-  - compound operations
-  - synthesized replacement directives
-  - semantic rewrites
-  - materially different directives than the one originally submitted
-- When a replacement case is not eligible for pending confirmation under this
-  rule, core must return ordinary `clarify`, leave authoritative state
-  unchanged, and require a new explicit directive from the user or a future
-  directive drafter.
+Pending confirmation in core is limited to canonical operations that are
+already fully determined by the submitted canonical directive. Core does not
+use confirmation to repair non-canonical input, infer intent, or convert a
+failed canonical operation into a different directive.
 
 For `use X instead of Y`:
 
 1. Let `kx = normalize_item(X)`, `ky = normalize_item(Y)`.
 2. If `kx == ky`: no-op `update`.
 3. Otherwise, evaluate in this exact order:
-   - if `ky not in policies`: the submitted replacement cannot be applied
-     literally, but it has one uniquely recoverable, semantics-preserving
-     repair: treat it as the single atomic directive `use X`. Enter
-     replacement-intent `clarify` with prompt
-     `Did you mean to use "X" instead?`
-   - else if `policies.get(ky) == "prohibit"`: accepting `yes` would authorize
-     a compound policy change and a materially different directive than the one
-     literally submitted. Return ordinary `clarify` with prompt
+   - if `ky not in policies`: return ordinary `clarify` with prompt
+     `"<Y>" is not currently in use.`
+     `Replacement requires an active 'use' policy.`
+   - else if `policies.get(ky) == "prohibit"`: return ordinary `clarify` with prompt
      `"Y" is currently prohibited.`
      `Submit explicit directive(s) to remove it or use a different item.`
-   - else if `policies.get(kx) == "prohibit"`: accepting `yes` would authorize
-     a compound policy change and a materially different directive than the one
-     literally submitted. Return ordinary `clarify` with prompt
+   - else if `policies.get(kx) == "prohibit"`: return ordinary `clarify` with prompt
      `"X" is currently prohibited.`
      `Submit explicit directive(s) to remove it or use a different item.`
-4. If none of the replacement-intent clarify conditions match, `Y` must currently exist in
+4. If none of the clarify conditions above match, `Y` must currently exist in
    policy state (`ky in policies`) or return `clarify`.
 5. Replacement requires `policies[ky] == "use"` in the literal path; otherwise return `clarify`.
 6. If replacement syntax is recognized but either side is empty/whitespace-only, return `clarify` and no mutation.
 7. On literal success:
    - remove `ky` from `policies`
    - set `policies[kx] = "use"`
-8. Under the pending-confirmation eligibility rule above, the missing-source
-   case is currently the only replacement case that qualifies for pending
-   confirmation.
-9. Replacement-intent clarify confirmations are deterministic only for that
-   eligible missing-source case:
-   - `Did you mean to use "X" instead?`
-     - yes: set `policies[kx] = "use"` (idempotent if already `"use"`)
-     - no: no mutation
-10. The prohibited-item replacement cases above are illustrations of the
-    ineligible category: they do not create pending confirmation, do not
-    synthesize replacement directives, and do not authorize compound policy
-    mutation through a yes/no response.
 
 This operation is authoritative replacement, not recency resolution.
 
@@ -303,9 +274,7 @@ The compiler returns `Decision.kind = "clarify"` only in these cases:
 13. `use ITEM` when `ITEM` is empty or whitespace-only after the prefix.
 14. `prohibit ITEM` when `ITEM` is empty or whitespace-only after the prefix.
 15. `use X instead of Y` when replacement syntax is recognized but `X` or `Y` is empty/whitespace-only.
-16. `set premise to X` near-miss with non-empty `X`.
-17. `change premise X` near-miss with non-empty `X`.
-18. When no pending clarification exists, an input contains more than one canonical directive start.
+16. When no pending clarification exists, an input contains more than one canonical directive start.
 
 Contradictions never silently overwrite state.
 
@@ -332,7 +301,8 @@ When `Decision.kind = "clarify"`, prompt text is deterministic only for the case
   `"<item>" is currently in use.`
   `Remove or replace it before prohibiting it.`
 - `use X instead of Y` when `Y` does not exist in policies (Section 9 case 7):
-  `Did you mean to use "X" instead?`
+  `"<Y>" is not currently in use.`
+  `Replacement requires an active 'use' policy.`
 - `use X instead of Y` when `Y` is currently `"prohibit"` (Section 9 case 8):
   `"Y" is currently prohibited.`
   `Submit explicit directive(s) to remove it or use a different item.`
@@ -356,11 +326,7 @@ When `Decision.kind = "clarify"`, prompt text is deterministic only for the case
 - Incomplete replacement payload (Section 9 case 15):
   `Replacement requires both new and old items.`
   `Use 'use <new item> instead of <old item>' with non-empty values.`
-- Premise near-miss `set premise to X` (Section 9 case 16):
-  `Did you mean 'set premise X'?`
-- Premise near-miss `change premise X` (Section 9 case 17):
-  `Did you mean 'change premise to X'?`
-- Compound directive rejection when no pending clarification exists (Section 9 case 18):
+- Compound directive rejection when no pending clarification exists (Section 9 case 16):
   `Multiple directives are not supported in one input.`
   `Submit each directive separately.`
 
@@ -368,18 +334,17 @@ When `Decision.kind = "clarify"`, prompt text is deterministic only for the case
 
 Normative eligibility rule:
 
-- Pending confirmation is reserved for uniquely recoverable,
-  semantics-preserving repairs.
-- A pending confirmation may exist only when accepting `yes` authorizes one
-  deterministic repair that preserves the submitted directive in substance.
+- Pending confirmation is reserved for deterministic continuation of canonical
+  operations already established by prior core decisions.
 - Core must not use pending confirmation to authorize:
-  - additional policy mutations
-  - compound operations
+  - near-miss repair
+  - malformed-input recovery
   - synthesized replacement directives
+  - alternate human phrasing interpretation
   - semantic rewrites
   - materially different directives than the one originally submitted
-- When an input needs user guidance but does not satisfy this rule, core must
-  return ordinary `clarify` without creating pending state.
+- When an input needs non-canonical interpretation, core does not define that
+  processing. Core operates only on canonical directives submitted to it.
 
 Internal structure:
 
@@ -455,32 +420,23 @@ Checkpoint object contract:
     },
     "version": 2
   },
-  "pending": {
-    "kind": "replacement",
-    "replacement": {
-      "kind": "use_only",
-      "new_item": "kubectl",
-      "old_item": null
-    },
-    "prompt_to_user": "..."
-  }
+  "pending": null
 }
 ```
 
 Checkpoint semantics:
 
 - `authoritative_state` uses the same validation/canonicalization boundary as `export_json` / `import_json`.
-- `pending` captures confirmation-required continuation (for example replacement clarifications).
+- `pending` captures confirmation-required continuation for supported canonical
+  operations only.
 - `pending` is `null` when there is no outstanding continuation.
-- In `"use_only"` pending replacement cases, `old_item` may be `null` because no exact existing policy matched for replacement; confirmation asks whether to apply a new `use` item while keeping current policies.
-- `"use_only"` is the only supported pending replacement shape in checkpoint restore.
 - Restore is all-or-nothing: invalid checkpoint payloads raise and no partial state restore occurs.
 - Continuation behavior is deterministic after restore (same confirmation token handling and resolution outcomes as live pending state).
 - `checkpoint_version` is independent of authoritative state `version`; it must be bumped when checkpoint contract shape changes (especially `pending`).
 
 ## 12. Invariants
 
-1. State changes only from valid directive transitions or pending-confirmation acceptance.
+1. State changes only from valid canonical directive transitions or pending-confirmation acceptance for canonical operations.
 2. Same input sequence yields identical state and decisions.
 3. LLM output never mutates state.
 4. No mutation occurs when returning `clarify`.
@@ -489,6 +445,7 @@ Checkpoint semantics:
 7. Contradictions always clarify; they never overwrite.
 8. Premise can be explicitly cleared via `clear premise` (`premise = null`).
 9. A single input never applies more than one canonical directive.
+10. Core does not repair non-canonical human input into canonical directives.
 
 ## 13. Non-Goals
 
@@ -504,6 +461,8 @@ Not implemented:
 - ontology reasoning
 - agent planning
 - output validation
+
+Non-canonical input interpretation is intentionally excluded from core.
 
 ## End
 

@@ -134,12 +134,13 @@ which package owns which behavior.
 Current ownership after 0.8:
 
 - `context-compiler` owns the Authority Layer:
-  deterministic state transitions, directive application, clarification and
-  confirmation handling, checkpoints, preview/diff, controller behavior, and
-  authoritative state
+  deterministic state transitions, canonical directive application, semantic
+  validation, clarification and confirmation handling, checkpoints,
+  preview/diff, controller behavior, and authoritative state
 - `context-compiler-directive-drafter` owns Acquisition Layer drafting:
   natural-language-to-directive drafting, candidate directive generation,
-  prompt/resource usage for drafting, and drafting-oriented surfaces
+  malformed-input recovery, alternate human phrasing, prompt/resource usage for
+  drafting, and drafting-oriented surfaces
 - `context-compiler-example-integrations` owns runnable integrations:
   LiteLLM, OpenWebUI, Ollama, and other proxy/runtime/provider examples
 
@@ -148,6 +149,8 @@ Boundary:
 - drafting is non-authoritative
 - only core applies directives
 - only core mutates authoritative state
+- core is the canonical directive and execution layer, not the general
+  human-input repair layer
 
 Historical note:
 
