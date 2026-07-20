@@ -3,7 +3,7 @@ import json
 import pytest
 
 from context_compiler import create_engine, get_policy_items, get_premise_value
-from context_compiler.engine import DecisionKind, Engine
+from context_compiler.engine import DecisionKind, Engine, _normalize_confirmation
 
 pytestmark = pytest.mark.contract
 
@@ -420,6 +420,11 @@ def test_import_checkpoint_rejects_invalid_pending_payload_shapes(pending: objec
                 "pending": pending,
             }
         )
+
+
+def test_normalize_confirmation_collapses_unicode_spacing_and_trailing_punctuation() -> None:
+    assert _normalize_confirmation("  YES!!  ") == "yes"
+    assert _normalize_confirmation("No\t\tthanks...\n") == "no thanks"
 
 
 @pytest.mark.parametrize(
