@@ -127,9 +127,6 @@ def test_remove_policy_missing_or_whitespace_payload_clarifies() -> None:
 
 def test_pending_blocks_directive_parsing_until_confirmation() -> None:
     engine = create_engine()
-    engine.step("use docker")
-    engine.step("prohibit kubectl")
-
     first = engine.step("use kubectl instead of docker")
     assert first["kind"] == "clarify"
 
@@ -138,22 +135,16 @@ def test_pending_blocks_directive_parsing_until_confirmation() -> None:
     assert second == first
     assert engine.state == {
         "premise": None,
-        "policies": {"docker": "use", "kubectl": "prohibit"},
+        "policies": {},
         "version": 2,
     }
 
 
 def test_pending_rejects_non_confirmation_and_keeps_prompt() -> None:
     engine = create_engine()
-    engine.step("use docker")
-    engine.step("prohibit kubectl")
-
     first = engine.step("use kubectl instead of docker")
     second = engine.step("sounds good")
 
     assert second == first
-    expected = (
-        '"kubectl" is currently prohibited. Did you mean to remove "docker" '
-        'and use "kubectl" instead?'
-    )
+    expected = 'Did you mean to use "kubectl" instead?'
     assert second["prompt_to_user"] == expected

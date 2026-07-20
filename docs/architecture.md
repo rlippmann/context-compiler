@@ -24,6 +24,14 @@ Boundary:
 
 - only core applies directives
 - only core mutates authoritative state
+- pending yes/no confirmation is reserved for uniquely recoverable,
+  semantics-preserving repairs
+- a pending `yes` may authorize only one deterministic repair that preserves
+  the submitted directive in substance
+- core does not use yes/no confirmation to authorize compound policy mutations
+  or inferred replacement rewrites when an explicit new directive is required
+- current replacement examples are applications of this rule, not the source of
+  the rule
 
 ## Acquisition Layer
 

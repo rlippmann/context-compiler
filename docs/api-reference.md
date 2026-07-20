@@ -79,6 +79,12 @@ Boundary notes:
 - rendering is syntax-only and performs no state interpretation
 - `engine.step(...)` remains the authority for clarification, state
   transitions, pending confirmation, and mutation behavior
+- pending confirmation is only used for uniquely recoverable,
+  semantics-preserving repairs
+- a pending `yes` may authorize only one deterministic repair that preserves
+  the submitted directive in substance
+- the current missing-source replacement confirmation is an application of this
+  rule, not the rule itself
 
 ### `engine.state`
 

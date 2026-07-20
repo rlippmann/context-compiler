@@ -82,6 +82,26 @@ def test_preview_pending_resolution_restores_existing_pending_state() -> None:
     assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
 
+def test_preview_prohibited_replacement_clarify_matches_execution_without_pending() -> None:
+    engine = create_engine()
+    engine.step("use docker")
+    engine.step("prohibit kubectl")
+
+    result = preview(engine, "use kubectl instead of docker")
+
+    assert result["decision"] == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": (
+            '"kubectl" is currently prohibited.\n'
+            "Submit explicit directive(s) to remove it or use a different item."
+        ),
+    }
+    assert result["state_before"] == result["state_after"] == engine.state
+    assert result["would_mutate"] is False
+    assert engine.has_pending_clarification() is False
+
+
 def test_preview_idempotent_update_is_not_a_mutation() -> None:
     engine = create_engine()
     engine.step("use docker")
