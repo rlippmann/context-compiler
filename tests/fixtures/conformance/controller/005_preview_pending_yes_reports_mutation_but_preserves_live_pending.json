@@ -18,14 +18,8 @@
       "output_version": 1,
       "mode": "preview",
       "decision": {
-        "kind": "update",
-        "state": {
-          "premise": null,
-          "policies": {
-            "kubectl": "use"
-          },
-          "version": 2
-        },
+        "kind": "passthrough",
+        "state": null,
         "prompt_to_user": null
       },
       "state_before": {
@@ -35,33 +29,29 @@
       },
       "state_after": {
         "premise": null,
-        "policies": {
-          "kubectl": "use"
-        },
+        "policies": {},
         "version": 2
       },
       "diff": {
-        "changed": true,
+        "changed": false,
         "premise": {
           "before": null,
           "after": null,
           "changed": false
         },
         "policies": {
-          "added": {
-            "kubectl": "use"
-          },
+          "added": {},
           "removed": {},
           "changed": {}
         }
       },
-      "would_mutate": true
+      "would_mutate": false
     },
     "state_after_preview": {
       "premise": null,
       "policies": {},
       "version": 2
     },
-    "has_pending_clarification": true
+    "has_pending_clarification": false
   }
 }

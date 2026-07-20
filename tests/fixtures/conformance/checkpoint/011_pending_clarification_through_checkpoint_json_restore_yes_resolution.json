@@ -18,25 +18,17 @@
       "policies": {},
       "version": 2
     },
-    "has_pending_clarification": true,
+    "has_pending_clarification": false,
     "followup": {
       "input": "yes",
       "decision": {
-        "kind": "update",
-        "state": {
-          "premise": null,
-          "policies": {
-            "kubectl": "use"
-          },
-          "version": 2
-        },
+        "kind": "passthrough",
+        "state": null,
         "prompt_to_user": null
       },
       "state": {
         "premise": null,
-        "policies": {
-          "kubectl": "use"
-        },
+        "policies": {},
         "version": 2
       },
       "has_pending_clarification": false

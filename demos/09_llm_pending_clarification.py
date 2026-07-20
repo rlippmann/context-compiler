@@ -1,8 +1,8 @@
-"""Demo 9: pending clarification requires confirmation-only continuation."""
+"""Demo 9: invalid replacement does not create core pending continuation."""
 
 from context_compiler import (
     DECISION_CLARIFY,
-    DECISION_UPDATE,
+    DECISION_PASSTHROUGH,
     POLICY_USE,
     State,
     create_engine,
@@ -22,7 +22,7 @@ from demos.common import (
 )
 from demos.llm_client import complete_messages
 
-DEMO_NAME = "09_pending_clarification_continuation — confirmation-only state transition"
+DEMO_NAME = "09_pending_clarification_boundary — invalid replacement stays non-pending"
 TURN_1 = "use podman instead of docker"
 TURN_2 = "maybe"
 TURN_3 = "yes"
@@ -46,6 +46,7 @@ def main() -> None:
     print_decision("turn 1", first, engine.state)
     pending_after_first = engine.has_pending_clarification()
     state_unchanged_after_first = _is_initial_authoritative_state(engine.state)
+    checkpoint_after_first = engine.export_checkpoint()
 
     second = engine.step(TURN_2)
     print_decision("turn 2", second, engine.state)
@@ -95,27 +96,31 @@ def main() -> None:
         print_model_output("Compiler-mediated + compact", compact_output)
     else:
         print_messages("compiler-mediated + compact", [])
-        compact_output = "[no call] compact replay resolved pending flow"
+        compact_output = "[no call] compact replay did not create pending continuation"
         print_model_output("Compiler-mediated + compact", compact_output)
 
     blocked_initial_mutation = first["kind"] == DECISION_CLARIFY and state_unchanged_after_first
-    pending_preserved_on_nonconfirm = (
-        second["kind"] == DECISION_CLARIFY
-        and pending_after_first
-        and pending_after_second
-        and state_unchanged_after_first
+    no_pending_after_invalid_replacement = (
+        not pending_after_first and checkpoint_after_first["pending"] is None
+    )
+    unrelated_followup_passthrough = (
+        second["kind"] == DECISION_PASSTHROUGH
+        and not pending_after_second
         and state_unchanged_after_second
     )
-    confirmation_only_resolution = third["kind"] == DECISION_UPDATE and not pending_after_third
-    deterministic_final_state = _has_podman_use(engine.state)
+    confirmation_token_not_consumed = (
+        third["kind"] == DECISION_PASSTHROUGH and not pending_after_third
+    )
+    deterministic_final_state = not _has_podman_use(engine.state)
 
     baseline_has_pending_state_machine = False
     reinjected_has_pending_state_machine = False
 
     compiler_pass = (
         blocked_initial_mutation
-        and pending_preserved_on_nonconfirm
-        and confirmation_only_resolution
+        and no_pending_after_invalid_replacement
+        and unrelated_followup_passthrough
+        and confirmation_token_not_consumed
         and deterministic_final_state
     )
 
@@ -131,17 +136,22 @@ def main() -> None:
         context="compiler-mediated",
     )
     print_host_check(
-        "PENDING_PRESERVED_ON_NONCONFIRM",
-        yes_no(pending_preserved_on_nonconfirm),
+        "NO_PENDING_AFTER_INVALID_REPLACEMENT",
+        yes_no(no_pending_after_invalid_replacement),
         context="compiler-mediated",
     )
     print_host_check(
-        "CONFIRMATION_ONLY_RESOLUTION",
-        yes_no(confirmation_only_resolution),
+        "UNRELATED_FOLLOWUP_PASSTHROUGH",
+        yes_no(unrelated_followup_passthrough),
         context="compiler-mediated",
     )
     print_host_check(
-        "FINAL_POLICY_PODMAN_USE",
+        "CONFIRMATION_TOKEN_NOT_CONSUMED",
+        yes_no(confirmation_token_not_consumed),
+        context="compiler-mediated",
+    )
+    print_host_check(
+        "FINAL_POLICY_PODMAN_ABSENT",
         yes_no(deterministic_final_state),
         context="compiler-mediated",
     )
@@ -153,18 +163,18 @@ def main() -> None:
         compiler_pass=compiler_pass,
         compiler_compact_pass=compact_pass,
         expected=(
-            "replacement flow should require pending clarification, preserve pending on "
-            "non-confirmation, and apply only on confirmation"
+            "invalid replacement should clarify without creating pending continuation, "
+            "and later yes/no-style input should not resolve a synthesized operation"
         ),
         actual=(
-            "compiler enforced blocked mutation, pending continuation, and confirmation-only "
-            "resolution to final podman policy"
+            "compiler blocked mutation, kept checkpoint pending null, and treated later "
+            "inputs as ordinary passthrough"
             if compiler_pass and compact_pass
-            else "compiler did not consistently enforce pending clarification continuation"
+            else "compiler did not consistently preserve the non-pending replacement boundary"
         ),
         passed=compiler_pass and compact_pass,
-        result_pass="pending clarification continuation enforced deterministically",
-        result_fail="pending clarification continuation not enforced deterministically",
+        result_pass="invalid replacement stayed outside core pending continuation",
+        result_fail="invalid replacement still behaved like core pending continuation",
     )
 
 

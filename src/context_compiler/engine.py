@@ -28,22 +28,10 @@ class State(TypedDict):
     version: Literal[2]
 
 
-class CheckpointPendingReplacement(TypedDict):
-    kind: Literal["use_only"]
-    new_item: str
-    old_item: str | None
-
-
-class CheckpointPending(TypedDict):
-    kind: Literal["replacement"]
-    replacement: CheckpointPendingReplacement
-    prompt_to_user: str
-
-
 class Checkpoint(TypedDict):
     checkpoint_version: Literal[1]
     authoritative_state: State
-    pending: NotRequired[CheckpointPending | None]
+    pending: NotRequired[None]
 
 
 class DecisionKind(StrEnum):
@@ -64,8 +52,6 @@ class Action:
         "compound_directive_invalid",
         "set_premise",
         "change_premise",
-        "set_premise_to_variant",
-        "change_premise_missing_to_variant",
         "use_item",
         "prohibit_item",
         "remove_policy_item",
@@ -78,13 +64,6 @@ class Action:
     value: str | None = None
     item: str | None = None
     new_item: str | None = None
-    old_item: str | None = None
-
-
-@dataclass(frozen=True)
-class PendingReplacement:
-    kind: Literal["use_only"]
-    new_item: str
     old_item: str | None = None
 
 
@@ -105,7 +84,6 @@ _CLEAR_PREMISE = "clear premise"
 _RESET_POLICIES = "reset policies"
 _CLEAR_STATE = "clear state"
 _REMOVE_POLICY_BASE = "remove policy"
-_SET_PREMISE_TO_PREFIX = "set premise to "
 _CHANGE_PREMISE_PREFIX = "change premise "
 _CHANGE_PREMISE_BASE = "change premise to"
 _SET_PREMISE_BASE = "set premise"
@@ -141,8 +119,6 @@ def get_policy_items(state: State, value: PolicyValue | None = None) -> list[str
 class Engine:
     def __init__(self, state: State | None = None) -> None:
         self._state: State
-        self._pending_replacement: PendingReplacement | None = None
-        self._pending_prompt: str | None = None
         self._replace_state(_initial_state() if state is None else _load_state_obj(state))
 
     @property
@@ -151,7 +127,7 @@ class Engine:
 
     def has_pending_clarification(self) -> bool:
         """Return whether a confirmation-required clarification is pending."""
-        return self._pending_replacement is not None
+        return False
 
     def export_json(self) -> str:
         return json.dumps(self._state, sort_keys=True, separators=(",", ":"))
@@ -160,32 +136,17 @@ class Engine:
         self._replace_state(_load_state_json(payload))
 
     def export_checkpoint(self) -> Checkpoint:
-        pending: CheckpointPending | None = None
-        if self._pending_replacement is not None:
-            assert self._pending_prompt is not None
-            pending = {
-                "kind": "replacement",
-                "replacement": {
-                    "kind": self._pending_replacement.kind,
-                    "new_item": self._pending_replacement.new_item,
-                    "old_item": self._pending_replacement.old_item,
-                },
-                "prompt_to_user": self._pending_prompt,
-            }
-
         # Reuse authoritative export/import path for canonicalized state payload.
         authoritative_state = _load_state_json(self.export_json())
         return {
             "checkpoint_version": _CHECKPOINT_VERSION,
             "authoritative_state": authoritative_state,
-            "pending": pending,
+            "pending": None,
         }
 
     def import_checkpoint(self, payload: Checkpoint) -> None:
-        state, pending_replacement, pending_prompt = _load_checkpoint_obj(payload)
+        state = _load_checkpoint_obj(payload)
         self._replace_state(state)
-        self._pending_replacement = pending_replacement
-        self._pending_prompt = pending_prompt
 
     def export_checkpoint_json(self) -> str:
         return json.dumps(self.export_checkpoint(), sort_keys=True, separators=(",", ":"))
@@ -199,9 +160,6 @@ class Engine:
         self.import_checkpoint(raw)
 
     def step(self, user_input: str) -> Decision:
-        if self._pending_replacement is not None:
-            return self._resolve_or_reprompt_pending(user_input)
-
         action = _parse_directive(user_input)
         if action is None:
             return _PASSTHROUGH.copy()
@@ -214,28 +172,6 @@ class Engine:
 
     def _replace_state(self, state: State) -> None:
         self._state = state
-        self._pending_replacement = None
-        self._pending_prompt = None
-
-    def _resolve_or_reprompt_pending(self, user_input: str) -> Decision:
-        assert self._pending_replacement is not None
-        normalized = _normalize_confirmation(user_input)
-
-        if normalized in _AFFIRMATIVE_CONFIRMATIONS:
-            pending = self._pending_replacement
-            self._pending_replacement = None
-            self._pending_prompt = None
-            new_key = _normalize_item(pending.new_item)
-            self._state[STATE_POLICIES][new_key] = POLICY_USE
-            return _update_decision(self._state)
-
-        if normalized in _NEGATIVE_CONFIRMATIONS:
-            self._pending_replacement = None
-            self._pending_prompt = None
-            return _update_decision(self._state)
-
-        assert self._pending_prompt is not None
-        return _clarify(self._pending_prompt)
 
     def _pre_mutation_clarify(self, action: Action) -> Decision | None:
         # Single clarify path: all clarify outcomes are detected before any mutation.
@@ -254,14 +190,6 @@ class Engine:
                     "Premise value cannot be empty.\n"
                     "Use 'change premise to <value>' with a non-empty value."
                 )
-
-        if action.kind == "set_premise_to_variant":
-            assert action.value is not None
-            return _clarify(f"Did you mean 'set premise {action.value}'?")
-
-        if action.kind == "change_premise_missing_to_variant":
-            assert action.value is not None
-            return _clarify(f"Did you mean 'change premise to {action.value}'?")
 
         if action.kind == "remove_policy_item":
             assert action.item is not None
@@ -324,14 +252,6 @@ class Engine:
 
             old_state = self._state[STATE_POLICIES].get(old_key)
             new_state = self._state[STATE_POLICIES].get(new_key)
-            if old_key not in self._state[STATE_POLICIES]:
-                prompt = f'Did you mean to use "{action.new_item}" instead?'
-                self._pending_replacement = PendingReplacement(
-                    kind="use_only",
-                    new_item=action.new_item,
-                )
-                self._pending_prompt = prompt
-                return _clarify(prompt)
             if old_state == POLICY_PROHIBIT:
                 return _clarify(
                     f'"{action.old_item}" is currently prohibited.\n'
@@ -428,19 +348,12 @@ def _parse_directive(user_input: str) -> Action | None:
     if user_input.startswith(remove_policy_prefix):
         return Action(kind="remove_policy_item", item=user_input[len(remove_policy_prefix) :])
 
-    if user_input.startswith(_SET_PREMISE_TO_PREFIX):
-        value = user_input[len(_SET_PREMISE_TO_PREFIX) :].strip()
-        if value != "":
-            return Action(kind="set_premise_to_variant", value=value)
-
     if (
         user_input.startswith(_CHANGE_PREMISE_PREFIX)
         and not user_input.startswith(f"{_CHANGE_PREMISE_BASE} ")
         and user_input != _CHANGE_PREMISE_BASE
     ):
-        value = user_input[len(_CHANGE_PREMISE_PREFIX) :].strip()
-        if value != "":
-            return Action(kind="change_premise_missing_to_variant", value=value)
+        return None
 
     if user_input == _SET_PREMISE_BASE:
         return Action(kind="set_premise", value="")
@@ -585,7 +498,7 @@ def _load_state_obj(raw: object) -> State:
     }
 
 
-def _load_checkpoint_obj(raw: object) -> tuple[State, PendingReplacement | None, str | None]:
+def _load_checkpoint_obj(raw: object) -> State:
     if not isinstance(raw, dict):
         raise ValueError("Invalid checkpoint payload.")
 
@@ -601,49 +514,14 @@ def _load_checkpoint_obj(raw: object) -> tuple[State, PendingReplacement | None,
         raise ValueError(f"Unsupported checkpoint version: {checkpoint_version!r}")
 
     authoritative_state = _load_state_obj(raw["authoritative_state"])
-    pending_replacement, pending_prompt = _load_checkpoint_pending_obj(raw.get("pending"))
-    return authoritative_state, pending_replacement, pending_prompt
+    _load_checkpoint_pending_obj(raw.get("pending"))
+    return authoritative_state
 
 
-def _load_checkpoint_pending_obj(
-    raw: object,
-) -> tuple[PendingReplacement | None, str | None]:
+def _load_checkpoint_pending_obj(raw: object) -> None:
     if raw is None:
-        return None, None
-    if not isinstance(raw, dict):
-        raise ValueError("Invalid checkpoint payload.")
-    if set(raw.keys()) != {"kind", "replacement", "prompt_to_user"}:
-        raise ValueError("Invalid checkpoint payload.")
-    if raw["kind"] != "replacement":
-        raise ValueError("Invalid checkpoint payload.")
-
-    prompt = raw["prompt_to_user"]
-    if not isinstance(prompt, str):
-        raise ValueError("Invalid checkpoint payload.")
-
-    replacement = _load_checkpoint_replacement_obj(raw["replacement"])
-    return replacement, prompt
-
-
-def _load_checkpoint_replacement_obj(raw: object) -> PendingReplacement:
-    if not isinstance(raw, dict):
-        raise ValueError("Invalid checkpoint payload.")
-    if set(raw.keys()) != {"kind", "new_item", "old_item"}:
-        raise ValueError("Invalid checkpoint payload.")
-
-    kind = raw["kind"]
-    new_item = raw["new_item"]
-    old_item = raw["old_item"]
-
-    if kind != "use_only":
-        raise ValueError("Invalid checkpoint payload.")
-    if not isinstance(new_item, str):
-        raise ValueError("Invalid checkpoint payload.")
-    if _normalize_item(new_item) == "":
-        raise ValueError("Invalid checkpoint payload.")
-    if old_item is not None:
-        raise ValueError("Invalid checkpoint payload.")
-    return PendingReplacement(kind=kind, new_item=new_item, old_item=None)
+        return
+    raise ValueError("Invalid checkpoint payload.")
 
 
 def _sanitize_premise_value(value: str) -> str:

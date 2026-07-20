@@ -18,7 +18,7 @@
       "type": "ValueError",
       "message_contains": "Invalid checkpoint payload"
     },
-    "has_pending_clarification": true,
+    "has_pending_clarification": false,
     "state": {
       "premise": null,
       "policies": {},
@@ -27,16 +27,16 @@
     "followup": {
       "input": "maybe",
       "decision": {
-        "kind": "clarify",
+        "kind": "passthrough",
         "state": null,
-        "prompt_to_user": "Did you mean to use \"kubectl\" instead?"
+        "prompt_to_user": null
       },
       "state": {
         "premise": null,
         "policies": {},
         "version": 2
       },
-      "has_pending_clarification": true
+      "has_pending_clarification": false
     }
   }
 }

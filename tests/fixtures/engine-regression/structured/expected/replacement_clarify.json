@@ -9,19 +9,11 @@
           "version": 2
         },
         "checkpoint_version": 1,
-        "pending": {
-          "kind": "replacement",
-          "prompt_to_user": "Did you mean to use \"podman\" instead?",
-          "replacement": {
-            "kind": "use_only",
-            "new_item": "podman",
-            "old_item": null
-          }
-        }
+        "pending": null
       },
       "decision": {
         "kind": "clarify",
-        "prompt_to_user": "Did you mean to use \"podman\" instead?"
+        "prompt_to_user": "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
       },
       "input": "use podman instead of docker"
     }

@@ -9,8 +9,8 @@
   "input": "change premise concise",
   "expected": {
     "decision": {
-      "kind": "clarify",
-      "prompt_to_user": "Did you mean 'change premise to concise'?",
+      "kind": "passthrough",
+      "prompt_to_user": null,
       "state": null
     },
     "state": {

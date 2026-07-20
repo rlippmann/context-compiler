@@ -9,12 +9,16 @@
   "input": "set premise to concise",
   "expected": {
     "decision": {
-      "kind": "clarify",
-      "prompt_to_user": "Did you mean 'set premise concise'?",
-      "state": null
+      "kind": "update",
+      "prompt_to_user": null,
+      "state": {
+        "premise": "to concise",
+        "policies": {},
+        "version": 2
+      }
     },
     "state": {
-      "premise": null,
+      "premise": "to concise",
       "policies": {},
       "version": 2
     }
