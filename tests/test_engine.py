@@ -450,9 +450,9 @@ def test_import_checkpoint_rejects_invalid_pending_payload_shapes(pending: objec
         "bad",
         {"kind": "use_only", "new_item": "x"},
         {"kind": "other", "new_item": "x", "old_item": None},
+        {"kind": "replace_use", "new_item": "x", "old_item": "y"},
         {"kind": "use_only", "new_item": 1, "old_item": None},
         {"kind": "use_only", "new_item": "x", "old_item": "y"},
-        {"kind": "replace_use", "new_item": "x", "old_item": None},
     ],
 )
 def test_import_checkpoint_rejects_invalid_pending_replacement_payload_shapes(
@@ -611,43 +611,6 @@ def test_import_checkpoint_rejects_pending_use_only_with_invalid_new_item(new_it
                 "pending": {
                     "kind": "replacement",
                     "replacement": {"kind": "use_only", "new_item": new_item, "old_item": None},
-                    "prompt_to_user": "confirm?",
-                },
-            }
-        )
-
-
-@pytest.mark.parametrize(
-    ("new_item", "old_item"),
-    [
-        ("", "docker"),
-        ("kubectl", ""),
-        ("the", "docker"),
-        ("kubectl", "an"),
-        ("  ", "docker"),
-        ("kubectl", "   "),
-    ],
-)
-def test_import_checkpoint_rejects_pending_replace_use_with_invalid_items(
-    new_item: str, old_item: str
-) -> None:
-    engine = create_engine()
-    with pytest.raises(ValueError, match="Invalid checkpoint payload"):
-        engine.import_checkpoint(  # type: ignore[arg-type]
-            {
-                "checkpoint_version": 1,
-                "authoritative_state": {
-                    "premise": None,
-                    "policies": {"docker": "use"},
-                    "version": 2,
-                },
-                "pending": {
-                    "kind": "replacement",
-                    "replacement": {
-                        "kind": "replace_use",
-                        "new_item": new_item,
-                        "old_item": old_item,
-                    },
                     "prompt_to_user": "confirm?",
                 },
             }

@@ -239,9 +239,11 @@ At this boundary, direct key access is expected.
 API-level contract notes:
 
 - `pending` is `null` when no continuation is waiting for confirmation
-- `pending` captures confirmation-required operations such as replacement flows
+- `pending` captures confirmation-required operations such as the supported
+  missing-source replacement repair flow
 - `old_item` may be `null` for `"use_only"` when confirming “use X instead?”
   without an existing exact policy to replace
+- `"use_only"` is the only supported pending replacement shape at this boundary
 - imported policy keys are normalized during `import_json(...)` and checkpoint
   authoritative-state restore
 - if a policy key normalizes to `""`, the payload is invalid and is rejected

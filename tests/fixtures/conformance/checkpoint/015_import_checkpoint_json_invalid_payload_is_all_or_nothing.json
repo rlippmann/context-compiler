@@ -11,7 +11,7 @@
   ],
   "action": {
     "fn": "import_checkpoint_json",
-    "payload": "{\"checkpoint_version\":1,\"authoritative_state\":{\"premise\":\"new premise\",\"policies\":{\"pytest\":\"use\"},\"version\":2},\"pending\":{\"kind\":\"replacement\",\"replacement\":{\"kind\":\"use_only\",\"new_item\":\"kubectl\",\"old_item\":\"docker\"},\"prompt_to_user\":\"confirm?\"}}"
+    "payload": "{\"checkpoint_version\":1,\"authoritative_state\":{\"premise\":\"new premise\",\"policies\":{\"pytest\":\"use\"},\"version\":2},\"pending\":{\"kind\":\"replacement\",\"replacement\":{\"kind\":\"replace_use\",\"new_item\":\"kubectl\",\"old_item\":\"docker\"},\"prompt_to_user\":\"confirm?\"}}"
   },
   "expected": {
     "error": {
