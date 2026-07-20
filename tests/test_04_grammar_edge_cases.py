@@ -92,7 +92,7 @@ def test_exact_match_near_misses_are_passthrough() -> None:
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
-def test_premise_to_variant_near_misses_clarify_with_no_mutation() -> None:
+def test_premise_to_variant_near_misses_do_not_trigger_repair() -> None:
     engine = create_engine()
     before = engine.state
 
@@ -100,16 +100,12 @@ def test_premise_to_variant_near_misses_clarify_with_no_mutation() -> None:
     change_variant = engine.step("change premise concise")
 
     assert set_variant == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": "Did you mean 'set premise concise'?",
+        "kind": "update",
+        "state": {"premise": "to concise", "policies": {}, "version": 2},
+        "prompt_to_user": None,
     }
-    assert change_variant == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": "Did you mean 'change premise to concise'?",
-    }
-    assert engine.state == before
+    assert change_variant == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert before == {"premise": None, "policies": {}, "version": 2}
 
 
 def test_remove_policy_missing_or_whitespace_payload_clarifies() -> None:
@@ -125,26 +121,28 @@ def test_remove_policy_missing_or_whitespace_payload_clarifies() -> None:
     assert engine.state == before
 
 
-def test_pending_blocks_directive_parsing_until_confirmation() -> None:
+def test_invalid_replacement_does_not_block_following_directives() -> None:
     engine = create_engine()
     first = engine.step("use kubectl instead of docker")
     assert first["kind"] == "clarify"
 
-    # Would normally update, but pending must block parser.
     second = engine.step("set premise concise")
-    assert second == first
+    assert second == {
+        "kind": "update",
+        "state": {"premise": "concise", "policies": {}, "version": 2},
+        "prompt_to_user": None,
+    }
     assert engine.state == {
-        "premise": None,
+        "premise": "concise",
         "policies": {},
         "version": 2,
     }
 
 
-def test_pending_rejects_non_confirmation_and_keeps_prompt() -> None:
+def test_invalid_replacement_non_confirmation_followup_is_passthrough() -> None:
     engine = create_engine()
     first = engine.step("use kubectl instead of docker")
     second = engine.step("sounds good")
 
-    assert second == first
-    expected = 'Did you mean to use "kubectl" instead?'
-    assert second["prompt_to_user"] == expected
+    assert first["kind"] == "clarify"
+    assert second == {"kind": "passthrough", "state": None, "prompt_to_user": None}

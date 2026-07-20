@@ -12,22 +12,14 @@
   "input": "  YES!!!  ",
   "expected": {
     "decision": {
-      "kind": "update",
+      "kind": "passthrough",
       "prompt_to_user": null,
-      "state": {
-        "premise": null,
-        "policies": {
-          "kubectl": "use"
-        },
-        "version": 2
-      }
+      "state": null
     },
     "has_pending_clarification": false,
     "state": {
       "premise": null,
-      "policies": {
-        "kubectl": "use"
-      },
+      "policies": {},
       "version": 2
     }
   }

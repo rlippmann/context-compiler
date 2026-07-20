@@ -17,7 +17,7 @@
       "decision": {
         "kind": "clarify",
         "state": null,
-        "prompt_to_user": "Did you mean to use \"kubectl\" instead?"
+        "prompt_to_user": "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
       },
       "state_before": {
         "premise": null,

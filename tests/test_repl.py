@@ -244,15 +244,14 @@ def test_cli_initial_state_file_preload_works(tmp_path: pathlib.Path) -> None:
     assert result.stderr == ""
 
 
-def test_cli_initial_checkpoint_json_preload_works_with_pending_confirmation() -> None:
+def test_cli_initial_checkpoint_json_preload_without_pending_confirmation_keeps_state() -> None:
     engine = create_engine()
     engine.step("use kubectl instead of docker")
     payload = engine.export_checkpoint_json()
 
     result = _run_repl_cli("--initial-checkpoint-json", payload, input_text="yes\nquit\n")
     assert result.returncode == 0
-    assert "updated" in result.stdout
-    assert "- use kubectl" in result.stdout
+    assert result.stdout == "passthrough\n"
     assert result.stderr == ""
 
 
@@ -470,8 +469,8 @@ def test_apply_preload_from_options_state_and_checkpoint_file_paths(
         },
     )
     decision = checkpoint_engine.step("yes")
-    assert decision["kind"] == "update"
-    assert checkpoint_engine.state["policies"] == {"kubectl": "use"}
+    assert decision["kind"] == "passthrough"
+    assert checkpoint_engine.state["policies"] == {}
 
 
 def test_apply_preload_from_options_state_and_checkpoint_json() -> None:
@@ -499,8 +498,8 @@ def test_apply_preload_from_options_state_and_checkpoint_json() -> None:
         },
     )
     decision = checkpoint_engine.step("yes")
-    assert decision["kind"] == "update"
-    assert checkpoint_engine.state["policies"] == {"kubectl": "use"}
+    assert decision["kind"] == "passthrough"
+    assert checkpoint_engine.state["policies"] == {}
 
 
 def test_repl_update_flow() -> None:
@@ -673,15 +672,14 @@ def test_repl_non_interactive_json_step_pending_confirmation_error() -> None:
     )
     assert rows[1] == {
         "command": "step",
-        "error": {
-            "code": "pending_confirmation_required",
-            "message": (
-                "step command only accepts confirmation while clarification is pending.\n"
-                "Use yes/no (or variants), or use preview/state."
-            ),
+        "decision": {
+            "kind": "update",
+            "prompt_to_user": None,
+            "state": {"premise": "concise", "policies": {}, "version": 2},
         },
-        "mode": "error",
+        "mode": "step",
         "output_version": 1,
+        "state": {"premise": "concise", "policies": {}, "version": 2},
     }
 
 
@@ -704,7 +702,7 @@ def test_repl_non_interactive_state_command_renders_current_state() -> None:
     assert _contains_subsequence(lines, ["premise: concise", "policies: (none)"])
 
 
-def test_repl_non_interactive_preview_reports_no_mutation_for_clarify_and_keeps_pending() -> None:
+def test_repl_non_interactive_preview_reports_no_mutation_after_invalid_replacement() -> None:
     out = StringIO()
     run_repl(
         StringIO("use kubectl instead of docker\npreview yes\nyes\nquit\n"),
@@ -712,14 +710,15 @@ def test_repl_non_interactive_preview_reports_no_mutation_for_clarify_and_keeps_
     )
     lines = [line for line in out.getvalue().splitlines() if line.strip()]
 
-    assert _contains_subsequence(lines, ['confirm: Did you mean to use "kubectl" instead?'])
     assert _contains_subsequence(
-        lines, ["preview", "updated", "premise: (none)", "policies:", "- use kubectl"]
+        lines,
+        [
+            'error: "docker" is not currently in use.',
+            "Replacement requires an active 'use' policy.",
+        ],
     )
-    assert _contains_subsequence(lines, ["would_mutate: yes"])
-    assert _contains_subsequence(
-        lines, ["updated", "premise: (none)", "policies:", "- use kubectl"]
-    )
+    assert _contains_subsequence(lines, ["preview", "passthrough", "would_mutate: no"])
+    assert lines[-1] == "passthrough"
 
 
 def test_repl_non_interactive_preview_decline_reports_no_mutation() -> None:
@@ -727,9 +726,7 @@ def test_repl_non_interactive_preview_decline_reports_no_mutation() -> None:
     run_repl(StringIO("use kubectl instead of docker\npreview no\nquit\n"), out)
     lines = [line for line in out.getvalue().splitlines() if line.strip()]
 
-    assert _contains_subsequence(
-        lines, ["preview", "updated", "premise: (none)", "policies: (none)"]
-    )
+    assert _contains_subsequence(lines, ["preview", "passthrough"])
     assert _contains_subsequence(lines, ["would_mutate: no", "diff:", "- (none)"])
 
 
@@ -750,19 +747,23 @@ def test_repl_non_interactive_preview_and_step_require_payload() -> None:
     assert _contains_subsequence(lines, ["error: step requires input.", "Use 'step <input>'."])
 
 
-def test_repl_state_command_available_while_pending_clarification() -> None:
+def test_repl_state_command_after_invalid_replacement_shows_unchanged_state() -> None:
     out = StringIO()
     run_repl(StringIO("use kubectl instead of docker\nstate\nyes\nquit\n"), out)
     lines = [line for line in out.getvalue().splitlines() if line.strip()]
 
-    assert _contains_subsequence(lines, ['confirm: Did you mean to use "kubectl" instead?'])
-    assert _contains_subsequence(lines, ["premise: (none)", "policies: (none)"])
     assert _contains_subsequence(
-        lines, ["updated", "premise: (none)", "policies:", "- use kubectl"]
+        lines,
+        [
+            'error: "docker" is not currently in use.',
+            "Replacement requires an active 'use' policy.",
+        ],
     )
+    assert _contains_subsequence(lines, ["premise: (none)", "policies: (none)"])
+    assert lines[-1] == "passthrough"
 
 
-def test_repl_step_command_rejects_non_confirmation_while_pending() -> None:
+def test_repl_step_command_runs_normally_after_invalid_replacement() -> None:
     out = StringIO()
     run_repl(
         StringIO("use kubectl instead of docker\nstep set premise concise\nyes\nquit\n"),
@@ -770,71 +771,83 @@ def test_repl_step_command_rejects_non_confirmation_while_pending() -> None:
     )
     lines = [line for line in out.getvalue().splitlines() if line.strip()]
 
-    assert _contains_subsequence(lines, ['confirm: Did you mean to use "kubectl" instead?'])
     assert _contains_subsequence(
         lines,
         [
-            "error: step command only accepts confirmation while clarification is pending.",
-            "Use yes/no (or variants), or use preview/state.",
+            'error: "docker" is not currently in use.',
+            "Replacement requires an active 'use' policy.",
         ],
     )
-    assert _contains_subsequence(
-        lines, ["updated", "premise: (none)", "policies:", "- use kubectl"]
-    )
+    assert _contains_subsequence(lines, ["updated", "premise: concise", "policies: (none)"])
+    assert lines[-1] == "passthrough"
 
 
-def test_repl_step_command_accepts_confirmation_while_pending() -> None:
+def test_repl_step_command_confirmation_token_is_passthrough_without_pending() -> None:
     out = StringIO()
     run_repl(StringIO("use kubectl instead of docker\nstep yes\nquit\n"), out)
     lines = [line for line in out.getvalue().splitlines() if line.strip()]
 
-    assert _contains_subsequence(lines, ['confirm: Did you mean to use "kubectl" instead?'])
     assert _contains_subsequence(
-        lines, ["updated", "premise: (none)", "policies:", "- use kubectl"]
+        lines,
+        [
+            'error: "docker" is not currently in use.',
+            "Replacement requires an active 'use' policy.",
+        ],
     )
+    assert lines[-1] == "passthrough"
 
 
-def test_repl_step_command_accepts_negative_confirmation_while_pending() -> None:
+def test_repl_step_command_negative_confirmation_is_passthrough_without_pending() -> None:
     out = StringIO()
     run_repl(StringIO("use kubectl instead of docker\nstep no\nquit\n"), out)
     lines = [line for line in out.getvalue().splitlines() if line.strip()]
 
-    assert _contains_subsequence(lines, ['confirm: Did you mean to use "kubectl" instead?'])
-    assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies: (none)"])
+    assert _contains_subsequence(
+        lines,
+        [
+            'error: "docker" is not currently in use.',
+            "Replacement requires an active 'use' policy.",
+        ],
+    )
+    assert lines[-1] == "passthrough"
 
 
-def test_repl_preview_available_while_pending_clarification() -> None:
+def test_repl_preview_available_after_invalid_replacement() -> None:
     out = StringIO()
     run_repl(StringIO("use kubectl instead of docker\npreview yes\nyes\nquit\n"), out)
     lines = [line for line in out.getvalue().splitlines() if line.strip()]
 
-    assert _contains_subsequence(
-        lines, ["preview", "updated", "premise: (none)", "policies:", "- use kubectl"]
-    )
+    assert _contains_subsequence(lines, ["preview", "passthrough", "would_mutate: no"])
+    assert lines[-1] == "passthrough"
 
 
-def test_repl_interactive_preview_available_while_pending_clarification() -> None:
+def test_repl_interactive_preview_available_after_invalid_replacement() -> None:
     lines = _run_interactive_lines("use kubectl instead of docker\npreview yes\nyes\nquit\n")
 
-    assert _contains_subsequence(lines, ['confirm: Did you mean to use "kubectl" instead?'])
     assert _contains_subsequence(
-        lines, ["preview", "updated", "premise: (none)", "policies:", "- use kubectl"]
+        lines,
+        [
+            'error: "docker" is not currently in use.',
+            "Replacement requires an active 'use' policy.",
+        ],
     )
-    assert _contains_subsequence(lines, ["would_mutate: yes"])
-    assert _contains_subsequence(
-        lines, ["updated", "premise: (none)", "policies:", "- use kubectl"]
-    )
+    assert _contains_subsequence(lines, ["preview", "passthrough", "would_mutate: no"])
+    assert lines[-1] == "passthrough"
 
 
-def test_repl_interactive_help_available_while_pending_clarification() -> None:
+def test_repl_interactive_help_available_after_invalid_replacement() -> None:
     lines = _run_interactive_lines("use kubectl instead of docker\nhelp\nyes\nquit\n")
 
-    assert _contains_subsequence(lines, ['confirm: Did you mean to use "kubectl" instead?'])
+    assert _contains_subsequence(
+        lines,
+        [
+            'error: "docker" is not currently in use.',
+            "Replacement requires an active 'use' policy.",
+        ],
+    )
     assert _contains_subsequence(lines, ["Commands: help/? exit/quit"])
     assert _contains_subsequence(lines, ["REPL command layer (not engine directives):"])
-    assert _contains_subsequence(
-        lines, ["updated", "premise: (none)", "policies:", "- use kubectl"]
-    )
+    assert lines[-1] == "passthrough"
 
 
 def test_repl_preview_idempotent_admin_action_reports_no_mutation() -> None:
@@ -934,14 +947,14 @@ def test_repl_empty_policy_payloads_and_incomplete_replacement_render_errors() -
     assert lines.count("Use 'use <new item> instead of <old item>' with non-empty values.") == 2
 
 
-def test_repl_premise_to_variant_near_misses_render_error_suggestions() -> None:
+def test_repl_premise_to_variant_near_misses_do_not_render_repair_suggestions() -> None:
     lines = _run_non_interactive_lines(
         "set premise to concise replies\nchange premise concise replies\nquit\n"
     )
-    assert _contains_subsequence(lines, ["confirm: Did you mean 'set premise concise replies'?"])
     assert _contains_subsequence(
-        lines, ["confirm: Did you mean 'change premise to concise replies'?"]
+        lines, ["updated", "premise: to concise replies", "policies: (none)"]
     )
+    assert lines[-1] == "passthrough"
 
 
 def test_repl_non_interactive_remove_policy_flow() -> None:
@@ -1030,12 +1043,16 @@ def test_repl_replace_use_when_old_policy_not_use_renders_exact_error(
     )
 
 
-def test_repl_replacement_clarify_requires_confirmation_tokens_and_persists_until_resolved() -> (
-    None
-):
+def test_repl_replacement_invalid_followups_are_passthrough() -> None:
     lines = _run_non_interactive_lines("use podman instead of docker\nmaybe\nyes please!!\nquit\n")
-    assert lines.count('confirm: Did you mean to use "podman" instead?') == 2
-    assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use podman"])
+    assert _contains_subsequence(
+        lines,
+        [
+            'error: "docker" is not currently in use.',
+            "Replacement requires an active 'use' policy.",
+        ],
+    )
+    assert lines[-2:] == ["passthrough", "passthrough"]
 
 
 def test_repl_interactive_prints_confirm_and_error_for_clarify_types() -> None:
@@ -1048,7 +1065,7 @@ def test_repl_interactive_prints_confirm_and_error_for_clarify_types() -> None:
     confirm_out = _TTYStringIO()
     run_repl(_TTYStringIO("use podman instead of docker\nquit\n"), confirm_out)
     confirm_lines = confirm_out.getvalue().splitlines()
-    assert 'confirm: Did you mean to use "podman" instead?' in confirm_lines
+    assert 'error: "docker" is not currently in use.' in confirm_lines
 
 
 def test_repl_prohibited_replacement_followup_tokens_remain_passthrough() -> None:
@@ -1114,28 +1131,22 @@ def test_repl_interactive_renders_updated_state_blocks_for_multiple_operations()
     assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use docker"])
 
 
-def test_repl_interactive_confirmation_token_variants_resolve_pending_clarify() -> None:
+def test_repl_interactive_tokens_after_invalid_replacement_are_passthrough() -> None:
     lines_yes = _run_interactive_lines("use podman instead of docker\nyeah\nquit\n")
-    assert 'confirm: Did you mean to use "podman" instead?' in lines_yes
-    assert _contains_subsequence(
-        lines_yes, ["updated", "premise: (none)", "policies:", "- use podman"]
-    )
+    assert 'error: "docker" is not currently in use.' in lines_yes
+    assert lines_yes[-1] == "passthrough"
 
     lines_ok = _run_interactive_lines("use buildah instead of docker\nok\nquit\n")
-    assert 'confirm: Did you mean to use "buildah" instead?' in lines_ok
-    assert _contains_subsequence(
-        lines_ok, ["updated", "premise: (none)", "policies:", "- use buildah"]
-    )
+    assert 'error: "docker" is not currently in use.' in lines_ok
+    assert lines_ok[-1] == "passthrough"
 
     lines_nope = _run_interactive_lines("use nerdctl instead of docker\nnope\nquit\n")
-    assert 'confirm: Did you mean to use "nerdctl" instead?' in lines_nope
-    assert _contains_subsequence(lines_nope, ["updated", "premise: (none)", "policies: (none)"])
+    assert 'error: "docker" is not currently in use.' in lines_nope
+    assert lines_nope[-1] == "passthrough"
 
     lines_no_thanks = _run_interactive_lines("use helm instead of docker\nno thanks\nquit\n")
-    assert 'confirm: Did you mean to use "helm" instead?' in lines_no_thanks
-    assert _contains_subsequence(
-        lines_no_thanks, ["updated", "premise: (none)", "policies: (none)"]
-    )
+    assert 'error: "docker" is not currently in use.' in lines_no_thanks
+    assert lines_no_thanks[-1] == "passthrough"
 
 
 def test_repl_interactive_admin_idempotency_outputs_updated_with_unchanged_state() -> None:
@@ -1160,7 +1171,7 @@ def test_repl_interactive_confirm_vs_error_alignment_for_actual_clarify_behavior
     assert "Use 'change premise to <value>' to modify it." in lines
     assert ('error: "docker" is currently in use.') in lines
     assert "Remove or replace it before prohibiting it." in lines
-    assert 'confirm: Did you mean to use "podman" instead?' in lines
+    assert 'error: "buildx" is not currently in use.' in lines
 
 
 def test_repl_interactive_passthrough_prints_passthrough_label() -> None:
@@ -1238,20 +1249,17 @@ def test_repl_interactive_state_renders_mixed_with_sorted_policies() -> None:
     )
 
 
-def test_repl_interactive_step_command_paths_while_pending() -> None:
+def test_repl_interactive_step_command_paths_after_invalid_replacement() -> None:
     lines = _run_interactive_lines("use kubectl instead of docker\nstep maybe\nstep yes!!!\nquit\n")
 
-    assert _contains_subsequence(lines, ['confirm: Did you mean to use "kubectl" instead?'])
     assert _contains_subsequence(
         lines,
         [
-            "error: step command only accepts confirmation while clarification is pending.",
-            "Use yes/no (or variants), or use preview/state.",
+            'error: "docker" is not currently in use.',
+            "Replacement requires an active 'use' policy.",
         ],
     )
-    assert _contains_subsequence(
-        lines, ["updated", "premise: (none)", "policies:", "- use kubectl"]
-    )
+    assert lines[-2:] == ["passthrough", "passthrough"]
 
 
 def test_repl_interactive_preview_requires_payload() -> None:

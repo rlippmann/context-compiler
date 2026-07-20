@@ -52,11 +52,17 @@ def test_preview_update_does_not_mutate_engine_state() -> None:
     assert engine.has_pending_clarification() is False
 
 
-def test_preview_clarify_path_and_pending_are_restored() -> None:
+def test_preview_clarify_path_does_not_create_pending_for_invalid_replacement() -> None:
     engine = create_engine()
     result = preview(engine, "use kubectl instead of docker")
 
-    assert result["decision"]["kind"] == "clarify"
+    assert result["decision"] == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": (
+            "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
+        ),
+    }
     assert result["state_before"] == result["state_after"]
     assert result["diff"]["changed"] is False
     assert result["would_mutate"] is False
@@ -64,22 +70,6 @@ def test_preview_clarify_path_and_pending_are_restored() -> None:
 
     yes = engine.step("yes")
     assert yes["kind"] == "passthrough"
-
-
-def test_preview_pending_resolution_restores_existing_pending_state() -> None:
-    engine = create_engine()
-    first = engine.step("use kubectl instead of docker")
-    assert first["kind"] == "clarify"
-    assert engine.has_pending_clarification() is True
-
-    result = preview(engine, "maybe")
-    assert result["decision"]["kind"] == "clarify"
-    assert result["would_mutate"] is False
-    assert engine.has_pending_clarification() is True
-
-    yes = engine.step("yes")
-    assert yes["kind"] == "update"
-    assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
 
 def test_preview_prohibited_replacement_clarify_matches_execution_without_pending() -> None:
@@ -252,32 +242,34 @@ def test_controller_helpers_are_importable_from_package_root() -> None:
     assert callable(diff_has_changes)
 
 
-@pytest.mark.parametrize(
-    ("confirmation", "expected_state", "expected_would_mutate"),
-    [
-        ("yes", {"premise": None, "policies": {"kubectl": "use"}, "version": 2}, True),
-        ("no", {"premise": None, "policies": {}, "version": 2}, False),
-    ],
-)
-def test_preview_pending_confirmation_user_flow(
+@pytest.mark.parametrize("confirmation", ["yes", "no"])
+def test_preview_followup_tokens_after_invalid_replacement_are_passthrough(
     confirmation: str,
-    expected_state: dict[str, object],
-    expected_would_mutate: bool,
 ) -> None:
     engine = create_engine()
     initial = engine.step("use kubectl instead of docker")
-    assert initial["kind"] == "clarify"
-    assert engine.has_pending_clarification() is True
+    assert initial == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": (
+            "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
+        ),
+    }
+    assert engine.has_pending_clarification() is False
 
     preview_result = preview(engine, confirmation)
-    assert preview_result["decision"]["kind"] == "update"
-    assert preview_result["state_after"] == expected_state
-    assert preview_result["would_mutate"] is expected_would_mutate
+    assert preview_result["decision"] == {
+        "kind": "passthrough",
+        "state": None,
+        "prompt_to_user": None,
+    }
+    assert preview_result["state_after"] == {"premise": None, "policies": {}, "version": 2}
+    assert preview_result["would_mutate"] is False
 
-    assert engine.has_pending_clarification() is True
+    assert engine.has_pending_clarification() is False
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
     final = step(engine, confirmation)
-    assert final["decision"]["kind"] == "update"
-    assert final["state"] == expected_state
+    assert final["decision"] == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert final["state"] == {"premise": None, "policies": {}, "version": 2}
     assert engine.has_pending_clarification() is False

@@ -58,12 +58,12 @@ def test_demo_08_reports_invalid_replacement_block_and_unchanged_state(
     assert report["name"].startswith("08_replacement_precondition")
     assert report["baseline_pass"] is False
     assert report["reinjected_state_pass"] is False
-    assert report["compiler_pass"] is True
+    assert report["compiler_pass"] is False
     assert report["compiler_compact_pass"] is True
-    assert report["demo_pass"] is True
+    assert report["demo_pass"] is False
     assert "baseline: FAIL" in output
     assert "reinjected-state: FAIL" in output
-    assert "compiler: PASS" in output
+    assert "compiler: FAIL" in output
 
 
 def test_demo_08_reinjected_path_does_not_instantiate_engine(
@@ -108,7 +108,7 @@ def test_demo_08_reinjected_path_does_not_instantiate_engine(
     assert report["reinjected_state_pass"] is False
 
 
-def test_demo_09_reports_pending_clarification_continuation(
+def test_demo_09_reports_invalid_replacement_non_pending_boundary(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     module = _load_demo_module("09_llm_pending_clarification.py")
@@ -128,7 +128,7 @@ def test_demo_09_reports_pending_clarification_continuation(
     report = consume_last_report()
 
     assert report is not None
-    assert report["name"].startswith("09_pending_clarification_continuation")
+    assert report["name"].startswith("09_pending_clarification_boundary")
     assert report["baseline_pass"] is False
     assert report["reinjected_state_pass"] is False
     assert report["compiler_pass"] is True

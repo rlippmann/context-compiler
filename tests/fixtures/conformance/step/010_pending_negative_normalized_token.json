@@ -12,13 +12,9 @@
   "input": "no thanks.",
   "expected": {
     "decision": {
-      "kind": "update",
+      "kind": "passthrough",
       "prompt_to_user": null,
-      "state": {
-        "premise": null,
-        "policies": {},
-        "version": 2
-      }
+      "state": null
     },
     "has_pending_clarification": false,
     "state": {
