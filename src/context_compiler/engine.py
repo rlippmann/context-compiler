@@ -29,7 +29,7 @@ class State(TypedDict):
 
 
 class CheckpointPendingReplacement(TypedDict):
-    kind: Literal["use_only", "replace_use"]
+    kind: Literal["use_only"]
     new_item: str
     old_item: str | None
 
@@ -83,7 +83,7 @@ class Action:
 
 @dataclass(frozen=True)
 class PendingReplacement:
-    kind: Literal["use_only", "replace_use"]
+    kind: Literal["use_only"]
     new_item: str
     old_item: str | None = None
 
@@ -225,12 +225,8 @@ class Engine:
             pending = self._pending_replacement
             self._pending_replacement = None
             self._pending_prompt = None
-            if pending.kind == "use_only":
-                new_key = _normalize_item(pending.new_item)
-                self._state[STATE_POLICIES][new_key] = POLICY_USE
-            else:
-                assert pending.old_item is not None
-                self._apply_replacement_explicit(pending.new_item, pending.old_item)
+            new_key = _normalize_item(pending.new_item)
+            self._state[STATE_POLICIES][new_key] = POLICY_USE
             return _update_decision(self._state)
 
         if normalized in _NEGATIVE_CONFIRMATIONS:
@@ -639,23 +635,15 @@ def _load_checkpoint_replacement_obj(raw: object) -> PendingReplacement:
     new_item = raw["new_item"]
     old_item = raw["old_item"]
 
-    if kind not in {"use_only", "replace_use"}:
+    if kind != "use_only":
         raise ValueError("Invalid checkpoint payload.")
     if not isinstance(new_item, str):
         raise ValueError("Invalid checkpoint payload.")
     if _normalize_item(new_item) == "":
         raise ValueError("Invalid checkpoint payload.")
-
-    if kind == "use_only":
-        if old_item is not None:
-            raise ValueError("Invalid checkpoint payload.")
-        return PendingReplacement(kind=kind, new_item=new_item, old_item=None)
-
-    if not isinstance(old_item, str):
+    if old_item is not None:
         raise ValueError("Invalid checkpoint payload.")
-    if _normalize_item(old_item) == "":
-        raise ValueError("Invalid checkpoint payload.")
-    return PendingReplacement(kind=kind, new_item=new_item, old_item=old_item)
+    return PendingReplacement(kind=kind, new_item=new_item, old_item=None)
 
 
 def _sanitize_premise_value(value: str) -> str:

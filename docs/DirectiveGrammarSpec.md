@@ -473,6 +473,7 @@ Checkpoint semantics:
 - `pending` captures confirmation-required continuation (for example replacement clarifications).
 - `pending` is `null` when there is no outstanding continuation.
 - In `"use_only"` pending replacement cases, `old_item` may be `null` because no exact existing policy matched for replacement; confirmation asks whether to apply a new `use` item while keeping current policies.
+- `"use_only"` is the only supported pending replacement shape in checkpoint restore.
 - Restore is all-or-nothing: invalid checkpoint payloads raise and no partial state restore occurs.
 - Continuation behavior is deterministic after restore (same confirmation token handling and resolution outcomes as live pending state).
 - `checkpoint_version` is independent of authoritative state `version`; it must be bumped when checkpoint contract shape changes (especially `pending`).
