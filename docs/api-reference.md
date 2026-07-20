@@ -86,7 +86,7 @@ Boundary notes:
 - validation returns `None` for any non-canonical input
 - rendering is syntax-only and performs no state interpretation
 - `engine.step(...)` remains the authority for clarification, state
-  transitions, pending confirmation, and mutation behavior
+  transitions, reserved canonical continuation semantics, and mutation behavior
 - `engine.step(...)` is not a general natural-language repair surface; host
   code should send canonical directives when it wants deterministic mutation
 - pending confirmation is limited to deterministic continuation of supported
@@ -105,6 +105,9 @@ traversal unless you are working at an explicit serialization boundary.
 ### `engine.has_pending_clarification()`
 
 Return whether a confirmation-required clarification is currently pending.
+
+In the current engine contract, this returns `False` because no canonical
+operation currently produces pending clarification state.
 
 Typical use:
 
@@ -213,10 +216,9 @@ Export a checkpoint as canonical JSON text.
 
 Validate and restore a checkpoint from JSON text.
 
-Use checkpoint APIs when you need both:
-
-- authoritative state
-- pending confirmation/continuation state
+Use checkpoint APIs when you need a versioned engine-session snapshot. Today,
+that means authoritative state plus a reserved `pending` field for canonical
+continuation compatibility.
 
 Checkpoint object shape:
 
@@ -241,6 +243,7 @@ API-level contract notes:
 - `pending` is `null` when no continuation is waiting for confirmation
 - `pending` captures confirmation-required continuation for canonical
   operations supported by the active engine contract
+- in the current engine contract, `pending` is always `null`
 - non-canonical repair state is not part of the intended core contract
 - imported policy keys are normalized during `import_json(...)` and checkpoint
   authoritative-state restore
@@ -255,8 +258,8 @@ API-level contract notes:
 Typical use cases:
 
 - stateless host or integration boundaries where engine instances are short-lived
-- resume after interruption without losing pending clarification flow
-- preserve pending confirmation flow state across process or request boundaries
+- authoritative-state persistence with a stable checkpoint envelope
+- future-compatible storage where hosts want one artifact for engine session snapshots
 
 ## Controller APIs
 

@@ -314,6 +314,8 @@ When `Decision.kind = "clarify"`, prompt text is deterministic only for the case
   `Replacement requires an active 'use' policy.`
 - Pending clarification unmatched input (Section 9 case 11):
   reuse the existing pending prompt unchanged.
+  In the current engine contract, no canonical operation produces pending
+  clarification state, so this case is reserved but unreachable.
 - `remove policy ITEM` with empty/whitespace-only payload (Section 9 case 12):
   `Policy item cannot be empty.`
   `Use 'remove policy <item>' with a non-empty value.`
@@ -375,6 +377,14 @@ Resolution:
 - Negative token: discard pending event, clear pending, apply no mutation, return `update` with unchanged state
 - Any other input: remain in `clarify`, no mutation, and keep the existing pending prompt
 
+Current engine contract note:
+
+- The current engine establishes no pending clarification state for any
+  canonical directive family.
+- Section 10 remains the reserved core boundary for future canonical
+  continuation semantics and checkpoint compatibility.
+- Non-null `pending` checkpoint payloads are not currently produced by core.
+
 ## 11. Context Serialization Contract
 
 The compiler outputs structured state only; the host formats prompts.
@@ -430,13 +440,14 @@ Checkpoint semantics:
 - `pending` captures confirmation-required continuation for supported canonical
   operations only.
 - `pending` is `null` when there is no outstanding continuation.
+- In the current engine contract, `pending` is always `null`.
 - Restore is all-or-nothing: invalid checkpoint payloads raise and no partial state restore occurs.
 - Continuation behavior is deterministic after restore (same confirmation token handling and resolution outcomes as live pending state).
 - `checkpoint_version` is independent of authoritative state `version`; it must be bumped when checkpoint contract shape changes (especially `pending`).
 
 ## 12. Invariants
 
-1. State changes only from valid canonical directive transitions or pending-confirmation acceptance for canonical operations.
+1. State changes only from valid canonical directive transitions or pending-confirmation acceptance for canonical operations when such operations are supported by the active engine contract.
 2. Same input sequence yields identical state and decisions.
 3. LLM output never mutates state.
 4. No mutation occurs when returning `clarify`.
