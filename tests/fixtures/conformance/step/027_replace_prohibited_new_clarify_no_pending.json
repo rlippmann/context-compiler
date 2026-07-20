@@ -1,0 +1,30 @@
+{
+  "id": "step_replace_prohibited_new_clarify_no_pending",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "use docker",
+    "prohibit kubectl"
+  ],
+  "input": "use kubectl instead of docker",
+  "expected": {
+    "decision": {
+      "kind": "clarify",
+      "prompt_to_user": "\"kubectl\" is currently prohibited.\nSubmit explicit directive(s) to remove it or use a different item.",
+      "state": null
+    },
+    "has_pending_clarification": false,
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker": "use",
+        "kubectl": "prohibit"
+      },
+      "version": 2
+    }
+  }
+}

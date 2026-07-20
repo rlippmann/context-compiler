@@ -1,0 +1,30 @@
+{
+  "id": "step_replace_prohibited_old_clarify_no_pending",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "prohibit docker",
+    "use pytest"
+  ],
+  "input": "use kubectl instead of docker",
+  "expected": {
+    "decision": {
+      "kind": "clarify",
+      "prompt_to_user": "\"docker\" is currently prohibited.\nSubmit explicit directive(s) to remove it or use a different item.",
+      "state": null
+    },
+    "has_pending_clarification": false,
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker": "prohibit",
+        "pytest": "use"
+      },
+      "version": 2
+    }
+  }
+}

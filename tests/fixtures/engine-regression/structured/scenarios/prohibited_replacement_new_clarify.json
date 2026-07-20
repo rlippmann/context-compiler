@@ -1,6 +1,6 @@
 {
-  "description": "Pending replacement resolves negatively",
-  "id": "pending_clarify_no",
+  "description": "Replacement to a prohibited new item stays an ordinary clarify",
+  "id": "prohibited_replacement_new_clarify",
   "initial_checkpoint": null,
   "inputs": [
     "use docker",

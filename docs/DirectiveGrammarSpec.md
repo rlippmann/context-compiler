@@ -188,17 +188,44 @@ Let `k = normalize_item(ITEM)`.
 
 ### 8.3 Explicit replacement
 
+Pending-confirmation eligibility for any repair in this section:
+
+- Core may create pending confirmation only for a uniquely recoverable,
+  semantics-preserving repair.
+- Accepting `yes` must authorize at most one repair that preserves the
+  directive already submitted in substance.
+- Core must not create pending confirmation when accepting `yes` would
+  authorize:
+  - additional policy mutations
+  - compound operations
+  - synthesized replacement directives
+  - semantic rewrites
+  - materially different directives than the one originally submitted
+- When a replacement case is not eligible for pending confirmation under this
+  rule, core must return ordinary `clarify`, leave authoritative state
+  unchanged, and require a new explicit directive from the user or a future
+  directive drafter.
+
 For `use X instead of Y`:
 
 1. Let `kx = normalize_item(X)`, `ky = normalize_item(Y)`.
 2. If `kx == ky`: no-op `update`.
 3. Otherwise, evaluate in this exact order:
-   - if `ky not in policies`: enter replacement-intent `clarify` with prompt
+   - if `ky not in policies`: the submitted replacement cannot be applied
+     literally, but it has one uniquely recoverable, semantics-preserving
+     repair: treat it as the single atomic directive `use X`. Enter
+     replacement-intent `clarify` with prompt
      `Did you mean to use "X" instead?`
-   - else if `policies.get(ky) == "prohibit"`: enter replacement-intent `clarify` with prompt
-     `"Y" is currently prohibited. Did you mean to remove it and use "X" instead?`
-   - else if `policies.get(kx) == "prohibit"`: enter replacement-intent `clarify` with prompt
-     `"X" is currently prohibited. Did you mean to remove "Y" and use "X" instead?`
+   - else if `policies.get(ky) == "prohibit"`: accepting `yes` would authorize
+     a compound policy change and a materially different directive than the one
+     literally submitted. Return ordinary `clarify` with prompt
+     `"Y" is currently prohibited.`
+     `Submit explicit directive(s) to remove it or use a different item.`
+   - else if `policies.get(kx) == "prohibit"`: accepting `yes` would authorize
+     a compound policy change and a materially different directive than the one
+     literally submitted. Return ordinary `clarify` with prompt
+     `"X" is currently prohibited.`
+     `Submit explicit directive(s) to remove it or use a different item.`
 4. If none of the replacement-intent clarify conditions match, `Y` must currently exist in
    policy state (`ky in policies`) or return `clarify`.
 5. Replacement requires `policies[ky] == "use"` in the literal path; otherwise return `clarify`.
@@ -206,16 +233,18 @@ For `use X instead of Y`:
 7. On literal success:
    - remove `ky` from `policies`
    - set `policies[kx] = "use"`
-8. Replacement-intent clarify confirmations are deterministic:
+8. Under the pending-confirmation eligibility rule above, the missing-source
+   case is currently the only replacement case that qualifies for pending
+   confirmation.
+9. Replacement-intent clarify confirmations are deterministic only for that
+   eligible missing-source case:
    - `Did you mean to use "X" instead?`
      - yes: set `policies[kx] = "use"` (idempotent if already `"use"`)
      - no: no mutation
-   - `"Y" is currently prohibited. Did you mean to remove it and use "X" instead?`
-     - yes: remove `ky` from `policies`; set `policies[kx] = "use"`
-     - no: no mutation
-   - `"X" is currently prohibited. Did you mean to remove "Y" and use "X" instead?`
-     - yes: remove `ky` from `policies`; set `policies[kx] = "use"`
-     - no: no mutation
+10. The prohibited-item replacement cases above are illustrations of the
+    ineligible category: they do not create pending confirmation, do not
+    synthesize replacement directives, and do not authorize compound policy
+    mutation through a yes/no response.
 
 This operation is authoritative replacement, not recency resolution.
 
@@ -305,9 +334,11 @@ When `Decision.kind = "clarify"`, prompt text is deterministic only for the case
 - `use X instead of Y` when `Y` does not exist in policies (Section 9 case 7):
   `Did you mean to use "X" instead?`
 - `use X instead of Y` when `Y` is currently `"prohibit"` (Section 9 case 8):
-  `"Y" is currently prohibited. Did you mean to remove it and use "X" instead?`
+  `"Y" is currently prohibited.`
+  `Submit explicit directive(s) to remove it or use a different item.`
 - `use X instead of Y` when `X` is currently `"prohibit"` (Section 9 case 9):
-  `"X" is currently prohibited. Did you mean to remove "Y" and use "X" instead?`
+  `"X" is currently prohibited.`
+  `Submit explicit directive(s) to remove it or use a different item.`
 - `use X instead of Y` when `Y` exists but is not `"use"` and no replacement-intent clarify rule applies (Section 9 case 10):
   `"<Y>" is not currently in use.`
   `Replacement requires an active 'use' policy.`
@@ -334,6 +365,21 @@ When `Decision.kind = "clarify"`, prompt text is deterministic only for the case
   `Submit each directive separately.`
 
 ## 10. Pending Clarification
+
+Normative eligibility rule:
+
+- Pending confirmation is reserved for uniquely recoverable,
+  semantics-preserving repairs.
+- A pending confirmation may exist only when accepting `yes` authorizes one
+  deterministic repair that preserves the submitted directive in substance.
+- Core must not use pending confirmation to authorize:
+  - additional policy mutations
+  - compound operations
+  - synthesized replacement directives
+  - semantic rewrites
+  - materially different directives than the one originally submitted
+- When an input needs user guidance but does not satisfy this rule, core must
+  return ordinary `clarify` without creating pending state.
 
 Internal structure:
 

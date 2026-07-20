@@ -337,30 +337,15 @@ class Engine:
                 self._pending_prompt = prompt
                 return _clarify(prompt)
             if old_state == POLICY_PROHIBIT:
-                prompt = (
-                    f'"{action.old_item}" is currently prohibited. '
-                    f'Did you mean to remove it and use "{action.new_item}" instead?'
+                return _clarify(
+                    f'"{action.old_item}" is currently prohibited.\n'
+                    "Submit explicit directive(s) to remove it or use a different item."
                 )
-                self._pending_replacement = PendingReplacement(
-                    kind="replace_use",
-                    new_item=action.new_item,
-                    old_item=action.old_item,
-                )
-                self._pending_prompt = prompt
-                return _clarify(prompt)
             if new_state == POLICY_PROHIBIT:
-                prompt = (
-                    f'"{action.new_item}" is currently prohibited. '
-                    f'Did you mean to remove "{action.old_item}" and use '
-                    f'"{action.new_item}" instead?'
+                return _clarify(
+                    f'"{action.new_item}" is currently prohibited.\n'
+                    "Submit explicit directive(s) to remove it or use a different item."
                 )
-                self._pending_replacement = PendingReplacement(
-                    kind="replace_use",
-                    new_item=action.new_item,
-                    old_item=action.old_item,
-                )
-                self._pending_prompt = prompt
-                return _clarify(prompt)
             if old_state != POLICY_USE:
                 return _clarify(
                     f'"{action.old_item}" is not currently in use.\n'

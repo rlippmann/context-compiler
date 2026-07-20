@@ -513,9 +513,12 @@ def test_repl_clarify_flow() -> None:
     assert _contains_subsequence(
         lines, ["updated", "premise: (none)", "policies:", "- prohibit docker"]
     )
-    assert (
-        'confirm: "docker" is currently prohibited. Did you mean to remove it and use '
-        '"kubectl" instead?' in lines
+    assert _contains_subsequence(
+        lines,
+        [
+            'error: "docker" is currently prohibited.',
+            "Submit explicit directive(s) to remove it or use a different item.",
+        ],
     )
 
 
@@ -1048,14 +1051,12 @@ def test_repl_interactive_prints_confirm_and_error_for_clarify_types() -> None:
     assert 'confirm: Did you mean to use "podman" instead?' in confirm_lines
 
 
-def test_repl_replacement_negative_confirmation_returns_update_unchanged_and_clears_pending() -> (
-    None
-):
+def test_repl_prohibited_replacement_followup_tokens_remain_passthrough() -> None:
     lines = _run_non_interactive_lines(
         "use docker\nprohibit podman\nuse podman instead of docker\nno\nno\nquit\n"
     )
 
-    assert lines.count("updated") == 3
+    assert lines.count("updated") == 2
     assert _contains_subsequence(
         lines,
         [
@@ -1070,9 +1071,12 @@ def test_repl_replacement_negative_confirmation_returns_update_unchanged_and_cle
             "- prohibit podman",
         ],
     )
-    assert (
-        'confirm: "podman" is currently prohibited. Did you mean to remove "docker" and use '
-        '"podman" instead?' in lines
+    assert _contains_subsequence(
+        lines,
+        [
+            'error: "podman" is currently prohibited.',
+            "Submit explicit directive(s) to remove it or use a different item.",
+        ],
     )
     assert lines[-1] == "passthrough"
 

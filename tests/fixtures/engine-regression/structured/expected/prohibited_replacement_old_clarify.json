@@ -1,11 +1,11 @@
 {
-  "id": "pending_clarify_yes",
+  "id": "prohibited_replacement_old_clarify",
   "turns": [
     {
       "checkpoint": {
         "authoritative_state": {
           "policies": {
-            "docker": "use"
+            "docker": "prohibit"
           },
           "premise": null,
           "version": 2
@@ -17,14 +17,14 @@
         "kind": "update",
         "prompt_to_user": null
       },
-      "input": "use docker"
+      "input": "prohibit docker"
     },
     {
       "checkpoint": {
         "authoritative_state": {
           "policies": {
-            "docker": "use",
-            "kubectl": "prohibit"
+            "docker": "prohibit",
+            "pytest": "use"
           },
           "premise": null,
           "version": 2
@@ -36,32 +36,24 @@
         "kind": "update",
         "prompt_to_user": null
       },
-      "input": "prohibit kubectl"
+      "input": "use pytest"
     },
     {
       "checkpoint": {
         "authoritative_state": {
           "policies": {
-            "docker": "use",
-            "kubectl": "prohibit"
+            "docker": "prohibit",
+            "pytest": "use"
           },
           "premise": null,
           "version": 2
         },
         "checkpoint_version": 1,
-        "pending": {
-          "kind": "replacement",
-          "prompt_to_user": "\"kubectl\" is currently prohibited. Did you mean to remove \"docker\" and use \"kubectl\" instead?",
-          "replacement": {
-            "kind": "replace_use",
-            "new_item": "kubectl",
-            "old_item": "docker"
-          }
-        }
+        "pending": null
       },
       "decision": {
         "kind": "clarify",
-        "prompt_to_user": "\"kubectl\" is currently prohibited. Did you mean to remove \"docker\" and use \"kubectl\" instead?"
+        "prompt_to_user": "\"docker\" is currently prohibited.\nSubmit explicit directive(s) to remove it or use a different item."
       },
       "input": "use kubectl instead of docker"
     },
@@ -69,7 +61,8 @@
       "checkpoint": {
         "authoritative_state": {
           "policies": {
-            "kubectl": "use"
+            "docker": "prohibit",
+            "pytest": "use"
           },
           "premise": null,
           "version": 2
@@ -78,7 +71,7 @@
         "pending": null
       },
       "decision": {
-        "kind": "update",
+        "kind": "passthrough",
         "prompt_to_user": null
       },
       "input": "yes"

@@ -248,43 +248,22 @@ def test_export_checkpoint_serializes_pending_replacement_state_for_exact_resume
 
 
 @pytest.mark.contract
-def test_export_checkpoint_serializes_replace_use_pending_and_round_trips() -> None:
+def test_export_checkpoint_does_not_serialize_pending_for_prohibited_replacement_clarify() -> None:
     source = create_engine()
     source.step("use docker")
     source.step("prohibit kubectl")
     clarify = source.step("use kubectl instead of docker")
-    assert clarify["kind"] == "clarify"
-
-    checkpoint = source.export_checkpoint()
-    assert checkpoint["pending"] == {
-        "kind": "replacement",
-        "replacement": {
-            "kind": "replace_use",
-            "new_item": "kubectl",
-            "old_item": "docker",
-        },
+    assert clarify == {
+        "kind": "clarify",
+        "state": None,
         "prompt_to_user": (
-            '"kubectl" is currently prohibited. Did you mean to remove "docker" '
-            'and use "kubectl" instead?'
+            '"kubectl" is currently prohibited.\n'
+            "Submit explicit directive(s) to remove it or use a different item."
         ),
     }
 
-    yes_target = create_engine()
-    yes_target.import_checkpoint(checkpoint)
-    yes_decision = yes_target.step("yes")
-    assert yes_decision["kind"] == "update"
-    assert yes_target.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
-
-    no_target = create_engine()
-    no_target.import_checkpoint(checkpoint)
-    before_no = no_target.state
-    no_decision = no_target.step("no")
-    assert no_decision == {"kind": "update", "state": before_no, "prompt_to_user": None}
-    assert no_target.state == {
-        "premise": None,
-        "policies": {"docker": "use", "kubectl": "prohibit"},
-        "version": 2,
-    }
+    checkpoint = source.export_checkpoint()
+    assert checkpoint["pending"] is None
 
 
 @pytest.mark.contract
@@ -1272,14 +1251,15 @@ def test_replace_use_missing_source_with_empty_normalized_probe_omits_diagnostic
     assert engine.state == before
 
 
-def test_replace_use_ky_prohibit_enters_replacement_intent_clarify() -> None:
+def test_replace_use_ky_prohibit_returns_non_pending_clarify() -> None:
     engine = create_engine()
     engine.step("prohibit docker")
     engine.step("use pytest")
 
     first = engine.step("use kubectl instead of docker")
     expected = (
-        '"docker" is currently prohibited. Did you mean to remove it and use "kubectl" instead?'
+        '"docker" is currently prohibited.\n'
+        "Submit explicit directive(s) to remove it or use a different item."
     )
     assert first == {
         "kind": "clarify",
@@ -1288,32 +1268,31 @@ def test_replace_use_ky_prohibit_enters_replacement_intent_clarify() -> None:
     }
     assert engine.state["policies"] == {"docker": "prohibit", "pytest": "use"}
 
-    second = engine.step("yes")
-    assert second["kind"] == "update"
-    assert engine.state["policies"] == {"kubectl": "use", "pytest": "use"}
+    assert engine.has_pending_clarification() is False
 
 
-def test_replace_use_ky_prohibit_no_confirmation_has_no_mutation() -> None:
+def test_replace_use_ky_prohibit_yes_does_not_authorize_mutation() -> None:
     engine = create_engine()
     engine.step("prohibit docker")
     engine.step("use pytest")
-    engine.step("use kubectl instead of docker")
+    first = engine.step("use kubectl instead of docker")
     before = engine.state
 
-    decision = engine.step("no")
-    assert decision == {"kind": "update", "state": before, "prompt_to_user": None}
+    assert first["kind"] == "clarify"
+    decision = engine.step("yes")
+    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_replace_use_kx_prohibit_enters_replacement_intent_clarify() -> None:
+def test_replace_use_kx_prohibit_returns_non_pending_clarify() -> None:
     engine = create_engine()
     engine.step("use docker")
     engine.step("prohibit kubectl")
 
     first = engine.step("use kubectl instead of docker")
     expected = (
-        '"kubectl" is currently prohibited. Did you mean to remove "docker" '
-        'and use "kubectl" instead?'
+        '"kubectl" is currently prohibited.\n'
+        "Submit explicit directive(s) to remove it or use a different item."
     )
     assert first == {
         "kind": "clarify",
@@ -1322,19 +1301,18 @@ def test_replace_use_kx_prohibit_enters_replacement_intent_clarify() -> None:
     }
     assert engine.state["policies"] == {"docker": "use", "kubectl": "prohibit"}
 
-    second = engine.step("yes")
-    assert second["kind"] == "update"
-    assert engine.state["policies"] == {"kubectl": "use"}
+    assert engine.has_pending_clarification() is False
 
 
-def test_replace_use_priority_prefers_source_prohibit_prompt_when_both_prohibit() -> None:
+def test_replace_use_priority_prefers_source_prohibit_clarify_when_both_prohibit() -> None:
     engine = create_engine()
     engine.step("prohibit docker")
     engine.step("prohibit kubectl")
 
     first = engine.step("use kubectl instead of docker")
     expected = (
-        '"docker" is currently prohibited. Did you mean to remove it and use "kubectl" instead?'
+        '"docker" is currently prohibited.\n'
+        "Submit explicit directive(s) to remove it or use a different item."
     )
     assert first == {
         "kind": "clarify",
@@ -1355,7 +1333,8 @@ def test_replace_use_invalid_source_state_prohibit_clarifies_without_mutation() 
         "kind": "clarify",
         "state": None,
         "prompt_to_user": (
-            '"docker" is currently prohibited. Did you mean to remove it and use "kubectl" instead?'
+            '"docker" is currently prohibited.\n'
+            "Submit explicit directive(s) to remove it or use a different item."
         ),
     }
     assert engine.state == before
@@ -1365,34 +1344,31 @@ def test_replace_use_kx_prohibit_no_confirmation_has_no_mutation() -> None:
     engine = create_engine()
     engine.step("use docker")
     engine.step("prohibit kubectl")
-    engine.step("use kubectl instead of docker")
+    first = engine.step("use kubectl instead of docker")
     before = engine.state
 
+    assert first["kind"] == "clarify"
     decision = engine.step("no")
-    assert decision == {"kind": "update", "state": before, "prompt_to_user": None}
+    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_pending_confirmation_precedence_and_resolution() -> None:
+def test_missing_source_pending_confirmation_precedence_and_resolution() -> None:
     engine = create_engine()
-    engine.step("use docker")
-    engine.step("prohibit kubectl")
     first = engine.step("use kubectl instead of docker")
 
     # While pending, directive parsing is suspended.
     second = engine.step("use docker")
     assert second == first
-    assert engine.state["policies"] == {"docker": "use", "kubectl": "prohibit"}
+    assert engine.state["policies"] == {}
 
     third = engine.step("yes")
     assert third["kind"] == "update"
     assert engine.state["policies"] == {"kubectl": "use"}
 
 
-def test_pending_confirmation_suspends_admin_commands_until_resolved() -> None:
+def test_missing_source_pending_confirmation_suspends_admin_commands_until_resolved() -> None:
     engine = create_engine()
-    engine.step("use docker")
-    engine.step("prohibit kubectl")
     first = engine.step("use kubectl instead of docker")
     before = engine.state
 
@@ -1405,23 +1381,19 @@ def test_pending_confirmation_suspends_admin_commands_until_resolved() -> None:
     assert engine.state["policies"] == {"kubectl": "use"}
 
 
-def test_pending_negative_discards_proposed_event() -> None:
+def test_missing_source_pending_negative_discards_proposed_event() -> None:
     engine = create_engine()
-    engine.step("use docker")
-    engine.step("prohibit kubectl")
     engine.step("use kubectl instead of docker")
     before = engine.state
 
     decision = engine.step("no")
 
     assert decision == {"kind": "update", "state": before, "prompt_to_user": None}
-    assert engine.state["policies"] == {"docker": "use", "kubectl": "prohibit"}
+    assert engine.state["policies"] == {}
 
 
-def test_pending_confirmation_token_normalization() -> None:
+def test_missing_source_pending_confirmation_token_normalization() -> None:
     engine = create_engine()
-    engine.step("use docker")
-    engine.step("prohibit kubectl")
     engine.step("use kubectl instead of docker")
 
     decision = engine.step("  YES!!!  ")
@@ -1432,18 +1404,14 @@ def test_pending_confirmation_token_normalization() -> None:
 def test_pending_affirmative_confirmation_token_variants_are_accepted() -> None:
     for token in ["yes please", "Yep", "yeah", "ok", "  OKAY...  ", "sure!"]:
         engine = create_engine()
-        engine.step("use docker")
-        engine.step("prohibit kubectl")
         engine.step("use kubectl instead of docker")
         decision = engine.step(token)
         assert decision["kind"] == "update"
         assert engine.state["policies"] == {"kubectl": "use"}
 
 
-def test_pending_negative_confirmation_token_normalization_no_punctuation() -> None:
+def test_missing_source_pending_negative_confirmation_token_normalization_no_punctuation() -> None:
     engine = create_engine()
-    engine.step("use docker")
-    engine.step("prohibit kubectl")
     engine.step("use kubectl instead of docker")
     before = engine.state
 
@@ -1452,10 +1420,8 @@ def test_pending_negative_confirmation_token_normalization_no_punctuation() -> N
     assert engine.state == before
 
 
-def test_pending_negative_confirmation_token_normalization_no_thanks() -> None:
+def test_missing_source_pending_negative_confirmation_token_normalization_no_thanks() -> None:
     engine = create_engine()
-    engine.step("use docker")
-    engine.step("prohibit kubectl")
     engine.step("use kubectl instead of docker")
     before = engine.state
 
@@ -1467,8 +1433,6 @@ def test_pending_negative_confirmation_token_normalization_no_thanks() -> None:
 def test_pending_negative_confirmation_token_variants_are_accepted() -> None:
     for token in ["nope", "Nope??", " no ", "NO THANKS!"]:
         engine = create_engine()
-        engine.step("use docker")
-        engine.step("prohibit kubectl")
         engine.step("use kubectl instead of docker")
         before = engine.state
         decision = engine.step(token)
@@ -1476,10 +1440,8 @@ def test_pending_negative_confirmation_token_variants_are_accepted() -> None:
         assert engine.state == before
 
 
-def test_pending_unmatched_input_remains_clarify_without_mutation() -> None:
+def test_missing_source_pending_unmatched_input_remains_clarify_without_mutation() -> None:
     engine = create_engine()
-    engine.step("use docker")
-    engine.step("prohibit kubectl")
     first = engine.step("use kubectl instead of docker")
     before = engine.state
 
@@ -1488,10 +1450,8 @@ def test_pending_unmatched_input_remains_clarify_without_mutation() -> None:
     assert engine.state == before
 
 
-def test_pending_unmatched_input_can_repeat_without_mutation() -> None:
+def test_missing_source_pending_unmatched_input_can_repeat_without_mutation() -> None:
     engine = create_engine()
-    engine.step("use docker")
-    engine.step("prohibit kubectl")
     first = engine.step("use kubectl instead of docker")
     before = engine.state
 
@@ -1500,7 +1460,7 @@ def test_pending_unmatched_input_can_repeat_without_mutation() -> None:
     assert engine.state == before
 
 
-def test_replacement_pending_yes_can_override_conflicting_target_polarity() -> None:
+def test_prohibited_replacement_yes_cannot_override_conflicting_target_polarity() -> None:
     engine = create_engine()
     engine.step("use docker")
     engine.step("prohibit kubectl")
@@ -1510,14 +1470,12 @@ def test_replacement_pending_yes_can_override_conflicting_target_polarity() -> N
     assert engine.state["policies"] == {"docker": "use", "kubectl": "prohibit"}
 
     second = engine.step("yes")
-    assert second["kind"] == "update"
-    assert engine.state["policies"] == {"kubectl": "use"}
+    assert second["kind"] == "passthrough"
+    assert engine.state["policies"] == {"docker": "use", "kubectl": "prohibit"}
 
 
 def test_import_json_clears_pending_clarification_yes_no_not_confirmation() -> None:
     engine = create_engine()
-    engine.step("use docker")
-    engine.step("prohibit kubectl")
     first = engine.step("use kubectl instead of docker")
     assert first["kind"] == "clarify"
 

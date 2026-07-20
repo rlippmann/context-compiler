@@ -1,5 +1,5 @@
 {
-  "id": "pending_clarify_unmatched",
+  "id": "prohibited_replacement_new_clarify",
   "turns": [
     {
       "checkpoint": {
@@ -49,19 +49,11 @@
           "version": 2
         },
         "checkpoint_version": 1,
-        "pending": {
-          "kind": "replacement",
-          "prompt_to_user": "\"kubectl\" is currently prohibited. Did you mean to remove \"docker\" and use \"kubectl\" instead?",
-          "replacement": {
-            "kind": "replace_use",
-            "new_item": "kubectl",
-            "old_item": "docker"
-          }
-        }
+        "pending": null
       },
       "decision": {
         "kind": "clarify",
-        "prompt_to_user": "\"kubectl\" is currently prohibited. Did you mean to remove \"docker\" and use \"kubectl\" instead?"
+        "prompt_to_user": "\"kubectl\" is currently prohibited.\nSubmit explicit directive(s) to remove it or use a different item."
       },
       "input": "use kubectl instead of docker"
     },
@@ -76,21 +68,13 @@
           "version": 2
         },
         "checkpoint_version": 1,
-        "pending": {
-          "kind": "replacement",
-          "prompt_to_user": "\"kubectl\" is currently prohibited. Did you mean to remove \"docker\" and use \"kubectl\" instead?",
-          "replacement": {
-            "kind": "replace_use",
-            "new_item": "kubectl",
-            "old_item": "docker"
-          }
-        }
+        "pending": null
       },
       "decision": {
-        "kind": "clarify",
-        "prompt_to_user": "\"kubectl\" is currently prohibited. Did you mean to remove \"docker\" and use \"kubectl\" instead?"
+        "kind": "passthrough",
+        "prompt_to_user": null
       },
-      "input": "how about kubernetes?"
+      "input": "no"
     }
   ]
 }
