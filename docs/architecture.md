@@ -8,13 +8,13 @@ authority inside a larger host application stack.
 Responsibilities:
 
 - apply deterministic state transitions
-- enforce clarification and confirmation gates for core-owned state semantics
+- enforce deterministic clarification gates for core-owned state semantics
 - export/import authoritative state and checkpoints
 
 Examples:
 
 - Context Compiler core engine
-- checkpoint continuation behavior
+- checkpoint/session snapshot behavior
 
 Repository:
 
@@ -29,8 +29,9 @@ Boundary:
 - core does not own human-facing normalization, malformed-input recovery, or
   intent inference as a general responsibility
 - core does not convert failed canonical operations into different directives
-- pending yes/no confirmation is limited to deterministic continuation of
+- pending yes/no confirmation is reserved for deterministic continuation of
   canonical operations already established by core
+- the current engine contract produces no live pending continuation state
 
 ## Acquisition Layer
 
@@ -108,8 +109,8 @@ Policy independence is a major contributor to:
 - cross-language conformance
 
 Because policies are independent flat assertions, directive semantics stay
-simple, exported state stays portable, replay remains exact, and checkpoint
-continuation does not depend on hidden relational logic.
+simple, exported state stays portable, replay remains exact, and any future
+checkpoint continuation does not depend on hidden relational logic.
 
 Relationship-heavy semantics may still be useful, but they generally belong in
 drafting, orchestration, or domain-specific layers rather than in
