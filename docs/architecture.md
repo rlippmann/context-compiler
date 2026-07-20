@@ -8,7 +8,7 @@ authority inside a larger host application stack.
 Responsibilities:
 
 - apply deterministic state transitions
-- enforce clarification and confirmation gates
+- enforce clarification and confirmation gates for core-owned state semantics
 - export/import authoritative state and checkpoints
 
 Examples:
@@ -24,14 +24,13 @@ Boundary:
 
 - only core applies directives
 - only core mutates authoritative state
-- pending yes/no confirmation is reserved for uniquely recoverable,
-  semantics-preserving repairs
-- a pending `yes` may authorize only one deterministic repair that preserves
-  the submitted directive in substance
-- core does not use yes/no confirmation to authorize compound policy mutations
-  or inferred replacement rewrites when an explicit new directive is required
-- current replacement examples are applications of this rule, not the source of
-  the rule
+- core defines the canonical directive language and deterministic execution
+  model
+- core does not own human-facing normalization, malformed-input recovery, or
+  intent inference as a general responsibility
+- core does not convert failed canonical operations into different directives
+- pending yes/no confirmation is limited to deterministic continuation of
+  canonical operations already established by core
 
 ## Acquisition Layer
 
@@ -39,13 +38,17 @@ Responsibilities:
 
 - recognize possible user state updates before core compilation
 - normalize candidate inputs conservatively
+- recover from malformed or non-canonical human input when appropriate
+- interpret alternate phrasing outside the core authority contract
+- narrow or rewrite user intent into canonical directives when justified by
+  acquisition-layer context
 - abstain when intent is uncertain
 - draft candidate directives without becoming a second authority
 
 Examples:
 
-- external directive-drafter or host-owned drafting packages
 - host-side input shaping before `engine.step(...)`
+- any non-authoritative preprocessing that emits canonical directives for core
 
 Repository:
 

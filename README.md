@@ -5,27 +5,30 @@
 [![License](https://img.shields.io/pypi/l/context-compiler)](https://pypi.org/project/context-compiler/)
 
 Context Compiler is a deterministic conversational state authority for LLM applications.
-It handles explicit state changes, clarification and confirmation flows,
-checkpoint restore, and structured authoritative state for the host.
+It handles canonical directive execution, semantic validation, deterministic
+clarification and confirmation flows, checkpoint restore, and structured
+authoritative state for the host.
 
 ## What Context Compiler provides
 
 Context Compiler gives hosts fixed state rules:
 
-- handle explicit user state changes with deterministic rules
+- handle canonical explicit state changes with deterministic rules
 - clarification instead of silent overwrite for blocked/ambiguous changes
 - pending confirmation flows that must resolve before anything else changes
 - export and import checkpoints to restore saved state and pending confirmation flow
 - produce structured authoritative state for downstream host decisions
 
 The model generates responses. The compiler owns state.
+Human-facing normalization, malformed-input recovery, and intent drafting belong
+outside core.
 
 ## How the compiler metaphor works
 
-Like a compiler, it parses input, validates it, applies fixed rules, and
+Like a compiler, it parses canonical directives, validates them, applies fixed rules, and
 produces a stable result the host can use. It treats important instructions as
 structured state instead of temporary prompt text. It is not source-code
-compilation and not a reasoning model.
+compilation, not a reasoning model, and not a natural-language repair layer.
 
 ## 10-Second Example
 
@@ -296,6 +299,7 @@ authoritative in future turns.
 - Policies are per-item (`use` or `prohibit`)
 - State changes only through explicit directives
 - No inference or semantic reasoning
+- Non-canonical input normalization is outside the core state contract
 
 Identical input sequences always produce identical state.
 
@@ -342,6 +346,11 @@ Hosts define what policy items and premise mean in context. Common patterns incl
 
 Context Compiler enforces explicit directive and state rules. Domain reasoning
 still belongs to the host and model workflow.
+
+If a user says something non-canonical such as a near miss, alternate phrasing,
+or a failed replacement request that would need reinterpretation, that
+normalization is outside core and must happen before canonical directives reach
+the compiler.
 
 ---
 
@@ -448,6 +457,11 @@ Context Compiler is the authority layer that decides when state changes are
 allowed, when clarification is required, and how continuation state is
 restored. For runnable application-layer examples, see
 [`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations).
+
+Human-facing interpretation is a separate concern. If you want to recognize
+non-canonical phrasing, recover from malformed input, narrow user intent, or
+turn a failed replacement request into a different canonical directive, do that
+before calling core.
 
 **Why not just use a plain dict?**
 A plain dict can hold state for prompt construction, schema selection, tool

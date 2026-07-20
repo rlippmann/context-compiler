@@ -15,6 +15,15 @@ For behavioral semantics, use the authoritative documents above. This page
 documents the public checkpoint APIs and their contract surface without
 redefining directive or continuation behavior.
 
+Core boundary:
+
+- core consumes canonical directives and deterministic confirmation tokens
+- canonical directive validation remains in core
+- semantic validation and authoritative state transitions remain in core
+- human-facing normalization, malformed-input recovery, and intent drafting are
+  outside the core contract
+- core does not convert failed canonical operations into different directives
+
 ## Engine Lifecycle
 
 ### `create_engine(state=None)`
@@ -74,17 +83,16 @@ construction only.
 Boundary notes:
 
 - no public parser is exposed
-- validation returns `None` for any non-canonical input, including near misses,
-  compounds, and ordinary prose
+- validation returns `None` for any non-canonical input
 - rendering is syntax-only and performs no state interpretation
 - `engine.step(...)` remains the authority for clarification, state
   transitions, pending confirmation, and mutation behavior
-- pending confirmation is only used for uniquely recoverable,
-  semantics-preserving repairs
-- a pending `yes` may authorize only one deterministic repair that preserves
-  the submitted directive in substance
-- the current missing-source replacement confirmation is an application of this
-  rule, not the rule itself
+- `engine.step(...)` is not a general natural-language repair surface; host
+  code should send canonical directives when it wants deterministic mutation
+- pending confirmation is limited to deterministic continuation of supported
+  canonical operations
+- failed replacement requests are not reinterpreted by core into different
+  directives
 
 ### `engine.state`
 
@@ -222,15 +230,7 @@ Checkpoint object shape:
     },
     "version": 2
   },
-  "pending": {
-    "kind": "replacement",
-    "replacement": {
-      "kind": "use_only",
-      "new_item": "kubectl",
-      "old_item": null
-    },
-    "prompt_to_user": "..."
-  }
+  "pending": null
 }
 ```
 
@@ -239,11 +239,9 @@ At this boundary, direct key access is expected.
 API-level contract notes:
 
 - `pending` is `null` when no continuation is waiting for confirmation
-- `pending` captures confirmation-required operations such as the supported
-  missing-source replacement repair flow
-- `old_item` may be `null` for `"use_only"` when confirming “use X instead?”
-  without an existing exact policy to replace
-- `"use_only"` is the only supported pending replacement shape at this boundary
+- `pending` captures confirmation-required continuation for canonical
+  operations supported by the active engine contract
+- non-canonical repair state is not part of the intended core contract
 - imported policy keys are normalized during `import_json(...)` and checkpoint
   authoritative-state restore
 - if a policy key normalizes to `""`, the payload is invalid and is rejected
