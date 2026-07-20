@@ -6,8 +6,8 @@
 
 Context Compiler is a deterministic conversational state authority for LLM applications.
 It handles canonical directive execution, semantic validation, deterministic
-clarification and confirmation flows, checkpoint restore, and structured
-authoritative state for the host.
+clarify decisions, checkpoint restore, and structured authoritative state for
+the host.
 
 ## What Context Compiler provides
 
@@ -15,8 +15,7 @@ Context Compiler gives hosts fixed state rules:
 
 - handle canonical explicit state changes with deterministic rules
 - clarification instead of silent overwrite for blocked/ambiguous changes
-- pending confirmation flows that must resolve before anything else changes
-- export and import checkpoints to restore saved state and pending confirmation flow
+- export and import checkpoints to restore saved state in a versioned engine snapshot
 - produce structured authoritative state for downstream host decisions
 
 The model generates responses. The compiler owns state.
@@ -178,12 +177,12 @@ pip install context-compiler
 context-compiler
 ```
 
-Preload options keep saved rules separate from confirmation state in progress:
+Preload options keep authoritative state transport separate from checkpoint session snapshots:
 
 - `--initial-state-json` / `--initial-state-file` load saved state
   (via exported state JSON).
-- `--initial-checkpoint-json` / `--initial-checkpoint-file` restore full
-  continuation checkpoint (saved state + pending confirmation state).
+- `--initial-checkpoint-json` / `--initial-checkpoint-file` restore the full
+  checkpoint envelope (saved state plus reserved continuation field).
 
 REPL commands (controller layer, not engine directives):
 
@@ -202,12 +201,12 @@ for non-interactive usage.
 context-compiler --json < input.txt
 ```
 
-Preload options keep saved rules separate from confirmation state in progress:
+Preload options keep authoritative state transport separate from checkpoint session snapshots:
 
 - `--initial-state-json` / `--initial-state-file` load saved state
   (via exported state JSON).
-- `--initial-checkpoint-json` / `--initial-checkpoint-file` restore full
-  continuation checkpoint (saved state + pending confirmation state).
+- `--initial-checkpoint-json` / `--initial-checkpoint-file` restore the full
+  checkpoint envelope (saved state plus reserved continuation field).
 
 ## Installation
 
@@ -359,13 +358,12 @@ the compiler.
 `export_json()` / `import_json()` and the checkpoint APIs serve different boundaries:
 
 - `export_json()` / `import_json()` transport **authoritative state only**
-- checkpoint APIs transport **serialized continuation**:
+- checkpoint APIs transport a **versioned engine snapshot**:
   - authoritative state
-  - pending confirmation flow state
+  - reserved `pending` field for canonical continuation compatibility
 
 Use state JSON when you only need authoritative state. Use checkpoint APIs when
-you also need resumable continuation state across process or request
-boundaries.
+you want the stable checkpoint envelope across process or request boundaries.
 
 For the checkpoint object shape, API-level usage notes, and serialization
 details, see [docs/api-reference.md](docs/api-reference.md#checkpoint-apis).
@@ -405,7 +403,7 @@ User: clear state
 Grammar invariant: one input may contain at most one canonical directive.
 If another canonical directive start appears later in the same input, the
 input is invalid and Context Compiler returns `clarify` without mutating
-authoritative state or creating pending confirmation state.
+authoritative state or creating pending continuation state.
 
 Examples:
 

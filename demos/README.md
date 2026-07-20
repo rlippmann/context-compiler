@@ -36,7 +36,7 @@ Runnable application-layer enforcement-point integrations live in
 | [06](./06_llm_context_compaction.py) | Context compaction | saved compiler state replacing transcript context | small or local models |
 | [07](./07_llm_prompt_vs_state.py) | Prompt engineering comparison | prompting vs saved compiler state | any model with long transcript sensitivity |
 | [08](./08_llm_replacement_precondition.py) | Replacement precondition | invalid replacement blocked without state mutation | any model |
-| [09](./09_llm_pending_clarification.py) | Pending clarification continuation | confirmation-only resolution of suspended mutation | any model |
+| [09](./09_llm_pending_clarification.py) | Pending boundary | invalid replacement does not become pending continuation | any model |
 
 Stronger frontier models may show these behaviors less often, but the same
 patterns still appear in real applications.
@@ -171,7 +171,7 @@ Notes:
 - Anthropic runs in this repo are executed through the `openai_compatible` provider path.
 - `PASS` means the demo-specific expected-behavior check for that path succeeded; `FAIL` means it did not.
 - `reinjected-state` can be enough for some persistence cases; in this demo set it is intentionally used as a prompt-only comparison baseline.
-- Scored checks focus on app-side authority rules (for example blocked mutation and confirmation-only resolution), not model prose quality. `reinjected-state` remains plain text injection only.
+- Scored checks focus on app-side authority rules (for example blocked mutation and non-pending invalid replacement handling), not model prose quality. `reinjected-state` remains plain text injection only.
 - Interpretation:
 
 - Demos `01`-`05` and `07` mostly test persistence and policy-following behavior across turns.
