@@ -515,6 +515,10 @@ These docs cover the design and milestone details:
 [`tests/fixtures/`](tests/fixtures/) defines the cross-language conformance tests.
 These fixtures serve as the behavioral contract for compiler semantics across implementations.
 
+## Development Process
+
+Most of this project and related projects were implemented with Codex across many development sessions, including substantial implementation, refactoring, and cross-language porting work. ChatGPT was used separately for design discussion, review, and planning. Conformance harnesses and tests were used to verify behavioral consistency rather than treating model output as the correctness check.
+
 ---
 
 ## License
