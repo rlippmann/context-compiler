@@ -17,7 +17,7 @@ redefining directive or continuation behavior.
 
 Core boundary:
 
-- core consumes canonical directives and deterministic confirmation tokens
+- core consumes canonical directives
 - canonical directive validation remains in core
 - semantic validation and authoritative state transitions remain in core
 - human-facing normalization, malformed-input recovery, and intent drafting are
@@ -51,16 +51,14 @@ Typical use:
 decision = engine.step("set premise current project uses uv")
 ```
 
-Behavior for directive handling, clarification, and confirmation flows is
+Behavior for directive handling and clarification is
 defined by the [Directive Grammar Specification](DirectiveGrammarSpec.md).
 
 Important grammar contract:
 
 - one input may contain at most one canonical directive
-- if a later canonical directive start appears in the same input, `engine.step(...)`
-  returns the normal `clarify` decision contract
-- compound directives do not mutate authoritative state and do not create
-  pending clarification or replacement state
+- directive-shaped invalid input is outside the canonical language
+- `clarify` is reserved for canonical directives that fail semantic evaluation
 - quote characters do not create protected literal regions inside recognized
   directive payloads
 
@@ -86,11 +84,9 @@ Boundary notes:
 - validation returns `None` for any non-canonical input
 - rendering is syntax-only and performs no state interpretation
 - `engine.step(...)` remains the authority for clarification, state
-  transitions, reserved canonical continuation semantics, and mutation behavior
+  transitions, and mutation behavior
 - `engine.step(...)` is not a general natural-language repair surface; host
   code should send canonical directives when it wants deterministic mutation
-- pending confirmation is limited to deterministic continuation of supported
-  canonical operations
 - failed replacement requests are not reinterpreted by core into different
   directives
 

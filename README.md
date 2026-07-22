@@ -401,9 +401,9 @@ User: clear state
 ```
 
 Grammar invariant: one input may contain at most one canonical directive.
-If another canonical directive start appears later in the same input, the
-input is invalid and Context Compiler returns `clarify` without mutating
-authoritative state or creating pending continuation state.
+Directive-shaped invalid input is outside the canonical language, and
+`clarify` is reserved for canonical directives that later fail semantic
+evaluation against authoritative state.
 
 Examples:
 
@@ -433,9 +433,8 @@ set premise "use docker and prohibit peanuts"
 Quotes do not create protected literal regions inside a recognized directive
 payload.
 
-Conflicting directives also trigger clarification instead of changing state.
-
-For full directive grammar and edge-case behavior, see [DirectiveGrammarSpec.md](docs/DirectiveGrammarSpec.md).
+For the normative grammar, classification rules, and syntax-versus-semantics
+boundary, see [DirectiveGrammarSpec.md](docs/DirectiveGrammarSpec.md).
 
 ---
 

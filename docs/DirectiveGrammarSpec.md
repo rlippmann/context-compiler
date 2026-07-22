@@ -1,50 +1,65 @@
-# Context Compiler - Directive Grammar Specification (0.5)
+# Context Compiler - Core Directive Grammar Specification (Normative)
 
 ## Goal
 
-Provide deterministic, explicit, and model-independent conversational state updates.
+Define the canonical core directive language for Context Compiler.
 
-This specification defines the authoritative state machine for canonical
-directive handling.
-It does not perform reasoning, inference, entity modeling,
-natural-language understanding, or interpretation of assistant output.
-Human-facing normalization, malformed-input recovery, and intent drafting are
-outside the core canonical directive contract.
+This specification is the normative contract for:
+
+- directive classification;
+- canonical directive syntax;
+- permitted normalization before classification and parsing;
+- the boundary between syntax and semantics.
+
+Core is intentionally narrow. It does not:
+
+- repair malformed directives;
+- infer missing operands;
+- reinterpret near-canonical syntax;
+- convert malformed input into another directive;
+- parse multiple directives from one input;
+- perform natural-language understanding.
+
+Later implementation and conformance work must follow this document.
 
 ## 1. Terminology
 
 | Term | Meaning |
 | --- | --- |
-| User Input | Raw text from the user |
-| Directive | A string that matches one of the explicit grammar productions in Section 5 |
+| User input | Raw text submitted to core |
+| Canonical directive | An input that matches one grammar production in Section 7 |
+| Directive-shaped input | Input that begins with a canonical directive introducer but fails canonical grammar |
+| Passthrough | Input that is not a canonical directive and not directive-shaped invalid input |
 | Premise | Single sticky explicit slot controlled only by premise directives |
 | Policy | Per-item authoritative state: `"use"` or `"prohibit"` |
 | State | Current authoritative snapshot |
-| Pending Clarification | A blocked canonical mutation awaiting explicit user confirmation |
-| Decision | Compiler instruction returned to host |
+| Semantic evaluation | State-dependent evaluation that occurs only after a canonical directive parses successfully |
+| Decision | Compiler instruction returned to the host |
+
+`clarify` is a semantic outcome, not a parsing category.
 
 ## 2. System Responsibilities
 
 The compiler:
 
-1. Parses canonical user input against explicit grammar
-2. Validates canonical directives and authoritative state
-3. Applies deterministic state transitions only when valid
-4. Returns `clarify` when a canonical operation cannot proceed under the core
-   state rules
-5. Returns a deterministic `Decision`
+1. Classifies raw input using the rules in Sections 5 and 6.
+2. Parses canonical directives using the grammar in Section 7.
+3. Performs semantic evaluation only after successful canonical parsing.
+4. Applies deterministic state transitions only for semantically valid canonical directives.
+5. Returns a deterministic `Decision`.
 
 The compiler never calls an LLM.
-All authoritative mutations originate from user directives passed to `step()`.
+All authoritative mutations originate from canonical user directives passed to
+`step()`.
 
 ## 3. Host Responsibilities
 
 The host:
 
-- Displays clarification prompts
-- Calls the LLM only when `Decision.kind` allows it
-- Formats model context from compiler state
-- May perform non-canonical input processing before core execution
+- handles `passthrough` input outside core;
+- displays clarification prompts when core returns `clarify`;
+- calls the LLM only when the returned `Decision.kind` allows it;
+- may perform non-canonical drafting or repair before calling core.
 
 ## 4. Decision API Contract
 
@@ -57,17 +72,17 @@ class Decision(TypedDict):
 
 Semantics:
 
-- `passthrough`: forward user input to LLM
-- `update`: forward user input with updated compiler state
-- `clarify`: do not call LLM; display `prompt_to_user`
+- `passthrough`: forward user input to the host/model path
+- `update`: canonical directive parsed and semantic evaluation completed without
+  a blocking conflict
+- `clarify`: canonical directive parsed, but semantic evaluation could not
+  safely execute under current authoritative state
 
-The compiler always returns a `Decision`.
+This specification does not add a new runtime `Decision.kind` for
+directive-shaped invalid input. Section 6 defines that classification
+normatively for future parser and conformance work.
 
 ## 5. Engine/Host State Contract
-
-This section defines the integration contract between the deterministic engine
-and host applications. It is authoritative for engine behavior and host
-integration code, not a requirement for user-facing UX presentation.
 
 State is a deterministic snapshot:
 
@@ -83,399 +98,588 @@ Where:
 
 - `premise`: `string | null`
 - `policies`: `dict[string, "use" | "prohibit"]`
-- `version`: integer schema version. The 0.5 design maps to schema version `2`.
-- Policy key absence means no policy for that item.
-
-UX note:
-
-- User-facing surfaces (for example REPL or demos) may render this contract in
-  human-readable form instead of exposing raw schema/JSON directly.
+- `version`: integer schema version
 
 Properties:
 
-- Premise is explicit and sticky.
-- Policies are authoritative per item.
-- No policy ordering.
-- No policy recency semantics.
-- No policy history semantics.
+- premise is explicit and sticky;
+- policies are authoritative per item;
+- policy key absence means no policy for that item;
+- no policy ordering, recency, or history semantics exist in core.
 
-## 6. Normalization
+## 6. Permitted Normalization and Classification
 
-`normalize_item(X)` for policy item keys:
+### 6.1 Lexical normalization before classification
 
-1. Unicode NFKC normalization
-2. Lowercase
-3. Collapse internal whitespace to single spaces
-4. Remove leading articles: `a`, `an`, `the`
-5. Normalize apostrophes (`dont` -> `don't`)
+Before classifying raw input as passthrough, directive-shaped invalid input, or
+canonical directive, core must apply lexical normalization only for
+presentation-level differences.
 
-Premise values are stored as opaque strings with minimal sanitation only:
-
-1. Unicode normalization
-2. Apostrophe normalization
-3. Whitespace collapse
-
-No stemming, synonym mapping, ontology, or semantic interpretation is allowed.
-
-## 7. Directive Grammar (Explicit Only)
-
-Only the exact productions below are canonical directives.
-All other input is `passthrough` unless Section 8 says `clarify`.
+The normalization pipeline is:
 
 ```text
-SET_PREMISE      := "set premise " VALUE
-CHANGE_PREMISE   := "change premise to " VALUE
-USE_ITEM         := "use " ITEM
-PROHIBIT_ITEM    := "prohibit " ITEM
-REMOVE_POLICY    := "remove policy " ITEM
-REPLACE_USE      := "use " ITEM " instead of " ITEM
-CLEAR_PREMISE    := "clear premise"
-RESET_POLICIES   := "reset policies"
-CLEAR_STATE      := "clear state"
+raw input
+    ↓
+lexical normalization
+    ↓
+canonical parsing
+    ↓
+semantic evaluation
 ```
 
-Notes:
+Permitted lexical normalization is limited to:
 
-- `ITEM` is a non-empty raw substring after its prefix.
-- One input may contain at most one canonical directive. If another canonical
-  directive start appears later in the same input, the input is invalid under
-  the current grammar and must return `clarify`.
-- Recognized policy directives with empty or whitespace-only `ITEM` payload return `clarify`.
-- Premise directive payload must contain at least one non-whitespace character after the prefix.
-  Empty and whitespace-only premise payloads are invalid and must return `clarify`.
-- `ITEM` is normalized via `normalize_item` before policy lookup/storage.
-- `VALUE` is stored using premise sanitation from Section 6.
-- Quote characters have no special parsing semantics. A fully quoted input remains ordinary `passthrough` unless the raw
-  input begins with a canonical directive. Quote characters inside a
-  recognized directive payload do not suppress later canonical directive
-  detection.
-- No conversational aliases are directives (for example: `actually`, `I meant`, `allow`, `you can`, `set X`, `I'm using X`).
+1. trimming leading and trailing ASCII whitespace;
+2. treating horizontal ASCII whitespace (`SP` and `TAB`) as equivalent token
+   separators;
+3. collapsing one or more consecutive horizontal ASCII whitespace characters
+   between tokens into a single canonical separator;
+4. matching directive keywords case-insensitively.
 
-## 8. State Transition Semantics
+Additional limits:
 
-### 8.1 Premise lifecycle
+1. Keyword case-insensitivity applies only to directive keywords and fixed
+   grammatical separators defined in Section 7.
+2. Parsed operand text must be preserved exactly other than boundary whitespace made
+   insignificant by item 1 above.
+3. Quote characters still have no grouping or escaping semantics.
+4. Terminal punctuation still has no stripping behavior.
+5. No token insertion, deletion, replacement, or reordering is permitted.
 
-- `set premise X`:
-  - valid only if `state.premise is null`
-  - if `X` is empty or whitespace-only after the prefix: `clarify` and no mutation
-  - success: set `state.premise = sanitize_premise(X)`
-  - if premise already exists: `clarify`
+In particular, lexical normalization must not:
 
-- `change premise to X`:
-  - valid only if `state.premise is not null`
-  - if `X` is empty or whitespace-only after the prefix: `clarify` and no mutation
-  - success: replace premise with `sanitize_premise(X)`
-  - if no premise exists: `clarify`
+- insert or remove keywords;
+- reorder tokens;
+- repair incomplete `instead of` forms;
+- interpret unexpected tokens;
+- lowercase or otherwise rewrite operand text;
+- strip punctuation from operands;
+- interpret aliases such as `allow`, `replace`, `switch`, or `rather than`.
 
-### 8.2 Policy lifecycle
+### 6.2 Classification categories
 
-Let `k = normalize_item(ITEM)`.
+Every raw input must be classified into exactly one of these categories before
+semantic evaluation:
 
-- `use ITEM`:
-  - if `ITEM` payload is empty or whitespace-only after the prefix: `clarify` and no mutation
-  - if `policies[k] == "prohibit"`: `clarify` (contradiction)
-  - if `policies[k] == "use"`: no-op `update` (idempotent assertion)
-  - else set `policies[k] = "use"`
+1. `passthrough`
+2. directive-shaped invalid input
+3. canonical directive
 
-- `prohibit ITEM`:
-  - if `ITEM` payload is empty or whitespace-only after the prefix: `clarify` and no mutation
-  - if `policies[k] == "use"`: `clarify` (contradiction)
-  - if `policies[k] == "prohibit"`: no-op `update` (idempotent assertion)
-  - else set `policies[k] = "prohibit"`
+### 6.3 Passthrough
 
-- `remove policy ITEM`:
-  - if `ITEM` payload is empty or whitespace-only after the prefix: `clarify` and no mutation
-  - remove `k = normalize_item(ITEM)` from `policies` if present
-  - always return `update` (idempotent when absent)
-
-### 8.3 Explicit replacement
-
-Pending confirmation in core is limited to canonical operations that are
-already fully determined by the submitted canonical directive. Core does not
-use confirmation to repair non-canonical input, infer intent, or convert a
-failed canonical operation into a different directive.
-
-For `use X instead of Y`:
-
-1. Let `kx = normalize_item(X)`, `ky = normalize_item(Y)`.
-2. If `kx == ky`: no-op `update`.
-3. Otherwise, evaluate in this exact order:
-   - if `ky not in policies`: return ordinary `clarify` with prompt
-     `"<Y>" is not currently in use.`
-     `Replacement requires an active 'use' policy.`
-   - else if `policies.get(ky) == "prohibit"`: return ordinary `clarify` with prompt
-     `"Y" is currently prohibited.`
-     `Submit explicit directive(s) to remove it or use a different item.`
-   - else if `policies.get(kx) == "prohibit"`: return ordinary `clarify` with prompt
-     `"X" is currently prohibited.`
-     `Submit explicit directive(s) to remove it or use a different item.`
-4. If none of the clarify conditions above match, `Y` must currently exist in
-   policy state (`ky in policies`) or return `clarify`.
-5. Replacement requires `policies[ky] == "use"` in the literal path; otherwise return `clarify`.
-6. If replacement syntax is recognized but either side is empty/whitespace-only, return `clarify` and no mutation.
-7. On literal success:
-   - remove `ky` from `policies`
-   - set `policies[kx] = "use"`
-
-This operation is authoritative replacement, not recency resolution.
-
-### 8.4 Administrative commands
-
-- `clear premise`: set `premise = null` (cleared premise state)
-- `reset policies`: set `policies = {}`
-- `remove policy ITEM`: remove one normalized policy key from `policies` if present
-- `clear state`: reset all authoritative state by setting `premise = null` and `policies = {}`
-
-### 8.5 Compound directives
-
-When no pending clarification exists, if an input begins with a canonical directive and a later canonical directive start also appears in the same input, the input is invalid under the current grammar.
-
-Pending clarification handling in Section 10 takes precedence over compound-directive detection. While pending clarification exists, directive parsing is suspended and the input is processed only as a possible confirmation response.
-
-Behavior:
-
-- return `Decision.kind = "clarify"`
-- do not mutate authoritative state
-- do not create pending clarification or pending replacement state
-- reuse the normal public clarify contract; there is no separate decision kind
-
-Deterministic prompt:
-
-`Multiple directives are not supported in one input.`
-`Submit each directive separately.`
+Input is `passthrough` when it does not begin with a canonical directive
+introducer recognized under Section 6.1 and cannot be classified as a
+directive-shaped attempt under Section 6.4.
 
 Examples:
 
-- valid: `use docker`
-- valid: `use docker instead of podman`
-- invalid: `use docker and prohibit peanuts`
-- invalid: `set premise vegetarian and use docker`
-- invalid: `clear state then set premise new project`
+- `hello there`
+- `"use docker"`
+- `allow docker`
+
+### 6.4 Directive-shaped invalid input
+
+Input is directive-shaped invalid input when it begins with one of the
+canonical directive introducers below, but the full input fails the canonical
+grammar in Section 7:
+
+- `set premise`
+- `change premise to`
+- `use`
+- `prohibit`
+- `remove policy`
+- `clear premise`
+- `reset policies`
+- `clear state`
+
+This category includes:
+
+- empty or incomplete directive forms;
+- near-canonical forms with extra or missing required tokens;
+- compound inputs that attempt more than one directive;
+- malformed replacement attempts beginning with `use`.
+
+Examples:
+
+- `set premise`
+- `set premise to concise`
+- `change premise to`
+- `use`
+- `use instead of docker`
+- `use podman instead of`
+- `use docker and prohibit peanuts`
+- `clear state then set premise project`
+
+Directive-shaped invalid input is a grammar failure. It is not semantic
+`clarify`.
+
+### 6.5 Canonical directive
+
+Input is a canonical directive only when it matches exactly one grammar
+production in Section 7 after applying no more than the lexical normalization
+permitted in Section 6.1.
+
+## 7. Canonical Directive Grammar
+
+Only the productions in this section are canonical directives.
+
+Notation:
+
+- directive keywords are matched after Section 6.1 lexical normalization;
+- concatenation is literal and order-sensitive;
+- `VALUE` and `ITEM` are non-empty raw substrings subject to the restrictions
+  below;
+- `SP` means one canonical horizontal-whitespace separator after Section 6.1
+  normalization.
+
+```text
+SET_PREMISE    := "set premise" SP VALUE
+CHANGE_PREMISE := "change premise to" SP VALUE
+USE_ITEM       := "use" SP ITEM
+PROHIBIT_ITEM  := "prohibit" SP ITEM
+REMOVE_POLICY  := "remove policy" SP ITEM
+REPLACE_USE    := "use" SP REPLACE_NEW " instead of " REPLACE_OLD
+CLEAR_PREMISE  := "clear premise"
+RESET_POLICIES := "reset policies"
+CLEAR_STATE    := "clear state"
+```
+
+### 7.1 `VALUE`
+
+`VALUE` is a non-empty raw substring after the required prefix.
+
+Rules:
+
+- must contain at least one non-whitespace character;
+- may contain spaces and punctuation;
+- has no quote-aware or escape-aware subgrammar;
+- is rejected if the full input would otherwise constitute a compound attempt
+  under Section 7.5.
+
+Canonical meaning:
+
+- `SET_PREMISE`: set premise value to `VALUE`
+- `CHANGE_PREMISE`: replace premise value with `VALUE`
+
+Malformed examples:
+
+- `set premise`
+- `change premise to`
+- <code>set premise  </code>
+
+Near-canonical invalid example:
+
+- `set premise to concise`
+
+### 7.2 `ITEM`
+
+`ITEM` is a non-empty raw substring after the required prefix.
+
+Rules:
+
+- must contain at least one non-whitespace character;
+- may contain spaces and punctuation;
+- has no quote-aware or escape-aware subgrammar;
+- for `USE_ITEM`, must not contain the exact delimiter ` instead of `;
+- is rejected if the full input would otherwise constitute a compound attempt
+  under Section 7.5.
+
+Canonical meaning:
+
+- `USE_ITEM`: assert policy `<ITEM> -> use`
+- `PROHIBIT_ITEM`: assert policy `<ITEM> -> prohibit`
+- `REMOVE_POLICY`: remove policy for `<ITEM>`
+
+Malformed examples:
+
+- `use`
+- `prohibit`
+- `remove policy`
+
+### 7.3 Replacement
+
+`REPLACE_USE` is an established canonical directive family in the current
+repository contract.
+
+Repository evidence:
+
+- named grammar family in the public grammar module
+  ([src/context_compiler/grammar.py](../src/context_compiler/grammar.py));
+- documented canonical directive in README and API docs
+  ([../README.md](../README.md), [api-reference.md](api-reference.md));
+- covered as a first-class directive family in tests
+  ([../tests/test_grammar.py](../tests/test_grammar.py),
+  [../tests/test_engine.py](../tests/test_engine.py)).
+
+Canonical production:
+
+```text
+REPLACE_USE := "use" SP REPLACE_NEW " instead of " REPLACE_OLD
+```
+
+Rules:
+
+- both `REPLACE_NEW` and `REPLACE_OLD` must be non-empty;
+- the delimiter is the exact literal string ` instead of `;
+- no alternate delimiter or verb is canonical;
+- no missing-side form is canonical;
+- source and target order is fixed:
+  `use <new> instead of <old>`;
+- `REPLACE_NEW` and `REPLACE_OLD` are raw substrings with no quote-aware or
+  escape-aware parsing;
+- neither operand may contain the exact delimiter ` instead of `.
+
+Canonical parsed meaning:
+
+- remove the old policy item from active use;
+- assert the new policy item as `use`;
+- semantic validity still depends on authoritative state.
+
+Malformed examples:
+
+- `use podman instead of`
+- `use instead of docker`
+- `use  instead of docker`
+
+Invalid alternate phrasings:
+
+- `replace docker with podman`
+- `switch from docker to podman`
+- `use podman rather than docker`
+
+### 7.4 Administrative commands
+
+These productions take no operands and must match exactly:
+
+```text
+CLEAR_PREMISE  := "clear premise"
+RESET_POLICIES := "reset policies"
+CLEAR_STATE    := "clear state"
+```
+
+Malformed examples:
+
+- <code>clear premise </code>
+- `reset policies now`
+- `clear state then continue`
+
+### 7.5 Compound-attempt rejection
+
+The canonical language permits at most one directive attempt per input.
+
+An input is directive-shaped invalid input, not a canonical directive, if it
+contains more than one attempted directive clause. This includes inputs such
+as:
+
+- `use docker and prohibit peanuts`
+- `set premise vegetarian and use docker`
+- `clear state then set premise new project`
+
+This rule is lexical and grammar-level. It is not a semantic conflict rule.
+
+The grammar does not define quoting or escaping syntax to protect embedded
+directive text inside operands. Therefore, if raw input both begins like a
+directive attempt and later contains another directive attempt, the full input
+is outside the canonical language.
+
+Examples:
+
 - passthrough: `"use docker and prohibit peanuts"`
-- invalid: `use "docker and prohibit peanuts"`
-- invalid: `set premise "use docker and prohibit peanuts"`
+- directive-shaped invalid: `use "docker and prohibit peanuts"`
+- directive-shaped invalid: `set premise "use docker and prohibit peanuts"`
 
-## 9. Clarification Rules (Exhaustive)
+## 8. Parsed Meaning and Semantic Boundary
 
-The compiler returns `Decision.kind = "clarify"` only in these cases:
+This section separates successful parsing from state-dependent evaluation.
 
-1. `set premise X` when a premise already exists.
-2. `change premise to X` when no premise exists.
-3. `set premise X` when `X` is empty or whitespace-only after the prefix.
-4. `change premise to X` when `X` is empty or whitespace-only after the prefix.
-5. `use ITEM` when that item is currently `"prohibit"`.
-6. `prohibit ITEM` when that item is currently `"use"`.
-7. `use X instead of Y` when `Y` does not exist in policies (`ky not in policies`).
-8. `use X instead of Y` when `Y` is currently `"prohibit"`.
-9. `use X instead of Y` when `X` is currently `"prohibit"`.
-10. `use X instead of Y` when `Y` exists but is not `"use"` and no replacement-intent clarify rule applies.
-11. A pending clarification exists and input is not an exact confirmation token.
-12. `remove policy ITEM` when `ITEM` is empty or whitespace-only after the prefix.
-13. `use ITEM` when `ITEM` is empty or whitespace-only after the prefix.
-14. `prohibit ITEM` when `ITEM` is empty or whitespace-only after the prefix.
-15. `use X instead of Y` when replacement syntax is recognized but `X` or `Y` is empty/whitespace-only.
-16. When no pending clarification exists, an input contains more than one canonical directive start.
+### 8.1 Syntax validity
 
-Contradictions never silently overwrite state.
+Syntax validity depends only on Sections 6 and 7.
 
-### 9.1 Standardized clarify prompts
+Syntax validity does not inspect:
 
-When `Decision.kind = "clarify"`, prompt text is deterministic only for the cases listed below.
+- current premise state;
+- current policy state;
+- contradictions;
+- replacement preconditions.
 
-- `set premise X` when premise already exists (Section 9 case 1):
-  `Premise already set.`
-  `Use 'change premise to <value>' to modify it.`
-- `change premise to X` when no premise exists (Section 9 case 2):
-  `No premise is set.`
-  `Use 'set premise <value>' to define one.`
-- `set premise X` with empty/whitespace-only payload (Section 9 case 3):
-  `Premise value cannot be empty.`
-  `Use 'set premise <value>' with a non-empty value.`
-- `change premise to X` with empty/whitespace-only payload (Section 9 case 4):
-  `Premise value cannot be empty.`
-  `Use 'change premise to <value>' with a non-empty value.`
-- `use ITEM` when that item is currently `"prohibit"` (Section 9 case 5):
-  `"<item>" is currently prohibited.`
-  `Remove or replace it before using it.`
-- `prohibit ITEM` when that item is currently `"use"` (Section 9 case 6):
-  `"<item>" is currently in use.`
-  `Remove or replace it before prohibiting it.`
-- `use X instead of Y` when `Y` does not exist in policies (Section 9 case 7):
-  `"<Y>" is not currently in use.`
-  `Replacement requires an active 'use' policy.`
-- `use X instead of Y` when `Y` is currently `"prohibit"` (Section 9 case 8):
-  `"Y" is currently prohibited.`
-  `Submit explicit directive(s) to remove it or use a different item.`
-- `use X instead of Y` when `X` is currently `"prohibit"` (Section 9 case 9):
-  `"X" is currently prohibited.`
-  `Submit explicit directive(s) to remove it or use a different item.`
-- `use X instead of Y` when `Y` exists but is not `"use"` and no replacement-intent clarify rule applies (Section 9 case 10):
-  `"<Y>" is not currently in use.`
-  `Replacement requires an active 'use' policy.`
-- Pending clarification unmatched input (Section 9 case 11):
-  reuse the existing pending prompt unchanged.
-  In the current engine contract, no canonical operation produces pending
-  clarification state, so this case is reserved but unreachable.
-- `remove policy ITEM` with empty/whitespace-only payload (Section 9 case 12):
-  `Policy item cannot be empty.`
-  `Use 'remove policy <item>' with a non-empty value.`
-- `use ITEM` with empty/whitespace-only payload (Section 9 case 13):
-  `Policy item cannot be empty.`
-  `Use 'use <item>' with a non-empty value.`
-- `prohibit ITEM` with empty/whitespace-only payload (Section 9 case 14):
-  `Policy item cannot be empty.`
-  `Use 'prohibit <item>' with a non-empty value.`
-- Incomplete replacement payload (Section 9 case 15):
-  `Replacement requires both new and old items.`
-  `Use 'use <new item> instead of <old item>' with non-empty values.`
-- Compound directive rejection when no pending clarification exists (Section 9 case 16):
-  `Multiple directives are not supported in one input.`
-  `Submit each directive separately.`
+### 8.2 Semantic evaluation
 
-## 10. Pending Clarification
+Only a successfully parsed canonical directive proceeds to semantic evaluation.
 
-Normative eligibility rule:
+Semantic evaluation may produce:
 
-- Pending confirmation is reserved for deterministic continuation of canonical
-  operations already established by prior core decisions.
-- Core must not use pending confirmation to authorize:
-  - near-miss repair
-  - malformed-input recovery
-  - synthesized replacement directives
-  - alternate human phrasing interpretation
-  - semantic rewrites
-  - materially different directives than the one originally submitted
-- When an input needs non-canonical interpretation, core does not define that
-  processing. Core operates only on canonical directives submitted to it.
+- apply
+- no-op update
+- `clarify`
 
-Internal structure:
+`clarify` is reserved for state-dependent conflicts or precondition failures of
+an already parsed canonical directive.
 
-```python
-pending = {
-    "proposed_event": ...,
-    "prompt": ...
-}
-```
+### 8.3 Family-by-family semantic boundary
 
-While pending exists:
+- `set premise <value>`
+  - syntax: canonical only if Section 7.1 matches exactly
+  - semantic precondition: premise is currently `null`
+  - possible outcomes: apply, `clarify`
 
-- Directive parsing is suspended.
-- Only confirmation tokens are processed.
-- Accepted affirmative tokens: `yes`, `yes please`, `yep`, `yeah`, `sure`, `ok`, `okay`
-- Accepted negative tokens: `no`, `nope`, `no thanks`
+- `change premise to <value>`
+  - syntax: canonical only if Section 7.1 matches exactly
+  - semantic precondition: premise is currently non-`null`
+  - possible outcomes: apply, `clarify`
 
-Confirmation token normalization:
+- `use <item>`
+  - syntax: canonical only if Section 7.2 matches exactly
+  - semantic precondition: item is not currently prohibited
+  - possible outcomes: apply, no-op update, `clarify`
 
-1. Trim surrounding whitespace
-2. Lowercase
-3. Collapse internal whitespace
-4. Remove trailing punctuation: `. , ! ?`
+- `prohibit <item>`
+  - syntax: canonical only if Section 7.2 matches exactly
+  - semantic precondition: item is not currently in use
+  - possible outcomes: apply, no-op update, `clarify`
 
-Resolution:
+- `remove policy <item>`
+  - syntax: canonical only if Section 7.2 matches exactly
+  - semantic precondition: none
+  - possible outcomes: apply, no-op update
 
-- Affirmative token: apply pending event, clear pending, return `update`
-- Negative token: discard pending event, clear pending, apply no mutation, return `update` with unchanged state
-- Any other input: remain in `clarify`, no mutation, and keep the existing pending prompt
+- `use <new> instead of <old>`
+  - syntax: canonical only if Section 7.3 matches exactly
+  - semantic preconditions: replacement-specific state rules
+  - possible outcomes: apply, no-op update, `clarify`
 
-Current engine contract note:
+- `clear premise`, `reset policies`, `clear state`
+  - syntax: exact literal only
+  - semantic precondition: none
+  - possible outcomes: apply, no-op update
 
-- The current engine establishes no pending clarification state for any
-  canonical directive family.
-- Section 10 remains the reserved core boundary for future canonical
-  continuation semantics and checkpoint compatibility.
-- Non-null `pending` checkpoint payloads are not currently produced by core.
+Malformed syntax never reaches these semantic paths.
 
-## 11. Context Serialization Contract
+## 9. State-Dependent Semantics
 
-The compiler outputs structured state only; the host formats prompts.
+This section summarizes the semantic boundary relevant to grammar.
 
-Example:
+### 9.1 Policy operand identity
 
-```json
-{
-  "premise": "Use concise, formal language.",
-  "policies": {
-    "docker": "prohibit",
-    "pytest": "use"
-  },
-  "version": 2
-}
-```
+For policy-bearing directives, parsed operand text is preserved at parse time,
+but semantic evaluation does not compare policy operands by exact submitted
+spelling.
 
-JSON persistence boundary:
+For these directive families:
 
-- `engine.export_json()` serializes authoritative state.
-- `engine.import_json(payload)` validates/canonicalizes payload and replaces active state.
-- Policy keys are normalized during import validation/canonicalization.
-- If a policy key normalizes to `""`, the payload is invalid and must be rejected.
-- This aligns import-time state acceptance with directive-time behavior, where empty policy items are invalid.
+- `use <item>`
+- `prohibit <item>`
+- `remove policy <item>`
+- `use <new> instead of <old>`
 
-Checkpoint boundary:
+policy operand identity is determined by the canonical policy key produced by
+the storage normalization rules in Section 10.1.
 
-- `engine.export_checkpoint()` exports a checkpoint object contract.
-- `engine.import_checkpoint(payload)` validates/restores a checkpoint object and returns `None`.
-- `engine.export_checkpoint_json()` and `engine.import_checkpoint_json(payload)` are JSON string wrappers around the object form.
-- Checkpoint includes both authoritative state and pending continuation state.
+For policy state, authoritative storage uses the canonical policy identity key
+rather than the original submitted operand spelling.
 
-Checkpoint object contract:
+Observable consequences:
 
-```json
-{
-  "checkpoint_version": 1,
-  "authoritative_state": {
-    "premise": "Use concise, formal language.",
-    "policies": {
-      "docker": "prohibit",
-      "pytest": "use"
-    },
-    "version": 2
-  },
-  "pending": null
-}
-```
+- policy comparison is case-insensitive;
+- repeated internal whitespace does not create a distinct policy identity;
+- equivalent apostrophe characters normalized by Section 10.1 do not create a
+  distinct policy identity.
 
-Checkpoint semantics:
+Semantic checks that depend on policy identity include:
 
-- `authoritative_state` uses the same validation/canonicalization boundary as `export_json` / `import_json`.
-- `pending` captures confirmation-required continuation for supported canonical
-  operations only.
-- `pending` is `null` when there is no outstanding continuation.
-- In the current engine contract, `pending` is always `null`.
-- Restore is all-or-nothing: invalid checkpoint payloads raise and no partial state restore occurs.
-- Continuation behavior is deterministic after restore (same confirmation token handling and resolution outcomes as live pending state).
-- `checkpoint_version` is independent of authoritative state `version`; it must be bumped when checkpoint contract shape changes (especially `pending`).
+- contradiction checks for `use` vs `prohibit`;
+- idempotence checks for repeated `use` or `prohibit`;
+- lookup and removal for `remove policy`;
+- source/target identity comparison and state lookup for replacement.
 
-## 12. Invariants
+This is a semantic identity rule, not a parsing rule.
 
-1. State changes only from valid canonical directive transitions or pending-confirmation acceptance for canonical operations when such operations are supported by the active engine contract.
+### 9.2 Premise lifecycle
+
+- `set premise X`
+  - apply when no premise exists
+  - `clarify` when a premise already exists
+
+- `change premise to X`
+  - apply when a premise exists
+  - `clarify` when no premise exists
+
+Premise lifecycle is slot-based, not operand-identity based.
+
+This specification does not define a policy-style identity key for premise
+values.
+
+### 9.3 Policy lifecycle
+
+Let `k` be the policy identity key for `ITEM` under Section 10.1.
+
+- `use ITEM`
+  - apply when `k` is absent
+  - no-op update when `policies[k] == "use"`
+  - `clarify` when `policies[k] == "prohibit"`
+
+- `prohibit ITEM`
+  - apply when `k` is absent
+  - no-op update when `policies[k] == "prohibit"`
+  - `clarify` when `policies[k] == "use"`
+
+- `remove policy ITEM`
+  - remove `k` when present
+  - no-op update when absent
+
+### 9.4 Replacement
+
+Let `kx` be the policy identity key for `REPLACE_NEW` under Section 10.1 and
+`ky` be the policy identity key for `REPLACE_OLD` under Section 10.1.
+
+- replacement parses independently of state;
+- semantic evaluation may still reject the operation with `clarify`;
+- replacement is not a repair mechanism for malformed input;
+- replacement is not a natural-language correction surface.
+
+The replacement-specific `clarify` cases are state-dependent and belong to
+semantic evaluation, not parsing.
+
+### 9.5 Clarify rule
+
+Core returns `clarify` only after:
+
+1. canonical parsing succeeds; and
+2. semantic evaluation finds a state conflict or state-dependent precondition
+   failure.
+
+Malformed, incomplete, near-canonical, and compound directive-shaped inputs are
+outside this category.
+
+## 10. Storage Normalization
+
+Normalization below applies after successful parsing, during storage or lookup.
+It is not part of syntax repair.
+
+### 10.1 Policy identity
+
+Policy-bearing directives derive a canonical policy identity for storage,
+lookup, and semantic comparison.
+
+Policy identity currently uses:
+
+- Unicode NFKC normalization: yes
+- apostrophe-character normalization (for example `’` to `'`): yes
+- case folding: yes
+- internal whitespace collapse: yes
+- article removal: no
+- spelling correction: no
+- contraction expansion: no
+- rewriting `dont` to `don't`: no
+- synonym matching: no
+- natural-language equivalence: no
+
+The `yes` entries above are representation canonicalization. They do not
+authorize natural-language interpretation of different wordings as the same
+policy item.
+
+If a future version intentionally introduces broader policy-identity semantics,
+that behavior must be specified explicitly.
+
+Repository drift note:
+
+- the current runtime implementation still performs additional item-key
+  rewrites beyond the normative boundary above, including leading-article
+  removal and `dont` to `don't` rewriting;
+- those behaviors are current implementation details and test-backed runtime
+  behavior, but they are not frozen here as the intended core semantic contract.
+
+### 10.2 Premise-value sanitation
+
+Premise values are stored as semantically opaque strings with
+representation-level sanitation only:
+
+1. Unicode normalization
+2. apostrophe normalization
+3. whitespace collapse
+
+No stemming, synonym mapping, ontology, or semantic rewriting is allowed.
+
+## 11. Non-Current Pending Confirmation Language
+
+The current intended core grammar contract does not add or rely on pending
+confirmation behavior.
+
+Repository code may still expose checkpoint fields or helper APIs that mention
+pending continuation for compatibility reasons, but pending confirmation is not
+part of the current directive grammar contract defined here.
+
+This specification therefore does not define:
+
+- confirmation tokens as grammar input;
+- pending-only parsing mode;
+- pending-only semantic continuation rules.
+
+If future work reintroduces reachable pending continuation semantics, that
+behavior must be specified separately and must not redefine malformed syntax as
+confirmable canonical input.
+
+## 12. Normative Example Matrix
+
+These examples are normative illustrations of the contract and are suitable
+source material for later conformance fixtures.
+
+| Input | Classification | Parsed operation | Semantic note |
+| --- | --- | --- | --- |
+| `set premise concise replies` | canonical directive | set premise | may apply or clarify depending on premise state |
+| `change premise to concise replies` | canonical directive | change premise | may apply or clarify depending on premise state |
+| `use docker` | canonical directive | use item | may apply, no-op, or clarify |
+| `use Docker` | canonical directive | use item | same policy identity as `use docker` |
+| `prohibit Docker` after `use docker` | canonical directive | prohibit item | same policy identity triggers contradiction |
+| `use don’t` | canonical directive | use item | may share policy identity with `use don't` as representation normalization |
+| `use don't` | canonical directive | use item | apostrophe-character variants do not require a distinct policy identity |
+| `prohibit peanuts` | canonical directive | prohibit item | may apply, no-op, or clarify |
+| `remove policy docker` | canonical directive | remove policy | may apply or no-op |
+| `use podman instead of docker` | canonical directive | replace use | may apply, no-op, or clarify |
+| `clear premise` | canonical directive | clear premise | may apply or no-op |
+| `reset policies` | canonical directive | reset policies | may apply or no-op |
+| `clear state` | canonical directive | clear state | may apply or no-op |
+| `hello there` | passthrough | none | not directive-shaped |
+| `Use docker` | canonical directive | use item | keyword case is normalized |
+| `"use docker"` | passthrough | none | quoted wrapper has no directive semantics |
+| `allow docker` | passthrough | none | alias is outside canonical grammar |
+| `use\tdocker` | canonical directive | use item | tab normalizes to canonical separator |
+| <code> use docker </code> | canonical directive | use item | boundary ASCII whitespace is trimmed |
+| `Use    Docker` | canonical directive | use item | keyword and separator presentation normalize; operand text remains `Docker` |
+| `use dont` | canonical directive | use item | semantic equivalence to `use don't` is not guaranteed by this specification |
+| `use the docker instead of docker` | canonical directive | replace use | semantic equivalence to `docker` is not guaranteed by this specification |
+| `set premise` | directive-shaped invalid input | none | incomplete |
+| `change premise to` | directive-shaped invalid input | none | incomplete |
+| `use` | directive-shaped invalid input | none | incomplete |
+| `prohibit` | directive-shaped invalid input | none | incomplete |
+| `remove policy` | directive-shaped invalid input | none | incomplete |
+| `use podman instead of` | directive-shaped invalid input | none | incomplete replacement |
+| `use instead of docker` | directive-shaped invalid input | none | incomplete replacement |
+| `set premise to concise` | directive-shaped invalid input | none | unexpected keyword is not removed |
+| `use docker and prohibit peanuts` | directive-shaped invalid input | none | compound attempt |
+| `clear state then set premise project` | directive-shaped invalid input | none | compound attempt |
+| `use "docker and prohibit peanuts"` | directive-shaped invalid input | none | quotes do not protect embedded directive text |
+| `set premise "use docker and prohibit peanuts"` | directive-shaped invalid input | none | quotes do not protect embedded directive text |
+
+## 13. Invariants
+
+1. State changes only from canonical directives that pass semantic evaluation.
 2. Same input sequence yields identical state and decisions.
-3. LLM output never mutates state.
-4. No mutation occurs when returning `clarify`.
-5. Premise updates are explicit and lifecycle-gated (`set` vs `change`).
-6. Policy state is per-item authoritative (`"use" | "prohibit"`), never ordered/additive by history.
-7. Contradictions always clarify; they never overwrite.
-8. Premise can be explicitly cleared via `clear premise` (`premise = null`).
-9. A single input never applies more than one canonical directive.
-10. Core does not repair non-canonical human input into canonical directives.
+3. LLM output never mutates authoritative state.
+4. `clarify` is semantic, not syntactic.
+5. A single input never applies more than one canonical directive.
+6. Core does not repair non-canonical human input into canonical directives.
 
-## 13. Non-Goals
+## 14. Non-Goals
 
-Not implemented:
+Not part of the current core grammar:
 
-- `has` / `have` parsing
-- `is`-parsing
-- entity modeling
-- ordered policies
-- dict+history hybrids
-- natural-language understanding inside the compiler
-- cross-session memory
-- ontology reasoning
-- agent planning
-- output validation
-
-Non-canonical input interpretation is intentionally excluded from core.
-
-## End
-
-Version 0.5 removes M1 recency and additive-policy semantics in favor of
-explicit premise lifecycle and authoritative per-item policy state.
+- natural-language aliases;
+- malformed-input recovery;
+- implicit operands;
+- quoting or escaping syntax;
+- multiple directives in one input;
+- entity modeling;
+- ordered policy history;
+- pending-confirmation grammar;
+- readonly or locked-state modifiers.
