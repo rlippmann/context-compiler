@@ -20,6 +20,8 @@ Core boundary:
 - core consumes canonical directives
 - canonical directive validation remains in core
 - semantic validation and authoritative state transitions remain in core
+- pending continuation, when supported, is created only by semantic evaluation
+  of canonical directives
 - human-facing normalization, malformed-input recovery, and intent drafting are
   outside the core contract
 - core does not convert failed canonical operations into different directives
@@ -100,10 +102,21 @@ traversal unless you are working at an explicit serialization boundary.
 
 ### `engine.has_pending_clarification()`
 
-Return whether a confirmation-required clarification is currently pending.
+Return whether a confirmation-required semantic continuation is currently
+pending.
 
-In the current engine contract, this returns `False` because no canonical
-operation currently produces pending clarification state.
+Contract boundary:
+
+- pending continuation is runtime state, not grammar
+- pending continuation must never arise from malformed or non-canonical input
+- pending continuation, when supported, comes only from semantic evaluation of
+  an already parsed canonical directive
+
+Current implementation note:
+
+- the updated specification allows supported pending continuation semantics
+- the current runtime implementation may still return `False` for all inputs
+  until the continuation behavior is restored
 
 Typical use:
 
@@ -212,9 +225,9 @@ Export a checkpoint as canonical JSON text.
 
 Validate and restore a checkpoint from JSON text.
 
-Use checkpoint APIs when you need a versioned engine-session snapshot. Today,
-that means authoritative state plus a reserved `pending` field for canonical
-continuation compatibility.
+Use checkpoint APIs when you need a versioned engine-session snapshot. The
+contract shape is authoritative state plus pending semantic continuation state
+when the active engine contract supports it.
 
 Checkpoint object shape:
 
@@ -237,9 +250,10 @@ At this boundary, direct key access is expected.
 API-level contract notes:
 
 - `pending` is `null` when no continuation is waiting for confirmation
-- `pending` captures confirmation-required continuation for canonical
+- `pending` captures confirmation-required semantic continuation for canonical
   operations supported by the active engine contract
-- in the current engine contract, `pending` is always `null`
+- `pending` is never a syntax-repair buffer and must not encode malformed-input
+  recovery
 - non-canonical repair state is not part of the intended core contract
 - imported policy keys are normalized during `import_json(...)` and checkpoint
   authoritative-state restore
@@ -250,6 +264,12 @@ API-level contract notes:
   partial restore occurs
 - `checkpoint_version` is independent of authoritative state `version` and must
   be bumped when checkpoint contract shape changes, especially `pending`
+
+Current implementation note:
+
+- the repository runtime currently exports `pending: null`
+- that implementation status does not narrow the intended checkpoint contract
+  for restored semantic continuation behavior
 
 Typical use cases:
 

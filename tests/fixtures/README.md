@@ -53,7 +53,7 @@ Then asserts:
 
 ### Prelude
 
-`prelude` simulates prior user inputs to reach states that are not representable via `initial_state` (for example, pending clarification).
+`prelude` simulates prior user inputs to reach states that are not representable via `initial_state` (for example, pending semantic continuation when the active engine contract supports it).
 
 ## State JSON fixtures
 
@@ -69,7 +69,8 @@ For [`conformance/checkpoint/`](conformance/checkpoint/):
 
 Portable checkpoint import contract coverage for
 `engine.import_checkpoint(...)`, including deterministic validation/error
-boundaries, atomic failure behavior, and pending-clarification clearing semantics.
+boundaries, atomic failure behavior, and pending semantic-continuation restore
+and clearing semantics.
 
 ## Controller fixtures
 
@@ -104,6 +105,19 @@ They validate:
 * clarification prompt behavior
 * checkpoint export parity against expected snapshots
 * continuation state restoration from checkpoints
+
+Planned conformance coverage for the restored continuation contract should
+include:
+
+* incomplete directives do not create pending continuation
+* compound directives do not create pending continuation
+* malformed replacement syntax does not create pending continuation
+* valid canonical directives that clarify without pending continuation
+* valid canonical directives that clarify and create pending continuation
+* checkpoint round-trip of supported pending continuation
+* deterministic `yes` resolution of the exact blocked transition
+* deterministic `no` rejection that clears pending continuation
+* deterministic handling of unrelated input while pending
 
 ## Test runner
 

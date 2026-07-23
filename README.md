@@ -6,7 +6,7 @@
 
 Context Compiler is a deterministic conversational state authority for LLM applications.
 It handles canonical directive execution, semantic validation, deterministic
-clarify decisions, checkpoint restore, and structured authoritative state for
+clarify decisions, semantic continuation checkpoints, and structured authoritative state for
 the host.
 
 ## What Context Compiler provides
@@ -15,6 +15,7 @@ Context Compiler gives hosts fixed state rules:
 
 - handle canonical explicit state changes with deterministic rules
 - clarification instead of silent overwrite for blocked/ambiguous changes
+- preserve supported pending continuation when explicit confirmation is required
 - export and import checkpoints to restore saved state in a versioned engine snapshot
 - produce structured authoritative state for downstream host decisions
 
@@ -55,6 +56,15 @@ instead of relying on memory of earlier conversation text.
 
 Context Compiler makes state-change rules explicit so behavior stays repeatable.
 
+The architecture has three layers:
+
+- syntax classification decides whether input is a canonical directive, invalid
+  directive-shaped syntax, or ordinary passthrough
+- semantic evaluation decides whether a canonical directive updates state,
+  clarifies, or no-ops
+- semantic continuation optionally preserves a deterministic blocked transition
+  that needs explicit `yes` / `no`
+
 ### Explicit directive
 
 ```text
@@ -71,7 +81,7 @@ use docker and prohibit peanuts
 ```
 
 - Without an authority layer: host/model behavior varies
-- Context Compiler: returns `clarify`, keeps authoritative state unchanged, and asks for separate directives
+- Context Compiler: treats this as invalid directive-shaped syntax, keeps authoritative state unchanged, and does not create pending continuation
 
 ### State-dependent operation
 
@@ -182,7 +192,7 @@ Preload options keep authoritative state transport separate from checkpoint sess
 - `--initial-state-json` / `--initial-state-file` load saved state
   (via exported state JSON).
 - `--initial-checkpoint-json` / `--initial-checkpoint-file` restore the full
-  checkpoint envelope (saved state plus reserved continuation field).
+  checkpoint envelope (saved state plus continuation field when supported by the active engine contract).
 
 REPL commands (controller layer, not engine directives):
 
@@ -206,7 +216,7 @@ Preload options keep authoritative state transport separate from checkpoint sess
 - `--initial-state-json` / `--initial-state-file` load saved state
   (via exported state JSON).
 - `--initial-checkpoint-json` / `--initial-checkpoint-file` restore the full
-  checkpoint envelope (saved state plus reserved continuation field).
+  checkpoint envelope (saved state plus continuation field when supported by the active engine contract).
 
 ## Installation
 
@@ -360,7 +370,7 @@ the compiler.
 - `export_json()` / `import_json()` transport **authoritative state only**
 - checkpoint APIs transport a **versioned engine snapshot**:
   - authoritative state
-  - reserved `pending` field for canonical continuation compatibility
+  - `pending` semantic continuation state when supported by the active engine contract
 
 Use state JSON when you only need authoritative state. Use checkpoint APIs when
 you want the stable checkpoint envelope across process or request boundaries.
@@ -404,6 +414,10 @@ Grammar invariant: one input may contain at most one canonical directive.
 Directive-shaped invalid input is outside the canonical language, and
 `clarify` is reserved for canonical directives that later fail semantic
 evaluation against authoritative state.
+
+Pending continuation is a separate runtime layer. It may exist only after a
+canonical directive reaches a supported semantic `clarify` case. It never
+repairs malformed syntax or reinterprets non-canonical input as a directive.
 
 Examples:
 
@@ -487,6 +501,7 @@ overwriting state.
 - Identical input sequences produce identical compiler state.
 - Model responses never modify compiler state.
 - Ambiguous directives trigger clarification instead of changing state.
+- Syntax errors never create pending continuation.
 
 Behavioral tests and Hypothesis-based property tests verify these invariants.
 
