@@ -34,9 +34,11 @@ Later implementation and conformance work must follow this document.
 | Policy | Per-item authoritative state: `"use"` or `"prohibit"` |
 | State | Current authoritative snapshot |
 | Semantic evaluation | State-dependent evaluation that occurs only after a canonical directive parses successfully |
+| Pending continuation | Runtime state representing a deterministic blocked semantic transition awaiting explicit user authorization |
 | Decision | Compiler instruction returned to the host |
 
 `clarify` is a semantic outcome, not a parsing category.
+Pending continuation is a semantic runtime concept, not a parsing category.
 
 ## 2. System Responsibilities
 
@@ -81,6 +83,10 @@ Semantics:
 This specification does not add a new runtime `Decision.kind` for
 directive-shaped invalid input. Section 6 defines that classification
 normatively for future parser and conformance work.
+
+This specification does not define pending continuation as a grammar feature.
+Pending continuation, when supported by the engine contract, is a runtime
+consequence of semantic evaluation after successful canonical parsing.
 
 ## 5. Engine/Host State Contract
 
@@ -416,6 +422,11 @@ Semantic evaluation may produce:
 `clarify` is reserved for state-dependent conflicts or precondition failures of
 an already parsed canonical directive.
 
+Some semantic `clarify` outcomes may additionally establish pending
+continuation runtime state. That state represents a deterministic blocked
+transition that core has already identified but must not apply without explicit
+user authorization.
+
 ### 8.3 Family-by-family semantic boundary
 
 - `set premise <value>`
@@ -551,12 +562,62 @@ Core returns `clarify` only after:
 Malformed, incomplete, near-canonical, and compound directive-shaped inputs are
 outside this category.
 
-## 10. Storage Normalization
+## 10. Semantic Continuation
+
+Pending continuation belongs to runtime semantics, not grammar.
+
+It may exist only after:
+
+1. lexical normalization and classification succeed under Sections 6 and 7;
+2. canonical parsing succeeds; and
+3. semantic evaluation reaches a supported deterministic blocked transition.
+
+Pending continuation must never:
+
+- repair malformed syntax;
+- reinterpret non-canonical input as a directive;
+- guess missing operands;
+- authorize multiple directive effects from one input;
+- convert a semantic conflict into a broader mutation than the parsed
+  canonical directive justifies.
+
+### 10.1 Supported contract shape
+
+When the active engine contract supports pending continuation, it is limited to
+semantic `clarify` cases where:
+
+- the triggering input was already a canonical directive;
+- the blocked transition is deterministic;
+- accepting `yes` authorizes exactly one known continuation outcome;
+- rejecting with `no` leaves authoritative state unchanged and clears the
+  pending continuation.
+
+Unrelated input while pending must behave deterministically under the active
+engine contract. At minimum, it must not be reinterpreted as retroactive repair
+of the original non-applied operation.
+
+### 10.2 Replacement-family boundary
+
+`use <new> instead of <old>` remains a canonical directive family, but pending
+continuation is narrower than replacement syntax itself.
+
+This specification preserves the grammar hardening established after `0.8.x`:
+
+- incomplete replacement forms are directive-shaped invalid input;
+- malformed replacement forms are never confirmable;
+- compound replacement-like input is never decomposed into multiple operations.
+
+Within semantic evaluation, pending continuation is intended only for
+deterministic blocked transitions that do not expand authority beyond the
+parsed canonical operation. Historical replacement clarifications that would
+authorize broader policy mutation are not implicitly restored by this document.
+
+## 11. Storage Normalization
 
 Normalization below applies after successful parsing, during storage or lookup.
 It is not part of syntax repair.
 
-### 10.1 Policy identity
+### 11.1 Policy identity
 
 Policy-bearing directives derive a canonical policy identity for storage,
 lookup, and semantic comparison.
@@ -589,7 +650,7 @@ Repository drift note:
 - those behaviors are current implementation details and test-backed runtime
   behavior, but they are not frozen here as the intended core semantic contract.
 
-### 10.2 Premise-value sanitation
+### 11.2 Premise-value sanitation
 
 Premise values are stored as semantically opaque strings with
 representation-level sanitation only:
@@ -600,26 +661,21 @@ representation-level sanitation only:
 
 No stemming, synonym mapping, ontology, or semantic rewriting is allowed.
 
-## 11. Non-Current Pending Confirmation Language
+## 12. Confirmation Boundary
 
-The current intended core grammar contract does not add or rely on pending
-confirmation behavior.
+Confirmation tokens are not part of directive grammar classification.
 
-Repository code may still expose checkpoint fields or helper APIs that mention
-pending continuation for compatibility reasons, but pending confirmation is not
-part of the current directive grammar contract defined here.
+When an engine implementation supports pending continuation, confirmation
+handling is a runtime continuation rule layered on top of semantic evaluation.
+It must not redefine malformed syntax as confirmable canonical input.
 
 This specification therefore does not define:
 
-- confirmation tokens as grammar input;
-- pending-only parsing mode;
-- pending-only semantic continuation rules.
+- confirmation tokens as canonical directives;
+- pending-only grammar productions;
+- any syntax-repair path that becomes confirmable through `yes` / `no`.
 
-If future work reintroduces reachable pending continuation semantics, that
-behavior must be specified separately and must not redefine malformed syntax as
-confirmable canonical input.
-
-## 12. Normative Example Matrix
+## 13. Normative Example Matrix
 
 These examples are normative illustrations of the contract and are suitable
 source material for later conformance fixtures.
@@ -636,6 +692,7 @@ source material for later conformance fixtures.
 | `prohibit peanuts` | canonical directive | prohibit item | may apply, no-op, or clarify |
 | `remove policy docker` | canonical directive | remove policy | may apply or no-op |
 | `use podman instead of docker` | canonical directive | replace use | may apply, no-op, or clarify |
+| `use podman instead of docker` when semantic rules require explicit confirmation for a deterministic blocked transition | canonical directive | replace use | may return `clarify` and establish pending continuation under the active engine contract |
 | `clear premise` | canonical directive | clear premise | may apply or no-op |
 | `reset policies` | canonical directive | reset policies | may apply or no-op |
 | `clear state` | canonical directive | clear state | may apply or no-op |
@@ -660,8 +717,10 @@ source material for later conformance fixtures.
 | `clear state then set premise project` | directive-shaped invalid input | none | compound attempt |
 | `use "docker and prohibit peanuts"` | directive-shaped invalid input | none | quotes do not protect embedded directive text |
 | `set premise "use docker and prohibit peanuts"` | directive-shaped invalid input | none | quotes do not protect embedded directive text |
+| `yes` with no pending continuation | passthrough | none | confirmation text has no standalone directive grammar meaning |
+| malformed replacement followed later by `yes` | directive-shaped invalid input, then passthrough | none | invalid syntax never creates confirmable pending state |
 
-## 13. Invariants
+## 14. Invariants
 
 1. State changes only from canonical directives that pass semantic evaluation.
 2. Same input sequence yields identical state and decisions.
@@ -669,8 +728,12 @@ source material for later conformance fixtures.
 4. `clarify` is semantic, not syntactic.
 5. A single input never applies more than one canonical directive.
 6. Core does not repair non-canonical human input into canonical directives.
+7. Pending continuation, when supported, originates only from successful
+   canonical parsing followed by semantic evaluation.
+8. Syntax errors never create pending continuation state.
+9. Pending continuation never authorizes malformed-input repair.
 
-## 14. Non-Goals
+## 15. Non-Goals
 
 Not part of the current core grammar:
 
@@ -679,7 +742,7 @@ Not part of the current core grammar:
 - implicit operands;
 - quoting or escaping syntax;
 - multiple directives in one input;
+- pending-confirmation grammar;
 - entity modeling;
 - ordered policy history;
-- pending-confirmation grammar;
 - readonly or locked-state modifiers.

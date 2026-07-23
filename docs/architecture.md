@@ -29,9 +29,22 @@ Boundary:
 - core does not own human-facing normalization, malformed-input recovery, or
   intent inference as a general responsibility
 - core does not convert failed canonical operations into different directives
-- pending yes/no confirmation is reserved for deterministic continuation of
+- core separates three layers:
+  - syntax classification
+  - semantic evaluation
+  - semantic continuation
+- pending yes/no confirmation belongs only to semantic continuation of
   canonical operations already established by core
-- the current engine contract produces no live pending continuation state
+- pending continuation is runtime state, not grammar
+- malformed or non-canonical input must never create pending continuation
+
+Current repository note:
+
+- the intended contract allows semantic pending continuation for supported
+  deterministic blocked transitions
+- the current runtime implementation does not yet fully restore that contract
+  and should be treated as lagging the updated specification until runtime work
+  lands
 
 ## Acquisition Layer
 
