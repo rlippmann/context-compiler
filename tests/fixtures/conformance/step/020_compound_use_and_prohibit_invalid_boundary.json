@@ -1,12 +1,12 @@
 {
-  "id": "step_compound_use_punctuation_prohibit_clarify",
+  "id": "step_compound_use_and_prohibit_invalid_boundary",
   "kind": "step",
   "initial_state": {
     "premise": null,
     "policies": {},
     "version": 2
   },
-  "input": "use docker. prohibit peanuts",
+  "input": "use docker and prohibit peanuts",
   "expected": {
     "decision": {
       "kind": "passthrough",

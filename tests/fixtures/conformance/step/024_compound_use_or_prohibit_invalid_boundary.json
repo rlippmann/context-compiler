@@ -1,14 +1,12 @@
 {
-  "id": "step_compound_clear_state_then_set_premise_clarify",
+  "id": "step_compound_use_or_prohibit_invalid_boundary",
   "kind": "step",
   "initial_state": {
-    "premise": "baseline",
-    "policies": {
-      "docker": "use"
-    },
+    "premise": null,
+    "policies": {},
     "version": 2
   },
-  "input": "clear state then set premise project",
+  "input": "use docker or prohibit peanuts",
   "expected": {
     "decision": {
       "kind": "passthrough",
@@ -16,10 +14,8 @@
       "state": null
     },
     "state": {
-      "premise": "baseline",
-      "policies": {
-        "docker": "use"
-      },
+      "premise": null,
+      "policies": {},
       "version": 2
     },
     "has_pending_clarification": false

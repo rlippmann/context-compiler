@@ -1,12 +1,14 @@
 {
-  "id": "step_compound_use_or_prohibit_clarify",
+  "id": "step_compound_remove_policy_and_prohibit_invalid_boundary",
   "kind": "step",
   "initial_state": {
     "premise": null,
-    "policies": {},
+    "policies": {
+      "docker": "use"
+    },
     "version": 2
   },
-  "input": "use docker or prohibit peanuts",
+  "input": "remove policy docker and prohibit peanuts",
   "expected": {
     "decision": {
       "kind": "passthrough",
@@ -15,7 +17,9 @@
     },
     "state": {
       "premise": null,
-      "policies": {},
+      "policies": {
+        "docker": "use"
+      },
       "version": 2
     },
     "has_pending_clarification": false
