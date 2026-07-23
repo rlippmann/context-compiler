@@ -1,0 +1,11 @@
+{
+  "id": "grammar_validate_invalid_replacement_missing_new_rejected",
+  "kind": "grammar",
+  "action": {
+    "fn": "validate_directive",
+    "text": "use instead of docker"
+  },
+  "expected": {
+    "validated": null
+  }
+}

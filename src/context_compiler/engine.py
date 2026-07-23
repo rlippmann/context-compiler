@@ -16,6 +16,8 @@ from .const import (
     STATE_PREMISE,
     STATE_VERSION,
 )
+from .grammar import DirectiveKind
+from .grammar import _parse_directive as _parse_canonical_directive
 
 PolicyValue = Literal["use", "prohibit"]
 
@@ -332,67 +334,31 @@ class Engine:
 
 
 def _parse_directive(user_input: str) -> Action | None:
-    if _contains_compound_directive(user_input):
-        return Action(kind="compound_directive_invalid")
-
-    if user_input == _CLEAR_PREMISE:
-        return Action(kind="clear_premise")
-    if user_input == _RESET_POLICIES:
-        return Action(kind="reset_policies")
-    if user_input == _CLEAR_STATE:
-        return Action(kind="clear_state")
-
-    if user_input == _REMOVE_POLICY_BASE:
-        return Action(kind="remove_policy_item", item="")
-    remove_policy_prefix = f"{_REMOVE_POLICY_BASE} "
-    if user_input.startswith(remove_policy_prefix):
-        return Action(kind="remove_policy_item", item=user_input[len(remove_policy_prefix) :])
-
-    if (
-        user_input.startswith(_CHANGE_PREMISE_PREFIX)
-        and not user_input.startswith(f"{_CHANGE_PREMISE_BASE} ")
-        and user_input != _CHANGE_PREMISE_BASE
-    ):
+    parsed = _parse_canonical_directive(user_input)
+    if parsed is None:
         return None
 
-    if user_input == _SET_PREMISE_BASE:
-        return Action(kind="set_premise", value="")
-    set_prefix = f"{_SET_PREMISE_BASE} "
-    if user_input.startswith(set_prefix):
-        value = user_input[len(set_prefix) :]
-        return Action(kind="set_premise", value=value)
-
-    if user_input == _CHANGE_PREMISE_BASE:
-        return Action(kind="change_premise", value="")
-    change_prefix = f"{_CHANGE_PREMISE_BASE} "
-    if user_input.startswith(change_prefix):
-        value = user_input[len(change_prefix) :]
-        return Action(kind="change_premise", value=value)
-
-    if user_input == "use":
-        return Action(kind="use_item", item="")
-
-    if user_input.startswith(_USE_PREFIX):
-        payload = user_input[len(_USE_PREFIX) :]
-        left, sep, right = payload.partition(" instead of ")
-        if sep:
-            if left.strip() != "" and right.strip() != "":
-                return Action(kind="replace_use", new_item=left, old_item=right)
-            return Action(kind="replace_use_incomplete")
-        if payload.strip() == "":
-            return Action(kind="use_item", item="")
-        if payload.startswith("instead of ") or payload.endswith(" instead of"):
-            return Action(kind="replace_use_incomplete")
-        return Action(kind="use_item", item=payload)
-
-    if user_input == _PROHIBIT_BASE:
-        return Action(kind="prohibit_item", item="")
-
-    if user_input.startswith(_PROHIBIT_PREFIX):
-        item = user_input[len(_PROHIBIT_PREFIX) :]
-        return Action(kind="prohibit_item", item=item)
-
-    return None
+    if parsed.kind is DirectiveKind.SET_PREMISE:
+        return Action(kind="set_premise", value=parsed.operands["value"])
+    if parsed.kind is DirectiveKind.CHANGE_PREMISE:
+        return Action(kind="change_premise", value=parsed.operands["value"])
+    if parsed.kind is DirectiveKind.USE_ITEM:
+        return Action(kind="use_item", item=parsed.operands["item"])
+    if parsed.kind is DirectiveKind.PROHIBIT_ITEM:
+        return Action(kind="prohibit_item", item=parsed.operands["item"])
+    if parsed.kind is DirectiveKind.REMOVE_POLICY:
+        return Action(kind="remove_policy_item", item=parsed.operands["item"])
+    if parsed.kind is DirectiveKind.REPLACE_USE:
+        return Action(
+            kind="replace_use",
+            new_item=parsed.operands["new_item"],
+            old_item=parsed.operands["old_item"],
+        )
+    if parsed.kind is DirectiveKind.CLEAR_PREMISE:
+        return Action(kind="clear_premise")
+    if parsed.kind is DirectiveKind.RESET_POLICIES:
+        return Action(kind="reset_policies")
+    return Action(kind="clear_state")
 
 
 def _contains_compound_directive(user_input: str) -> bool:

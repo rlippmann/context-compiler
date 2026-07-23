@@ -1,0 +1,11 @@
+{
+  "id": "grammar_validate_invalid_set_premise_to_rejected",
+  "kind": "grammar",
+  "action": {
+    "fn": "validate_directive",
+    "text": "set premise to concise"
+  },
+  "expected": {
+    "validated": null
+  }
+}

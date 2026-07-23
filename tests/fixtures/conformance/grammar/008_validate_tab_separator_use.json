@@ -1,0 +1,14 @@
+{
+  "id": "grammar_validate_tab_separator_use",
+  "kind": "grammar",
+  "action": {
+    "fn": "validate_directive",
+    "text": "use\tdocker"
+  },
+  "expected": {
+    "validated": {
+      "text": "use\tdocker",
+      "kind": "use_item"
+    }
+  }
+}

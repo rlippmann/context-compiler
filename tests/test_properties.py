@@ -6,6 +6,7 @@ from hypothesis import strategies as st
 
 from context_compiler import create_engine
 from context_compiler.engine import _CANONICAL_DIRECTIVE_STARTS, State
+from context_compiler.grammar import validate_directive
 
 
 def _run_sequence(inputs: list[str]) -> State:
@@ -56,6 +57,7 @@ def test_idempotent_use_item_is_update_and_stable_state(item: str) -> None:
     assume(not item.endswith(" instead of"))
     assume(_normalize_item_like_engine(item) != "")
     assume(not _contains_canonical_start_fragment(item))
+    assume(validate_directive(f"use {item}") is not None)
     engine = create_engine()
     d1 = engine.step(f"use {item}")
     d2 = engine.step(f"use {item}")
@@ -91,6 +93,7 @@ def test_use_item_with_empty_normalized_payload_clarifies_without_mutation(
 def test_idempotent_prohibit_item_is_update_and_stable_state(item: str) -> None:
     assume(_normalize_item_like_engine(item) != "")
     assume(not _contains_canonical_start_fragment(item))
+    assume(validate_directive(f"prohibit {item}") is not None)
     engine = create_engine()
     d1 = engine.step(f"prohibit {item}")
     d2 = engine.step(f"prohibit {item}")
@@ -148,6 +151,8 @@ def test_passthrough_sequence_preserves_state_and_decision_kind(inputs: list[str
 @given(st.text(min_size=1, max_size=30))
 def test_contradiction_use_after_prohibit_always_clarifies(item: str) -> None:
     assume(not _contains_canonical_start_fragment(item))
+    assume(validate_directive(f"prohibit {item}") is not None)
+    assume(validate_directive(f"use {item}") is not None)
     engine = create_engine()
     engine.step(f"prohibit {item}")
     before = engine.state
@@ -163,6 +168,8 @@ def test_contradiction_prohibit_after_use_always_clarifies(item: str) -> None:
     assume(not item.startswith("instead of "))
     assume(not item.endswith(" instead of"))
     assume(not _contains_canonical_start_fragment(item))
+    assume(validate_directive(f"use {item}") is not None)
+    assume(validate_directive(f"prohibit {item}") is not None)
     engine = create_engine()
     engine.step(f"use {item}")
     before = engine.state

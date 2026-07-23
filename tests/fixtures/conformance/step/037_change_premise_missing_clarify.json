@@ -1,15 +1,15 @@
 {
-  "id": "step_compound_use_or_prohibit_clarify",
+  "id": "step_change_premise_missing_clarify",
   "kind": "step",
   "initial_state": {
     "premise": null,
     "policies": {},
     "version": 2
   },
-  "input": "use docker or prohibit peanuts",
+  "input": "change premise to concise replies",
   "expected": {
     "decision": {
-      "kind": "passthrough",
+      "kind": "clarify",
       "prompt_to_user": null,
       "state": null
     },
@@ -17,7 +17,6 @@
       "premise": null,
       "policies": {},
       "version": 2
-    },
-    "has_pending_clarification": false
+    }
   }
 }

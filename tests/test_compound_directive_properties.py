@@ -5,10 +5,6 @@ from hypothesis import strategies as st
 
 from context_compiler import create_engine
 
-COMPOUND_DIRECTIVE_PROMPT = (
-    "Multiple directives are not supported in one input.\nSubmit each directive separately."
-)
-
 CANONICAL_SECOND_DIRECTIVES = [
     "set premise concise",
     "change premise to concise",
@@ -36,17 +32,13 @@ SEPARATOR_CHARS = " \t\n\r,.;:!?-/()[]"
 LETTER_CHARS = string.ascii_lowercase
 
 
-def _assert_compound_rejection(user_input: str) -> None:
+def _assert_compound_passthrough(user_input: str) -> None:
     engine = create_engine()
     before = engine.state
 
     decision = engine.step(user_input)
 
-    assert decision == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": COMPOUND_DIRECTIVE_PROMPT,
-    }
+    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == before
     assert engine.has_pending_clarification() is False
 
@@ -57,7 +49,7 @@ def _assert_compound_rejection(user_input: str) -> None:
     second=st.sampled_from(CANONICAL_SECOND_DIRECTIVES),
 )
 def test_compound_separator_robustness(separator: str, second: str) -> None:
-    _assert_compound_rejection(f"use docker{separator}{second}")
+    _assert_compound_passthrough(f"use docker{separator}{second}")
 
 
 @settings(max_examples=50)
@@ -74,7 +66,7 @@ def test_compound_arbitrary_intervening_text(chunks: list[str], second: str) -> 
     lowered = intervening.lower()
     assume(all(token not in lowered for token in CANONICAL_STARTS))
 
-    _assert_compound_rejection(f"use docker {intervening} {second}")
+    _assert_compound_passthrough(f"use docker {intervening} {second}")
 
 
 @settings(max_examples=50)
@@ -91,7 +83,7 @@ def test_embedded_canonical_tokens_do_not_trigger_compound_detection(
 
     decision = engine.step(f"use docker {prefix}{token}{suffix}")
 
-    assert decision["prompt_to_user"] != COMPOUND_DIRECTIVE_PROMPT
+    assert decision["prompt_to_user"] is not None or decision["kind"] != "clarify"
     assert decision["kind"] == "update"
     assert engine.state != before
     assert engine.has_pending_clarification() is False
@@ -135,9 +127,8 @@ def test_case_mutated_second_directive_does_not_trigger_compound_detection(
 
     decision = engine.step(f"use docker {second_start}")
 
-    assert decision["prompt_to_user"] != COMPOUND_DIRECTIVE_PROMPT
-    assert decision["kind"] == "update"
-    assert engine.state != before
+    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert engine.state == before
     assert engine.has_pending_clarification() is False
 
 
@@ -155,7 +146,7 @@ def test_case_mutated_second_directive_does_not_trigger_compound_detection(
 def test_quotes_do_not_create_protected_region_after_first_directive(
     quote: str, payload: str, closing: str, second: str
 ) -> None:
-    _assert_compound_rejection(f"use {quote}{payload}{closing} {second}")
+    _assert_compound_passthrough(f"use {quote}{payload}{closing} {second}")
 
 
 @settings(max_examples=20)

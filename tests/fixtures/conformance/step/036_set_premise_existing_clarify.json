@@ -1,23 +1,22 @@
 {
-  "id": "step_compound_use_or_prohibit_clarify",
+  "id": "step_set_premise_existing_clarify",
   "kind": "step",
   "initial_state": {
-    "premise": null,
+    "premise": "existing premise",
     "policies": {},
     "version": 2
   },
-  "input": "use docker or prohibit peanuts",
+  "input": "set premise concise replies",
   "expected": {
     "decision": {
-      "kind": "passthrough",
+      "kind": "clarify",
       "prompt_to_user": null,
       "state": null
     },
     "state": {
-      "premise": null,
+      "premise": "existing premise",
       "policies": {},
       "version": 2
-    },
-    "has_pending_clarification": false
+    }
   }
 }

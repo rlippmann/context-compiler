@@ -1,25 +1,29 @@
 {
-  "id": "step_exact_prefix_passthrough_leading_space",
+  "id": "step_prohibit_item_update",
   "kind": "step",
   "initial_state": {
     "premise": null,
     "policies": {},
     "version": 2
   },
-  "input": " set premise concise",
+  "input": "prohibit peanuts",
   "expected": {
     "decision": {
       "kind": "update",
       "prompt_to_user": null,
       "state": {
-        "premise": "concise",
-        "policies": {},
+        "premise": null,
+        "policies": {
+          "peanuts": "prohibit"
+        },
         "version": 2
       }
     },
     "state": {
-      "premise": "concise",
-      "policies": {},
+      "premise": null,
+      "policies": {
+        "peanuts": "prohibit"
+      },
       "version": 2
     }
   }

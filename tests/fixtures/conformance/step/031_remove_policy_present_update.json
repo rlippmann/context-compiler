@@ -1,24 +1,26 @@
 {
-  "id": "step_exact_prefix_passthrough_leading_space",
+  "id": "step_remove_policy_present_update",
   "kind": "step",
   "initial_state": {
     "premise": null,
-    "policies": {},
+    "policies": {
+      "docker": "use"
+    },
     "version": 2
   },
-  "input": " set premise concise",
+  "input": "remove policy docker",
   "expected": {
     "decision": {
       "kind": "update",
       "prompt_to_user": null,
       "state": {
-        "premise": "concise",
+        "premise": null,
         "policies": {},
         "version": 2
       }
     },
     "state": {
-      "premise": "concise",
+      "premise": null,
       "policies": {},
       "version": 2
     }
