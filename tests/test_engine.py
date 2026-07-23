@@ -3,7 +3,15 @@ import json
 import pytest
 
 from context_compiler import create_engine, get_policy_items, get_premise_value
-from context_compiler.engine import DecisionKind, Engine, _normalize_confirmation
+from context_compiler.engine import (
+    Action,
+    DecisionKind,
+    Engine,
+    _contains_compound_directive,
+    _match_canonical_directive_start,
+    _normalize_confirmation,
+    _parse_directive,
+)
 
 pytestmark = pytest.mark.contract
 
@@ -17,6 +25,101 @@ def test_decision_kind_strenum_behavior() -> None:
         assert kind == kind.value
         assert str(kind) == kind.value
         assert DecisionKind(kind.value) is kind
+
+
+def test_parse_directive_delegates_canonical_kinds_to_existing_actions() -> None:
+    assert _parse_directive("set premise concise replies") == Action(
+        kind="set_premise", value="concise replies"
+    )
+    assert _parse_directive("change premise to concise replies") == Action(
+        kind="change_premise", value="concise replies"
+    )
+    assert _parse_directive("use docker") == Action(kind="use_item", item="docker")
+    assert _parse_directive("prohibit peanuts") == Action(kind="prohibit_item", item="peanuts")
+    assert _parse_directive("remove policy docker") == Action(
+        kind="remove_policy_item", item="docker"
+    )
+    assert _parse_directive("use podman instead of docker") == Action(
+        kind="replace_use", new_item="podman", old_item="docker"
+    )
+    assert _parse_directive("clear premise") == Action(kind="clear_premise")
+    assert _parse_directive("reset policies") == Action(kind="reset_policies")
+    assert _parse_directive("clear state") == Action(kind="clear_state")
+
+
+def test_parse_directive_returns_none_for_invalid_syntax_and_passthrough_inputs() -> None:
+    assert _parse_directive("set premise") is None
+    assert _parse_directive("change premise to") is None
+    assert _parse_directive("use") is None
+    assert _parse_directive("prohibit") is None
+    assert _parse_directive("remove policy") is None
+    assert _parse_directive("use instead of docker") is None
+    assert _parse_directive("use docker and prohibit peanuts") is None
+    assert _parse_directive("hello there") is None
+
+
+def test_pre_mutation_clarify_legacy_invalid_action_branches_remain_stable() -> None:
+    engine = create_engine()
+
+    assert engine._pre_mutation_clarify(Action(kind="compound_directive_invalid")) == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": COMPOUND_DIRECTIVE_PROMPT,
+    }
+    assert engine._pre_mutation_clarify(Action(kind="set_premise", value="")) == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": (
+            "Premise value cannot be empty.\nUse 'set premise <value>' with a non-empty value."
+        ),
+    }
+    assert engine._pre_mutation_clarify(Action(kind="change_premise", value="")) == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": (
+            "Premise value cannot be empty.\n"
+            "Use 'change premise to <value>' with a non-empty value."
+        ),
+    }
+    assert engine._pre_mutation_clarify(Action(kind="remove_policy_item", item="")) == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": (
+            "Policy item cannot be empty.\nUse 'remove policy <item>' with a non-empty value."
+        ),
+    }
+    assert engine._pre_mutation_clarify(Action(kind="use_item", item="")) == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value.",
+    }
+    assert engine._pre_mutation_clarify(Action(kind="prohibit_item", item="")) == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": (
+            "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
+        ),
+    }
+    assert engine._pre_mutation_clarify(Action(kind="replace_use_incomplete")) == {
+        "kind": "clarify",
+        "state": None,
+        "prompt_to_user": (
+            "Replacement requires both new and old items.\n"
+            "Use 'use <new item> instead of <old item>' with non-empty values."
+        ),
+    }
+
+
+def test_legacy_compound_detection_helpers_remain_unchanged() -> None:
+    assert _contains_compound_directive("use docker and prohibit peanuts") is True
+    assert _contains_compound_directive("hello there") is False
+    assert _contains_compound_directive("use docker") is False
+    assert _match_canonical_directive_start("use docker", -1) is None
+    assert _match_canonical_directive_start("use docker", len("use docker")) is None
+    assert _match_canonical_directive_start("abuse docker", 1) is None
+    assert _match_canonical_directive_start("use", 0) == len("use")
+    assert _match_canonical_directive_start("use docker", 0) == len("use")
+    assert _match_canonical_directive_start("clear premise!", 0) == len("clear premise")
 
 
 def test_initial_state_and_helpers() -> None:
