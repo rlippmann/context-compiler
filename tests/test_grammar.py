@@ -228,3 +228,105 @@ def test_validate_directive_rejects_near_miss_without_required_delimiter() -> No
 def test_render_directive_rejects_non_string_operands() -> None:
     with pytest.raises(ValueError, match="must be a string"):
         render_directive(DirectiveKind.SET_PREMISE, value=123)  # type: ignore[arg-type]
+
+
+def test_internal_match_directive_token_rejects_truncated_and_non_whitespace_separator() -> None:
+    assert (
+        grammar_module._match_directive_token(
+            "use",
+            0,
+            "use ",
+            require_space_or_end=True,
+        )
+        is None
+    )
+    assert (
+        grammar_module._match_directive_token(
+            "set-premise concise",
+            0,
+            "set premise",
+            require_space_or_end=True,
+        )
+        is None
+    )
+
+
+def test_parse_replace_use_rejects_blank_new_item() -> None:
+    assert grammar_module._parse_replace_use("use \t instead of docker") is None
+
+
+def test_parse_replace_use_rejects_embedded_delimiter_in_old_item() -> None:
+    assert (
+        grammar_module._parse_replace_use("use podman instead of docker instead of nerdctl") is None
+    )
+
+
+def test_parse_replace_use_rejects_non_canonical_normalized_delimiter_count(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = grammar_module._normalized_for_matching
+
+    def _patched(value: str) -> str:
+        if value == "use podman instead of docker":
+            return "use podman rather than docker"
+        return original(value)
+
+    monkeypatch.setattr(grammar_module, "_normalized_for_matching", _patched)
+
+    assert grammar_module._parse_replace_use("use podman instead of docker") is None
+
+
+class _FakeMatch:
+    def __init__(self, groups: dict[str, str]) -> None:
+        self._groups = groups
+
+    def group(self, name: str) -> str:
+        return self._groups[name]
+
+
+class _FakePattern:
+    def __init__(self, match: _FakeMatch | None) -> None:
+        self._match = match
+
+    def fullmatch(self, text: str) -> _FakeMatch | None:
+        del text
+        return self._match
+
+
+@pytest.mark.parametrize(
+    ("pattern_name", "text"),
+    [
+        ("_SET_PREMISE_RE", "set premise concise"),
+        ("_CHANGE_PREMISE_RE", "change premise to concise"),
+        ("_USE_RE", "use docker"),
+        ("_PROHIBIT_RE", "prohibit docker"),
+        ("_REMOVE_POLICY_RE", "remove policy docker"),
+    ],
+)
+def test_validate_directive_defensively_rejects_when_branch_regex_match_is_missing(
+    monkeypatch: pytest.MonkeyPatch,
+    pattern_name: str,
+    text: str,
+) -> None:
+    monkeypatch.setattr(grammar_module, pattern_name, _FakePattern(None))
+
+    assert validate_directive(text) is None
+
+
+@pytest.mark.parametrize(
+    ("pattern_name", "text", "groups"),
+    [
+        ("_CHANGE_PREMISE_RE", "change premise to concise", {"value": " \t "}),
+        ("_PROHIBIT_RE", "prohibit docker", {"item": " \t "}),
+        ("_REMOVE_POLICY_RE", "remove policy docker", {"item": " \t "}),
+    ],
+)
+def test_validate_directive_defensively_rejects_whitespace_only_operands_after_match(
+    monkeypatch: pytest.MonkeyPatch,
+    pattern_name: str,
+    text: str,
+    groups: dict[str, str],
+) -> None:
+    monkeypatch.setattr(grammar_module, pattern_name, _FakePattern(_FakeMatch(groups)))
+
+    assert validate_directive(text) is None
