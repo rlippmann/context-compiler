@@ -1,12 +1,12 @@
 {
-  "id": "step_quoted_payload_compound_clarify",
+  "id": "step_compound_set_premise_and_use_invalid_boundary",
   "kind": "step",
   "initial_state": {
     "premise": null,
     "policies": {},
     "version": 2
   },
-  "input": "use \"docker and prohibit peanuts\"",
+  "input": "set premise vegetarian and use docker",
   "expected": {
     "decision": {
       "kind": "passthrough",
