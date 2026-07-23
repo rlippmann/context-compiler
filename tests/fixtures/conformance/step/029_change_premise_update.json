@@ -1,24 +1,24 @@
 {
-  "id": "step_exact_prefix_passthrough_leading_space",
+  "id": "step_change_premise_update",
   "kind": "step",
   "initial_state": {
-    "premise": null,
+    "premise": "verbose replies",
     "policies": {},
     "version": 2
   },
-  "input": " set premise concise",
+  "input": "change premise to concise replies",
   "expected": {
     "decision": {
       "kind": "update",
       "prompt_to_user": null,
       "state": {
-        "premise": "concise",
+        "premise": "concise replies",
         "policies": {},
         "version": 2
       }
     },
     "state": {
-      "premise": "concise",
+      "premise": "concise replies",
       "policies": {},
       "version": 2
     }

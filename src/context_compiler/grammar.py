@@ -26,13 +26,18 @@ class ValidatedDirective:
 
 
 @dataclass(frozen=True, slots=True)
+class _ParsedDirective:
+    text: str
+    kind: DirectiveKind
+    operands: MappingProxyType[str, str]
+
+
+@dataclass(frozen=True, slots=True)
 class _DirectiveSpec:
     kind: DirectiveKind
     operand_names: tuple[str, ...]
-    matcher: re.Pattern[str] | None
     exact_text: str | None
     renderer: Callable[[MappingProxyType[str, str]], str]
-    canonical_starts: tuple[tuple[str, bool], ...]
 
 
 _SET_PREMISE_PREFIX = "set premise "
@@ -41,13 +46,17 @@ _USE_PREFIX = "use "
 _PROHIBIT_PREFIX = "prohibit "
 _REMOVE_POLICY_PREFIX = "remove policy "
 _INSTEAD_OF_DELIMITER = " instead of "
-
-_MATCH_SET_PREMISE = re.compile(r"^set premise (?!to\b)\S(?:.*\S)?$")
-_MATCH_CHANGE_PREMISE = re.compile(r"^change premise to \S(?:.*\S)?$")
-_MATCH_USE_ITEM = re.compile(r"^use (?!instead of(?:\s|$))(?!.*\sinstead of(?:\s|$))\S(?:.*\S)?$")
-_MATCH_PROHIBIT_ITEM = re.compile(r"^prohibit \S(?:.*\S)?$")
-_MATCH_REMOVE_POLICY = re.compile(r"^remove policy \S(?:.*\S)?$")
-_MATCH_REPLACE_USE = re.compile(r"^use \S(?:.*\S)? instead of \S(?:.*\S)?$")
+_ASCII_WHITESPACE = " \t\n\r\x0b\x0c"
+_HORIZONTAL_WHITESPACE = " \t"
+_KEYWORD_CHARS = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+_SET_PREMISE_RE = re.compile(r"(?i)^set[ \t]+premise[ \t]+(?P<value>.+)$")
+_CHANGE_PREMISE_RE = re.compile(r"(?i)^change[ \t]+premise[ \t]+to[ \t]+(?P<value>.+)$")
+_USE_RE = re.compile(r"(?i)^use[ \t]+(?P<item>.+)$")
+_PROHIBIT_RE = re.compile(r"(?i)^prohibit[ \t]+(?P<item>.+)$")
+_REMOVE_POLICY_RE = re.compile(r"(?i)^remove[ \t]+policy[ \t]+(?P<item>.+)$")
+_REPLACE_RE = re.compile(
+    r"(?i)^use[ \t]+(?P<new_item>.*?)[ \t]+instead[ \t]+of[ \t]+(?P<old_item>.+)$"
+)
 
 _CANONICAL_DIRECTIVE_STARTS: tuple[tuple[str, bool], ...] = (
     (_CHANGE_PREMISE_PREFIX.removesuffix(" "), True),
@@ -87,101 +96,138 @@ _DIRECTIVE_SPECS = MappingProxyType(
         DirectiveKind.SET_PREMISE: _DirectiveSpec(
             kind=DirectiveKind.SET_PREMISE,
             operand_names=("value",),
-            matcher=_MATCH_SET_PREMISE,
             exact_text=None,
             renderer=_render_with_prefix(_SET_PREMISE_PREFIX, "value"),
-            canonical_starts=((_SET_PREMISE_PREFIX.removesuffix(" "), True),),
         ),
         DirectiveKind.CHANGE_PREMISE: _DirectiveSpec(
             kind=DirectiveKind.CHANGE_PREMISE,
             operand_names=("value",),
-            matcher=_MATCH_CHANGE_PREMISE,
             exact_text=None,
             renderer=_render_with_prefix(_CHANGE_PREMISE_PREFIX, "value"),
-            canonical_starts=((_CHANGE_PREMISE_PREFIX.removesuffix(" "), True),),
         ),
         DirectiveKind.USE_ITEM: _DirectiveSpec(
             kind=DirectiveKind.USE_ITEM,
             operand_names=("item",),
-            matcher=_MATCH_USE_ITEM,
             exact_text=None,
             renderer=_render_with_prefix(_USE_PREFIX, "item"),
-            canonical_starts=(("use", True),),
         ),
         DirectiveKind.PROHIBIT_ITEM: _DirectiveSpec(
             kind=DirectiveKind.PROHIBIT_ITEM,
             operand_names=("item",),
-            matcher=_MATCH_PROHIBIT_ITEM,
             exact_text=None,
             renderer=_render_with_prefix(_PROHIBIT_PREFIX, "item"),
-            canonical_starts=((_PROHIBIT_PREFIX.removesuffix(" "), True),),
         ),
         DirectiveKind.REMOVE_POLICY: _DirectiveSpec(
             kind=DirectiveKind.REMOVE_POLICY,
             operand_names=("item",),
-            matcher=_MATCH_REMOVE_POLICY,
             exact_text=None,
             renderer=_render_with_prefix(_REMOVE_POLICY_PREFIX, "item"),
-            canonical_starts=((_REMOVE_POLICY_PREFIX.removesuffix(" "), True),),
         ),
         DirectiveKind.REPLACE_USE: _DirectiveSpec(
             kind=DirectiveKind.REPLACE_USE,
             operand_names=("new_item", "old_item"),
-            matcher=_MATCH_REPLACE_USE,
             exact_text=None,
             renderer=_render_replace_use,
-            canonical_starts=(("use", True),),
         ),
         DirectiveKind.CLEAR_PREMISE: _DirectiveSpec(
             kind=DirectiveKind.CLEAR_PREMISE,
             operand_names=(),
-            matcher=None,
             exact_text="clear premise",
             renderer=_render_exact("clear premise"),
-            canonical_starts=(("clear premise", False),),
         ),
         DirectiveKind.RESET_POLICIES: _DirectiveSpec(
             kind=DirectiveKind.RESET_POLICIES,
             operand_names=(),
-            matcher=None,
             exact_text="reset policies",
             renderer=_render_exact("reset policies"),
-            canonical_starts=(("reset policies", False),),
         ),
         DirectiveKind.CLEAR_STATE: _DirectiveSpec(
             kind=DirectiveKind.CLEAR_STATE,
             operand_names=(),
-            matcher=None,
             exact_text="clear state",
             renderer=_render_exact("clear state"),
-            canonical_starts=(("clear state", False),),
         ),
     }
 )
+
+
+def _trim_ascii_whitespace(text: str) -> str:
+    return text.strip(_ASCII_WHITESPACE)
+
+
+def _collapse_horizontal_whitespace(text: str) -> str:
+    parts = text.replace("\t", " ").split(" ")
+    return " ".join(part for part in parts if part != "")
+
+
+def _normalized_for_matching(text: str) -> str:
+    return _collapse_horizontal_whitespace(_trim_ascii_whitespace(text)).casefold()
+
+
+def _operand_has_content(value: str) -> bool:
+    return _trim_ascii_whitespace(value) != ""
+
+
+def _operand_starts_with_token(value: str, token: str) -> bool:
+    normalized = _normalized_for_matching(value)
+    return normalized == token or normalized.startswith(f"{token} ")
 
 
 def _match_canonical_directive_start(text: str, start: int) -> int | None:
     if start < 0 or start >= len(text):
         return None
 
-    if start > 0 and text[start - 1].isalpha():
+    if start > 0 and text[start - 1] in _KEYWORD_CHARS:
         return None
 
     for token, require_space_or_end in _CANONICAL_DIRECTIVE_STARTS:
-        if not text.startswith(token, start):
-            continue
-        end = start + len(token)
-        if end == len(text):
-            return end
-        next_char = text[end]
-        if require_space_or_end:
-            if next_char == " ":
-                return end
-            continue
-        if not next_char.isalpha():
+        end = _match_directive_token(text, start, token, require_space_or_end=require_space_or_end)
+        if end is not None:
             return end
 
     return None
+
+
+def _match_directive_token(
+    text: str,
+    start: int,
+    token: str,
+    *,
+    require_space_or_end: bool,
+) -> int | None:
+    index = start
+    token_index = 0
+
+    while token_index < len(token):
+        if index >= len(text):
+            return None
+
+        token_char = token[token_index]
+        if token_char == " ":
+            if text[index] not in _HORIZONTAL_WHITESPACE:
+                return None
+            while index < len(text) and text[index] in _HORIZONTAL_WHITESPACE:
+                index += 1
+            token_index += 1
+            continue
+
+        if text[index].casefold() != token_char:
+            return None
+        index += 1
+        token_index += 1
+
+    if index == len(text):
+        return index
+
+    next_char = text[index]
+    if require_space_or_end:
+        if next_char in _HORIZONTAL_WHITESPACE:
+            return index
+        return None
+
+    if next_char in _KEYWORD_CHARS:
+        return None
+    return index
 
 
 def _contains_multiple_canonical_directives(text: str) -> bool:
@@ -197,22 +243,135 @@ def _contains_multiple_canonical_directives(text: str) -> bool:
     return False
 
 
-def validate_directive(text: str) -> ValidatedDirective | None:
-    if text == "":
+def _parse_replace_use(trimmed_text: str) -> _ParsedDirective | None:
+    match = _REPLACE_RE.fullmatch(trimmed_text)
+    if match is None:
         return None
-    if _contains_multiple_canonical_directives(text):
+    new_item = match.group("new_item")
+    old_item = match.group("old_item")
+    if not _operand_has_content(new_item) or not _operand_has_content(old_item):
+        return None
+    if _INSTEAD_OF_DELIMITER in _normalized_for_matching(
+        new_item
+    ) or _INSTEAD_OF_DELIMITER in _normalized_for_matching(old_item):
+        return None
+    normalized_payload = _normalized_for_matching(trimmed_text)
+    if normalized_payload.count(_INSTEAD_OF_DELIMITER) != 1:
+        return None
+    return _ParsedDirective(
+        text=trimmed_text,
+        kind=DirectiveKind.REPLACE_USE,
+        operands=MappingProxyType({"new_item": new_item, "old_item": old_item}),
+    )
+
+
+def _parse_directive(text: str) -> _ParsedDirective | None:
+    trimmed_text = _trim_ascii_whitespace(text)
+    if trimmed_text == "":
+        return None
+    if _contains_multiple_canonical_directives(trimmed_text):
         return None
 
-    for kind, spec in _DIRECTIVE_SPECS.items():
-        if spec.exact_text is not None:
-            if text == spec.exact_text:
-                return ValidatedDirective(text=text, kind=kind)
-            continue
-        assert spec.matcher is not None
-        if spec.matcher.fullmatch(text):
-            return ValidatedDirective(text=text, kind=kind)
+    normalized = _normalized_for_matching(trimmed_text)
+
+    if normalized == "clear premise":
+        return _ParsedDirective(
+            text=text, kind=DirectiveKind.CLEAR_PREMISE, operands=MappingProxyType({})
+        )
+    if normalized == "reset policies":
+        return _ParsedDirective(
+            text=text,
+            kind=DirectiveKind.RESET_POLICIES,
+            operands=MappingProxyType({}),
+        )
+    if normalized == "clear state":
+        return _ParsedDirective(
+            text=text, kind=DirectiveKind.CLEAR_STATE, operands=MappingProxyType({})
+        )
+
+    if normalized.startswith("set premise "):
+        match = _SET_PREMISE_RE.fullmatch(trimmed_text)
+        if match is None:
+            return None
+        value = match.group("value")
+        if not _operand_has_content(value) or _operand_starts_with_token(value, "to"):
+            return None
+        return _ParsedDirective(
+            text=text,
+            kind=DirectiveKind.SET_PREMISE,
+            operands=MappingProxyType({"value": value}),
+        )
+
+    if normalized.startswith("change premise to "):
+        match = _CHANGE_PREMISE_RE.fullmatch(trimmed_text)
+        if match is None:
+            return None
+        value = match.group("value")
+        if not _operand_has_content(value):
+            return None
+        return _ParsedDirective(
+            text=text,
+            kind=DirectiveKind.CHANGE_PREMISE,
+            operands=MappingProxyType({"value": value}),
+        )
+
+    replacement = _parse_replace_use(trimmed_text)
+    if replacement is not None:
+        return replacement
+
+    if normalized.startswith("use "):
+        match = _USE_RE.fullmatch(trimmed_text)
+        if match is None:
+            return None
+        item = match.group("item")
+        normalized_item = _normalized_for_matching(item)
+        if (
+            not _operand_has_content(item)
+            or normalized_item.startswith("instead of ")
+            or normalized_item.endswith(" instead of")
+            or _INSTEAD_OF_DELIMITER in normalized_item
+        ):
+            return None
+        return _ParsedDirective(
+            text=text,
+            kind=DirectiveKind.USE_ITEM,
+            operands=MappingProxyType({"item": item}),
+        )
+
+    if normalized.startswith("prohibit "):
+        match = _PROHIBIT_RE.fullmatch(trimmed_text)
+        if match is None:
+            return None
+        item = match.group("item")
+        if not _operand_has_content(item):
+            return None
+        return _ParsedDirective(
+            text=text,
+            kind=DirectiveKind.PROHIBIT_ITEM,
+            operands=MappingProxyType({"item": item}),
+        )
+
+    if normalized.startswith("remove policy "):
+        match = _REMOVE_POLICY_RE.fullmatch(trimmed_text)
+        if match is None:
+            return None
+        item = match.group("item")
+        if not _operand_has_content(item):
+            return None
+        return _ParsedDirective(
+            text=text,
+            kind=DirectiveKind.REMOVE_POLICY,
+            operands=MappingProxyType({"item": item}),
+        )
 
     return None
+
+
+def validate_directive(text: str) -> ValidatedDirective | None:
+    parsed = _parse_directive(text)
+    if parsed is None:
+        return None
+    return ValidatedDirective(text=parsed.text, kind=parsed.kind)
 
 
 def is_canonical_directive(text: str) -> bool:

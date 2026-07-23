@@ -1,5 +1,5 @@
 {
-  "id": "step_compound_remove_policy_and_prohibit_clarify",
+  "id": "step_replace_use_update",
   "kind": "step",
   "initial_state": {
     "premise": null,
@@ -8,20 +8,25 @@
     },
     "version": 2
   },
-  "input": "remove policy docker and prohibit peanuts",
+  "input": "use podman instead of docker",
   "expected": {
     "decision": {
-      "kind": "passthrough",
+      "kind": "update",
       "prompt_to_user": null,
-      "state": null
+      "state": {
+        "premise": null,
+        "policies": {
+          "podman": "use"
+        },
+        "version": 2
+      }
     },
     "state": {
       "premise": null,
       "policies": {
-        "docker": "use"
+        "podman": "use"
       },
       "version": 2
-    },
-    "has_pending_clarification": false
+    }
   }
 }

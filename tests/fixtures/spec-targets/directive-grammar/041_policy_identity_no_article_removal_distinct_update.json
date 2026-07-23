@@ -1,0 +1,35 @@
+{
+  "id": "step_policy_identity_no_article_removal_distinct_update",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "use docker"
+  ],
+  "input": "prohibit the docker",
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "prompt_to_user": null,
+      "state": {
+        "premise": null,
+        "policies": {
+          "docker": "use",
+          "the docker": "prohibit"
+        },
+        "version": 2
+      }
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker": "use",
+        "the docker": "prohibit"
+      },
+      "version": 2
+    }
+  }
+}

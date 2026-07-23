@@ -1,23 +1,27 @@
 {
-  "id": "step_compound_use_or_prohibit_clarify",
+  "id": "step_policy_identity_apostrophe_variant_clarify",
   "kind": "step",
   "initial_state": {
     "premise": null,
     "policies": {},
     "version": 2
   },
-  "input": "use docker or prohibit peanuts",
+  "prelude": [
+    "use don't"
+  ],
+  "input": "prohibit don’t",
   "expected": {
     "decision": {
-      "kind": "passthrough",
+      "kind": "clarify",
       "prompt_to_user": null,
       "state": null
     },
     "state": {
       "premise": null,
-      "policies": {},
+      "policies": {
+        "don't": "use"
+      },
       "version": 2
-    },
-    "has_pending_clarification": false
+    }
   }
 }

@@ -686,7 +686,6 @@ def test_non_matching_input_is_passthrough() -> None:
         "set X",
         "no use docker",
         "don't use docker",
-        " prohibit docker",
     ]:
         decision = engine.step(text)
         assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
@@ -694,15 +693,15 @@ def test_non_matching_input_is_passthrough() -> None:
     assert engine.state == before
 
 
-def test_admin_command_near_misses_are_passthrough() -> None:
+def test_lexical_normalization_accepts_canonical_directives() -> None:
     engine = create_engine()
-    before = engine.state
 
-    for text in ["clear premise ", " reset policies", "clear state\t", " remove policy docker"]:
-        decision = engine.step(text)
-        assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
-
-    assert engine.state == before
+    assert engine.step("clear premise ")["kind"] == "update"
+    assert engine.step(" reset policies")["kind"] == "update"
+    assert engine.step("clear state\t")["kind"] == "update"
+    assert engine.step("Use docker")["kind"] == "update"
+    assert engine.step("use\tdocker")["kind"] == "update"
+    assert engine.step(" prohibit docker")["kind"] == "clarify"
 
 
 def test_clear_premise_is_idempotent_update_when_already_null() -> None:
@@ -740,57 +739,37 @@ def test_set_premise_lifecycle_rules() -> None:
     assert engine.state == before
 
 
-def test_set_premise_empty_payload_clarifies_without_mutation() -> None:
+def test_set_premise_empty_payload_remains_passthrough() -> None:
     engine = create_engine()
     before = engine.state
     d1 = engine.step("set premise")
-    assert d1 == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": (
-            "Premise value cannot be empty.\nUse 'set premise <value>' with a non-empty value."
-        ),
-    }
+    assert d1 == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_set_premise_whitespace_payload_clarifies_without_mutation() -> None:
+def test_set_premise_whitespace_payload_remains_passthrough() -> None:
     engine = create_engine()
     before = engine.state
     d1 = engine.step("set premise    ")
-    assert d1 == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": (
-            "Premise value cannot be empty.\nUse 'set premise <value>' with a non-empty value."
-        ),
-    }
+    assert d1 == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_set_premise_to_variant_is_treated_as_literal_canonical_set() -> None:
+def test_set_premise_to_variant_remains_passthrough() -> None:
     engine = create_engine()
 
     decision = engine.step("set premise to concise replies")
-    assert decision == {
-        "kind": "update",
-        "state": {"premise": "to concise replies", "policies": {}, "version": 2},
-        "prompt_to_user": None,
-    }
-    assert engine.state == {"premise": "to concise replies", "policies": {}, "version": 2}
+    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
-def test_set_premise_to_with_whitespace_payload_falls_through_to_literal_set_behavior() -> None:
+def test_set_premise_to_with_whitespace_payload_remains_passthrough() -> None:
     engine = create_engine()
 
     decision = engine.step("set premise to   ")
 
-    assert decision == {
-        "kind": "update",
-        "state": {"premise": "to", "policies": {}, "version": 2},
-        "prompt_to_user": None,
-    }
-    assert engine.state == {"premise": "to", "policies": {}, "version": 2}
+    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
 def test_change_premise_requires_existing_premise() -> None:
@@ -810,24 +789,17 @@ def test_change_premise_requires_existing_premise() -> None:
     assert engine.state["premise"] == "second"
 
 
-def test_change_premise_to_empty_payload_clarifies_without_mutation() -> None:
+def test_change_premise_to_empty_payload_remains_passthrough() -> None:
     engine = create_engine()
     engine.step("set premise baseline")
     before = engine.state
 
     d1 = engine.step("change premise to")
-    assert d1 == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": (
-            "Premise value cannot be empty.\n"
-            "Use 'change premise to <value>' with a non-empty value."
-        ),
-    }
+    assert d1 == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_change_premise_to_without_space_payload_remains_passthrough_before_empty_clarify() -> None:
+def test_change_premise_to_without_space_payload_and_empty_variant_remain_passthrough() -> None:
     engine = create_engine()
     engine.step("set premise baseline")
     before = engine.state
@@ -836,31 +808,17 @@ def test_change_premise_to_without_space_payload_remains_passthrough_before_empt
     assert near_miss == {"kind": "passthrough", "state": None, "prompt_to_user": None}
 
     decision = engine.step("change premise to")
-    assert decision == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": (
-            "Premise value cannot be empty.\n"
-            "Use 'change premise to <value>' with a non-empty value."
-        ),
-    }
+    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_change_premise_to_whitespace_payload_clarifies_without_mutation() -> None:
+def test_change_premise_to_whitespace_payload_remains_passthrough() -> None:
     engine = create_engine()
     engine.step("set premise baseline")
     before = engine.state
 
     d1 = engine.step("change premise to    ")
-    assert d1 == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": (
-            "Premise value cannot be empty.\n"
-            "Use 'change premise to <value>' with a non-empty value."
-        ),
-    }
+    assert d1 == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
@@ -939,43 +897,29 @@ def test_policy_directives_and_idempotent_update() -> None:
     assert engine2.state["policies"] == {"docker": "prohibit"}
 
 
-def test_use_empty_payload_clarifies_without_mutation() -> None:
+def test_use_empty_payload_remains_passthrough() -> None:
     engine = create_engine()
     before = engine.state
-    expected = "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value."
 
     for text in ["use", "use ", "use    "]:
         decision = engine.step(text)
-        assert decision == {
-            "kind": "clarify",
-            "state": None,
-            "prompt_to_user": expected,
-        }
+        assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
         assert engine.state == before
 
 
-def test_prohibit_empty_payload_clarifies_without_mutation() -> None:
+def test_prohibit_empty_payload_remains_passthrough() -> None:
     engine = create_engine()
     before = engine.state
-    expected = "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
 
     for text in ["prohibit", "prohibit ", "prohibit    "]:
         decision = engine.step(text)
-        assert decision == {
-            "kind": "clarify",
-            "state": None,
-            "prompt_to_user": expected,
-        }
+        assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
         assert engine.state == before
 
 
-def test_replace_use_incomplete_payload_clarifies_without_mutation() -> None:
+def test_replace_use_incomplete_payload_remains_passthrough() -> None:
     engine = create_engine()
     before = engine.state
-    expected = (
-        "Replacement requires both new and old items.\n"
-        "Use 'use <new item> instead of <old item>' with non-empty values."
-    )
 
     for text in [
         "use x instead of",
@@ -985,11 +929,7 @@ def test_replace_use_incomplete_payload_clarifies_without_mutation() -> None:
         "use instead of y",
     ]:
         decision = engine.step(text)
-        assert decision == {
-            "kind": "clarify",
-            "state": None,
-            "prompt_to_user": expected,
-        }
+        assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
         assert engine.state == before
 
 
@@ -1036,35 +976,23 @@ def test_remove_policy_missing_item_is_idempotent_update() -> None:
     assert engine.state == before
 
 
-def test_remove_policy_empty_payload_clarifies_without_mutation() -> None:
+def test_remove_policy_empty_payload_remains_passthrough() -> None:
     engine = create_engine()
     before = engine.state
 
     decision = engine.step("remove policy")
 
-    assert decision == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": (
-            "Policy item cannot be empty.\nUse 'remove policy <item>' with a non-empty value."
-        ),
-    }
+    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_remove_policy_whitespace_payload_clarifies_without_mutation() -> None:
+def test_remove_policy_whitespace_payload_remains_passthrough() -> None:
     engine = create_engine()
     before = engine.state
 
     decision = engine.step("remove policy    ")
 
-    assert decision == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": (
-            "Policy item cannot be empty.\nUse 'remove policy <item>' with a non-empty value."
-        ),
-    }
+    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
@@ -1504,7 +1432,7 @@ def test_remove_policy_uses_normalized_item_matching() -> None:
         ),
     ],
 )
-def test_compound_directives_clarify_without_mutation(
+def test_compound_directives_remain_passthrough_without_mutation(
     user_input: str, initial_state: dict[str, object]
 ) -> None:
     engine = create_engine(state=initial_state)
@@ -1512,11 +1440,7 @@ def test_compound_directives_clarify_without_mutation(
 
     decision = engine.step(user_input)
 
-    assert decision == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": COMPOUND_DIRECTIVE_PROMPT,
-    }
+    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == before
     assert engine.has_pending_clarification() is False
 
@@ -1672,7 +1596,7 @@ def test_all_canonical_directive_starts_remain_single_directive_when_valid(
     )
 
 
-def test_pending_confirmation_takes_precedence_over_compound_detection() -> None:
+def test_compound_passthrough_after_prior_replacement_clarify() -> None:
     engine = create_engine()
     first = engine.step("use kubectl instead of docker")
     assert first == {
@@ -1686,11 +1610,7 @@ def test_pending_confirmation_takes_precedence_over_compound_detection() -> None
 
     decision = engine.step("use docker and prohibit peanuts")
 
-    assert decision == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": COMPOUND_DIRECTIVE_PROMPT,
-    }
+    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
     assert engine.has_pending_clarification() is False
 

@@ -1,0 +1,11 @@
+{
+  "id": "grammar_validate_invalid_missing_use_operand_rejected",
+  "kind": "grammar",
+  "action": {
+    "fn": "validate_directive",
+    "text": "use"
+  },
+  "expected": {
+    "validated": null
+  }
+}

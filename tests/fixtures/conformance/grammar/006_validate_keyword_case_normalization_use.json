@@ -1,0 +1,14 @@
+{
+  "id": "grammar_validate_keyword_case_normalization_use",
+  "kind": "grammar",
+  "action": {
+    "fn": "validate_directive",
+    "text": "Use Docker"
+  },
+  "expected": {
+    "validated": {
+      "text": "Use Docker",
+      "kind": "use_item"
+    }
+  }
+}

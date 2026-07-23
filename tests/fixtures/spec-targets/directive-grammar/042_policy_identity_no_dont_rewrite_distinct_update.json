@@ -1,0 +1,35 @@
+{
+  "id": "step_policy_identity_no_dont_rewrite_distinct_update",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "use don't"
+  ],
+  "input": "prohibit dont",
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "prompt_to_user": null,
+      "state": {
+        "premise": null,
+        "policies": {
+          "don't": "use",
+          "dont": "prohibit"
+        },
+        "version": 2
+      }
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "don't": "use",
+        "dont": "prohibit"
+      },
+      "version": 2
+    }
+  }
+}

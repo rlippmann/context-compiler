@@ -9,8 +9,8 @@
   "input": "use docker xor prohibit peanuts",
   "expected": {
     "decision": {
-      "kind": "clarify",
-      "prompt_to_user": "Multiple directives are not supported in one input.\nSubmit each directive separately.",
+      "kind": "passthrough",
+      "prompt_to_user": null,
       "state": null
     },
     "state": {

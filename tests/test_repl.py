@@ -1035,36 +1035,18 @@ def test_repl_invalid_directive_near_misses_remain_passthrough() -> None:
     assert lines == ["passthrough", "passthrough", "passthrough"]
 
 
-def test_repl_empty_policy_payloads_and_incomplete_replacement_render_errors() -> None:
+def test_repl_empty_policy_payloads_and_incomplete_replacement_remain_passthrough() -> None:
     lines = _run_non_interactive_lines(
         "use\nprohibit   \nuse x instead of\nuse instead of y\nquit\n"
     )
-    assert _contains_subsequence(
-        lines,
-        [
-            "error: Policy item cannot be empty.",
-            "Use 'use <item>' with a non-empty value.",
-        ],
-    )
-    assert _contains_subsequence(
-        lines,
-        [
-            "error: Policy item cannot be empty.",
-            "Use 'prohibit <item>' with a non-empty value.",
-        ],
-    )
-    assert lines.count("error: Replacement requires both new and old items.") == 2
-    assert lines.count("Use 'use <new item> instead of <old item>' with non-empty values.") == 2
+    assert lines == ["passthrough", "passthrough", "passthrough", "passthrough"]
 
 
-def test_repl_premise_to_variant_near_misses_do_not_render_repair_suggestions() -> None:
+def test_repl_premise_to_variant_near_misses_remain_passthrough() -> None:
     lines = _run_non_interactive_lines(
         "set premise to concise replies\nchange premise concise replies\nquit\n"
     )
-    assert _contains_subsequence(
-        lines, ["updated", "premise: to concise replies", "policies: (none)"]
-    )
-    assert lines[-1] == "passthrough"
+    assert lines == ["passthrough", "passthrough"]
 
 
 def test_repl_non_interactive_remove_policy_flow() -> None:
@@ -1100,26 +1082,14 @@ def test_repl_change_premise_without_existing_premise_renders_exact_error() -> N
     )
 
 
-def test_repl_set_premise_empty_payload_renders_exact_error() -> None:
+def test_repl_set_premise_empty_payload_remains_passthrough() -> None:
     lines = _run_non_interactive_lines("set premise\nquit\n")
-    assert _contains_subsequence(
-        lines,
-        [
-            "error: Premise value cannot be empty.",
-            "Use 'set premise <value>' with a non-empty value.",
-        ],
-    )
+    assert lines == ["passthrough"]
 
 
-def test_repl_change_premise_empty_payload_renders_exact_error() -> None:
+def test_repl_change_premise_empty_payload_remains_passthrough() -> None:
     lines = _run_non_interactive_lines("change premise to\nquit\n")
-    assert _contains_subsequence(
-        lines,
-        [
-            "error: Premise value cannot be empty.",
-            "Use 'change premise to <value>' with a non-empty value.",
-        ],
-    )
+    assert lines == ["passthrough"]
 
 
 def test_repl_use_item_when_prohibited_renders_exact_error() -> None:
@@ -1210,15 +1180,13 @@ def test_repl_prohibited_replacement_followup_tokens_remain_passthrough() -> Non
 
 def test_repl_premise_lifecycle_outputs_expected_state_shape() -> None:
     lines = _run_non_interactive_lines(
-        "set premise Use concise answers\n"
-        "set premise Use verbose answers\n"
-        "change premise to Use verbose answers\n"
+        "set premise concise answers\n"
+        "set premise verbose answers\n"
+        "change premise to verbose answers\n"
         "quit\n"
     )
 
-    assert _contains_subsequence(
-        lines, ["updated", "premise: Use concise answers", "policies: (none)"]
-    )
+    assert _contains_subsequence(lines, ["updated", "premise: concise answers", "policies: (none)"])
     assert _contains_subsequence(
         lines,
         [
@@ -1226,9 +1194,7 @@ def test_repl_premise_lifecycle_outputs_expected_state_shape() -> None:
             "Use 'change premise to <value>' to modify it.",
         ],
     )
-    assert _contains_subsequence(
-        lines, ["updated", "premise: Use verbose answers", "policies: (none)"]
-    )
+    assert _contains_subsequence(lines, ["updated", "premise: verbose answers", "policies: (none)"])
 
 
 def test_repl_interactive_renders_updated_state_blocks_for_multiple_operations() -> None:
