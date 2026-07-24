@@ -55,11 +55,10 @@ Shows what to do on `clarify`, when to call the model, and how host code can
 use saved state downstream.
 Includes a single-item policy removal step via `remove policy <item>`.
 
-## 06_step_sequence_and_checkpoint.py
+## 06_step_sequence_and_state_restore.py
 
 Shows the recommended authority-layer sequencing pattern with `engine.step(...)`.
-The filename is a legacy holdover from the earlier checkpoint workflow.
-The example now demonstrates authoritative state restoration with
+The example demonstrates authoritative state restoration with
 `export_json()` / `import_json()` without replay helpers.
 
 ## 07_single_policy_correction.py

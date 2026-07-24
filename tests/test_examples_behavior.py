@@ -116,7 +116,7 @@ def test_example_05_dispatches_passthrough_update_and_clarify_correctly(
 def test_example_06_sequences_steps_and_restores_state_json(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    module = _load_example_module("06_step_sequence_and_checkpoint.py")
+    module = _load_example_module("06_step_sequence_and_state_restore.py")
     original_create_engine = module.create_engine
     step_calls: list[str] = []
     state_exports = 0
