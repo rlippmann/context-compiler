@@ -12,8 +12,8 @@ Authoritative behavior documents:
 - [Project README](../README.md)
 
 For behavioral semantics, use the authoritative documents above. This page
-documents the public checkpoint APIs and their contract surface without
-redefining directive or continuation behavior.
+documents the supported public package surface without redefining directive or
+continuation behavior.
 
 Core boundary:
 
@@ -91,6 +91,9 @@ Boundary notes:
   code should send canonical directives when it wants deterministic mutation
 - failed replacement requests are not reinterpreted by core into different
   directives
+- `use <new> instead of <old>` with an absent `<old>` is not a pending or
+  clarification-only runtime category; it follows the deterministic semantic
+  rules defined in the specification
 
 ### `engine.state`
 
@@ -111,6 +114,8 @@ Contract boundary:
 - pending continuation must never arise from malformed or non-canonical input
 - pending continuation, when supported, comes only from semantic evaluation of
   an already parsed canonical directive
+- the historical missing-source replacement case does not, by itself, create
+  pending continuation
 
 Current implementation note:
 
@@ -204,78 +209,11 @@ Use these APIs for authoritative-state transport or persistence only.
 
 Conceptual boundary:
 
-- `export_json()` / `import_json()` transport authoritative state only
-- checkpoint APIs transport authoritative state plus resumable continuation state
-
-## Checkpoint APIs
-
-### `engine.export_checkpoint()`
-
-Export a resumable checkpoint object.
-
-### `engine.import_checkpoint(payload)`
-
-Validate and restore a checkpoint object.
-
-### `engine.export_checkpoint_json()`
-
-Export a checkpoint as canonical JSON text.
-
-### `engine.import_checkpoint_json(payload)`
-
-Validate and restore a checkpoint from JSON text.
-
-Use checkpoint APIs when you need a versioned engine-session snapshot. The
-contract shape is authoritative state plus pending semantic continuation state
-when the active engine contract supports it.
-
-Checkpoint object shape:
-
-```json
-{
-  "checkpoint_version": 1,
-  "authoritative_state": {
-    "premise": "concise replies",
-    "policies": {
-      "docker": "use"
-    },
-    "version": 2
-  },
-  "pending": null
-}
-```
-
-At this boundary, direct key access is expected.
-
-API-level contract notes:
-
-- `pending` is `null` when no continuation is waiting for confirmation
-- `pending` captures confirmation-required semantic continuation for canonical
-  operations supported by the active engine contract
-- `pending` is never a syntax-repair buffer and must not encode malformed-input
-  recovery
-- non-canonical repair state is not part of the intended core contract
-- imported policy keys are normalized during `import_json(...)` and checkpoint
-  authoritative-state restore
+- `export_json()` / `import_json()` are the current persistence contract
+- pending continuation, when supported by the engine contract, is runtime state
+  rather than a documented persistence feature
+- imported policy keys are normalized during `import_json(...)`
 - if a policy key normalizes to `""`, the payload is invalid and is rejected
-- checkpoint restore is full and deterministic: authoritative state and pending
-  continuation are restored together
-- checkpoint validation is all-or-nothing; invalid payloads raise and no
-  partial restore occurs
-- `checkpoint_version` is independent of authoritative state `version` and must
-  be bumped when checkpoint contract shape changes, especially `pending`
-
-Current implementation note:
-
-- the repository runtime currently exports `pending: null`
-- that implementation status does not narrow the intended checkpoint contract
-  for restored semantic continuation behavior
-
-Typical use cases:
-
-- stateless host or integration boundaries where engine instances are short-lived
-- authoritative-state persistence with a stable checkpoint envelope
-- future-compatible storage where hosts want one artifact for engine session snapshots
 
 ## Controller APIs
 

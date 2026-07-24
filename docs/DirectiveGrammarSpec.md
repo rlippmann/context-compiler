@@ -427,6 +427,11 @@ continuation runtime state. That state represents a deterministic blocked
 transition that core has already identified but must not apply without explicit
 user authorization.
 
+An absent source item in a canonical replacement directive is not, by itself,
+such a blocked transition. If `use <new> instead of <old>` parses
+canonically and `<old>` is absent from authoritative state, that absence is a
+state-fact mismatch, not an ambiguity of user intent.
+
 ### 8.3 Family-by-family semantic boundary
 
 - `set premise <value>`
@@ -551,6 +556,17 @@ Let `kx` be the policy identity key for `REPLACE_NEW` under Section 10.1 and
 The replacement-specific `clarify` cases are state-dependent and belong to
 semantic evaluation, not parsing.
 
+Normative classification for the historical missing-source case:
+
+- if `ky` is absent and applying `use <new>` is otherwise semantically valid,
+  `use <new> instead of <old>` is not a clarification case;
+- core applies the deterministic resulting transition of asserting
+  `REPLACE_NEW` as `use`;
+- the user's incorrect assumption about the current presence of `<old>` does
+  not by itself create semantic ambiguity or pending continuation;
+- malformed replacement syntax remains invalid grammar, and other semantic
+  conflicts for a canonical replacement may still return `clarify`.
+
 ### 9.5 Clarify rule
 
 Core returns `clarify` only after:
@@ -609,8 +625,11 @@ This specification preserves the grammar hardening established after `0.8.x`:
 
 Within semantic evaluation, pending continuation is intended only for
 deterministic blocked transitions that do not expand authority beyond the
-parsed canonical operation. Historical replacement clarifications that would
-authorize broader policy mutation are not implicitly restored by this document.
+parsed canonical operation. In particular, the historical missing-source
+replacement case (`use <new> instead of <old>` when `<old>` is absent) is not
+a pending or clarification case under this specification; it deterministically
+applies the resulting `use <new>` transition when otherwise semantically
+valid.
 
 ## 11. Storage Normalization
 
@@ -692,7 +711,7 @@ source material for later conformance fixtures.
 | `prohibit peanuts` | canonical directive | prohibit item | may apply, no-op, or clarify |
 | `remove policy docker` | canonical directive | remove policy | may apply or no-op |
 | `use podman instead of docker` | canonical directive | replace use | may apply, no-op, or clarify |
-| `use podman instead of docker` when semantic rules require explicit confirmation for a deterministic blocked transition | canonical directive | replace use | may return `clarify` and establish pending continuation under the active engine contract |
+| `use podman instead of docker` when `docker` is absent and `use podman` is otherwise valid | canonical directive | replace use | applies deterministically as the resulting `use podman` transition; not a pending/clarification case |
 | `clear premise` | canonical directive | clear premise | may apply or no-op |
 | `reset policies` | canonical directive | reset policies | may apply or no-op |
 | `clear state` | canonical directive | clear state | may apply or no-op |
