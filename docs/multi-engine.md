@@ -18,7 +18,7 @@ A single engine can manage:
 - conversational stance  
 - explicit correction and replacement flows  
 - policy removal and reset  
-- persistence and checkpoint restore  
+- authoritative-state persistence  
 
 Example:
 
@@ -60,7 +60,7 @@ The app is responsible for:
 
 - selecting which engine(s) apply  
 - combining state into model context  
-- managing lifecycle (reset, persistence, checkpoint restore) per engine  
+- managing lifecycle (reset and persistence) per engine  
 
 The compiler only maintains a single state instance per engine.
 

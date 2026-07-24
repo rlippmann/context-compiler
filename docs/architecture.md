@@ -9,12 +9,12 @@ Responsibilities:
 
 - apply deterministic state transitions
 - enforce deterministic clarification gates for core-owned state semantics
-- export/import authoritative state and checkpoints
+- export/import authoritative state
 
 Examples:
 
 - Context Compiler core engine
-- checkpoint/session snapshot behavior
+- authoritative state import/export behavior
 
 Repository:
 
@@ -37,11 +37,16 @@ Boundary:
   canonical operations already established by core
 - pending continuation is runtime state, not grammar
 - malformed or non-canonical input must never create pending continuation
+- a missing source item in `use <new> instead of <old>` is evaluated as a
+  deterministic state transition question, not as a justification for pending
+  continuation
 
 Current repository note:
 
 - the intended contract allows semantic pending continuation for supported
   deterministic blocked transitions
+- that continuation boundary is independent from the historical replacement
+  case where the requested old item is absent from state
 - the current runtime implementation does not yet fully restore that contract
   and should be treated as lagging the updated specification until runtime work
   lands
@@ -118,12 +123,11 @@ Policy independence is a major contributor to:
 - determinism
 - portability
 - replay consistency
-- checkpoint stability
 - cross-language conformance
 
 Because policies are independent flat assertions, directive semantics stay
-simple, exported state stays portable, replay remains exact, and any future
-checkpoint continuation does not depend on hidden relational logic.
+simple, exported state stays portable, and replay remains exact without hidden
+relational logic.
 
 Relationship-heavy semantics may still be useful, but they generally belong in
 drafting, orchestration, or domain-specific layers rather than in

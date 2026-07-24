@@ -73,29 +73,25 @@ Help apps safely reuse saved exported state.
 - Export current authoritative state
 - Initialize a new engine from previously exported authoritative state
 - Ensure restored authoritative state behaves identically to live state
-- Support serialized continuation checkpoints for restoring both:
-  - authoritative state
-  - pending confirmation-required continuation state
 
 **Deliverables:**
 
 - App-side storage and recovery patterns built on the existing import/export API
-- App-side storage and recovery patterns for checkpoint object and checkpoint JSON restore
 
 **User-visible outcome:**
 
-When apps persist exported state, assistants can carry decisions across sessions without reintroducing old conflicts.
-Pending confirmation-required flows can be resumed when the app persists checkpoints.
+When apps persist exported state, assistants can carry decisions across
+sessions without reintroducing old conflicts.
 
-`export_json()` / `import_json()` remain authoritative-state only.
-Checkpoint APIs are separate and represent runtime continuation.
-Long-term memory remains an app persistence responsibility, not an engine-owned store.
+`export_json()` / `import_json()` are the authoritative persistence boundary.
+Long-term memory remains an app persistence responsibility, not an engine-owned
+store.
 
 ### 0.6.x
 
-The 0.6.x line completed checkpoint support, authority-layer boundary hardening,
-and regression/conformance surfaces that prepared the project for the later
-clean break between core authority behavior, acquisition-layer drafting, and
+The 0.6.x line expanded authority-layer boundary hardening and
+regression/conformance surfaces that prepared the project for the later clean
+break between core authority behavior, acquisition-layer drafting, and
 runnable integrations.
 
 ### 0.7 — Auditability & Boundary Hardening
@@ -112,11 +108,9 @@ Make engine behavior inspectable and externally controllable without guessing.
 - Machine-readable REPL JSON output containing:
   - versioned one-object-per-line output (`output_version`)
   - step / preview / state command result envelopes
-- JSON preload for authoritative state and checkpoint continuation:
+- JSON preload for authoritative state:
   - `--initial-state-json`
   - `--initial-state-file`
-  - `--initial-checkpoint-json`
-  - `--initial-checkpoint-file`
 
 **Constraints:**
 
@@ -135,8 +129,8 @@ Current ownership after 0.8:
 
 - `context-compiler` owns the Authority Layer:
   deterministic state transitions, canonical directive application, semantic
-  validation, clarification and confirmation handling, checkpoints,
-  preview/diff, controller behavior, and authoritative state
+  validation, clarification and confirmation handling, preview/diff,
+  controller behavior, and authoritative state
 - `context-compiler-directive-drafter` owns Acquisition Layer drafting:
   natural-language-to-directive drafting, candidate directive generation,
   malformed-input recovery, alternate human phrasing, prompt/resource usage for
@@ -173,7 +167,6 @@ Design notes:
 - Any future thread-safety work should evaluate:
   - atomic preview semantics
   - export/import consistency
-  - checkpoint operations
   - concurrency testing
 - Thread-safety should be designed holistically rather than added through ad hoc locking.
 

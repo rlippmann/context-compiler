@@ -6,7 +6,7 @@
 
 Context Compiler is a deterministic conversational state authority for LLM applications.
 It handles canonical directive execution, semantic validation, deterministic
-clarify decisions, semantic continuation checkpoints, and structured authoritative state for
+clarify decisions, runtime semantic continuation boundaries, and structured authoritative state for
 the host.
 
 ## What Context Compiler provides
@@ -16,7 +16,7 @@ Context Compiler gives hosts fixed state rules:
 - handle canonical explicit state changes with deterministic rules
 - clarification instead of silent overwrite for blocked/ambiguous changes
 - preserve supported pending continuation when explicit confirmation is required
-- export and import checkpoints to restore saved state in a versioned engine snapshot
+- export and import authoritative state for host-managed persistence
 - produce structured authoritative state for downstream host decisions
 
 The model generates responses. The compiler owns state.
@@ -91,7 +91,9 @@ use podman instead of docker
 ```
 
 - Without explicit state transition rules: behavior depends on host/model handling
-- Context Compiler: returns `clarify` before changing state
+- Context Compiler: applies the deterministic resulting transition when
+  `docker` is absent and `use podman` is otherwise valid; other semantic
+  conflicts may still clarify
 
 ### Lifecycle enforcement
 
@@ -161,7 +163,7 @@ For runnable application-layer examples, see
 [`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations).
 That companion repository shows enforcement points built on compiler state,
 including retrieval filtering, schema selection, tool gating, execution
-authorization, gateway middleware, checkpoint continuation, and prompt
+authorization, gateway middleware, runtime continuation handling, and prompt
 construction.
 
 ## Does it Work?
@@ -187,12 +189,10 @@ pip install context-compiler
 context-compiler
 ```
 
-Preload options keep authoritative state transport separate from checkpoint session snapshots:
+Preload options load authoritative state:
 
 - `--initial-state-json` / `--initial-state-file` load saved state
   (via exported state JSON).
-- `--initial-checkpoint-json` / `--initial-checkpoint-file` restore the full
-  checkpoint envelope (saved state plus continuation field when supported by the active engine contract).
 
 REPL commands (controller layer, not engine directives):
 
@@ -211,12 +211,10 @@ for non-interactive usage.
 context-compiler --json < input.txt
 ```
 
-Preload options keep authoritative state transport separate from checkpoint session snapshots:
+Preload options load authoritative state:
 
 - `--initial-state-json` / `--initial-state-file` load saved state
   (via exported state JSON).
-- `--initial-checkpoint-json` / `--initial-checkpoint-file` restore the full
-  checkpoint envelope (saved state plus continuation field when supported by the active engine contract).
 
 ## Installation
 
@@ -277,8 +275,7 @@ Common API entry points:
 - decision helpers: `is_clarify(...)`, `is_update(...)`, `is_passthrough(...)`,
   `get_clarify_prompt(...)`, `get_decision_state(...)`
 - state helpers: `get_premise_value(...)`, `get_policy_items(...)`
-- state and checkpoint transport: `export_json(...)`, `import_json(...)`,
-  `export_checkpoint(...)`, `import_checkpoint(...)`
+- state transport: `export_json(...)`, `import_json(...)`
 - controller APIs: `preview(...)`, `step(...)`, `state_diff(...)`
 
 ### Controller API (Reusable Outside REPL)
@@ -363,20 +360,14 @@ the compiler.
 
 ---
 
-## Checkpoint Contract
+## Persistence Contract
 
-`export_json()` / `import_json()` and the checkpoint APIs serve different boundaries:
+`export_json()` / `import_json()` are the current persistence boundary.
 
-- `export_json()` / `import_json()` transport **authoritative state only**
-- checkpoint APIs transport a **versioned engine snapshot**:
-  - authoritative state
-  - `pending` semantic continuation state when supported by the active engine contract
-
-Use state JSON when you only need authoritative state. Use checkpoint APIs when
-you want the stable checkpoint envelope across process or request boundaries.
-
-For the checkpoint object shape, API-level usage notes, and serialization
-details, see [docs/api-reference.md](docs/api-reference.md#checkpoint-apis).
+- They transport **authoritative state only**
+- Hosts own any broader interaction or session workflow around that state
+- Pending continuation, if supported by the active engine contract, remains a
+  runtime semantic concept rather than a documented persisted artifact
 
 ---
 
@@ -402,6 +393,11 @@ Replacement:
 User: use podman instead of docker
 ```
 
+If `docker` is absent from saved state, that does not make the directive
+pending. The user's intended resulting state is still unambiguous, so the
+replacement follows the deterministic `use podman` transition when otherwise
+semantically valid.
+
 Removal and reset:
 
 ```text
@@ -418,6 +414,8 @@ evaluation against authoritative state.
 Pending continuation is a separate runtime layer. It may exist only after a
 canonical directive reaches a supported semantic `clarify` case. It never
 repairs malformed syntax or reinterprets non-canonical input as a directive.
+An absent source item in a canonical replacement directive is not, by itself,
+such a `clarify` case.
 
 Examples:
 

@@ -112,4 +112,4 @@ records the standard scored demo configuration.
 This is exploratory evidence, not benchmark authority. Reinjection can be
 enough in some persistence scenarios, while compiler-mediated paths still
 provide authority semantics such as replacement preconditions, blocked
-mutations, pending confirmation handling, and checkpoint continuation.
+mutations, and pending confirmation handling.
