@@ -403,12 +403,31 @@ def test_apply_preload_from_options_initial_state_json_restores_state() -> None:
 
 
 @pytest.mark.contract
-def test_read_utf8_file_returns_exact_contents(tmp_path: pathlib.Path) -> None:
-    payload = '{"premise":"concise","policies":{"docker":"use"},"version":2}\n'
+def test_apply_preload_from_options_initial_state_file_restores_state(
+    tmp_path: pathlib.Path,
+) -> None:
+    source_engine = create_engine()
+    source_engine.step("set premise concise")
+    source_engine.step("use docker")
+
+    payload = source_engine.export_json()
     path = tmp_path / "state.json"
     path.write_text(payload, encoding="utf-8")
 
-    assert repl_module._read_utf8_file(str(path)) == payload
+    target_engine = create_engine()
+    repl_module._apply_preload_from_options(
+        target_engine,
+        {
+            "json_mode": False,
+            "initial_state_file": str(path),
+        },
+    )
+
+    assert target_engine.state == {
+        "premise": "concise",
+        "policies": {"docker": "use"},
+        "version": 2,
+    }
 
 
 def test_cli_preload_missing_value_errors() -> None:

@@ -6,7 +6,7 @@ This directory contains multiple fixture suites with different contracts.
 
 * [`conformance/`](conformance/) — core engine cross-language conformance contract.
   Includes a small public API presence contract under `conformance/api/`.
-* [`engine-regression/structured/`](engine-regression/structured/) — deterministic per-turn engine regression fixtures (including checkpoint snapshots).
+* [`engine-regression/structured/`](engine-regression/structured/) — deterministic per-turn engine regression fixtures using authoritative state snapshots.
 `conformance/` and `engine-regression/structured/` both cover engine behavior at different layers.
 
 ## API contract fixture
@@ -53,7 +53,9 @@ Then asserts:
 
 ### Prelude
 
-`prelude` simulates prior user inputs to reach states that are not representable via `initial_state` (for example, pending semantic continuation when the active engine contract supports it).
+`prelude` simulates prior user inputs to reach states that are not representable
+via `initial_state` (for example, runtime-only semantic continuation when the
+active engine contract supports it).
 
 ## State JSON fixtures
 
@@ -62,15 +64,6 @@ For [`conformance/state-json/`](conformance/state-json/):
 Portable serialization contract coverage for `engine.export_json()` and
 `engine.import_json(...)`, including canonical export payload shape and
 deterministic validation/error boundaries.
-
-## Checkpoint fixtures
-
-For [`conformance/checkpoint/`](conformance/checkpoint/):
-
-Portable checkpoint import contract coverage for
-`engine.import_checkpoint(...)`, including deterministic validation/error
-boundaries, atomic failure behavior, and pending semantic-continuation restore
-and clearing semantics.
 
 ## Controller fixtures
 
@@ -96,15 +89,16 @@ portable fixture contract.
 
 [`engine-regression/structured/`](engine-regression/structured/)
 
-These fixtures capture deterministic per-turn engine behavior, including checkpoint snapshots, and are exercised by [`tests/test_structured_regression.py`](../test_structured_regression.py).
+These fixtures capture deterministic per-turn engine behavior using
+authoritative state snapshots, and are exercised by
+[`tests/test_structured_regression.py`](../test_structured_regression.py).
 
 They validate:
 
 * per-turn input handling
 * `Decision.kind` outcomes
 * clarification prompt behavior
-* checkpoint export parity against expected snapshots
-* continuation state restoration from checkpoints
+* authoritative state parity against expected snapshots
 
 Planned conformance coverage for the restored continuation contract should
 include:
@@ -114,7 +108,6 @@ include:
 * malformed replacement syntax does not create pending continuation
 * valid canonical directives that clarify without pending continuation
 * valid canonical directives that clarify and create pending continuation
-* checkpoint round-trip of supported pending continuation
 * deterministic `yes` resolution of the exact blocked transition
 * deterministic `no` rejection that clears pending continuation
 * deterministic handling of unrelated input while pending
