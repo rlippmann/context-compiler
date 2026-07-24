@@ -9,7 +9,7 @@ These examples are intended to teach:
 - `Decision` handling
 - engine lifecycle
 - state access
-- checkpoints
+- state restoration through `export_json()` / `import_json()`
 - controller APIs
 - authority-layer usage patterns
 
@@ -58,7 +58,9 @@ Includes a single-item policy removal step via `remove policy <item>`.
 ## 06_step_sequence_and_checkpoint.py
 
 Shows the recommended authority-layer sequencing pattern with `engine.step(...)`.
-Shows checkpoint export/import for restoring authoritative state without replay helpers.
+The filename is a legacy holdover from the earlier checkpoint workflow.
+The example now demonstrates authoritative state restoration with
+`export_json()` / `import_json()` without replay helpers.
 
 ## 07_single_policy_correction.py
 

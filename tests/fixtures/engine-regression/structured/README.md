@@ -4,7 +4,7 @@ These fixtures define deterministic, per-turn behavioral regression coverage for
 
 ## Layout
 
-* `scenarios/`: input stimuli and optional setup (`initial_checkpoint`)
+* `scenarios/`: input stimuli and optional setup (`initial_state`)
 * `expected/`: exact per-turn expected outputs
 
 Each scenario file in `scenarios/` must have a matching file in `expected/` with the same `id`.
@@ -16,16 +16,17 @@ Each expected turn uses:
 * `input`
 * `decision.kind`
 * `decision.prompt_to_user`
-* `checkpoint`
+* `state`
 
-`decision.state` is intentionally omitted because `checkpoint` is the authoritative resumable artifact.
+`decision.state` is intentionally omitted because the expected authoritative
+state snapshot is stored separately in each turn artifact.
 
-## Why Checkpoint Every Turn
+## Why Store State Every Turn
 
-A full checkpoint is stored and compared on every turn so regressions are visible in:
+A full authoritative state snapshot is stored and compared on every turn so
+regressions are visible in:
 
 * authoritative state
-* pending continuation state
 
 ## Prompt Matching
 
@@ -42,7 +43,7 @@ A full checkpoint is stored and compared on every turn so regressions are visibl
 These fixtures validate **deterministic engine behavior only**:
 
 * `engine.step(...)` outputs (`Decision.kind`, `prompt_to_user`)
-* post-turn checkpoint (`authoritative_state` + `pending`)
+* post-turn authoritative state snapshot
 
 They do **not** cover:
 
