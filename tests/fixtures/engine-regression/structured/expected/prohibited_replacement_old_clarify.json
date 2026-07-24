@@ -2,16 +2,12 @@
   "id": "prohibited_replacement_old_clarify",
   "turns": [
     {
-      "checkpoint": {
-        "authoritative_state": {
-          "policies": {
-            "docker": "prohibit"
-          },
-          "premise": null,
-          "version": 2
+      "state": {
+        "policies": {
+          "docker": "prohibit"
         },
-        "checkpoint_version": 1,
-        "pending": null
+        "premise": null,
+        "version": 2
       },
       "decision": {
         "kind": "update",
@@ -20,17 +16,13 @@
       "input": "prohibit docker"
     },
     {
-      "checkpoint": {
-        "authoritative_state": {
-          "policies": {
-            "docker": "prohibit",
-            "pytest": "use"
-          },
-          "premise": null,
-          "version": 2
+      "state": {
+        "policies": {
+          "docker": "prohibit",
+          "pytest": "use"
         },
-        "checkpoint_version": 1,
-        "pending": null
+        "premise": null,
+        "version": 2
       },
       "decision": {
         "kind": "update",
@@ -39,17 +31,13 @@
       "input": "use pytest"
     },
     {
-      "checkpoint": {
-        "authoritative_state": {
-          "policies": {
-            "docker": "prohibit",
-            "pytest": "use"
-          },
-          "premise": null,
-          "version": 2
+      "state": {
+        "policies": {
+          "docker": "prohibit",
+          "pytest": "use"
         },
-        "checkpoint_version": 1,
-        "pending": null
+        "premise": null,
+        "version": 2
       },
       "decision": {
         "kind": "clarify",
@@ -58,17 +46,13 @@
       "input": "use kubectl instead of docker"
     },
     {
-      "checkpoint": {
-        "authoritative_state": {
-          "policies": {
-            "docker": "prohibit",
-            "pytest": "use"
-          },
-          "premise": null,
-          "version": 2
+      "state": {
+        "policies": {
+          "docker": "prohibit",
+          "pytest": "use"
         },
-        "checkpoint_version": 1,
-        "pending": null
+        "premise": null,
+        "version": 2
       },
       "decision": {
         "kind": "passthrough",

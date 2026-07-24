@@ -2,14 +2,10 @@
   "id": "premise_lifecycle",
   "turns": [
     {
-      "checkpoint": {
-        "authoritative_state": {
-          "policies": {},
-          "premise": "concise replies",
-          "version": 2
-        },
-        "checkpoint_version": 1,
-        "pending": null
+      "state": {
+        "policies": {},
+        "premise": "concise replies",
+        "version": 2
       },
       "decision": {
         "kind": "update",
@@ -18,14 +14,10 @@
       "input": "set premise concise replies"
     },
     {
-      "checkpoint": {
-        "authoritative_state": {
-          "policies": {},
-          "premise": "concise replies",
-          "version": 2
-        },
-        "checkpoint_version": 1,
-        "pending": null
+      "state": {
+        "policies": {},
+        "premise": "concise replies",
+        "version": 2
       },
       "decision": {
         "kind": "clarify",
@@ -34,14 +26,10 @@
       "input": "set premise formal replies"
     },
     {
-      "checkpoint": {
-        "authoritative_state": {
-          "policies": {},
-          "premise": "concise bullet points",
-          "version": 2
-        },
-        "checkpoint_version": 1,
-        "pending": null
+      "state": {
+        "policies": {},
+        "premise": "concise bullet points",
+        "version": 2
       },
       "decision": {
         "kind": "update",
@@ -50,14 +38,10 @@
       "input": "change premise to concise bullet points"
     },
     {
-      "checkpoint": {
-        "authoritative_state": {
-          "policies": {},
-          "premise": null,
-          "version": 2
-        },
-        "checkpoint_version": 1,
-        "pending": null
+      "state": {
+        "policies": {},
+        "premise": null,
+        "version": 2
       },
       "decision": {
         "kind": "update",
@@ -66,14 +50,10 @@
       "input": "clear premise"
     },
     {
-      "checkpoint": {
-        "authoritative_state": {
-          "policies": {},
-          "premise": null,
-          "version": 2
-        },
-        "checkpoint_version": 1,
-        "pending": null
+      "state": {
+        "policies": {},
+        "premise": null,
+        "version": 2
       },
       "decision": {
         "kind": "clarify",

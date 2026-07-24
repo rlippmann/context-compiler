@@ -21,15 +21,15 @@ def _load_json(path: Path) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
-def _checkpoint_diff(expected: object, actual: object) -> str:
+def _state_diff(expected: object, actual: object) -> str:
     expected_lines = json.dumps(expected, indent=2, sort_keys=True).splitlines()
     actual_lines = json.dumps(actual, indent=2, sort_keys=True).splitlines()
     return "\n".join(
         difflib.unified_diff(
             expected_lines,
             actual_lines,
-            fromfile="expected_checkpoint",
-            tofile="actual_checkpoint",
+            fromfile="expected_state",
+            tofile="actual_state",
             lineterm="",
         )
     )
@@ -47,9 +47,9 @@ def test_structured_regression_scenarios() -> None:
 
         engine = create_engine()
 
-        initial_checkpoint = scenario.get("initial_checkpoint")
-        if initial_checkpoint is not None:
-            engine.import_checkpoint(initial_checkpoint)
+        initial_state = scenario.get("initial_state")
+        if initial_state is not None:
+            engine.import_json(json.dumps(initial_state, sort_keys=True, separators=(",", ":")))
 
         inputs = scenario["inputs"]
         expected_turns = expected["turns"]
@@ -57,7 +57,7 @@ def test_structured_regression_scenarios() -> None:
 
         for turn_index, user_input in enumerate(inputs):
             decision = engine.step(user_input)
-            checkpoint = engine.export_checkpoint()
+            state = engine.state
             expected_turn = expected_turns[turn_index]
 
             context = f"scenario={scenario_id} turn={turn_index} input={user_input!r}"
@@ -72,7 +72,7 @@ def test_structured_regression_scenarios() -> None:
                 f"{context} prompt_to_user_mismatch"
             )
 
-            expected_checkpoint = expected_turn["checkpoint"]
-            if checkpoint != expected_checkpoint:
-                diff = _checkpoint_diff(expected_checkpoint, checkpoint)
-                pytest.fail(f"{context} checkpoint_mismatch\n{diff}")
+            expected_state = expected_turn["state"]
+            if state != expected_state:
+                diff = _state_diff(expected_state, state)
+                pytest.fail(f"{context} state_mismatch\n{diff}")

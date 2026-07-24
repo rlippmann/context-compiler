@@ -14,7 +14,6 @@
   "exports": {
     "mode": "exact",
     "names": [
-      "Checkpoint",
       "Decision",
       "DECISION_CLARIFY",
       "DECISION_PASSTHROUGH",
@@ -45,9 +44,6 @@
       "step"
     ],
     "members": {
-      "Checkpoint": {
-        "kind": "type"
-      },
       "Decision": {
         "kind": "type"
       },
@@ -539,18 +535,6 @@
     "public_members": {
       "mode": "exact",
       "members": {
-        "export_checkpoint": {
-          "kind": "method",
-          "signature": {
-            "params": []
-          }
-        },
-        "export_checkpoint_json": {
-          "kind": "method",
-          "signature": {
-            "params": []
-          }
-        },
         "export_json": {
           "kind": "method",
           "signature": {
@@ -561,30 +545,6 @@
           "kind": "method",
           "signature": {
             "params": []
-          }
-        },
-        "import_checkpoint": {
-          "kind": "method",
-          "signature": {
-            "params": [
-              {
-                "name": "payload",
-                "kind": "POSITIONAL_OR_KEYWORD",
-                "has_default": false
-              }
-            ]
-          }
-        },
-        "import_checkpoint_json": {
-          "kind": "method",
-          "signature": {
-            "params": [
-              {
-                "name": "payload",
-                "kind": "POSITIONAL_OR_KEYWORD",
-                "has_default": false
-              }
-            ]
           }
         },
         "import_json": {

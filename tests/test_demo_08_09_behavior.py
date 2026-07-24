@@ -35,7 +35,7 @@ def _sequenced_outputs(outputs: list[str]) -> Callable[[object], str]:
     return _fake_complete_messages
 
 
-def test_demo_08_reports_invalid_replacement_block_and_unchanged_state(
+def test_demo_08_reports_deterministic_missing_source_replacement_update(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     module = _load_demo_module("08_llm_replacement_precondition.py")
@@ -58,12 +58,12 @@ def test_demo_08_reports_invalid_replacement_block_and_unchanged_state(
     assert report["name"].startswith("08_replacement_precondition")
     assert report["baseline_pass"] is False
     assert report["reinjected_state_pass"] is False
-    assert report["compiler_pass"] is False
+    assert report["compiler_pass"] is True
     assert report["compiler_compact_pass"] is True
-    assert report["demo_pass"] is False
+    assert report["demo_pass"] is True
     assert "baseline: FAIL" in output
     assert "reinjected-state: FAIL" in output
-    assert "compiler: FAIL" in output
+    assert "compiler: PASS" in output
 
 
 def test_demo_08_reinjected_path_does_not_instantiate_engine(

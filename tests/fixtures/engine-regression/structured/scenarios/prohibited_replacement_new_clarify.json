@@ -1,7 +1,7 @@
 {
   "description": "Replacement to a prohibited new item stays an ordinary clarify",
   "id": "prohibited_replacement_new_clarify",
-  "initial_checkpoint": null,
+  "initial_state": null,
   "inputs": [
     "use docker",
     "prohibit kubectl",

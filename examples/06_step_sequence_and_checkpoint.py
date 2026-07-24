@@ -1,4 +1,4 @@
-"""Example 6: explicit step sequencing and checkpoint restore."""
+"""Example 6: explicit step sequencing and state restore."""
 
 from _util import print_decision_summary, print_state_summary
 
@@ -19,11 +19,11 @@ def main() -> None:
         print_decision_summary(engine.step(turn))
     print()
 
-    checkpoint = engine.export_checkpoint_json()
+    state_json = engine.export_json()
     restored = create_engine()
-    restored.import_checkpoint_json(checkpoint)
+    restored.import_json(state_json)
 
-    print("Checkpoint restore keeps authority state:")
+    print("JSON restore keeps authority state:")
     print_state_summary(restored.state, "restored state")
 
 

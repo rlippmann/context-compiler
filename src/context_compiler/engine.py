@@ -5,7 +5,7 @@ import re
 from copy import deepcopy
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Literal, NotRequired, TypedDict
+from typing import Literal, TypedDict
 from unicodedata import normalize as unicode_normalize
 
 from .const import (
@@ -28,12 +28,6 @@ class State(TypedDict):
     premise: str | None
     policies: dict[str, PolicyValue]
     version: Literal[2]
-
-
-class Checkpoint(TypedDict):
-    checkpoint_version: Literal[1]
-    authoritative_state: State
-    pending: NotRequired[None]
 
 
 class DecisionKind(StrEnum):
@@ -78,7 +72,6 @@ _PASSTHROUGH: Decision = {
 _AFFIRMATIVE_CONFIRMATIONS = {"yes", "yes please", "yep", "yeah", "sure", "ok", "okay"}
 _NEGATIVE_CONFIRMATIONS = {"no", "nope", "no thanks"}
 _TRAILING_CONFIRM_PUNCT_RE = re.compile(r"[.,!?]+$")
-_CHECKPOINT_VERSION: Literal[1] = 1
 _COMPOUND_DIRECTIVE_PROMPT = (
     "Multiple directives are not supported in one input.\nSubmit each directive separately."
 )
@@ -136,30 +129,6 @@ class Engine:
 
     def import_json(self, payload: str) -> None:
         self._replace_state(_load_state_json(payload))
-
-    def export_checkpoint(self) -> Checkpoint:
-        # Reuse authoritative export/import path for canonicalized state payload.
-        authoritative_state = _load_state_json(self.export_json())
-        return {
-            "checkpoint_version": _CHECKPOINT_VERSION,
-            "authoritative_state": authoritative_state,
-            "pending": None,
-        }
-
-    def import_checkpoint(self, payload: Checkpoint) -> None:
-        state = _load_checkpoint_obj(payload)
-        self._replace_state(state)
-
-    def export_checkpoint_json(self) -> str:
-        return json.dumps(self.export_checkpoint(), sort_keys=True, separators=(",", ":"))
-
-    def import_checkpoint_json(self, payload: str) -> None:
-        try:
-            raw = json.loads(payload)
-        except json.JSONDecodeError as exc:
-            raise ValueError("Invalid JSON payload.") from exc
-
-        self.import_checkpoint(raw)
 
     def step(self, user_input: str) -> Decision:
         action = _parse_directive(user_input)
@@ -264,7 +233,7 @@ class Engine:
                     f'"{action.new_item}" is currently prohibited.\n'
                     "Submit explicit directive(s) to remove it or use a different item."
                 )
-            if old_state != POLICY_USE:
+            if old_state not in {None, POLICY_USE}:
                 return _clarify(
                     f'"{action.old_item}" is not currently in use.\n'
                     "Replacement requires an active 'use' policy."
@@ -462,32 +431,6 @@ def _load_state_obj(raw: object) -> State:
         STATE_POLICIES: dict(sorted(normalized_policies.items())),
         STATE_VERSION: SCHEMA_VERSION,
     }
-
-
-def _load_checkpoint_obj(raw: object) -> State:
-    if not isinstance(raw, dict):
-        raise ValueError("Invalid checkpoint payload.")
-
-    keys = set(raw.keys())
-    if keys not in (
-        {"checkpoint_version", "authoritative_state"},
-        {"checkpoint_version", "authoritative_state", "pending"},
-    ):
-        raise ValueError("Invalid checkpoint payload.")
-
-    checkpoint_version = raw["checkpoint_version"]
-    if checkpoint_version != _CHECKPOINT_VERSION:
-        raise ValueError(f"Unsupported checkpoint version: {checkpoint_version!r}")
-
-    authoritative_state = _load_state_obj(raw["authoritative_state"])
-    _load_checkpoint_pending_obj(raw.get("pending"))
-    return authoritative_state
-
-
-def _load_checkpoint_pending_obj(raw: object) -> None:
-    if raw is None:
-        return
-    raise ValueError("Invalid checkpoint payload.")
 
 
 def _sanitize_premise_value(value: str) -> str:
