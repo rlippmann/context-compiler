@@ -6,6 +6,7 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from context_compiler import create_engine
+from context_compiler.controller import preview, state_diff
 from context_compiler.engine import _CANONICAL_DIRECTIVE_STARTS, State
 from context_compiler.grammar import validate_directive
 
@@ -97,6 +98,70 @@ def _canonicalize_state_payload(payload: dict[str, object]) -> State:
         "policies": dict(sorted(normalized_policies.items())),
         "version": 2,
     }
+
+
+VALID_NONEMPTY_ITEM_TEXT = NORMALIZATION_SENSITIVE_TEXT.filter(
+    lambda value: (
+        _normalize_item_like_engine(value) != ""
+        and not _contains_canonical_start_fragment(value)
+        and " instead of " not in value
+        and not value.startswith("instead of ")
+        and not value.endswith(" instead of")
+    )
+)
+
+VALID_USE_ITEM_TEXT = VALID_NONEMPTY_ITEM_TEXT.filter(
+    lambda value: validate_directive(f"use {value}") is not None
+)
+
+VALID_PROHIBIT_ITEM_TEXT = VALID_NONEMPTY_ITEM_TEXT.filter(
+    lambda value: validate_directive(f"prohibit {value}") is not None
+)
+
+VALID_PREMISE_TEXT = NORMALIZATION_SENSITIVE_TEXT.filter(
+    lambda value: _sanitize_premise_like_engine(value) != ""
+)
+
+PREVIEW_INPUTS = st.one_of(
+    st.text(max_size=40),
+    VALID_USE_ITEM_TEXT.map(lambda item: f"use {item}"),
+    VALID_PROHIBIT_ITEM_TEXT.map(lambda item: f"prohibit {item}"),
+    VALID_NONEMPTY_ITEM_TEXT.map(lambda item: f"remove policy {item}").filter(
+        lambda text: validate_directive(text) is not None
+    ),
+    VALID_PREMISE_TEXT.map(lambda value: f"set premise {value}").filter(
+        lambda text: validate_directive(text) is not None
+    ),
+    VALID_PREMISE_TEXT.map(lambda value: f"change premise to {value}").filter(
+        lambda text: validate_directive(text) is not None
+    ),
+    st.sampled_from(["clear premise", "reset policies", "clear state"]),
+    st.tuples(VALID_USE_ITEM_TEXT, VALID_NONEMPTY_ITEM_TEXT)
+    .filter(
+        lambda pair: _normalize_item_like_engine(pair[0]) != _normalize_item_like_engine(pair[1])
+    )
+    .map(lambda pair: f"use {pair[0]} instead of {pair[1]}")
+    .filter(lambda text: validate_directive(text) is not None),
+)
+
+DETERMINISTIC_REPLACEMENT_CASES = st.builds(
+    lambda payload, new_item, old_item, old_present: {
+        "payload": payload,
+        "new_item": new_item,
+        "old_item": old_item,
+        "old_present": old_present,
+    },
+    payload=VALID_STATE_PAYLOADS,
+    new_item=VALID_USE_ITEM_TEXT,
+    old_item=VALID_NONEMPTY_ITEM_TEXT,
+    old_present=st.booleans(),
+).filter(
+    lambda case: (
+        _normalize_item_like_engine(case["new_item"])
+        != _normalize_item_like_engine(case["old_item"])
+        and validate_directive(f"use {case['new_item']} instead of {case['old_item']}") is not None
+    )
+)
 
 
 @given(st.lists(st.text(max_size=40), min_size=0, max_size=20))
@@ -281,3 +346,83 @@ def test_generated_valid_states_canonicalize_deterministically(
     assert engine1.state == expected_state
     assert engine2.state == expected_state
     assert engine1.export_json() == engine2.export_json()
+
+
+@given(DETERMINISTIC_REPLACEMENT_CASES)
+def test_deterministic_replacement_matches_equivalent_explicit_transition(
+    case: dict[str, object],
+) -> None:
+    payload = case["payload"]
+    new_item = case["new_item"]
+    old_item = case["old_item"]
+    old_present = case["old_present"]
+
+    assert isinstance(payload, dict)
+    assert isinstance(new_item, str)
+    assert isinstance(old_item, str)
+    assert isinstance(old_present, bool)
+
+    initial_state = _canonicalize_state_payload(payload)
+    new_key = _normalize_item_like_engine(new_item)
+    old_key = _normalize_item_like_engine(old_item)
+
+    policies = dict(initial_state["policies"])
+    policies.pop(new_key, None)
+    if old_present:
+        policies[old_key] = "use"
+    else:
+        policies.pop(old_key, None)
+
+    initial_state = {
+        "premise": initial_state["premise"],
+        "policies": dict(sorted(policies.items())),
+        "version": 2,
+    }
+    assume(initial_state["policies"].get(new_key) != "prohibit")
+
+    expected_state = {
+        "premise": initial_state["premise"],
+        "policies": dict(sorted({**initial_state["policies"], new_key: "use"}.items())),
+        "version": 2,
+    }
+    expected_state["policies"].pop(old_key, None)
+    expected_state["policies"][new_key] = "use"
+    expected_state["policies"] = dict(sorted(expected_state["policies"].items()))
+
+    engine = create_engine(state=initial_state)
+    decision = engine.step(f"use {new_item} instead of {old_item}")
+
+    assert decision == {"kind": "update", "state": expected_state, "prompt_to_user": None}
+    assert engine.state == expected_state
+    assert engine.has_pending_clarification() is False
+
+    if not old_present:
+        followup = engine.step("yes")
+        assert followup == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+        assert engine.has_pending_clarification() is False
+        assert engine.state == expected_state
+
+
+@given(VALID_STATE_PAYLOADS, PREVIEW_INPUTS)
+def test_preview_matches_isolated_execution_without_mutating_live_engine(
+    payload: dict[str, object], user_input: str
+) -> None:
+    live_engine = create_engine()
+    live_engine.import_json(json.dumps(payload))
+    before = live_engine.state
+
+    preview_result = preview(live_engine, user_input)
+
+    isolated_engine = create_engine()
+    isolated_engine.import_json(json.dumps(before))
+    isolated_decision = isolated_engine.step(user_input)
+    isolated_after = isolated_engine.state
+    isolated_diff = state_diff(before, isolated_after)
+
+    assert live_engine.state == before
+    assert preview_result["decision"] == isolated_decision
+    assert preview_result["state_before"] == before
+    assert preview_result["state_after"] == isolated_after
+    assert preview_result["diff"] == isolated_diff
+    assert preview_result["would_mutate"] is (before != isolated_after)
+    assert preview_result["would_mutate"] is preview_result["diff"]["changed"]
