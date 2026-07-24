@@ -35,7 +35,7 @@ Runnable application-layer enforcement-point integrations live in
 | [05](./05_llm_prompt_drift_vs_state.py) | Prompt drift | long transcript failure | weaker long-context models ([see Demo 05 example](#demo-05-example-prompt-drift-under-longer-context)) |
 | [06](./06_llm_context_compaction.py) | Context compaction | saved compiler state replacing transcript context | small or local models |
 | [07](./07_llm_prompt_vs_state.py) | Prompt engineering comparison | prompting vs saved compiler state | any model with long transcript sensitivity |
-| [08](./08_llm_replacement_precondition.py) | Replacement precondition | invalid replacement blocked without state mutation | any model |
+| [08](./08_llm_replacement_precondition.py) | Replacement precondition | missing-source replacement applies deterministically from authoritative state | any model |
 | [09](./09_llm_pending_clarification.py) | Pending boundary | invalid replacement does not become pending continuation | any model |
 
 Stronger frontier models may show these behaviors less often, but the same

@@ -100,8 +100,8 @@ They validate:
 * clarification prompt behavior
 * authoritative state parity against expected snapshots
 
-Planned conformance coverage for the restored continuation contract should
-include:
+If a future engine contract restores supported continuation behavior,
+planned conformance coverage should include:
 
 * incomplete directives do not create pending continuation
 * compound directives do not create pending continuation
