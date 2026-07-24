@@ -19,7 +19,9 @@
     "has_pending_clarification": false,
     "state": {
       "premise": null,
-      "policies": {},
+      "policies": {
+        "kubectl": "use"
+      },
       "version": 2
     }
   }

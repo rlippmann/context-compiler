@@ -2,18 +2,16 @@
   "id": "replacement_clarify",
   "turns": [
     {
-      "checkpoint": {
-        "authoritative_state": {
-          "policies": {},
-          "premise": null,
-          "version": 2
+      "state": {
+        "policies": {
+          "podman": "use"
         },
-        "checkpoint_version": 1,
-        "pending": null
+        "premise": null,
+        "version": 2
       },
       "decision": {
-        "kind": "clarify",
-        "prompt_to_user": "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
+        "kind": "update",
+        "prompt_to_user": null
       },
       "input": "use podman instead of docker"
     }

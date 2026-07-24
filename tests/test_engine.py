@@ -285,127 +285,10 @@ def test_import_json_accepts_valid_policy_key_and_normalizes_it() -> None:
     assert engine.state == {"premise": None, "policies": {"docker": "use"}, "version": 2}
 
 
-@pytest.mark.contract
-def test_export_checkpoint_contains_version_authoritative_state_and_pending_none() -> None:
-    engine = create_engine()
-    engine.step("set premise concise")
-    engine.step("use docker")
-
-    checkpoint = engine.export_checkpoint()
-
-    assert checkpoint == {
-        "checkpoint_version": 1,
-        "authoritative_state": {
-            "premise": "concise",
-            "policies": {"docker": "use"},
-            "version": 2,
-        },
-        "pending": None,
-    }
-
-
-@pytest.mark.contract
-def test_export_checkpoint_json_round_trip_preserves_authoritative_and_pending_state() -> None:
-    source = create_engine()
-    source.step("use kubectl instead of docker")
-
-    payload = source.export_checkpoint_json()
-    target = create_engine()
-    target.import_checkpoint_json(payload)
-
-    assert target.export_checkpoint() == source.export_checkpoint()
-
-
-@pytest.mark.contract
-def test_export_checkpoint_json_is_canonical_sorted_and_compact() -> None:
-    engine = create_engine()
-    engine.step("set premise concise")
-    engine.step("use zeta")
-    engine.step("use alpha")
-
-    payload = engine.export_checkpoint_json()
-
-    assert payload == (
-        '{"authoritative_state":{"policies":{"alpha":"use","zeta":"use"},'
-        '"premise":"concise","version":2},"checkpoint_version":1,"pending":null}'
-    )
-
-
-@pytest.mark.contract
-def test_export_checkpoint_does_not_serialize_pending_for_missing_source_replacement_clarify() -> (
-    None
-):
-    engine = create_engine()
-    clarify = engine.step("use kubectl instead of docker")
-    assert clarify == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": (
-            "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
-        ),
-    }
-
-    checkpoint = engine.export_checkpoint()
-    assert checkpoint["pending"] is None
-
-
-@pytest.mark.contract
-def test_export_checkpoint_does_not_serialize_pending_for_prohibited_replacement_clarify() -> None:
-    source = create_engine()
-    source.step("use docker")
-    source.step("prohibit kubectl")
-    clarify = source.step("use kubectl instead of docker")
-    assert clarify == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": (
-            '"kubectl" is currently prohibited.\n'
-            "Submit explicit directive(s) to remove it or use a different item."
-        ),
-    }
-
-    checkpoint = source.export_checkpoint()
-    assert checkpoint["pending"] is None
-
-
-@pytest.mark.contract
-def test_export_checkpoint_json_object_and_restore_paths_are_behaviorally_equivalent() -> None:
-    source = create_engine()
-    source.step("use kubectl instead of docker")
-
-    checkpoint_obj = source.export_checkpoint()
-    checkpoint_json = source.export_checkpoint_json()
-    assert json.loads(checkpoint_json) == checkpoint_obj
-
-    via_obj = create_engine()
-    via_obj.import_checkpoint(checkpoint_obj)
-
-    via_json = create_engine()
-    via_json.import_checkpoint_json(checkpoint_json)
-
-    assert via_obj.step("yes") == via_json.step("yes")
-    assert via_obj.state == via_json.state
-
-
-@pytest.mark.contract
-def test_yes_without_pending_after_checkpoint_round_trip_is_passthrough() -> None:
-    source = create_engine()
-    source.step("use kubectl instead of docker")
-    checkpoint = source.export_checkpoint()
-
-    target = create_engine()
-    target.import_checkpoint(checkpoint)
-    assert target.has_pending_clarification() is False
-    decision = target.step("yes")
-
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
-    assert target.state == {"premise": None, "policies": {}, "version": 2}
-
-
 def test_has_pending_clarification_remains_false_after_invalid_replacement_followup() -> None:
     engine = create_engine()
     decision = engine.step("use kubectl instead of docker")
-    assert decision["kind"] == "clarify"
+    assert decision["kind"] == "update"
     assert engine.has_pending_clarification() is False
 
     no_decision = engine.step("no")
@@ -413,209 +296,15 @@ def test_has_pending_clarification_remains_false_after_invalid_replacement_follo
     assert engine.has_pending_clarification() is False
 
 
-def test_import_checkpoint_invalid_json_and_invalid_object_payload_are_rejected() -> None:
-    engine = create_engine()
-
-    with pytest.raises(ValueError, match="Invalid JSON payload"):
-        engine.import_checkpoint_json("{")
-
-    with pytest.raises(ValueError, match="Invalid checkpoint payload"):
-        engine.import_checkpoint(  # type: ignore[arg-type]
-            {
-                "checkpoint_version": 1,
-                "pending": None,
-            }
-        )
-
-
-def test_import_checkpoint_rejects_authoritative_state_with_empty_normalized_policy_key() -> None:
-    engine = create_engine()
-    with pytest.raises(ValueError, match="Invalid state payload"):
-        engine.import_checkpoint(  # type: ignore[arg-type]
-            {
-                "checkpoint_version": 1,
-                "authoritative_state": {
-                    "premise": None,
-                    "policies": {"a": "use"},
-                    "version": 2,
-                },
-                "pending": None,
-            }
-        )
-
-
-def test_import_checkpoint_json_rejects_authoritative_state_with_empty_normalized_policy_key() -> (
-    None
-):
-    engine = create_engine()
-    with pytest.raises(ValueError, match="Invalid state payload"):
-        engine.import_checkpoint_json(
-            json.dumps(
-                {
-                    "checkpoint_version": 1,
-                    "authoritative_state": {
-                        "premise": None,
-                        "policies": {"a": "use"},
-                        "version": 2,
-                    },
-                    "pending": None,
-                }
-            )
-        )
-
-
-def test_import_checkpoint_rejects_non_object_payload() -> None:
-    engine = create_engine()
-    with pytest.raises(ValueError, match="Invalid checkpoint payload"):
-        engine.import_checkpoint([])  # type: ignore[arg-type]
-
-
-def test_import_checkpoint_rejects_unsupported_checkpoint_version() -> None:
-    engine = create_engine()
-    with pytest.raises(ValueError, match="Unsupported checkpoint version"):
-        engine.import_checkpoint(  # type: ignore[arg-type]
-            {
-                "checkpoint_version": 2,
-                "authoritative_state": {"premise": None, "policies": {}, "version": 2},
-                "pending": None,
-            }
-        )
-
-
-def test_import_checkpoint_json_rejects_unsupported_checkpoint_version() -> None:
-    engine = create_engine()
-    with pytest.raises(ValueError, match="Unsupported checkpoint version"):
-        engine.import_checkpoint_json(
-            json.dumps(
-                {
-                    "checkpoint_version": 2,
-                    "authoritative_state": {"premise": None, "policies": {}, "version": 2},
-                    "pending": None,
-                }
-            )
-        )
-
-
-@pytest.mark.parametrize(
-    "pending",
-    [
-        "bad",
-        {"kind": "replacement"},
-        {
-            "kind": "wrong",
-            "replacement": {"kind": "use_only", "new_item": "x", "old_item": None},
-            "prompt_to_user": "p",
-        },
-        {
-            "kind": "replacement",
-            "replacement": {"kind": "use_only", "new_item": "x", "old_item": None},
-            "prompt_to_user": 1,
-        },
-    ],
-)
-def test_import_checkpoint_rejects_invalid_pending_payload_shapes(pending: object) -> None:
-    engine = create_engine()
-    with pytest.raises(ValueError, match="Invalid checkpoint payload"):
-        engine.import_checkpoint(  # type: ignore[arg-type]
-            {
-                "checkpoint_version": 1,
-                "authoritative_state": {"premise": None, "policies": {}, "version": 2},
-                "pending": pending,
-            }
-        )
-
-
 def test_normalize_confirmation_collapses_unicode_spacing_and_trailing_punctuation() -> None:
     assert _normalize_confirmation("  YES!!  ") == "yes"
     assert _normalize_confirmation("No\t\tthanks...\n") == "no thanks"
 
 
-@pytest.mark.parametrize(
-    "replacement",
-    [
-        "bad",
-        {"kind": "use_only", "new_item": "x"},
-        {"kind": "other", "new_item": "x", "old_item": None},
-        {"kind": "replace_use", "new_item": "x", "old_item": "y"},
-        {"kind": "use_only", "new_item": 1, "old_item": None},
-        {"kind": "use_only", "new_item": "x", "old_item": "y"},
-    ],
-)
-def test_import_checkpoint_rejects_invalid_pending_replacement_payload_shapes(
-    replacement: object,
-) -> None:
-    engine = create_engine()
-    with pytest.raises(ValueError, match="Invalid checkpoint payload"):
-        engine.import_checkpoint(  # type: ignore[arg-type]
-            {
-                "checkpoint_version": 1,
-                "authoritative_state": {"premise": None, "policies": {}, "version": 2},
-                "pending": {
-                    "kind": "replacement",
-                    "replacement": replacement,
-                    "prompt_to_user": "confirm?",
-                },
-            }
-        )
-
-
-def test_import_checkpoint_is_all_or_nothing_when_pending_is_invalid() -> None:
-    engine = create_engine()
-    engine.step("set premise baseline")
-    before = engine.state
-
-    with pytest.raises(ValueError, match="Invalid checkpoint payload"):
-        engine.import_checkpoint(  # type: ignore[arg-type]
-            {
-                "checkpoint_version": 1,
-                "authoritative_state": {
-                    "premise": "new premise",
-                    "policies": {"pytest": "use"},
-                    "version": 2,
-                },
-                "pending": {
-                    "kind": "replacement",
-                    "replacement": {
-                        "kind": "use_only",
-                        "new_item": "kubectl",
-                        "old_item": "docker",
-                    },
-                    "prompt_to_user": "confirm?",
-                },
-            }
-        )
-
-    assert engine.state == before
-
-
-def test_import_checkpoint_is_all_or_nothing_when_authoritative_state_is_invalid() -> None:
-    engine = create_engine()
-    first = engine.step("use kubectl instead of docker")
-    assert first["kind"] == "clarify"
-    before = engine.state
-
-    with pytest.raises(ValueError, match="Invalid state payload"):
-        engine.import_checkpoint(  # type: ignore[arg-type]
-            {
-                "checkpoint_version": 1,
-                "authoritative_state": {
-                    "premise": None,
-                    "policies": [],
-                    "version": 2,
-                },
-                "pending": None,
-            }
-        )
-
-    second = engine.step("maybe")
-    assert second == {"kind": "passthrough", "state": None, "prompt_to_user": None}
-    assert engine.state == before
-
-
 def test_has_pending_clarification_stays_false_after_import_json() -> None:
     engine = create_engine()
     clarify = engine.step("use kubectl instead of docker")
-    assert clarify["kind"] == "clarify"
+    assert clarify["kind"] == "update"
     assert engine.has_pending_clarification() is False
 
     engine.import_json('{"policies":{},"premise":null,"version":2}')
@@ -637,68 +326,6 @@ def test_replace_use_clarifies_when_old_policy_is_not_use_in_invalid_internal_st
             "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
         ),
     }
-
-
-@pytest.mark.contract
-def test_import_checkpoint_with_pending_none_clears_existing_pending() -> None:
-    engine = create_engine()
-    assert engine.has_pending_clarification() is False
-
-    engine.import_checkpoint(
-        {
-            "checkpoint_version": 1,
-            "authoritative_state": {
-                "premise": "baseline",
-                "policies": {"pytest": "use"},
-                "version": 2,
-            },
-            "pending": None,
-        }
-    )
-    assert engine.has_pending_clarification() is False
-
-    yes_decision = engine.step("yes")
-    assert yes_decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
-    assert engine.state == {"premise": "baseline", "policies": {"pytest": "use"}, "version": 2}
-
-
-@pytest.mark.contract
-def test_import_checkpoint_with_pending_absent_clears_existing_pending() -> None:
-    engine = create_engine()
-    assert engine.has_pending_clarification() is False
-
-    engine.import_checkpoint(
-        {
-            "checkpoint_version": 1,
-            "authoritative_state": {
-                "premise": "baseline",
-                "policies": {"pytest": "use"},
-                "version": 2,
-            },
-        }
-    )
-    assert engine.has_pending_clarification() is False
-
-    yes_decision = engine.step("yes")
-    assert yes_decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
-    assert engine.state == {"premise": "baseline", "policies": {"pytest": "use"}, "version": 2}
-
-
-@pytest.mark.parametrize("new_item", ["", "   ", "the", "an", "a"])
-def test_import_checkpoint_rejects_pending_use_only_with_invalid_new_item(new_item: str) -> None:
-    engine = create_engine()
-    with pytest.raises(ValueError, match="Invalid checkpoint payload"):
-        engine.import_checkpoint(  # type: ignore[arg-type]
-            {
-                "checkpoint_version": 1,
-                "authoritative_state": {"premise": None, "policies": {}, "version": 2},
-                "pending": {
-                    "kind": "replacement",
-                    "replacement": {"kind": "use_only", "new_item": new_item, "old_item": None},
-                    "prompt_to_user": "confirm?",
-                },
-            }
-        )
 
 
 @pytest.mark.parametrize(
@@ -1120,39 +747,33 @@ def test_replace_use_identity_is_noop_update() -> None:
     assert engine.state == before
 
 
-def test_replace_use_missing_source_clarifies_as_invalid_replacement_without_pending() -> None:
+def test_replace_use_missing_source_applies_as_use_update_without_pending() -> None:
     engine = create_engine()
-    expected_prompt = (
-        "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
-    )
 
     d1 = engine.step("use kubectl instead of docker")
     assert d1 == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": expected_prompt,
+        "kind": "update",
+        "state": {"premise": None, "policies": {"kubectl": "use"}, "version": 2},
+        "prompt_to_user": None,
     }
-    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+    assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
     assert engine.has_pending_clarification() is False
 
 
 def test_replace_use_missing_source_yes_confirmation_is_passthrough() -> None:
     engine = create_engine()
-    expected_prompt = (
-        "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
-    )
 
     first = engine.step("use kubectl instead of docker")
     assert first == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": expected_prompt,
+        "kind": "update",
+        "state": {"premise": None, "policies": {"kubectl": "use"}, "version": 2},
+        "prompt_to_user": None,
     }
-    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+    assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
     second = engine.step("yes")
     assert second == {"kind": "passthrough", "state": None, "prompt_to_user": None}
-    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+    assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
 
 def test_replace_use_missing_source_no_confirmation_has_no_mutation() -> None:
@@ -1187,13 +808,8 @@ def test_replace_use_missing_source_ignores_unrelated_existing_policies() -> Non
     engine.step("use python and docker")
 
     decision = engine.step("use kubectl instead of python")
-    assert decision == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": (
-            "\"python\" is not currently in use.\nReplacement requires an active 'use' policy."
-        ),
-    }
+    assert decision["kind"] == "update"
+    assert engine.state["policies"] == {"kubectl": "use", "python and docker": "use"}
 
 
 def test_replace_use_missing_source_ignores_other_conflicting_entries() -> None:
@@ -1202,29 +818,25 @@ def test_replace_use_missing_source_ignores_other_conflicting_entries() -> None:
     engine.step("prohibit python tooling")
 
     decision = engine.step("use kubectl instead of python")
-    assert decision == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": (
-            "\"python\" is not currently in use.\nReplacement requires an active 'use' policy."
-        ),
+    assert decision["kind"] == "update"
+    assert engine.state["policies"] == {
+        "kubectl": "use",
+        "python and docker": "use",
+        "python tooling": "prohibit",
     }
 
 
 def test_replace_use_missing_source_with_empty_probe_uses_invalid_prompt() -> None:
     engine = create_engine()
     engine.step("use python and docker")
-    before = engine.state
 
     decision = engine.step("use kubectl instead of the")
-    assert decision == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": (
-            "\"the\" is not currently in use.\nReplacement requires an active 'use' policy."
-        ),
+    assert decision["kind"] == "update"
+    assert engine.state == {
+        "premise": None,
+        "policies": {"kubectl": "use", "python and docker": "use"},
+        "version": 2,
     }
-    assert engine.state == before
 
 
 def test_replace_use_ky_prohibit_returns_non_pending_clarify() -> None:
@@ -1332,31 +944,27 @@ def test_replace_use_kx_prohibit_no_confirmation_has_no_mutation() -> None:
 def test_missing_source_replacement_does_not_block_following_directives() -> None:
     engine = create_engine()
     first = engine.step("use kubectl instead of docker")
-    assert first == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": (
-            "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
-        ),
-    }
+    assert first["kind"] == "update"
 
     second = engine.step("use docker")
     assert second["kind"] == "update"
-    assert engine.state["policies"] == {"docker": "use"}
+    assert engine.state["policies"] == {"docker": "use", "kubectl": "use"}
 
     third = engine.step("yes")
     assert third == {"kind": "passthrough", "state": None, "prompt_to_user": None}
-    assert engine.state["policies"] == {"docker": "use"}
+    assert engine.state["policies"] == {"docker": "use", "kubectl": "use"}
 
 
 def test_missing_source_replacement_does_not_suspend_admin_commands() -> None:
     engine = create_engine()
     engine.step("use kubectl instead of docker")
-    before = engine.state
+    before = {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
+
+    assert engine.state == before
 
     assert engine.step("clear state")["kind"] == "update"
     assert engine.step("reset policies")["kind"] == "update"
-    assert engine.state == before == {"premise": None, "policies": {}, "version": 2}
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
     resolved = engine.step("yes")
     assert resolved == {"kind": "passthrough", "state": None, "prompt_to_user": None}
@@ -1370,7 +978,7 @@ def test_missing_source_replacement_negative_followup_is_passthrough() -> None:
     decision = engine.step("no")
 
     assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
-    assert engine.state["policies"] == {}
+    assert engine.state["policies"] == {"kubectl": "use"}
 
 
 def test_missing_source_replacement_confirmation_tokens_are_not_consumed() -> None:
@@ -1379,7 +987,7 @@ def test_missing_source_replacement_confirmation_tokens_are_not_consumed() -> No
 
     decision = engine.step("  YES!!!  ")
     assert decision["kind"] == "passthrough"
-    assert engine.state["policies"] == {}
+    assert engine.state["policies"] == {"kubectl": "use"}
 
 
 def test_missing_source_replacement_affirmative_token_variants_are_passthrough() -> None:
@@ -1388,7 +996,7 @@ def test_missing_source_replacement_affirmative_token_variants_are_passthrough()
         engine.step("use kubectl instead of docker")
         decision = engine.step(token)
         assert decision["kind"] == "passthrough"
-        assert engine.state["policies"] == {}
+        assert engine.state["policies"] == {"kubectl": "use"}
 
 
 def test_missing_source_replacement_negative_tokens_are_passthrough() -> None:
@@ -1462,7 +1070,7 @@ def test_prohibited_replacement_yes_cannot_override_conflicting_target_polarity(
 def test_import_json_clears_pending_clarification_yes_no_not_confirmation() -> None:
     engine = create_engine()
     first = engine.step("use kubectl instead of docker")
-    assert first["kind"] == "clarify"
+    assert first["kind"] == "update"
 
     imported = {"premise": "baseline", "policies": {"pytest": "use"}, "version": 2}
     engine.import_json(json.dumps(imported))
@@ -1699,22 +1307,20 @@ def test_all_canonical_directive_starts_remain_single_directive_when_valid(
     )
 
 
-def test_compound_passthrough_after_prior_replacement_clarify() -> None:
+def test_compound_passthrough_after_prior_missing_source_replacement_update() -> None:
     engine = create_engine()
     first = engine.step("use kubectl instead of docker")
     assert first == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": (
-            "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
-        ),
+        "kind": "update",
+        "state": {"premise": None, "policies": {"kubectl": "use"}, "version": 2},
+        "prompt_to_user": None,
     }
     assert engine.has_pending_clarification() is False
 
     decision = engine.step("use docker and prohibit peanuts")
 
     assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
-    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+    assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
     assert engine.has_pending_clarification() is False
 
 

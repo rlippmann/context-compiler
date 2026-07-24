@@ -100,17 +100,17 @@ def test_remove_policy_missing_or_whitespace_payload_remains_passthrough() -> No
 def test_invalid_replacement_does_not_block_following_directives() -> None:
     engine = create_engine()
     first = engine.step("use kubectl instead of docker")
-    assert first["kind"] == "clarify"
+    assert first["kind"] == "update"
 
     second = engine.step("set premise concise")
     assert second == {
         "kind": "update",
-        "state": {"premise": "concise", "policies": {}, "version": 2},
+        "state": {"premise": "concise", "policies": {"kubectl": "use"}, "version": 2},
         "prompt_to_user": None,
     }
     assert engine.state == {
         "premise": "concise",
-        "policies": {},
+        "policies": {"kubectl": "use"},
         "version": 2,
     }
 
@@ -120,5 +120,5 @@ def test_invalid_replacement_non_confirmation_followup_is_passthrough() -> None:
     first = engine.step("use kubectl instead of docker")
     second = engine.step("sounds good")
 
-    assert first["kind"] == "clarify"
+    assert first["kind"] == "update"
     assert second == {"kind": "passthrough", "state": None, "prompt_to_user": None}

@@ -1,8 +1,8 @@
-"""Demo 9: invalid replacement does not create core pending continuation."""
+"""Demo 9: missing-source replacement applies without creating pending continuation."""
 
 from context_compiler import (
-    DECISION_CLARIFY,
     DECISION_PASSTHROUGH,
+    DECISION_UPDATE,
     POLICY_USE,
     State,
     create_engine,
@@ -22,7 +22,7 @@ from demos.common import (
 )
 from demos.llm_client import complete_messages
 
-DEMO_NAME = "09_pending_clarification_boundary — invalid replacement stays non-pending"
+DEMO_NAME = "09_pending_clarification_boundary — missing-source replacement stays non-pending"
 TURN_1 = "use podman instead of docker"
 TURN_2 = "maybe"
 TURN_3 = "yes"
@@ -45,13 +45,12 @@ def main() -> None:
     first = engine.step(TURN_1)
     print_decision("turn 1", first, engine.state)
     pending_after_first = engine.has_pending_clarification()
-    state_unchanged_after_first = _is_initial_authoritative_state(engine.state)
-    checkpoint_after_first = engine.export_checkpoint()
+    state_applied_after_first = _has_podman_use(engine.state)
 
     second = engine.step(TURN_2)
     print_decision("turn 2", second, engine.state)
     pending_after_second = engine.has_pending_clarification()
-    state_unchanged_after_second = _is_initial_authoritative_state(engine.state)
+    state_preserved_after_second = _has_podman_use(engine.state)
 
     third = engine.step(TURN_3)
     print_decision("turn 3", third, engine.state)
@@ -99,25 +98,23 @@ def main() -> None:
         compact_output = "[no call] compact replay did not create pending continuation"
         print_model_output("Compiler-mediated + compact", compact_output)
 
-    blocked_initial_mutation = first["kind"] == DECISION_CLARIFY and state_unchanged_after_first
-    no_pending_after_invalid_replacement = (
-        not pending_after_first and checkpoint_after_first["pending"] is None
-    )
+    deterministic_initial_update = first["kind"] == DECISION_UPDATE and state_applied_after_first
+    no_pending_after_invalid_replacement = not pending_after_first
     unrelated_followup_passthrough = (
         second["kind"] == DECISION_PASSTHROUGH
         and not pending_after_second
-        and state_unchanged_after_second
+        and state_preserved_after_second
     )
     confirmation_token_not_consumed = (
         third["kind"] == DECISION_PASSTHROUGH and not pending_after_third
     )
-    deterministic_final_state = not _has_podman_use(engine.state)
+    deterministic_final_state = _has_podman_use(engine.state)
 
     baseline_has_pending_state_machine = False
     reinjected_has_pending_state_machine = False
 
     compiler_pass = (
-        blocked_initial_mutation
+        deterministic_initial_update
         and no_pending_after_invalid_replacement
         and unrelated_followup_passthrough
         and confirmation_token_not_consumed
@@ -125,14 +122,14 @@ def main() -> None:
     )
 
     compact_pass = (
-        compacted_prompt is not None
-        and compacted_turns == [TURN_1]
-        and _is_initial_authoritative_state(compacted_state)
+        compacted_prompt is None
+        and compacted_turns == [TURN_2, TURN_3]
+        and _has_podman_use(compacted_state)
     )
 
     print_host_check(
-        "BLOCKED_INITIAL_MUTATION",
-        yes_no(blocked_initial_mutation),
+        "DETERMINISTIC_INITIAL_UPDATE",
+        yes_no(deterministic_initial_update),
         context="compiler-mediated",
     )
     print_host_check(
@@ -151,7 +148,7 @@ def main() -> None:
         context="compiler-mediated",
     )
     print_host_check(
-        "FINAL_POLICY_PODMAN_ABSENT",
+        "FINAL_POLICY_PODMAN_PRESENT",
         yes_no(deterministic_final_state),
         context="compiler-mediated",
     )
@@ -163,18 +160,18 @@ def main() -> None:
         compiler_pass=compiler_pass,
         compiler_compact_pass=compact_pass,
         expected=(
-            "invalid replacement should clarify without creating pending continuation, "
-            "and later yes/no-style input should not resolve a synthesized operation"
+            "missing-source replacement should apply without creating pending continuation, "
+            "and later yes/no-style input should remain ordinary passthrough"
         ),
         actual=(
-            "compiler blocked mutation, kept checkpoint pending null, and treated later "
-            "inputs as ordinary passthrough"
+            "compiler applied deterministic replacement update and treated later inputs as "
+            "ordinary passthrough"
             if compiler_pass and compact_pass
             else "compiler did not consistently preserve the non-pending replacement boundary"
         ),
         passed=compiler_pass and compact_pass,
-        result_pass="invalid replacement stayed outside core pending continuation",
-        result_fail="invalid replacement still behaved like core pending continuation",
+        result_pass="missing-source replacement stayed outside core pending continuation",
+        result_fail="missing-source replacement still behaved like core pending continuation",
     )
 
 

@@ -9,14 +9,22 @@
   "input": "use kubectl instead of docker",
   "expected": {
     "decision": {
-      "kind": "clarify",
-      "prompt_to_user": "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy.",
-      "state": null
+      "kind": "update",
+      "prompt_to_user": null,
+      "state": {
+        "premise": null,
+        "policies": {
+          "kubectl": "use"
+        },
+        "version": 2
+      }
     },
     "has_pending_clarification": false,
     "state": {
       "premise": null,
-      "policies": {},
+      "policies": {
+        "kubectl": "use"
+      },
       "version": 2
     }
   }

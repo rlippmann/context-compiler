@@ -122,7 +122,7 @@ def step(engine: Engine, user_input: str) -> StepResult:
 
 
 def preview(engine: Engine, user_input: str) -> PreviewResult:
-    checkpoint = engine.export_checkpoint()
+    state_json = engine.export_json()
     state_before = engine.state
 
     decision: Decision | None = None
@@ -131,7 +131,7 @@ def preview(engine: Engine, user_input: str) -> PreviewResult:
         decision = engine.step(user_input)
         state_after = engine.state
     finally:
-        engine.import_checkpoint(checkpoint)
+        engine.import_json(state_json)
 
     assert decision is not None
     assert state_after is not None

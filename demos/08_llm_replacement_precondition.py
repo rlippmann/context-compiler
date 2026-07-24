@@ -1,6 +1,6 @@
-"""Demo 8: replacement precondition is enforced by authoritative state."""
+"""Demo 8: missing-source replacement applies deterministically from authoritative state."""
 
-from context_compiler import DECISION_CLARIFY, State, create_engine
+from context_compiler import DECISION_UPDATE, State, create_engine
 from demos.common import (
     build_baseline_messages,
     build_reinjected_messages,
@@ -15,7 +15,7 @@ from demos.common import (
 )
 from demos.llm_client import complete_messages
 
-DEMO_NAME = "08_replacement_precondition — invalid replacement blocked"
+DEMO_NAME = "08_replacement_precondition — missing-source replacement applies deterministically"
 USER_INPUT = "use podman instead of docker"
 
 
@@ -61,34 +61,34 @@ def main() -> None:
     reinjected_output = complete_messages(reinjected_messages)
     print_model_output("Reinjected-state", reinjected_output)
 
-    if decision["kind"] == DECISION_CLARIFY:
+    if decision["kind"] == DECISION_UPDATE:
         print_messages("compiler-mediated (full)", [])
-        mediated_output = f"[no call] clarification required: {decision['prompt_to_user']}"
+        mediated_output = "[no call] authoritative state applied deterministic replacement update"
         print_model_output("Compiler-mediated (full)", mediated_output)
     else:
         print_messages("compiler-mediated (full)", [])
-        mediated_output = "[no call] expected clarify was not produced"
+        mediated_output = "[no call] expected update was not produced"
         print_model_output("Compiler-mediated (full)", mediated_output)
 
     compacted_turns, compacted_state, compacted_prompt = compact_user_turns(user_inputs)
-    if compacted_prompt is not None:
+    if compacted_prompt is None:
         print_messages("compiler-mediated + compact", [])
-        compact_output = f"[no call] clarification required: {compacted_prompt}"
+        compact_output = "[no call] compaction preserved deterministic state update"
         print_model_output("Compiler-mediated + compact", compact_output)
     else:
         print_messages("compiler-mediated + compact", [])
-        compact_output = "[no call] expected clarify was not produced"
+        compact_output = "[no call] unexpected clarify was produced during compaction"
         print_model_output("Compiler-mediated + compact", compact_output)
 
-    state_unchanged = _is_initial_authoritative_state(engine.state)
-    compact_state_unchanged = _is_initial_authoritative_state(compacted_state)
-    no_pending = engine.has_pending_clarification()
-    compact_pending = compacted_prompt is not None
+    state_applied = not _is_initial_authoritative_state(engine.state)
+    compact_state_applied = not _is_initial_authoritative_state(compacted_state)
+    no_pending = not engine.has_pending_clarification()
+    compact_no_pending = compacted_prompt is None
 
     baseline_has_authoritative_precondition = False
     reinjected_has_authoritative_precondition = False
-    compiler_pass = decision["kind"] == DECISION_CLARIFY and state_unchanged and no_pending
-    compact_pass = compacted_prompt is not None and compact_state_unchanged and compact_pending
+    compiler_pass = decision["kind"] == DECISION_UPDATE and state_applied and no_pending
+    compact_pass = compacted_prompt is None and compact_state_applied and compact_no_pending
 
     print_host_check(
         "BASELINE_AUTHORITATIVE_PRECONDITION",
@@ -102,12 +102,12 @@ def main() -> None:
     )
     print_host_check(
         "COMPILER_BLOCKED_INVALID_REPLACEMENT",
-        yes_no(decision["kind"] == DECISION_CLARIFY),
+        yes_no(decision["kind"] == DECISION_UPDATE),
         context="compiler-mediated",
     )
     print_host_check(
-        "COMPILER_STATE_UNCHANGED",
-        yes_no(state_unchanged),
+        "COMPILER_STATE_APPLIED",
+        yes_no(state_applied),
         context="compiler-mediated",
     )
 
@@ -118,18 +118,18 @@ def main() -> None:
         compiler_pass=compiler_pass,
         compiler_compact_pass=compact_pass,
         expected=(
-            "invalid replacement should be blocked with clarification and no authoritative state "
-            "mutation"
+            "missing-source replacement should deterministically apply the resulting use update "
+            "without pending continuation"
         ),
         actual=(
-            "compiler blocked invalid replacement and preserved state; baseline and reinjected "
-            "paths have no authoritative replacement precondition"
+            "compiler applied deterministic replacement update; baseline and reinjected paths "
+            "still lack authoritative state enforcement"
             if compiler_pass and compact_pass
-            else "compiler did not consistently enforce replacement precondition behavior"
+            else "compiler did not consistently apply deterministic replacement behavior"
         ),
         passed=compiler_pass and compact_pass,
-        result_pass="invalid replacement precondition enforced deterministically",
-        result_fail="invalid replacement precondition not enforced deterministically",
+        result_pass="missing-source replacement applied deterministically",
+        result_fail="missing-source replacement did not apply deterministically",
     )
 
 

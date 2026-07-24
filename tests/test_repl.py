@@ -90,7 +90,6 @@ def test_main_help_flag_prints_usage_and_exits_zero(
         "Usage:\n"
         "  context-compiler [--help] [--version] [--json]\n"
         "                   [--initial-state-json <json> | --initial-state-file <path>]\n"
-        "                   [--initial-checkpoint-json <json> | --initial-checkpoint-file <path>]\n"
         "\n"
         "Options:\n"
         "  --help                Show this help message and exit.\n"
@@ -98,10 +97,6 @@ def test_main_help_flag_prints_usage_and_exits_zero(
         "  --json                Emit machine-readable NDJSON output (non-interactive only)\n"
         "  --initial-state-json  Initialize authoritative state from exported state JSON text\n"
         "  --initial-state-file  Initialize authoritative state from UTF-8 state JSON file\n"
-        "  --initial-checkpoint-json\n"
-        "                        Restore runtime continuation from checkpoint JSON text\n"
-        "  --initial-checkpoint-file\n"
-        "                        Restore runtime continuation from UTF-8 checkpoint JSON file\n"
     )
     assert captured.err == ""
 
@@ -354,42 +349,11 @@ def test_cli_initial_state_file_preload_works(tmp_path: pathlib.Path) -> None:
     assert result.stderr == ""
 
 
-def test_cli_initial_checkpoint_json_preload_without_pending_confirmation_keeps_state() -> None:
-    engine = create_engine()
-    engine.step("use kubectl instead of docker")
-    payload = engine.export_checkpoint_json()
-
-    result = _run_repl_cli("--initial-checkpoint-json", payload, input_text="yes\nquit\n")
-    assert result.returncode == 0
-    assert result.stdout == "passthrough\n"
-    assert result.stderr == ""
-
-
-def test_cli_initial_checkpoint_file_preload_works(tmp_path: pathlib.Path) -> None:
-    engine = create_engine()
-    engine.step("set premise concise")
-    checkpoint = engine.export_checkpoint_json()
-    path = tmp_path / "checkpoint.json"
-    path.write_text(checkpoint, encoding="utf-8")
-
-    result = _run_repl_cli("--initial-checkpoint-file", str(path), input_text="state\nquit\n")
-    assert result.returncode == 0
-    assert "premise: concise" in result.stdout
-    assert result.stderr == ""
-
-
 def test_cli_invalid_initial_state_preload_fails_fast() -> None:
     result = _run_repl_cli("--initial-state-json", '{"bad":true}', input_text="state\nquit\n")
     assert result.returncode == 1
     assert result.stdout == ""
     assert result.stderr == "error: preload failed: Invalid state payload.\n"
-
-
-def test_cli_invalid_initial_checkpoint_preload_fails_fast() -> None:
-    result = _run_repl_cli("--initial-checkpoint-json", '{"bad":true}', input_text="state\nquit\n")
-    assert result.returncode == 1
-    assert result.stdout == ""
-    assert result.stderr == "error: preload failed: Invalid checkpoint payload.\n"
 
 
 def test_cli_preload_mutual_exclusion_state_json_vs_file() -> None:
@@ -398,30 +362,6 @@ def test_cli_preload_mutual_exclusion_state_json_vs_file() -> None:
     assert result.stdout == ""
     expected = (
         "error: state preload options are mutually exclusive\n"
-        "Try 'context-compiler --help' for usage.\n"
-    )
-    assert result.stderr == expected
-
-
-def test_cli_preload_mutual_exclusion_checkpoint_json_vs_file() -> None:
-    result = _run_repl_cli(
-        "--initial-checkpoint-json", "{}", "--initial-checkpoint-file", "/tmp/ignored"
-    )
-    assert result.returncode == 1
-    assert result.stdout == ""
-    expected = (
-        "error: checkpoint preload options are mutually exclusive\n"
-        "Try 'context-compiler --help' for usage.\n"
-    )
-    assert result.stderr == expected
-
-
-def test_cli_preload_mutual_exclusion_state_vs_checkpoint() -> None:
-    result = _run_repl_cli("--initial-state-json", "{}", "--initial-checkpoint-json", "{}")
-    assert result.returncode == 1
-    assert result.stdout == ""
-    expected = (
-        "error: state preload and checkpoint preload are mutually exclusive\n"
         "Try 'context-compiler --help' for usage.\n"
     )
     assert result.stderr == expected
@@ -470,27 +410,6 @@ def test_cli_initial_state_file_preload_unreadable_file_error_is_deterministic(
     assert captured.err == "error: preload failed: cannot read preload file\n"
 
 
-def test_cli_initial_checkpoint_file_preload_permission_failure_is_deterministic(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    def _boom(_path: str) -> str:
-        raise PermissionError("permission denied")
-
-    monkeypatch.setattr(repl_module, "_read_utf8_file", _boom)
-    monkeypatch.setattr(
-        sys,
-        "argv",
-        ["context-compiler", "--initial-checkpoint-file", "/tmp/checkpoint.json"],
-    )
-
-    result = repl_module.main()
-    captured = capsys.readouterr()
-
-    assert result == 1
-    assert captured.out == ""
-    assert captured.err == "error: preload failed: permission denied\n"
-
-
 def test_cli_initial_state_file_preload_utf8_decode_failure_is_deterministic(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -534,82 +453,6 @@ def test_parse_cli_options_mutual_exclusion_errors() -> None:
     )
     assert options_state == {}
     assert error_state == "state preload options are mutually exclusive"
-
-    options_ckpt, error_ckpt = repl_module._parse_cli_options(
-        ["--initial-checkpoint-json", "{}", "--initial-checkpoint-file", "/tmp/x"]
-    )
-    assert options_ckpt == {}
-    assert error_ckpt == "checkpoint preload options are mutually exclusive"
-
-    options_cross, error_cross = repl_module._parse_cli_options(
-        ["--initial-state-json", "{}", "--initial-checkpoint-json", "{}"]
-    )
-    assert options_cross == {}
-    assert error_cross == "state preload and checkpoint preload are mutually exclusive"
-
-
-def test_apply_preload_from_options_state_and_checkpoint_file_paths(
-    tmp_path: pathlib.Path,
-) -> None:
-    baseline = create_engine()
-    baseline.step("set premise concise")
-    baseline_checkpoint_engine = create_engine()
-    baseline_checkpoint_engine.step("use kubectl instead of docker")
-
-    state_path = tmp_path / "initial_state.json"
-    checkpoint_path = tmp_path / "initial_checkpoint.json"
-    state_path.write_text(baseline.export_json(), encoding="utf-8")
-    checkpoint_path.write_text(
-        baseline_checkpoint_engine.export_checkpoint_json(), encoding="utf-8"
-    )
-
-    state_engine = create_engine()
-    repl_module._apply_preload_from_options(
-        state_engine,
-        {"json_mode": False, "initial_state_file": str(state_path)},
-    )
-    assert state_engine.state["premise"] == "concise"
-
-    checkpoint_engine = create_engine()
-    repl_module._apply_preload_from_options(
-        checkpoint_engine,
-        {
-            "json_mode": False,
-            "initial_checkpoint_file": str(checkpoint_path),
-        },
-    )
-    decision = checkpoint_engine.step("yes")
-    assert decision["kind"] == "passthrough"
-    assert checkpoint_engine.state["policies"] == {}
-
-
-def test_apply_preload_from_options_state_and_checkpoint_json() -> None:
-    source_state = create_engine()
-    source_state.step("set premise concise")
-    source_checkpoint = create_engine()
-    source_checkpoint.step("use kubectl instead of docker")
-
-    state_engine = create_engine()
-    repl_module._apply_preload_from_options(
-        state_engine,
-        {
-            "json_mode": False,
-            "initial_state_json": source_state.export_json(),
-        },
-    )
-    assert state_engine.state["premise"] == "concise"
-
-    checkpoint_engine = create_engine()
-    repl_module._apply_preload_from_options(
-        checkpoint_engine,
-        {
-            "json_mode": False,
-            "initial_checkpoint_json": source_checkpoint.export_checkpoint_json(),
-        },
-    )
-    decision = checkpoint_engine.step("yes")
-    assert decision["kind"] == "passthrough"
-    assert checkpoint_engine.state["policies"] == {}
 
 
 def test_repl_update_flow() -> None:
@@ -785,11 +628,11 @@ def test_repl_non_interactive_json_step_pending_confirmation_error() -> None:
         "decision": {
             "kind": "update",
             "prompt_to_user": None,
-            "state": {"premise": "concise", "policies": {}, "version": 2},
+            "state": {"premise": "concise", "policies": {"kubectl": "use"}, "version": 2},
         },
         "mode": "step",
         "output_version": 1,
-        "state": {"premise": "concise", "policies": {}, "version": 2},
+        "state": {"premise": "concise", "policies": {"kubectl": "use"}, "version": 2},
     }
 
 
@@ -822,10 +665,7 @@ def test_repl_non_interactive_preview_reports_no_mutation_after_invalid_replacem
 
     assert _contains_subsequence(
         lines,
-        [
-            'error: "docker" is not currently in use.',
-            "Replacement requires an active 'use' policy.",
-        ],
+        ["updated", "premise: (none)", "policies:", "- use kubectl"],
     )
     assert _contains_subsequence(lines, ["preview", "passthrough", "would_mutate: no"])
     assert lines[-1] == "passthrough"
@@ -864,12 +704,9 @@ def test_repl_state_command_after_invalid_replacement_shows_unchanged_state() ->
 
     assert _contains_subsequence(
         lines,
-        [
-            'error: "docker" is not currently in use.',
-            "Replacement requires an active 'use' policy.",
-        ],
+        ["updated", "premise: (none)", "policies:", "- use kubectl"],
     )
-    assert _contains_subsequence(lines, ["premise: (none)", "policies: (none)"])
+    assert _contains_subsequence(lines, ["premise: (none)", "policies:", "- use kubectl"])
     assert lines[-1] == "passthrough"
 
 
@@ -883,12 +720,12 @@ def test_repl_step_command_runs_normally_after_invalid_replacement() -> None:
 
     assert _contains_subsequence(
         lines,
-        [
-            'error: "docker" is not currently in use.',
-            "Replacement requires an active 'use' policy.",
-        ],
+        ["updated", "premise: (none)", "policies:", "- use kubectl"],
     )
-    assert _contains_subsequence(lines, ["updated", "premise: concise", "policies: (none)"])
+    assert _contains_subsequence(
+        lines,
+        ["updated", "premise: concise", "policies:", "- use kubectl"],
+    )
     assert lines[-1] == "passthrough"
 
 
@@ -899,10 +736,7 @@ def test_repl_step_command_confirmation_token_is_passthrough_without_pending() -
 
     assert _contains_subsequence(
         lines,
-        [
-            'error: "docker" is not currently in use.',
-            "Replacement requires an active 'use' policy.",
-        ],
+        ["updated", "premise: (none)", "policies:", "- use kubectl"],
     )
     assert lines[-1] == "passthrough"
 
@@ -914,10 +748,7 @@ def test_repl_step_command_negative_confirmation_is_passthrough_without_pending(
 
     assert _contains_subsequence(
         lines,
-        [
-            'error: "docker" is not currently in use.',
-            "Replacement requires an active 'use' policy.",
-        ],
+        ["updated", "premise: (none)", "policies:", "- use kubectl"],
     )
     assert lines[-1] == "passthrough"
 
@@ -936,10 +767,7 @@ def test_repl_interactive_preview_available_after_invalid_replacement() -> None:
 
     assert _contains_subsequence(
         lines,
-        [
-            'error: "docker" is not currently in use.',
-            "Replacement requires an active 'use' policy.",
-        ],
+        ["updated", "premise: (none)", "policies:", "- use kubectl"],
     )
     assert _contains_subsequence(lines, ["preview", "passthrough", "would_mutate: no"])
     assert lines[-1] == "passthrough"
@@ -950,10 +778,7 @@ def test_repl_interactive_help_available_after_invalid_replacement() -> None:
 
     assert _contains_subsequence(
         lines,
-        [
-            'error: "docker" is not currently in use.',
-            "Replacement requires an active 'use' policy.",
-        ],
+        ["updated", "premise: (none)", "policies:", "- use kubectl"],
     )
     assert _contains_subsequence(lines, ["Commands: help/? exit/quit"])
     assert _contains_subsequence(lines, ["REPL command layer (not engine directives):"])
@@ -1125,13 +950,7 @@ def test_repl_replace_use_when_old_policy_not_use_renders_exact_error(
 
 def test_repl_replacement_invalid_followups_are_passthrough() -> None:
     lines = _run_non_interactive_lines("use podman instead of docker\nmaybe\nyes please!!\nquit\n")
-    assert _contains_subsequence(
-        lines,
-        [
-            'error: "docker" is not currently in use.',
-            "Replacement requires an active 'use' policy.",
-        ],
-    )
+    assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use podman"])
     assert lines[-2:] == ["passthrough", "passthrough"]
 
 
@@ -1145,7 +964,7 @@ def test_repl_interactive_prints_confirm_and_error_for_clarify_types() -> None:
     confirm_out = _TTYStringIO()
     run_repl(_TTYStringIO("use podman instead of docker\nquit\n"), confirm_out)
     confirm_lines = confirm_out.getvalue().splitlines()
-    assert 'error: "docker" is not currently in use.' in confirm_lines
+    assert "updated" in confirm_lines
 
 
 def test_repl_prohibited_replacement_followup_tokens_remain_passthrough() -> None:
@@ -1209,19 +1028,19 @@ def test_repl_interactive_renders_updated_state_blocks_for_multiple_operations()
 
 def test_repl_interactive_tokens_after_invalid_replacement_are_passthrough() -> None:
     lines_yes = _run_interactive_lines("use podman instead of docker\nyeah\nquit\n")
-    assert 'error: "docker" is not currently in use.' in lines_yes
+    assert "updated" in lines_yes
     assert lines_yes[-1] == "passthrough"
 
     lines_ok = _run_interactive_lines("use buildah instead of docker\nok\nquit\n")
-    assert 'error: "docker" is not currently in use.' in lines_ok
+    assert "updated" in lines_ok
     assert lines_ok[-1] == "passthrough"
 
     lines_nope = _run_interactive_lines("use nerdctl instead of docker\nnope\nquit\n")
-    assert 'error: "docker" is not currently in use.' in lines_nope
+    assert "updated" in lines_nope
     assert lines_nope[-1] == "passthrough"
 
     lines_no_thanks = _run_interactive_lines("use helm instead of docker\nno thanks\nquit\n")
-    assert 'error: "docker" is not currently in use.' in lines_no_thanks
+    assert "updated" in lines_no_thanks
     assert lines_no_thanks[-1] == "passthrough"
 
 
@@ -1247,7 +1066,10 @@ def test_repl_interactive_confirm_vs_error_alignment_for_actual_clarify_behavior
     assert "Use 'change premise to <value>' to modify it." in lines
     assert ('error: "docker" is currently in use.') in lines
     assert "Remove or replace it before prohibiting it." in lines
-    assert 'error: "buildx" is not currently in use.' in lines
+    assert _contains_subsequence(
+        lines,
+        ["updated", "premise: concise", "policies:", "- use docker", "- use podman"],
+    )
 
 
 def test_repl_interactive_passthrough_prints_passthrough_label() -> None:
@@ -1330,10 +1152,7 @@ def test_repl_interactive_step_command_paths_after_invalid_replacement() -> None
 
     assert _contains_subsequence(
         lines,
-        [
-            'error: "docker" is not currently in use.',
-            "Replacement requires an active 'use' policy.",
-        ],
+        ["updated", "premise: (none)", "policies:", "- use kubectl"],
     )
     assert lines[-2:] == ["passthrough", "passthrough"]
 

@@ -1,7 +1,7 @@
 {
-  "description": "Replacement from missing old item creates pending clarify",
+  "description": "Replacement from missing old item applies as deterministic use update",
   "id": "replacement_clarify",
-  "initial_checkpoint": null,
+  "initial_state": null,
   "inputs": [
     "use podman instead of docker"
   ]
