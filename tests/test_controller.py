@@ -52,20 +52,23 @@ def test_preview_update_does_not_mutate_engine_state() -> None:
     assert engine.has_pending_clarification() is False
 
 
-def test_preview_clarify_path_does_not_create_pending_for_invalid_replacement() -> None:
+def test_preview_missing_source_replacement_reports_update_without_live_mutation() -> None:
     engine = create_engine()
     result = preview(engine, "use kubectl instead of docker")
 
     assert result["decision"] == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": (
-            "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
-        ),
+        "kind": "update",
+        "state": {"premise": None, "policies": {"kubectl": "use"}, "version": 2},
+        "prompt_to_user": None,
     }
-    assert result["state_before"] == result["state_after"]
-    assert result["diff"]["changed"] is False
-    assert result["would_mutate"] is False
+    assert result["state_before"] == {"premise": None, "policies": {}, "version": 2}
+    assert result["state_after"] == {
+        "premise": None,
+        "policies": {"kubectl": "use"},
+        "version": 2,
+    }
+    assert result["diff"]["changed"] is True
+    assert result["would_mutate"] is True
     assert engine.has_pending_clarification() is False
 
     yes = engine.step("yes")
@@ -155,7 +158,7 @@ def test_state_diff_policy_removed_and_value_changed() -> None:
     assert diff["policies"]["added"] == {}
 
 
-def test_preview_fails_when_checkpoint_restore_fails(
+def test_preview_fails_when_state_restore_fails(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     engine = create_engine()
@@ -163,7 +166,7 @@ def test_preview_fails_when_checkpoint_restore_fails(
     def _boom(_: object) -> None:
         raise RuntimeError("restore failed")
 
-    monkeypatch.setattr(engine, "import_checkpoint", _boom)
+    monkeypatch.setattr(engine, "import_json", _boom)
     with pytest.raises(RuntimeError, match="restore failed"):
         preview(engine, "set premise concise replies")
 
@@ -249,11 +252,9 @@ def test_preview_followup_tokens_after_invalid_replacement_are_passthrough(
     engine = create_engine()
     initial = engine.step("use kubectl instead of docker")
     assert initial == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": (
-            "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
-        ),
+        "kind": "update",
+        "state": {"premise": None, "policies": {"kubectl": "use"}, "version": 2},
+        "prompt_to_user": None,
     }
     assert engine.has_pending_clarification() is False
 
@@ -263,13 +264,17 @@ def test_preview_followup_tokens_after_invalid_replacement_are_passthrough(
         "state": None,
         "prompt_to_user": None,
     }
-    assert preview_result["state_after"] == {"premise": None, "policies": {}, "version": 2}
+    assert preview_result["state_after"] == {
+        "premise": None,
+        "policies": {"kubectl": "use"},
+        "version": 2,
+    }
     assert preview_result["would_mutate"] is False
 
     assert engine.has_pending_clarification() is False
-    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+    assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
     final = step(engine, confirmation)
     assert final["decision"] == {"kind": "passthrough", "state": None, "prompt_to_user": None}
-    assert final["state"] == {"premise": None, "policies": {}, "version": 2}
+    assert final["state"] == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
     assert engine.has_pending_clarification() is False

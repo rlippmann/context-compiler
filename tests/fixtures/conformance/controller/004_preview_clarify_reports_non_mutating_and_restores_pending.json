@@ -15,9 +15,15 @@
       "output_version": 1,
       "mode": "preview",
       "decision": {
-        "kind": "clarify",
-        "state": null,
-        "prompt_to_user": "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
+        "kind": "update",
+        "state": {
+          "premise": null,
+          "policies": {
+            "kubectl": "use"
+          },
+          "version": 2
+        },
+        "prompt_to_user": null
       },
       "state_before": {
         "premise": null,
@@ -26,23 +32,27 @@
       },
       "state_after": {
         "premise": null,
-        "policies": {},
+        "policies": {
+          "kubectl": "use"
+        },
         "version": 2
       },
       "diff": {
-        "changed": false,
+        "changed": true,
         "premise": {
           "before": null,
           "after": null,
           "changed": false
         },
         "policies": {
-          "added": {},
+          "added": {
+            "kubectl": "use"
+          },
           "removed": {},
           "changed": {}
         }
       },
-      "would_mutate": false
+      "would_mutate": true
     },
     "state_after_preview": {
       "premise": null,

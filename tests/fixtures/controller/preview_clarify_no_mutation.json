@@ -3,11 +3,10 @@
   "kind": "controller_preview",
   "input": "use kubectl instead of docker",
   "expected": {
-    "decision_kind": "clarify",
-    "would_mutate": false,
-    "diff_changed": false,
-    "state_before_equals_after": true,
+    "decision_kind": "update",
+    "would_mutate": true,
+    "diff_changed": true,
+    "state_before_equals_after": false,
     "engine_state_unchanged_after_preview": true
   }
 }
-

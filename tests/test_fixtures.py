@@ -11,9 +11,6 @@ _STEP_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "conformance
 _STATE_JSON_FIXTURES_DIR = (
     Path(__file__).resolve().parent / "fixtures" / "conformance" / "state-json"
 )
-_CHECKPOINT_FIXTURES_DIR = (
-    Path(__file__).resolve().parent / "fixtures" / "conformance" / "checkpoint"
-)
 _CONTROLLER_FIXTURES_DIR = (
     Path(__file__).resolve().parent / "fixtures" / "conformance" / "controller"
 )
@@ -110,59 +107,6 @@ def test_state_json_fixtures() -> None:
             raise AssertionError(f"Unknown state_json action: {fn}")
 
         assert engine.state == expected["state"], fixture_id
-
-
-def test_checkpoint_fixtures() -> None:
-    for path in _json_files(_CHECKPOINT_FIXTURES_DIR):
-        fixture = _load(path)
-        fixture_id = fixture["id"]
-
-        assert fixture["kind"] == "checkpoint", fixture_id
-        engine = create_engine(state=fixture["initial_state"])
-        _apply_prelude(engine, fixture.get("prelude", []))
-
-        action = fixture["action"]
-        expected = fixture["expected"]
-        fn = action["fn"]
-
-        if fn == "import_checkpoint":
-            payload = action["payload"]
-            error = expected.get("error")
-            if error is None:
-                engine.import_checkpoint(payload)
-            else:
-                with pytest.raises(ValueError, match=error["message_contains"]):
-                    engine.import_checkpoint(payload)
-        elif fn == "export_checkpoint_json":
-            payload = engine.export_checkpoint_json()
-            if expected.get("payload_json_parseable"):
-                parsed = json.loads(payload)
-                assert parsed == expected["payload_object"], fixture_id
-        elif fn == "import_checkpoint_json":
-            payload = action["payload"]
-            error = expected.get("error")
-            if error is None:
-                engine.import_checkpoint_json(payload)
-            else:
-                with pytest.raises(ValueError, match=error["message_contains"]):
-                    engine.import_checkpoint_json(payload)
-        elif fn == "checkpoint_json_round_trip":
-            payload = engine.export_checkpoint_json()
-            target = create_engine()
-            target.import_checkpoint_json(payload)
-            engine = target
-        else:
-            raise AssertionError(f"Unknown checkpoint action: {fn}")
-
-        assert engine.state == expected["state"], fixture_id
-        _assert_optional_pending_flag(expected, engine, fixture_id)
-
-        followup = expected.get("followup")
-        if followup is not None:
-            decision = engine.step(followup["input"])
-            assert decision == followup["decision"], fixture_id
-            assert engine.state == followup["state"], fixture_id
-            _assert_optional_pending_flag(followup, engine, fixture_id)
 
 
 def test_controller_fixtures() -> None:

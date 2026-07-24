@@ -29,7 +29,6 @@ from .decision_helpers import (
     is_update,
 )
 from .engine import (
-    Checkpoint,
     Decision,
     Engine,
     State,
@@ -41,7 +40,6 @@ from .engine import (
 __version__ = version("context-compiler")
 
 __all__ = [
-    "Checkpoint",
     "Decision",
     "DECISION_CLARIFY",
     "DECISION_PASSTHROUGH",

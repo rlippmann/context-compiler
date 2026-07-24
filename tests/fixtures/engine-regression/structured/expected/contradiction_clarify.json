@@ -2,16 +2,12 @@
   "id": "contradiction_clarify",
   "turns": [
     {
-      "checkpoint": {
-        "authoritative_state": {
-          "policies": {
-            "docker": "use"
-          },
-          "premise": null,
-          "version": 2
+      "state": {
+        "policies": {
+          "docker": "use"
         },
-        "checkpoint_version": 1,
-        "pending": null
+        "premise": null,
+        "version": 2
       },
       "decision": {
         "kind": "update",
@@ -20,16 +16,12 @@
       "input": "use docker"
     },
     {
-      "checkpoint": {
-        "authoritative_state": {
-          "policies": {
-            "docker": "use"
-          },
-          "premise": null,
-          "version": 2
+      "state": {
+        "policies": {
+          "docker": "use"
         },
-        "checkpoint_version": 1,
-        "pending": null
+        "premise": null,
+        "version": 2
       },
       "decision": {
         "kind": "clarify",

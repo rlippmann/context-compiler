@@ -24,12 +24,16 @@
       },
       "state_before": {
         "premise": null,
-        "policies": {},
+        "policies": {
+          "kubectl": "use"
+        },
         "version": 2
       },
       "state_after": {
         "premise": null,
-        "policies": {},
+        "policies": {
+          "kubectl": "use"
+        },
         "version": 2
       },
       "diff": {
@@ -49,7 +53,9 @@
     },
     "state_after_preview": {
       "premise": null,
-      "policies": {},
+      "policies": {
+        "kubectl": "use"
+      },
       "version": 2
     },
     "has_pending_clarification": false

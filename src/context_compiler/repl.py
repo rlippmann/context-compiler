@@ -28,7 +28,6 @@ _STEP_PENDING_CONFIRMATION_ERROR = (
 _CLI_HELP_TEXT = """Usage:
   context-compiler [--help] [--version] [--json]
                    [--initial-state-json <json> | --initial-state-file <path>]
-                   [--initial-checkpoint-json <json> | --initial-checkpoint-file <path>]
 
 Options:
   --help                Show this help message and exit.
@@ -36,10 +35,6 @@ Options:
   --json                Emit machine-readable NDJSON output (non-interactive only)
   --initial-state-json  Initialize authoritative state from exported state JSON text
   --initial-state-file  Initialize authoritative state from UTF-8 state JSON file
-  --initial-checkpoint-json
-                        Restore runtime continuation from checkpoint JSON text
-  --initial-checkpoint-file
-                        Restore runtime continuation from UTF-8 checkpoint JSON file
 """
 
 
@@ -219,8 +214,6 @@ def _parse_cli_options(args: list[str]) -> tuple[dict[str, str | bool], str | No
     value_flags = {
         "--initial-state-json": "initial_state_json",
         "--initial-state-file": "initial_state_file",
-        "--initial-checkpoint-json": "initial_checkpoint_json",
-        "--initial-checkpoint-file": "initial_checkpoint_file",
     }
 
     idx = 0
@@ -243,15 +236,9 @@ def _parse_cli_options(args: list[str]) -> tuple[dict[str, str | bool], str | No
 
     has_state_json = "initial_state_json" in options
     has_state_file = "initial_state_file" in options
-    has_checkpoint_json = "initial_checkpoint_json" in options
-    has_checkpoint_file = "initial_checkpoint_file" in options
 
     if has_state_json and has_state_file:
         return {}, "state preload options are mutually exclusive"
-    if has_checkpoint_json and has_checkpoint_file:
-        return {}, "checkpoint preload options are mutually exclusive"
-    if (has_state_json or has_state_file) and (has_checkpoint_json or has_checkpoint_file):
-        return {}, "state preload and checkpoint preload are mutually exclusive"
 
     return options, None
 
@@ -266,16 +253,6 @@ def _apply_preload_from_options(engine: Engine, options: dict[str, str | bool]) 
         path = options["initial_state_file"]
         assert isinstance(path, str)
         engine.import_json(_read_utf8_file(path))
-        return
-    if "initial_checkpoint_json" in options:
-        raw = options["initial_checkpoint_json"]
-        assert isinstance(raw, str)
-        engine.import_checkpoint_json(raw)
-        return
-    if "initial_checkpoint_file" in options:
-        path = options["initial_checkpoint_file"]
-        assert isinstance(path, str)
-        engine.import_checkpoint_json(_read_utf8_file(path))
 
 
 def _has_pending_clarification(engine: Engine) -> bool:

@@ -1,7 +1,7 @@
 {
   "description": "Replacement from a prohibited old item stays an ordinary clarify",
   "id": "prohibited_replacement_old_clarify",
-  "initial_checkpoint": null,
+  "initial_state": null,
   "inputs": [
     "prohibit docker",
     "use pytest",
