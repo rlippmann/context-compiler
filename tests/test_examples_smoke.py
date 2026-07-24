@@ -47,7 +47,7 @@ pytestmark = pytest.mark.contract
             ),
         ),
         (
-            "06_step_sequence_and_checkpoint.py",
+            "06_step_sequence_and_state_restore.py",
             (
                 "Sequence directives through engine.step():",
                 "JSON restore keeps authority state:",

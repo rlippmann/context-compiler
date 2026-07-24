@@ -25,7 +25,7 @@ Before opening a PR, consider:
 User-facing behavior includes:
 
 * engine decision outcomes (`kind`, `prompt_to_user`)
-* checkpoint export/import and continuation behavior
+* `export_json()` / `import_json()` persistence and continuation behavior
 * clarify/confirmation flows (`yes` / `no`)
 * controller behavior (`step`, `preview`, `state_diff`)
 * REPL / CLI behavior
