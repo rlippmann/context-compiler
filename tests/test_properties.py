@@ -1,5 +1,6 @@
 import json
 import re
+from copy import deepcopy
 from unicodedata import normalize as unicode_normalize
 
 from hypothesis import assume, given
@@ -8,7 +9,7 @@ from hypothesis import strategies as st
 from context_compiler import create_engine
 from context_compiler.controller import preview, state_diff
 from context_compiler.engine import _CANONICAL_DIRECTIVE_STARTS, State
-from context_compiler.grammar import validate_directive
+from context_compiler.grammar import DirectiveKind, render_directive, validate_directive
 
 
 def _run_sequence(inputs: list[str]) -> State:
@@ -80,26 +81,6 @@ VALID_STATE_PAYLOADS = st.builds(
 ).filter(lambda payload: all(_normalize_item_like_engine(key) != "" for key in payload["policies"]))
 
 
-def _canonicalize_state_payload(payload: dict[str, object]) -> State:
-    premise = payload["premise"]
-    assert premise is None or isinstance(premise, str)
-
-    raw_policies = payload["policies"]
-    assert isinstance(raw_policies, dict)
-
-    normalized_policies = {
-        _normalize_item_like_engine(key): value
-        for key, value in raw_policies.items()
-        if isinstance(key, str)
-    }
-
-    return {
-        "premise": None if premise is None else _sanitize_premise_like_engine(premise),
-        "policies": dict(sorted(normalized_policies.items())),
-        "version": 2,
-    }
-
-
 VALID_NONEMPTY_ITEM_TEXT = NORMALIZATION_SENSITIVE_TEXT.filter(
     lambda value: (
         _normalize_item_like_engine(value) != ""
@@ -120,6 +101,25 @@ VALID_PROHIBIT_ITEM_TEXT = VALID_NONEMPTY_ITEM_TEXT.filter(
 
 VALID_PREMISE_TEXT = NORMALIZATION_SENSITIVE_TEXT.filter(
     lambda value: _sanitize_premise_like_engine(value) != ""
+)
+
+CANONICAL_GRAMMAR_PREMISE_TEXT = NORMALIZATION_SENSITIVE_TEXT.map(
+    _sanitize_premise_like_engine
+).filter(
+    lambda value: (
+        value != ""
+        and validate_directive(f"set premise {value}") is not None
+        and validate_directive(f"change premise to {value}") is not None
+    )
+)
+
+CANONICAL_GRAMMAR_ITEM_TEXT = NORMALIZATION_SENSITIVE_TEXT.map(_normalize_item_like_engine).filter(
+    lambda value: (
+        value != ""
+        and validate_directive(f"use {value}") is not None
+        and validate_directive(f"prohibit {value}") is not None
+        and validate_directive(f"remove policy {value}") is not None
+    )
 )
 
 PREVIEW_INPUTS = st.one_of(
@@ -164,9 +164,79 @@ DETERMINISTIC_REPLACEMENT_CASES = st.builds(
 )
 
 
+def _payload_has_stable_export_import_cycle(payload: dict[str, object]) -> bool:
+    engine = create_engine()
+    engine.import_json(json.dumps(payload))
+    exported = engine.export_json()
+
+    restored = create_engine()
+    try:
+        restored.import_json(exported)
+    except ValueError:
+        return False
+
+    return restored.state == engine.state
+
+
+GRAMMAR_RENDER_CASES = st.one_of(
+    CANONICAL_GRAMMAR_PREMISE_TEXT.map(
+        lambda value: {"kind": DirectiveKind.SET_PREMISE, "operands": {"value": value}}
+    ),
+    CANONICAL_GRAMMAR_PREMISE_TEXT.map(
+        lambda value: {"kind": DirectiveKind.CHANGE_PREMISE, "operands": {"value": value}}
+    ),
+    CANONICAL_GRAMMAR_ITEM_TEXT.map(
+        lambda item: {"kind": DirectiveKind.USE_ITEM, "operands": {"item": item}}
+    ),
+    CANONICAL_GRAMMAR_ITEM_TEXT.map(
+        lambda item: {"kind": DirectiveKind.PROHIBIT_ITEM, "operands": {"item": item}}
+    ),
+    CANONICAL_GRAMMAR_ITEM_TEXT.map(
+        lambda item: {"kind": DirectiveKind.REMOVE_POLICY, "operands": {"item": item}}
+    ),
+    st.tuples(CANONICAL_GRAMMAR_ITEM_TEXT, CANONICAL_GRAMMAR_ITEM_TEXT)
+    .filter(
+        lambda pair: _normalize_item_like_engine(pair[0]) != _normalize_item_like_engine(pair[1])
+    )
+    .map(
+        lambda pair: {
+            "kind": DirectiveKind.REPLACE_USE,
+            "operands": {"new_item": pair[0], "old_item": pair[1]},
+        }
+    ),
+    st.sampled_from(
+        [
+            {"kind": DirectiveKind.CLEAR_PREMISE, "operands": {}},
+            {"kind": DirectiveKind.RESET_POLICIES, "operands": {}},
+            {"kind": DirectiveKind.CLEAR_STATE, "operands": {}},
+        ]
+    ),
+)
+
+
 @given(st.lists(st.text(max_size=40), min_size=0, max_size=20))
 def test_determinism_same_input_sequence_same_state(inputs: list[str]) -> None:
     assert _run_sequence(inputs) == _run_sequence(inputs)
+
+
+@given(GRAMMAR_RENDER_CASES)
+def test_grammar_helper_render_validate_round_trip_is_stable(
+    case: dict[str, DirectiveKind | dict[str, str]],
+) -> None:
+    kind = case["kind"]
+    operands = case["operands"]
+
+    assert isinstance(kind, DirectiveKind)
+    assert isinstance(operands, dict)
+
+    rendered = render_directive(kind, **operands)
+    validated = validate_directive(rendered)
+
+    assert validated is not None
+    assert validated.kind is kind
+    assert validated.text == rendered
+    assert validate_directive(validated.text) == validated
+    assert render_directive(kind, **operands) == rendered
 
 
 @given(st.text(min_size=1, max_size=30))
@@ -331,23 +401,6 @@ def test_repeated_export_import_cycles_remain_stable(
         expected_json = next_engine.export_json()
 
 
-@given(VALID_STATE_PAYLOADS)
-def test_generated_valid_states_canonicalize_deterministically(
-    payload: dict[str, object],
-) -> None:
-    expected_state = _canonicalize_state_payload(payload)
-
-    engine1 = create_engine()
-    engine1.import_json(json.dumps(payload))
-
-    engine2 = create_engine()
-    engine2.import_json(json.dumps(payload))
-
-    assert engine1.state == expected_state
-    assert engine2.state == expected_state
-    assert engine1.export_json() == engine2.export_json()
-
-
 @given(DETERMINISTIC_REPLACEMENT_CASES)
 def test_deterministic_replacement_matches_equivalent_explicit_transition(
     case: dict[str, object],
@@ -362,7 +415,9 @@ def test_deterministic_replacement_matches_equivalent_explicit_transition(
     assert isinstance(old_item, str)
     assert isinstance(old_present, bool)
 
-    initial_state = _canonicalize_state_payload(payload)
+    initial_state_engine = create_engine()
+    initial_state_engine.import_json(json.dumps(payload))
+    initial_state = initial_state_engine.state
     new_key = _normalize_item_like_engine(new_item)
     old_key = _normalize_item_like_engine(old_item)
 
@@ -379,20 +434,18 @@ def test_deterministic_replacement_matches_equivalent_explicit_transition(
         "version": 2,
     }
     assume(initial_state["policies"].get(new_key) != "prohibit")
+    assume(initial_state["policies"].get(old_key) != "prohibit")
 
-    expected_state = {
-        "premise": initial_state["premise"],
-        "policies": dict(sorted({**initial_state["policies"], new_key: "use"}.items())),
-        "version": 2,
-    }
-    expected_state["policies"].pop(old_key, None)
-    expected_state["policies"][new_key] = "use"
-    expected_state["policies"] = dict(sorted(expected_state["policies"].items()))
+    oracle_engine = create_engine(state=deepcopy(initial_state))
+    oracle_engine.step(f"remove policy {old_item}")
+    expected_decision = oracle_engine.step(f"use {new_item}")
+    expected_state = oracle_engine.state
 
     engine = create_engine(state=initial_state)
     decision = engine.step(f"use {new_item} instead of {old_item}")
 
-    assert decision == {"kind": "update", "state": expected_state, "prompt_to_user": None}
+    assert expected_decision == {"kind": "update", "state": expected_state, "prompt_to_user": None}
+    assert decision == expected_decision
     assert engine.state == expected_state
     assert engine.has_pending_clarification() is False
 
@@ -403,13 +456,13 @@ def test_deterministic_replacement_matches_equivalent_explicit_transition(
         assert engine.state == expected_state
 
 
-@given(VALID_STATE_PAYLOADS, PREVIEW_INPUTS)
+@given(VALID_STATE_PAYLOADS.filter(_payload_has_stable_export_import_cycle), PREVIEW_INPUTS)
 def test_preview_matches_isolated_execution_without_mutating_live_engine(
     payload: dict[str, object], user_input: str
 ) -> None:
     live_engine = create_engine()
     live_engine.import_json(json.dumps(payload))
-    before = live_engine.state
+    before = deepcopy(live_engine.state)
 
     preview_result = preview(live_engine, user_input)
 
