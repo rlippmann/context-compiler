@@ -144,23 +144,61 @@ PREVIEW_INPUTS = st.one_of(
     .filter(lambda text: validate_directive(text) is not None),
 )
 
-DETERMINISTIC_REPLACEMENT_CASES = st.builds(
-    lambda payload, new_item, old_item, old_present: {
-        "payload": payload,
+
+def _build_deterministic_replacement_case(
+    premise: str | None,
+    unrelated_pairs: list[tuple[str, str]],
+    new_item: str,
+    old_item: str,
+    old_present: bool,
+    new_present: bool,
+) -> dict[str, object]:
+    new_key = _normalize_item_like_engine(new_item)
+    old_key = _normalize_item_like_engine(old_item)
+
+    policies = {key: value for key, value in unrelated_pairs if key not in {new_key, old_key}}
+    if old_present:
+        policies[old_key] = "use"
+    if new_present:
+        policies[new_key] = "use"
+
+    return {
+        "initial_state": {
+            "premise": premise,
+            "policies": dict(sorted(policies.items())),
+            "version": 2,
+        },
         "new_item": new_item,
         "old_item": old_item,
         "old_present": old_present,
-    },
-    payload=VALID_STATE_PAYLOADS,
-    new_item=VALID_USE_ITEM_TEXT,
-    old_item=VALID_NONEMPTY_ITEM_TEXT,
-    old_present=st.booleans(),
-).filter(
-    lambda case: (
-        _normalize_item_like_engine(case["new_item"])
-        != _normalize_item_like_engine(case["old_item"])
-        and validate_directive(f"use {case['new_item']} instead of {case['old_item']}") is not None
+    }
+
+
+DETERMINISTIC_REPLACEMENT_CASES = (
+    st.tuples(
+        st.one_of(st.none(), VALID_PREMISE_TEXT.map(_sanitize_premise_like_engine)),
+        st.lists(
+            st.tuples(CANONICAL_GRAMMAR_ITEM_TEXT, POLICY_VALUE),
+            min_size=0,
+            max_size=6,
+        ),
+        VALID_USE_ITEM_TEXT,
+        VALID_NONEMPTY_ITEM_TEXT,
+        st.booleans(),
+        st.booleans(),
     )
+    .filter(
+        lambda args: (
+            _normalize_item_like_engine(args[2]) != _normalize_item_like_engine(args[3])
+            and validate_directive(f"use {args[2]} instead of {args[3]}") is not None
+            and not any(
+                key in {_normalize_item_like_engine(args[2]), _normalize_item_like_engine(args[3])}
+                and value == "prohibit"
+                for key, value in args[1]
+            )
+        )
+    )
+    .map(lambda args: _build_deterministic_replacement_case(*args))
 )
 
 
@@ -405,36 +443,15 @@ def test_repeated_export_import_cycles_remain_stable(
 def test_deterministic_replacement_matches_equivalent_explicit_transition(
     case: dict[str, object],
 ) -> None:
-    payload = case["payload"]
+    initial_state = case["initial_state"]
     new_item = case["new_item"]
     old_item = case["old_item"]
     old_present = case["old_present"]
 
-    assert isinstance(payload, dict)
+    assert isinstance(initial_state, dict)
     assert isinstance(new_item, str)
     assert isinstance(old_item, str)
     assert isinstance(old_present, bool)
-
-    initial_state_engine = create_engine()
-    initial_state_engine.import_json(json.dumps(payload))
-    initial_state = initial_state_engine.state
-    new_key = _normalize_item_like_engine(new_item)
-    old_key = _normalize_item_like_engine(old_item)
-
-    policies = dict(initial_state["policies"])
-    policies.pop(new_key, None)
-    if old_present:
-        policies[old_key] = "use"
-    else:
-        policies.pop(old_key, None)
-
-    initial_state = {
-        "premise": initial_state["premise"],
-        "policies": dict(sorted(policies.items())),
-        "version": 2,
-    }
-    assume(initial_state["policies"].get(new_key) != "prohibit")
-    assume(initial_state["policies"].get(old_key) != "prohibit")
 
     oracle_engine = create_engine(state=deepcopy(initial_state))
     oracle_engine.step(f"remove policy {old_item}")
