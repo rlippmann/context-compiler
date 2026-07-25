@@ -7,10 +7,12 @@ from context_compiler.engine import (
     Action,
     DecisionKind,
     Engine,
-    _contains_compound_directive,
-    _match_canonical_directive_start,
     _normalize_confirmation,
     _parse_directive,
+)
+from context_compiler.grammar import (
+    contains_multiple_canonical_directives,
+    match_canonical_directive_start,
 )
 
 pytestmark = pytest.mark.contract
@@ -110,16 +112,16 @@ def test_pre_mutation_clarify_legacy_invalid_action_branches_remain_stable() -> 
     }
 
 
-def test_legacy_compound_detection_helpers_remain_unchanged() -> None:
-    assert _contains_compound_directive("use docker and prohibit peanuts") is True
-    assert _contains_compound_directive("hello there") is False
-    assert _contains_compound_directive("use docker") is False
-    assert _match_canonical_directive_start("use docker", -1) is None
-    assert _match_canonical_directive_start("use docker", len("use docker")) is None
-    assert _match_canonical_directive_start("abuse docker", 1) is None
-    assert _match_canonical_directive_start("use", 0) == len("use")
-    assert _match_canonical_directive_start("use docker", 0) == len("use")
-    assert _match_canonical_directive_start("clear premise!", 0) == len("clear premise")
+def test_grammar_owned_compound_detection_helpers_remain_unchanged() -> None:
+    assert contains_multiple_canonical_directives("use docker and prohibit peanuts") is True
+    assert contains_multiple_canonical_directives("hello there") is False
+    assert contains_multiple_canonical_directives("use docker") is False
+    assert match_canonical_directive_start("use docker", -1) is None
+    assert match_canonical_directive_start("use docker", len("use docker")) is None
+    assert match_canonical_directive_start("abuse docker", 1) is None
+    assert match_canonical_directive_start("use", 0) == len("use")
+    assert match_canonical_directive_start("use docker", 0) == len("use")
+    assert match_canonical_directive_start("clear premise!", 0) == len("clear premise")
 
 
 def test_initial_state_and_helpers() -> None:

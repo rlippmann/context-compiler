@@ -18,6 +18,7 @@
       "DECISION_CLARIFY",
       "DECISION_PASSTHROUGH",
       "DECISION_UPDATE",
+      "DirectiveKind",
       "Engine",
       "POLICY_PROHIBIT",
       "POLICY_USE",
@@ -35,13 +36,16 @@
       "get_policy_items",
       "get_step_decision",
       "get_step_state",
+      "is_canonical_directive",
       "is_clarify",
       "is_passthrough",
       "is_update",
       "preview",
       "preview_would_mutate",
+      "render_directive",
       "state_diff",
-      "step"
+      "step",
+      "validate_directive"
     ],
     "members": {
       "Decision": {
@@ -58,6 +62,9 @@
       "DECISION_UPDATE": {
         "kind": "constant",
         "value": "update"
+      },
+      "DirectiveKind": {
+        "kind": "class"
       },
       "Engine": {
         "kind": "class"
@@ -283,6 +290,29 @@
           ]
         }
       },
+      "is_canonical_directive": {
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "text",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
+          {
+            "kwargs": {
+              "text": "clear state"
+            },
+            "return_shape": {
+              "type": "boolean",
+              "const": true
+            }
+          }
+        ]
+      },
       "is_clarify": {
         "kind": "callable",
         "signature": {
@@ -433,6 +463,34 @@
           ]
         }
       },
+      "render_directive": {
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "kind",
+              "kind": "POSITIONAL_ONLY",
+              "has_default": false
+            },
+            {
+              "name": "operands",
+              "kind": "VAR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
+          {
+            "args": [
+              "clear_state"
+            ],
+            "return_shape": {
+              "type": "string",
+              "const": "clear state"
+            }
+          }
+        ]
+      },
       "state_diff": {
         "kind": "callable",
         "signature": {
@@ -524,6 +582,37 @@
                   "const": "step"
                 }
               }
+            }
+          }
+        ]
+      },
+      "validate_directive": {
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "text",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
+          {
+            "kwargs": {
+              "text": "use docker"
+            },
+            "return_shape": {
+              "kind": "validated_directive",
+              "text": "use docker"
+            }
+          },
+          {
+            "kwargs": {
+              "text": "please use docker"
+            },
+            "return_shape": {
+              "type": "null"
             }
           }
         ]

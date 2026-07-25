@@ -42,6 +42,9 @@ def _assert_shape(value: object, shape: dict[str, object], contract: dict[str, o
         actual_members = sorted(name for name in dir(value) if not name.startswith("_"))
         assert actual_members == sorted(expected_members.keys())
         return
+    if "kind" in shape and shape["kind"] == "validated_directive":
+        assert value == context_compiler.validate_directive(shape["text"])
+        return
 
     expected_types = shape["type"]
     if isinstance(expected_types, str):
@@ -112,10 +115,11 @@ def test_api_contract_fixture_matches_python_public_surface() -> None:
         if "signature" in export_contract:
             _assert_signature_matches(exported, export_contract["signature"], name)
         for probe in export_contract.get("shape_probes", []):
+            args = [_resolve_probe_value(value) for value in probe.get("args", [])]
             kwargs = {
                 key: _resolve_probe_value(value) for key, value in probe.get("kwargs", {}).items()
             }
-            result = exported(**kwargs)
+            result = exported(*args, **kwargs)
             _assert_shape(result, probe["return_shape"], contract)
 
     engine = context_compiler.create_engine()
