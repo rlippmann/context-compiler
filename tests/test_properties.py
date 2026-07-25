@@ -8,8 +8,13 @@ from hypothesis import strategies as st
 
 from context_compiler import create_engine
 from context_compiler.controller import preview, state_diff
-from context_compiler.engine import _CANONICAL_DIRECTIVE_STARTS, State
-from context_compiler.grammar import DirectiveKind, render_directive, validate_directive
+from context_compiler.engine import State
+from context_compiler.grammar import (
+    DirectiveKind,
+    match_canonical_directive_start,
+    render_directive,
+    validate_directive,
+)
 
 
 def _run_sequence(inputs: list[str]) -> State:
@@ -31,20 +36,8 @@ def _normalize_item_like_engine(value: str) -> str:
 
 def _contains_canonical_start_fragment(value: str) -> bool:
     for start in range(len(value)):
-        if start > 0 and value[start - 1].isalpha():
-            continue
-        for token, require_space_or_end in _CANONICAL_DIRECTIVE_STARTS:
-            if not value.startswith(token, start):
-                continue
-            end = start + len(token)
-            if end == len(value):
-                return True
-            next_char = value[end]
-            if require_space_or_end:
-                if next_char == " ":
-                    return True
-            elif not next_char.isalpha():
-                return True
+        if match_canonical_directive_start(value, start) is not None:
+            return True
     return False
 
 

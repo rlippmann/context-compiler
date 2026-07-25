@@ -16,8 +16,7 @@ from .const import (
     STATE_PREMISE,
     STATE_VERSION,
 )
-from .grammar import DirectiveKind
-from .grammar import _parse_directive as _parse_canonical_directive
+from .grammar import DirectiveKind, _parse_canonical_directive
 
 PolicyValue = Literal["use", "prohibit"]
 
@@ -74,26 +73,6 @@ _NEGATIVE_CONFIRMATIONS = {"no", "nope", "no thanks"}
 _TRAILING_CONFIRM_PUNCT_RE = re.compile(r"[.,!?]+$")
 _COMPOUND_DIRECTIVE_PROMPT = (
     "Multiple directives are not supported in one input.\nSubmit each directive separately."
-)
-_CLEAR_PREMISE = "clear premise"
-_RESET_POLICIES = "reset policies"
-_CLEAR_STATE = "clear state"
-_REMOVE_POLICY_BASE = "remove policy"
-_CHANGE_PREMISE_PREFIX = "change premise "
-_CHANGE_PREMISE_BASE = "change premise to"
-_SET_PREMISE_BASE = "set premise"
-_USE_PREFIX = "use "
-_PROHIBIT_BASE = "prohibit"
-_PROHIBIT_PREFIX = "prohibit "
-_CANONICAL_DIRECTIVE_STARTS: tuple[tuple[str, bool], ...] = (
-    (_CHANGE_PREMISE_BASE, True),
-    (_SET_PREMISE_BASE, True),
-    (_REMOVE_POLICY_BASE, True),
-    (_RESET_POLICIES, False),
-    (_CLEAR_PREMISE, False),
-    (_CLEAR_STATE, False),
-    (_PROHIBIT_BASE, True),
-    ("use", True),
 )
 
 
@@ -303,6 +282,8 @@ class Engine:
 
 
 def _parse_directive(user_input: str) -> Action | None:
+    # Engine semantics intentionally depend on grammar's internal parsed form.
+    # This keeps syntax authority in grammar without making the parser a public API.
     parsed = _parse_canonical_directive(user_input)
     if parsed is None:
         return None
@@ -328,56 +309,6 @@ def _parse_directive(user_input: str) -> Action | None:
     if parsed.kind is DirectiveKind.RESET_POLICIES:
         return Action(kind="reset_policies")
     return Action(kind="clear_state")
-
-
-def _contains_compound_directive(user_input: str) -> bool:
-    first_start = _match_canonical_directive_start(user_input, 0)
-    if first_start is None:
-        return False
-
-    for index in range(first_start, len(user_input)):
-        next_start = _match_canonical_directive_start(user_input, index)
-        if next_start is not None:
-            return True
-
-    return False
-
-
-def _match_canonical_directive_start(user_input: str, start: int) -> int | None:
-    if start < 0 or start >= len(user_input):
-        return None
-
-    if start > 0 and user_input[start - 1].isalpha():
-        return None
-
-    for token, require_space_or_end in _CANONICAL_DIRECTIVE_STARTS:
-        if _matches_directive_token(
-            user_input, start, token, require_space_or_end=require_space_or_end
-        ):
-            return start + len(token)
-
-    return None
-
-
-def _matches_directive_token(
-    user_input: str,
-    start: int,
-    token: str,
-    *,
-    require_space_or_end: bool = False,
-) -> bool:
-    if not user_input.startswith(token, start):
-        return False
-
-    end = start + len(token)
-    if end == len(user_input):
-        return True
-
-    next_char = user_input[end]
-    if require_space_or_end:
-        return next_char == " "
-
-    return not next_char.isalpha()
 
 
 def _initial_state() -> State:
