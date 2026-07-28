@@ -1,0 +1,47 @@
+{
+  "id": "mutation_isolation_constructor_input",
+  "kind": "mutation_isolation",
+  "initial_state": {
+    "premise": "Prefer concise replies",
+    "policies": {
+      "docker": "use"
+    },
+    "version": 2
+  },
+  "operation": {
+    "fn": "create_engine",
+    "constructor_state_handle": "constructor_state"
+  },
+  "handles": {
+    "constructor_state": {
+      "kind": "caller_owned_input",
+      "value": {
+        "premise": "Prefer concise replies",
+        "policies": {
+          "docker": "use"
+        },
+        "version": 2
+      }
+    }
+  },
+  "mutations": [
+    {
+      "target_handle": "constructor_state",
+      "path": [
+        "policies",
+        "docker"
+      ],
+      "op": "set",
+      "value": "prohibit"
+    }
+  ],
+  "expected": {
+    "authoritative_state": {
+      "premise": "Prefer concise replies",
+      "policies": {
+        "docker": "use"
+      },
+      "version": 2
+    }
+  }
+}

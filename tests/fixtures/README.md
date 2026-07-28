@@ -79,6 +79,33 @@ These fixtures keep a minimal, language-neutral contract matrix for controller A
 They intentionally validate the raw controller result envelopes; helper accessors
 are covered separately by the public API presence contract above.
 
+## Mutation-isolation fixtures
+
+For [`conformance/mutation-isolation/`](conformance/mutation-isolation/):
+
+Portable authority-isolation fixture definitions for public APIs that return
+structured objects or accept caller-owned structured inputs.
+
+These fixtures define declarative scenarios for:
+
+* constructor input isolation
+* `engine.state` snapshot isolation
+* update `Decision.state` isolation
+* controller result isolation
+* preview result isolation
+* helper accessor ownership and identity semantics
+
+The portable contract for this family is:
+
+* no public API return value may provide a mutation path into authoritative engine state
+* no caller-supplied input may remain aliased into authoritative engine state
+* helper accessors may return caller-owned nested members by identity when that
+  behavior is intentional and documented
+
+This family is intentionally data-only in the Python 0.9 source-of-truth repo.
+It defines the shared conformance corpus first; language-specific runners may be
+added in a later synchronized change.
+
 ## Source of truth
 
 Fixtures reflect current Python behavior and tests.
