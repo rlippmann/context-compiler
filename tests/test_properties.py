@@ -457,12 +457,10 @@ def test_deterministic_replacement_matches_equivalent_explicit_transition(
     assert expected_decision == {"kind": "update", "state": expected_state, "prompt_to_user": None}
     assert decision == expected_decision
     assert engine.state == expected_state
-    assert engine.has_pending_clarification() is False
 
     if not old_present:
         followup = engine.step("yes")
         assert followup == {"kind": "passthrough", "state": None, "prompt_to_user": None}
-        assert engine.has_pending_clarification() is False
         assert engine.state == expected_state
 
 

@@ -255,10 +255,6 @@ def _apply_preload_from_options(engine: Engine, options: dict[str, str | bool]) 
         engine.import_json(_read_utf8_file(path))
 
 
-def _has_pending_clarification(engine: Engine) -> bool:
-    return engine.has_pending_clarification()
-
-
 def _normalize_confirmation_token(value: str) -> str:
     normalized = value.strip().lower()
     while normalized and normalized[-1] in ".,!?":
@@ -317,15 +313,6 @@ def run_repl(
                     )
                     continue
                 if payload != "" and (user_input == "step" or user_input.startswith("step ")):
-                    if _has_pending_clarification(active_engine) and not _is_confirmation_input(
-                        payload
-                    ):
-                        _print_command_error(
-                            out_stream,
-                            leading_blank=True,
-                            message=_STEP_PENDING_CONFIRMATION_ERROR,
-                        )
-                        continue
                     result: StepResult = controller_step(active_engine, payload)
                     _print_decision_lines(get_step_decision(result), out_stream, leading_blank=True)
                     continue
@@ -406,25 +393,6 @@ def run_repl(
                     )
                 continue
             if payload != "" and (user_input == "step" or user_input.startswith("step ")):
-                if _has_pending_clarification(active_engine) and not _is_confirmation_input(
-                    payload
-                ):
-                    if json_mode:
-                        _write_json_line(
-                            out_stream,
-                            _json_error_payload(
-                                command="step",
-                                code="pending_confirmation_required",
-                                message=_STEP_PENDING_CONFIRMATION_ERROR,
-                            ),
-                        )
-                    else:
-                        _print_command_error(
-                            out_stream,
-                            leading_blank=False,
-                            message=_STEP_PENDING_CONFIRMATION_ERROR,
-                        )
-                    continue
                 result = controller_step(active_engine, payload)
                 if json_mode:
                     _write_json_line(out_stream, _json_step_payload(result, command="step"))

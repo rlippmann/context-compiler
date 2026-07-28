@@ -630,12 +630,6 @@
             "params": []
           }
         },
-        "has_pending_clarification": {
-          "kind": "method",
-          "signature": {
-            "params": []
-          }
-        },
         "import_json": {
           "kind": "method",
           "signature": {

@@ -49,7 +49,6 @@ def test_preview_update_does_not_mutate_engine_state() -> None:
     assert result["would_mutate"] is True
     assert result["would_mutate"] is result["diff"]["changed"]
     assert engine.state == before
-    assert engine.has_pending_clarification() is False
 
 
 def test_preview_missing_source_replacement_reports_update_without_live_mutation() -> None:
@@ -69,7 +68,6 @@ def test_preview_missing_source_replacement_reports_update_without_live_mutation
     }
     assert result["diff"]["changed"] is True
     assert result["would_mutate"] is True
-    assert engine.has_pending_clarification() is False
 
     yes = engine.step("yes")
     assert yes["kind"] == "passthrough"
@@ -92,7 +90,6 @@ def test_preview_prohibited_replacement_clarify_matches_execution_without_pendin
     }
     assert result["state_before"] == result["state_after"] == engine.state
     assert result["would_mutate"] is False
-    assert engine.has_pending_clarification() is False
 
 
 def test_preview_idempotent_update_is_not_a_mutation() -> None:
@@ -256,7 +253,6 @@ def test_preview_followup_tokens_after_invalid_replacement_are_passthrough(
         "state": {"premise": None, "policies": {"kubectl": "use"}, "version": 2},
         "prompt_to_user": None,
     }
-    assert engine.has_pending_clarification() is False
 
     preview_result = preview(engine, confirmation)
     assert preview_result["decision"] == {
@@ -271,10 +267,8 @@ def test_preview_followup_tokens_after_invalid_replacement_are_passthrough(
     }
     assert preview_result["would_mutate"] is False
 
-    assert engine.has_pending_clarification() is False
     assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
     final = step(engine, confirmation)
     assert final["decision"] == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert final["state"] == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
-    assert engine.has_pending_clarification() is False

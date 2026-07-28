@@ -44,17 +44,14 @@ def main() -> None:
 
     first = engine.step(TURN_1)
     print_decision("turn 1", first, engine.state)
-    pending_after_first = engine.has_pending_clarification()
     state_applied_after_first = _has_podman_use(engine.state)
 
     second = engine.step(TURN_2)
     print_decision("turn 2", second, engine.state)
-    pending_after_second = engine.has_pending_clarification()
     state_preserved_after_second = _has_podman_use(engine.state)
 
     third = engine.step(TURN_3)
     print_decision("turn 3", third, engine.state)
-    pending_after_third = engine.has_pending_clarification()
 
     baseline_messages = build_baseline_messages(
         [
@@ -99,15 +96,10 @@ def main() -> None:
         print_model_output("Compiler-mediated + compact", compact_output)
 
     deterministic_initial_update = first["kind"] == DECISION_UPDATE and state_applied_after_first
-    no_pending_after_invalid_replacement = not pending_after_first
     unrelated_followup_passthrough = (
-        second["kind"] == DECISION_PASSTHROUGH
-        and not pending_after_second
-        and state_preserved_after_second
+        second["kind"] == DECISION_PASSTHROUGH and state_preserved_after_second
     )
-    confirmation_token_not_consumed = (
-        third["kind"] == DECISION_PASSTHROUGH and not pending_after_third
-    )
+    confirmation_token_not_consumed = third["kind"] == DECISION_PASSTHROUGH
     deterministic_final_state = _has_podman_use(engine.state)
 
     baseline_has_pending_state_machine = False
@@ -115,7 +107,6 @@ def main() -> None:
 
     compiler_pass = (
         deterministic_initial_update
-        and no_pending_after_invalid_replacement
         and unrelated_followup_passthrough
         and confirmation_token_not_consumed
         and deterministic_final_state
@@ -130,11 +121,6 @@ def main() -> None:
     print_host_check(
         "DETERMINISTIC_INITIAL_UPDATE",
         yes_no(deterministic_initial_update),
-        context="compiler-mediated",
-    )
-    print_host_check(
-        "NO_PENDING_AFTER_INVALID_REPLACEMENT",
-        yes_no(no_pending_after_invalid_replacement),
         context="compiler-mediated",
     )
     print_host_check(

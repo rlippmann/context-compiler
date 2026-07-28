@@ -82,12 +82,11 @@ def main() -> None:
 
     state_applied = not _is_initial_authoritative_state(engine.state)
     compact_state_applied = not _is_initial_authoritative_state(compacted_state)
-    no_pending = not engine.has_pending_clarification()
     compact_no_pending = compacted_prompt is None
 
     baseline_has_authoritative_precondition = False
     reinjected_has_authoritative_precondition = False
-    compiler_pass = decision["kind"] == DECISION_UPDATE and state_applied and no_pending
+    compiler_pass = decision["kind"] == DECISION_UPDATE and state_applied
     compact_pass = compacted_prompt is None and compact_state_applied and compact_no_pending
 
     print_host_check(

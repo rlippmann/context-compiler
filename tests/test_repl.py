@@ -234,63 +234,6 @@ def test_interactive_step_without_payload_prints_command_error() -> None:
     assert _contains_subsequence(lines, ["error: step requires input.", "Use 'step <input>'."])
 
 
-def test_interactive_step_command_with_non_confirmation_payload_prints_pending_error(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    engine = create_engine()
-    monkeypatch.setattr(engine, "has_pending_clarification", lambda: True)
-
-    out = _TTYStringIO()
-    run_repl(_TTYStringIO("step set premise concise\nquit\n"), out, engine=engine)
-    lines = [line for line in out.getvalue().splitlines() if line.strip()]
-
-    assert _contains_subsequence(
-        lines,
-        [
-            "error: step command only accepts confirmation while clarification is pending.",
-            "Use yes/no (or variants), or use preview/state.",
-        ],
-    )
-
-
-def test_non_interactive_step_command_with_non_confirmation_payload_emits_json_pending_error(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    engine = create_engine()
-    monkeypatch.setattr(engine, "has_pending_clarification", lambda: True)
-
-    out = StringIO()
-    run_repl(StringIO("step set premise concise\n"), out, json_mode=True, engine=engine)
-
-    assert json.loads(out.getvalue()) == {
-        "mode": "error",
-        "output_version": 1,
-        "command": "step",
-        "error": {
-            "code": "pending_confirmation_required",
-            "message": (
-                "step command only accepts confirmation while clarification is pending.\n"
-                "Use yes/no (or variants), or use preview/state."
-            ),
-        },
-    }
-
-
-def test_non_interactive_step_command_with_non_confirmation_payload_prints_text_pending_error(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    engine = create_engine()
-    monkeypatch.setattr(engine, "has_pending_clarification", lambda: True)
-
-    out = StringIO()
-    run_repl(StringIO("step set premise concise\n"), out, engine=engine)
-
-    assert out.getvalue() == (
-        "error: step command only accepts confirmation while clarification is pending.\n"
-        "Use yes/no (or variants), or use preview/state.\n"
-    )
-
-
 def test_main_unknown_flag_prints_error_hint_and_exits_nonzero(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:

@@ -103,33 +103,6 @@ The internal structure is intentionally opaque for normal host use. Prefer
 `get_premise_value(state)` and `get_policy_items(state, ...)` over direct key
 traversal unless you are working at an explicit serialization boundary.
 
-### `engine.has_pending_clarification()`
-
-Return whether a confirmation-required semantic continuation is currently
-pending.
-
-Contract boundary:
-
-- pending continuation is runtime state, not grammar
-- pending continuation must never arise from malformed or non-canonical input
-- pending continuation, when supported, comes only from semantic evaluation of
-  an already parsed canonical directive
-- the historical missing-source replacement case does not, by itself, create
-  pending continuation
-
-Current implementation note:
-
-- the updated specification allows supported pending continuation semantics
-- the current runtime implementation may still return `False` for all inputs
-  until the continuation behavior is restored
-
-Typical use:
-
-```python
-if engine.has_pending_clarification():
-    show_pending_ui()
-```
-
 ## Decision API
 
 Each user message produces a `Decision`.
