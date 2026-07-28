@@ -1,10 +1,11 @@
 import json
+from copy import deepcopy
 from pathlib import Path
 
 import pytest
 
-from context_compiler import create_engine
-from context_compiler.controller import preview, state_diff, step
+from context_compiler import create_engine, get_decision_state
+from context_compiler.controller import get_step_state, preview, state_diff, step
 from context_compiler.grammar import DirectiveKind, render_directive, validate_directive
 
 _STEP_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "conformance" / "step"
@@ -15,6 +16,9 @@ _CONTROLLER_FIXTURES_DIR = (
     Path(__file__).resolve().parent / "fixtures" / "conformance" / "controller"
 )
 _GRAMMAR_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "conformance" / "grammar"
+_MUTATION_ISOLATION_FIXTURES_DIR = (
+    Path(__file__).resolve().parent / "fixtures" / "conformance" / "mutation-isolation"
+)
 
 
 def _json_files(dir_path: Path) -> list[Path]:
@@ -23,6 +27,28 @@ def _json_files(dir_path: Path) -> list[Path]:
 
 def _load(path: Path) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _get_path_value(obj: object, path: list[object]) -> object:
+    current = obj
+    for key in path:
+        assert isinstance(current, dict)
+        assert isinstance(key, str)
+        current = current[key]
+    return current
+
+
+def _set_path_value(obj: object, path: list[object], value: object) -> None:
+    assert path
+    current = obj
+    for key in path[:-1]:
+        assert isinstance(current, dict)
+        assert isinstance(key, str)
+        current = current[key]
+    assert isinstance(current, dict)
+    final_key = path[-1]
+    assert isinstance(final_key, str)
+    current[final_key] = value
 
 
 def _assert_optional_pending_flag(expected_obj: object, engine: object, fixture_id: object) -> None:
@@ -173,3 +199,176 @@ def test_grammar_fixtures() -> None:
         validated = validate_directive(rendered)
         assert validated is not None, fixture_id
         assert validated.kind.value == expected["validated_kind"], fixture_id
+
+
+def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id: object) -> None:
+    assert fixture["kind"] == "mutation_isolation", fixture_id
+    assert isinstance(fixture["initial_state"], dict), fixture_id
+
+    operation = fixture["operation"]
+    assert isinstance(operation, dict), fixture_id
+    assert operation["fn"] in {
+        "create_engine",
+        "engine.state",
+        "engine.step",
+        "controller.step",
+        "controller.preview",
+        "get_decision_state",
+        "get_step_state",
+    }, fixture_id
+
+    handles = fixture["handles"]
+    assert isinstance(handles, dict), fixture_id
+    for handle_name, handle_spec in handles.items():
+        assert isinstance(handle_name, str), fixture_id
+        assert isinstance(handle_spec, dict), fixture_id
+        assert isinstance(handle_spec["kind"], str), fixture_id
+        if "from_handle" in handle_spec:
+            assert isinstance(handle_spec["from_handle"], str), fixture_id
+            assert handle_spec["from_handle"] in handles, fixture_id
+        if "path" in handle_spec:
+            assert isinstance(handle_spec["path"], list), fixture_id
+            assert all(isinstance(part, str) for part in handle_spec["path"]), fixture_id
+
+    mutations = fixture["mutations"]
+    assert isinstance(mutations, list), fixture_id
+    for mutation in mutations:
+        assert isinstance(mutation, dict), fixture_id
+        assert mutation["target_handle"] in handles, fixture_id
+        assert mutation["op"] == "set", fixture_id
+        assert isinstance(mutation["path"], list), fixture_id
+        assert all(isinstance(part, str) for part in mutation["path"]), fixture_id
+
+    expected = fixture["expected"]
+    assert isinstance(expected, dict), fixture_id
+    assert isinstance(expected["authoritative_state"], dict), fixture_id
+
+    for assertion in expected.get("identity_assertions", []):
+        assert isinstance(assertion, dict), fixture_id
+        assert assertion["left_handle"] in handles, fixture_id
+        assert assertion["right_handle"] in handles, fixture_id
+        assert isinstance(assertion["right_path"], list), fixture_id
+        assert all(isinstance(part, str) for part in assertion["right_path"]), fixture_id
+        assert isinstance(assertion["same_identity"], bool), fixture_id
+
+    for observation in expected.get("caller_owned_observations", []):
+        assert isinstance(observation, dict), fixture_id
+        assert observation["handle"] in handles, fixture_id
+        assert isinstance(observation["path"], list), fixture_id
+        assert all(isinstance(part, str) for part in observation["path"]), fixture_id
+
+
+def _execute_mutation_isolation_operation(
+    fixture: dict[str, object],
+) -> tuple[object, dict[str, object], dict[str, object]]:
+    operation = fixture["operation"]
+    initial_state = fixture["initial_state"]
+    handles: dict[str, object] = {}
+    fn = operation["fn"]
+
+    if fn == "create_engine":
+        constructor_handle = operation["constructor_state_handle"]
+        assert isinstance(constructor_handle, str)
+        constructor_state = deepcopy(fixture["handles"][constructor_handle]["value"])
+        handles[constructor_handle] = constructor_state
+        engine = create_engine(state=constructor_state)
+        return engine, handles, {}
+
+    engine = create_engine(state=initial_state)
+    produced: dict[str, object] = {}
+
+    if fn == "engine.state":
+        result_handle = operation["result_handle"]
+        assert isinstance(result_handle, str)
+        handles[result_handle] = engine.state
+        return engine, handles, produced
+
+    if fn == "engine.step":
+        decision = engine.step(operation["input"])
+        result_handle = operation["result_handle"]
+        assert isinstance(result_handle, str)
+        handles[result_handle] = decision
+        produced[result_handle] = decision
+    elif fn == "controller.step":
+        step_result = step(engine, operation["input"])
+        result_handle = operation["result_handle"]
+        assert isinstance(result_handle, str)
+        handles[result_handle] = step_result
+        produced[result_handle] = step_result
+    elif fn == "controller.preview":
+        step_result = preview(engine, operation["input"])
+        result_handle = operation["result_handle"]
+        assert isinstance(result_handle, str)
+        handles[result_handle] = step_result
+        produced[result_handle] = step_result
+    elif fn == "get_decision_state":
+        decision = engine.step(operation["input"])
+        source_handle = operation["source_handle"]
+        result_handle = operation["result_handle"]
+        assert isinstance(source_handle, str)
+        assert isinstance(result_handle, str)
+        handles[source_handle] = decision
+        produced[source_handle] = decision
+        handles[result_handle] = get_decision_state(decision)
+    else:
+        assert fn == "get_step_state"
+        step_result = step(engine, operation["input"])
+        source_handle = operation["source_handle"]
+        result_handle = operation["result_handle"]
+        assert isinstance(source_handle, str)
+        assert isinstance(result_handle, str)
+        handles[source_handle] = step_result
+        produced[source_handle] = step_result
+        handles[result_handle] = get_step_state(step_result)
+
+    for handle_name, handle_spec in fixture["handles"].items():
+        if handle_name in handles:
+            continue
+        from_handle = handle_spec.get("from_handle")
+        if from_handle is None:
+            continue
+        assert isinstance(from_handle, str)
+        handles[handle_name] = _get_path_value(handles[from_handle], handle_spec["path"])
+
+    return engine, handles, produced
+
+
+def test_mutation_isolation_fixtures() -> None:
+    for path in _json_files(_MUTATION_ISOLATION_FIXTURES_DIR):
+        fixture = _load(path)
+        fixture_id = fixture["id"]
+        _validate_mutation_isolation_fixture(fixture, fixture_id)
+
+        engine, handles, _ = _execute_mutation_isolation_operation(fixture)
+        expected = fixture["expected"]
+
+        live_state_before_mutation = engine.state
+
+        for mutation in fixture["mutations"]:
+            target_handle = mutation["target_handle"]
+            assert isinstance(target_handle, str), fixture_id
+            _set_path_value(handles[target_handle], mutation["path"], mutation["value"])
+
+        assert engine.state == expected["authoritative_state"], fixture_id
+
+        if expected.get("preview_live_state_unchanged") is True:
+            assert engine.state == live_state_before_mutation, fixture_id
+
+        for assertion in expected.get("identity_assertions", []):
+            left_handle = assertion["left_handle"]
+            right_handle = assertion["right_handle"]
+            assert isinstance(left_handle, str), fixture_id
+            assert isinstance(right_handle, str), fixture_id
+            left_value = handles[left_handle]
+            right_value = _get_path_value(handles[right_handle], assertion["right_path"])
+            if assertion["same_identity"]:
+                assert left_value is right_value, fixture_id
+            else:
+                assert left_value is not right_value, fixture_id
+
+        for observation in expected.get("caller_owned_observations", []):
+            handle = observation["handle"]
+            assert isinstance(handle, str), fixture_id
+            assert _get_path_value(handles[handle], observation["path"]) == observation["value"], (
+                fixture_id
+            )
