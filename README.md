@@ -271,11 +271,11 @@ reference.
 Common API entry points:
 
 - engine lifecycle: `create_engine(...)`, `engine.step(...)`, `engine.state`,
-  `engine.has_pending_clarification()`
+  `engine.export_json(...)`, `engine.import_json(...)`
 - decision helpers: `is_clarify(...)`, `is_update(...)`, `is_passthrough(...)`,
   `get_clarify_prompt(...)`, `get_decision_state(...)`
 - state helpers: `get_premise_value(...)`, `get_policy_items(...)`
-- state transport: `export_json(...)`, `import_json(...)`
+- state transport: `engine.export_json(...)`, `engine.import_json(...)`
 - controller APIs: `preview(...)`, `step(...)`, `state_diff(...)`
 
 ### Controller API (Reusable Outside REPL)

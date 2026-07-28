@@ -127,7 +127,6 @@ def test_grammar_owned_compound_detection_helpers_remain_unchanged() -> None:
 def test_initial_state_and_helpers() -> None:
     engine = create_engine()
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
-    assert engine.has_pending_clarification() is False
     assert get_premise_value(engine.state) is None
     assert get_policy_items(engine.state) == []
 
@@ -287,31 +286,9 @@ def test_import_json_accepts_valid_policy_key_and_normalizes_it() -> None:
     assert engine.state == {"premise": None, "policies": {"docker": "use"}, "version": 2}
 
 
-def test_has_pending_clarification_remains_false_after_invalid_replacement_followup() -> None:
-    engine = create_engine()
-    decision = engine.step("use kubectl instead of docker")
-    assert decision["kind"] == "update"
-    assert engine.has_pending_clarification() is False
-
-    no_decision = engine.step("no")
-    assert no_decision["kind"] == "passthrough"
-    assert engine.has_pending_clarification() is False
-
-
 def test_normalize_confirmation_collapses_unicode_spacing_and_trailing_punctuation() -> None:
     assert _normalize_confirmation("  YES!!  ") == "yes"
     assert _normalize_confirmation("No\t\tthanks...\n") == "no thanks"
-
-
-def test_has_pending_clarification_stays_false_after_import_json() -> None:
-    engine = create_engine()
-    clarify = engine.step("use kubectl instead of docker")
-    assert clarify["kind"] == "update"
-    assert engine.has_pending_clarification() is False
-
-    engine.import_json('{"policies":{},"premise":null,"version":2}')
-
-    assert engine.has_pending_clarification() is False
 
 
 def test_replace_use_clarifies_when_old_policy_is_not_use_in_invalid_internal_state() -> None:
@@ -759,7 +736,6 @@ def test_replace_use_missing_source_applies_as_use_update_without_pending() -> N
         "prompt_to_user": None,
     }
     assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
-    assert engine.has_pending_clarification() is False
 
 
 def test_replace_use_missing_source_yes_confirmation_is_passthrough() -> None:
@@ -858,8 +834,6 @@ def test_replace_use_ky_prohibit_returns_non_pending_clarify() -> None:
     }
     assert engine.state["policies"] == {"docker": "prohibit", "pytest": "use"}
 
-    assert engine.has_pending_clarification() is False
-
 
 def test_replace_use_ky_prohibit_yes_does_not_authorize_mutation() -> None:
     engine = create_engine()
@@ -890,8 +864,6 @@ def test_replace_use_kx_prohibit_returns_non_pending_clarify() -> None:
         "prompt_to_user": expected,
     }
     assert engine.state["policies"] == {"docker": "use", "kubectl": "prohibit"}
-
-    assert engine.has_pending_clarification() is False
 
 
 def test_replace_use_priority_prefers_source_prohibit_clarify_when_both_prohibit() -> None:
@@ -1155,7 +1127,6 @@ def test_compound_directives_remain_passthrough_without_mutation(
 
     assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == before
-    assert engine.has_pending_clarification() is False
 
 
 def test_quoted_non_directive_leading_input_remains_passthrough() -> None:
@@ -1165,7 +1136,6 @@ def test_quoted_non_directive_leading_input_remains_passthrough() -> None:
 
     assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
-    assert engine.has_pending_clarification() is False
 
 
 @pytest.mark.parametrize(
@@ -1216,7 +1186,6 @@ def test_directive_like_substrings_inside_larger_words_do_not_trigger_compound_r
     )
     assert decision["kind"] == expected_decision_kind
     assert engine.state == expected_state
-    assert engine.has_pending_clarification() is False
 
 
 @pytest.mark.parametrize(
@@ -1278,7 +1247,6 @@ def test_valid_single_directives_still_work(
 
     assert decision == {"kind": "update", "state": expected_state, "prompt_to_user": None}
     assert engine.state == expected_state
-    assert engine.has_pending_clarification() is False
 
 
 @pytest.mark.parametrize(
@@ -1317,13 +1285,11 @@ def test_compound_passthrough_after_prior_missing_source_replacement_update() ->
         "state": {"premise": None, "policies": {"kubectl": "use"}, "version": 2},
         "prompt_to_user": None,
     }
-    assert engine.has_pending_clarification() is False
 
     decision = engine.step("use docker and prohibit peanuts")
 
     assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
-    assert engine.has_pending_clarification() is False
 
 
 def test_constructor_with_state_initializes_from_valid_state() -> None:

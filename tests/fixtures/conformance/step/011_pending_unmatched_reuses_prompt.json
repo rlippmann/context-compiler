@@ -16,7 +16,6 @@
       "prompt_to_user": null,
       "state": null
     },
-    "has_pending_clarification": false,
     "state": {
       "premise": null,
       "policies": {

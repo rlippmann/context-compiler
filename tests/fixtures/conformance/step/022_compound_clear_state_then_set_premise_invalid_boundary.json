@@ -21,7 +21,6 @@
         "docker": "use"
       },
       "version": 2
-    },
-    "has_pending_clarification": false
+    }
   }
 }

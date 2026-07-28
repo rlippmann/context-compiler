@@ -17,7 +17,6 @@
       "prompt_to_user": "\"docker\" is currently prohibited.\nSubmit explicit directive(s) to remove it or use a different item.",
       "state": null
     },
-    "has_pending_clarification": false,
     "state": {
       "premise": null,
       "policies": {

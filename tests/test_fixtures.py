@@ -73,17 +73,6 @@ def _set_path_value(obj: object, path: list[object], value: object) -> None:
     current[final_key] = value
 
 
-def _assert_optional_pending_flag(expected_obj: object, engine: object, fixture_id: object) -> None:
-    if not isinstance(expected_obj, dict):
-        return
-    if "has_pending_clarification" not in expected_obj:
-        return
-
-    expected_pending = expected_obj["has_pending_clarification"]
-    assert isinstance(expected_pending, bool), fixture_id
-    assert engine.has_pending_clarification() is expected_pending, fixture_id
-
-
 def test_step_fixtures() -> None:
     for path in _json_files(_STEP_FIXTURES_DIR):
         fixture = _load(path)
@@ -117,7 +106,6 @@ def test_step_fixtures() -> None:
             assert decision["state"] == engine.state, fixture_id
 
         assert engine.state == expected["state"], fixture_id
-        _assert_optional_pending_flag(expected, engine, fixture_id)
 
 
 def _apply_prelude(engine: object, prelude: object) -> None:
@@ -174,19 +162,15 @@ def test_controller_fixtures() -> None:
             result = step(engine, action["input"])
             assert result == expected["result"], fixture_id
             assert engine.state == expected["state"], fixture_id
-            _assert_optional_pending_flag(expected, engine, fixture_id)
             continue
 
         if fn == "preview":
             before = engine.state
-            pending_before = engine.has_pending_clarification()
             result = preview(engine, action["input"])
 
             assert result == expected["result"], fixture_id
             assert engine.state == before, fixture_id
             assert engine.state == expected["state_after_preview"], fixture_id
-            assert engine.has_pending_clarification() is pending_before, fixture_id
-            _assert_optional_pending_flag(expected, engine, fixture_id)
             continue
 
         assert fn == "state_diff", fixture_id

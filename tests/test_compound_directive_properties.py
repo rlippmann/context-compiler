@@ -40,7 +40,6 @@ def _assert_compound_passthrough(user_input: str) -> None:
 
     assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == before
-    assert engine.has_pending_clarification() is False
 
 
 @settings(max_examples=50)
@@ -86,7 +85,6 @@ def test_embedded_canonical_tokens_do_not_trigger_compound_detection(
     assert decision["prompt_to_user"] is not None or decision["kind"] != "clarify"
     assert decision["kind"] == "update"
     assert engine.state != before
-    assert engine.has_pending_clarification() is False
 
 
 @settings(max_examples=50)
@@ -107,7 +105,6 @@ def test_leading_non_directive_text_disables_compound_detection(prefix: str, sec
 
     assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == before
-    assert engine.has_pending_clarification() is False
 
 
 def _mutate_case(text: str) -> st.SearchStrategy[str]:
@@ -129,7 +126,6 @@ def test_case_mutated_second_directive_does_not_trigger_compound_detection(
 
     assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == before
-    assert engine.has_pending_clarification() is False
 
 
 @settings(max_examples=50)
@@ -162,4 +158,3 @@ def test_fully_quoted_input_remains_passthrough(quote: str, second: str) -> None
 
     assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert engine.state == before
-    assert engine.has_pending_clarification() is False
