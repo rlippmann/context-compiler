@@ -21,6 +21,15 @@
       "target_handle": "step_result",
       "path": [
         "state",
+        "premise"
+      ],
+      "op": "set",
+      "value": "mutated premise"
+    },
+    {
+      "target_handle": "step_result",
+      "path": [
+        "state",
         "policies",
         "docker"
       ],

@@ -42,6 +42,14 @@
     {
       "target_handle": "state_after",
       "path": [
+        "premise"
+      ],
+      "op": "set",
+      "value": "mutated after"
+    },
+    {
+      "target_handle": "state_after",
+      "path": [
         "policies",
         "docker"
       ],
