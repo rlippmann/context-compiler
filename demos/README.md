@@ -36,7 +36,7 @@ Runnable application-layer enforcement-point integrations live in
 | [06](./06_llm_context_compaction.py) | Context compaction | saved compiler state replacing transcript context | small or local models |
 | [07](./07_llm_prompt_vs_state.py) | Prompt engineering comparison | prompting vs saved compiler state | any model with long transcript sensitivity |
 | [08](./08_llm_replacement_precondition.py) | Replacement precondition | missing-source replacement applies deterministically from authoritative state | any model |
-| [09](./09_llm_pending_clarification.py) | Pending boundary | invalid replacement does not become pending continuation | any model |
+| [09](./09_llm_confirmation_passthrough.py) | Confirmation passthrough | invalid replacement does not create an engine-owned confirmation state; later confirmation-style input remains ordinary passthrough | any model |
 
 Stronger frontier models may show these behaviors less often, but the same
 patterns still appear in real applications.
