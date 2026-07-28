@@ -27,6 +27,14 @@
     {
       "target_handle": "decision_state",
       "path": [
+        "premise"
+      ],
+      "op": "set",
+      "value": "mutated premise"
+    },
+    {
+      "target_handle": "decision_state",
+      "path": [
         "policies",
         "docker"
       ],

@@ -102,9 +102,12 @@ The portable contract for this family is:
 * helper accessors may return caller-owned nested members by identity when that
   behavior is intentional and documented
 
-This family is intentionally data-only in the Python 0.9 source-of-truth repo.
-It defines the shared conformance corpus first; language-specific runners may be
-added in a later synchronized change.
+The Python source-of-truth repo executes this fixture family through the
+existing conformance runner in
+[`tests/test_fixtures.py`](../test_fixtures.py).
+
+Portable fixture data remains language-neutral. Other ports may add execution
+support in later synchronized changes.
 
 ## Source of truth
 

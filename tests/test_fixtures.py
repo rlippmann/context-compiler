@@ -19,6 +19,14 @@ _GRAMMAR_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "conforma
 _MUTATION_ISOLATION_FIXTURES_DIR = (
     Path(__file__).resolve().parent / "fixtures" / "conformance" / "mutation-isolation"
 )
+_MUTATION_ISOLATION_HANDLE_KINDS = {
+    "caller_owned_input",
+    "defensive_snapshot",
+    "independently_constructed_result",
+    "nested_state_member",
+    "caller_owned_result_envelope",
+    "caller_owned_nested_member",
+}
 
 
 def _json_files(dir_path: Path) -> list[Path]:
@@ -207,7 +215,8 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
 
     operation = fixture["operation"]
     assert isinstance(operation, dict), fixture_id
-    assert operation["fn"] in {
+    fn = operation["fn"]
+    assert fn in {
         "create_engine",
         "engine.state",
         "engine.step",
@@ -216,27 +225,64 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
         "get_decision_state",
         "get_step_state",
     }, fixture_id
+    assert all(isinstance(key, str) for key in operation), fixture_id
 
     handles = fixture["handles"]
     assert isinstance(handles, dict), fixture_id
     for handle_name, handle_spec in handles.items():
         assert isinstance(handle_name, str), fixture_id
         assert isinstance(handle_spec, dict), fixture_id
-        assert isinstance(handle_spec["kind"], str), fixture_id
+        assert handle_spec["kind"] in _MUTATION_ISOLATION_HANDLE_KINDS, fixture_id
         if "from_handle" in handle_spec:
             assert isinstance(handle_spec["from_handle"], str), fixture_id
             assert handle_spec["from_handle"] in handles, fixture_id
         if "path" in handle_spec:
             assert isinstance(handle_spec["path"], list), fixture_id
             assert all(isinstance(part, str) for part in handle_spec["path"]), fixture_id
+        if "value" in handle_spec:
+            assert "from_handle" not in handle_spec, fixture_id
+
+    if fn == "create_engine":
+        assert set(operation) == {"fn", "constructor_state_handle"}, fixture_id
+        constructor_state_handle = operation["constructor_state_handle"]
+        assert isinstance(constructor_state_handle, str), fixture_id
+        assert constructor_state_handle in handles, fixture_id
+        constructor_state_spec = handles[constructor_state_handle]
+        assert constructor_state_spec["kind"] == "caller_owned_input", fixture_id
+        assert set(constructor_state_spec) == {"kind", "value"}, fixture_id
+        assert constructor_state_spec["value"] == fixture["initial_state"], fixture_id
+    elif fn == "engine.state":
+        assert set(operation) == {"fn", "result_handle"}, fixture_id
+        result_handle = operation["result_handle"]
+        assert isinstance(result_handle, str), fixture_id
+        assert result_handle in handles, fixture_id
+        assert handles[result_handle]["kind"] == "defensive_snapshot", fixture_id
+    elif fn in {"engine.step", "controller.step", "controller.preview"}:
+        assert set(operation) == {"fn", "input", "result_handle"}, fixture_id
+        assert isinstance(operation["input"], str), fixture_id
+        result_handle = operation["result_handle"]
+        assert isinstance(result_handle, str), fixture_id
+        assert result_handle in handles, fixture_id
+    else:
+        assert fn in {"get_decision_state", "get_step_state"}, fixture_id
+        assert set(operation) == {"fn", "input", "result_handle", "source_handle"}, fixture_id
+        assert isinstance(operation["input"], str), fixture_id
+        result_handle = operation["result_handle"]
+        source_handle = operation["source_handle"]
+        assert isinstance(result_handle, str), fixture_id
+        assert isinstance(source_handle, str), fixture_id
+        assert result_handle in handles, fixture_id
+        assert source_handle in handles, fixture_id
 
     mutations = fixture["mutations"]
     assert isinstance(mutations, list), fixture_id
     for mutation in mutations:
         assert isinstance(mutation, dict), fixture_id
+        assert set(mutation) == {"target_handle", "path", "op", "value"}, fixture_id
         assert mutation["target_handle"] in handles, fixture_id
         assert mutation["op"] == "set", fixture_id
         assert isinstance(mutation["path"], list), fixture_id
+        assert mutation["path"], fixture_id
         assert all(isinstance(part, str) for part in mutation["path"]), fixture_id
 
     expected = fixture["expected"]
@@ -245,16 +291,22 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
 
     for assertion in expected.get("identity_assertions", []):
         assert isinstance(assertion, dict), fixture_id
+        assert set(assertion) == {"left_handle", "right_handle", "right_path", "same_identity"}, (
+            fixture_id
+        )
         assert assertion["left_handle"] in handles, fixture_id
         assert assertion["right_handle"] in handles, fixture_id
         assert isinstance(assertion["right_path"], list), fixture_id
+        assert assertion["right_path"], fixture_id
         assert all(isinstance(part, str) for part in assertion["right_path"]), fixture_id
         assert isinstance(assertion["same_identity"], bool), fixture_id
 
     for observation in expected.get("caller_owned_observations", []):
         assert isinstance(observation, dict), fixture_id
+        assert set(observation) == {"handle", "path", "value"}, fixture_id
         assert observation["handle"] in handles, fixture_id
         assert isinstance(observation["path"], list), fixture_id
+        assert observation["path"], fixture_id
         assert all(isinstance(part, str) for part in observation["path"]), fixture_id
 
 
@@ -269,7 +321,7 @@ def _execute_mutation_isolation_operation(
     if fn == "create_engine":
         constructor_handle = operation["constructor_state_handle"]
         assert isinstance(constructor_handle, str)
-        constructor_state = deepcopy(fixture["handles"][constructor_handle]["value"])
+        constructor_state = deepcopy(initial_state)
         handles[constructor_handle] = constructor_state
         engine = create_engine(state=constructor_state)
         return engine, handles, {}

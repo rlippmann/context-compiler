@@ -44,6 +44,9 @@ Examples:
 * helper accessors such as `get_decision_state`, `get_step_state`, and
   `get_preview_state_after`
 
+For the current corpus, `operation` uses a closed per-function field set.
+Unknown operation fields are invalid.
+
 ### `handles`
 
 `handles` names the caller-owned object graph exposed by the operation.
@@ -56,6 +59,9 @@ Examples:
 * returned controller result envelope
 * helper return value
 
+`handle.kind` is a closed descriptive metadata set used for fixture validation.
+It documents expected ownership roles but does not currently change execution.
+
 ### `mutations`
 
 Each mutation describes:
@@ -67,6 +73,9 @@ Each mutation describes:
 
 The mutation language stays language-neutral and avoids embedding Python or
 TypeScript syntax into the fixtures.
+
+The current Python runner supports string-key dict paths only. List traversal is
+outside the scope of this fixture family for now.
 
 ### `expected`
 

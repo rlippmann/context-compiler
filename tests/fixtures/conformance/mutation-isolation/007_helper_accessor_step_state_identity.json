@@ -10,8 +10,7 @@
     "fn": "get_step_state",
     "input": "use docker",
     "result_handle": "helper_result",
-    "source_handle": "step_result",
-    "source_fn": "controller.step"
+    "source_handle": "step_result"
   },
   "handles": {
     "step_result": {
