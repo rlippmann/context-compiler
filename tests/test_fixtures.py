@@ -27,6 +27,14 @@ _MUTATION_ISOLATION_HANDLE_KINDS = {
     "caller_owned_result_envelope",
     "caller_owned_nested_member",
 }
+_DIRECT_HANDLE_KINDS = {
+    "caller_owned_input",
+    "defensive_snapshot",
+    "independently_constructed_result",
+    "caller_owned_result_envelope",
+    "caller_owned_nested_member",
+}
+_DERIVED_HANDLE_KINDS = {"nested_state_member", "defensive_snapshot"}
 
 
 def _json_files(dir_path: Path) -> list[Path]:
@@ -35,6 +43,12 @@ def _json_files(dir_path: Path) -> list[Path]:
 
 def _load(path: Path) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _assert_allowed_keys(
+    obj: dict[str, object], allowed_keys: set[str], fixture_id: object, label: str
+) -> None:
+    assert set(obj) == allowed_keys, f"{fixture_id}: invalid keys for {label}"
 
 
 def _get_path_value(obj: object, path: list[object]) -> object:
@@ -233,14 +247,22 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
         assert isinstance(handle_name, str), fixture_id
         assert isinstance(handle_spec, dict), fixture_id
         assert handle_spec["kind"] in _MUTATION_ISOLATION_HANDLE_KINDS, fixture_id
-        if "from_handle" in handle_spec:
+        if "from_handle" in handle_spec or "path" in handle_spec:
+            _assert_allowed_keys(
+                handle_spec, {"kind", "from_handle", "path"}, fixture_id, f"handle {handle_name}"
+            )
+            assert handle_spec["kind"] in _DERIVED_HANDLE_KINDS, fixture_id
             assert isinstance(handle_spec["from_handle"], str), fixture_id
             assert handle_spec["from_handle"] in handles, fixture_id
-        if "path" in handle_spec:
             assert isinstance(handle_spec["path"], list), fixture_id
+            assert handle_spec["path"], fixture_id
             assert all(isinstance(part, str) for part in handle_spec["path"]), fixture_id
-        if "value" in handle_spec:
-            assert "from_handle" not in handle_spec, fixture_id
+        else:
+            allowed_keys = (
+                {"kind", "value"} if handle_spec["kind"] == "caller_owned_input" else {"kind"}
+            )
+            _assert_allowed_keys(handle_spec, allowed_keys, fixture_id, f"handle {handle_name}")
+            assert handle_spec["kind"] in _DIRECT_HANDLE_KINDS, fixture_id
 
     if fn == "create_engine":
         assert set(operation) == {"fn", "constructor_state_handle"}, fixture_id
@@ -263,6 +285,12 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
         result_handle = operation["result_handle"]
         assert isinstance(result_handle, str), fixture_id
         assert result_handle in handles, fixture_id
+        expected_result_kind = (
+            "independently_constructed_result"
+            if fn == "engine.step"
+            else "caller_owned_result_envelope"
+        )
+        assert handles[result_handle]["kind"] == expected_result_kind, fixture_id
     else:
         assert fn in {"get_decision_state", "get_step_state"}, fixture_id
         assert set(operation) == {"fn", "input", "result_handle", "source_handle"}, fixture_id
@@ -273,6 +301,28 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
         assert isinstance(source_handle, str), fixture_id
         assert result_handle in handles, fixture_id
         assert source_handle in handles, fixture_id
+        assert handles[result_handle]["kind"] == "caller_owned_nested_member", fixture_id
+        expected_source_kind = (
+            "independently_constructed_result"
+            if fn == "get_decision_state"
+            else "caller_owned_result_envelope"
+        )
+        assert handles[source_handle]["kind"] == expected_source_kind, fixture_id
+
+    for _handle_name, handle_spec in handles.items():
+        from_handle = handle_spec.get("from_handle")
+        if from_handle is None:
+            continue
+        assert isinstance(from_handle, str), fixture_id
+        source_kind = handles[from_handle]["kind"]
+        derived_kind = handle_spec["kind"]
+        if derived_kind == "nested_state_member":
+            assert source_kind == "independently_constructed_result", fixture_id
+            assert handle_spec["path"] == ["state"], fixture_id
+        else:
+            assert derived_kind == "defensive_snapshot", fixture_id
+            assert source_kind == "caller_owned_result_envelope", fixture_id
+            assert handle_spec["path"] in (["state_before"], ["state_after"]), fixture_id
 
     mutations = fixture["mutations"]
     assert isinstance(mutations, list), fixture_id
@@ -287,6 +337,19 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
 
     expected = fixture["expected"]
     assert isinstance(expected, dict), fixture_id
+    _assert_allowed_keys(
+        expected,
+        {
+            "authoritative_state",
+            "preview_live_state_unchanged",
+            "identity_assertions",
+            "caller_owned_observations",
+        }
+        & set(expected.keys())
+        | {"authoritative_state"},
+        fixture_id,
+        "expected",
+    )
     assert isinstance(expected["authoritative_state"], dict), fixture_id
 
     for assertion in expected.get("identity_assertions", []):
