@@ -7,7 +7,9 @@ import context_compiler.grammar as grammar_module
 from context_compiler.grammar import (
     DirectiveKind,
     ValidatedDirective,
+    contains_multiple_canonical_directives,
     is_canonical_directive,
+    match_canonical_directive_start,
     render_directive,
     validate_directive,
 )
@@ -228,6 +230,36 @@ def test_validate_directive_rejects_near_miss_without_required_delimiter() -> No
 def test_render_directive_rejects_non_string_operands() -> None:
     with pytest.raises(ValueError, match="must be a string"):
         render_directive(DirectiveKind.SET_PREMISE, value=123)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    ("text", "start", "expected"),
+    [
+        ("use docker", 0, len("use")),
+        ("please use docker", 7, len("please use")),
+        ("clear premise!", 0, len("clear premise")),
+        ("abuse docker", 1, None),
+    ],
+)
+def test_match_canonical_directive_start_finds_public_directive_prefixes(
+    text: str, start: int, expected: int | None
+) -> None:
+    assert match_canonical_directive_start(text, start) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("use docker and prohibit peanuts", True),
+        ("hello there", False),
+        ("use docker", False),
+        ('"use docker and prohibit peanuts"', False),
+    ],
+)
+def test_contains_multiple_canonical_directives_reports_public_compound_detection(
+    text: str, expected: bool
+) -> None:
+    assert contains_multiple_canonical_directives(text) is expected
 
 
 def test_internal_match_directive_token_rejects_truncated_and_non_whitespace_separator() -> None:
