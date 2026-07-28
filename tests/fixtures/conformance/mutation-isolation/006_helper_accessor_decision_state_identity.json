@@ -1,0 +1,64 @@
+{
+  "id": "mutation_isolation_helper_decision_state_identity",
+  "kind": "mutation_isolation",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "operation": {
+    "fn": "get_decision_state",
+    "input": "use docker",
+    "result_handle": "helper_result",
+    "source_handle": "decision"
+  },
+  "handles": {
+    "decision": {
+      "kind": "independently_constructed_result"
+    },
+    "helper_result": {
+      "kind": "caller_owned_nested_member"
+    }
+  },
+  "mutations": [
+    {
+      "target_handle": "helper_result",
+      "path": [
+        "policies",
+        "docker"
+      ],
+      "op": "set",
+      "value": "prohibit"
+    }
+  ],
+  "expected": {
+    "authoritative_state": {
+      "premise": null,
+      "policies": {
+        "docker": "use"
+      },
+      "version": 2
+    },
+    "identity_assertions": [
+      {
+        "left_handle": "helper_result",
+        "right_handle": "decision",
+        "right_path": [
+          "state"
+        ],
+        "same_identity": true
+      }
+    ],
+    "caller_owned_observations": [
+      {
+        "handle": "decision",
+        "path": [
+          "state",
+          "policies",
+          "docker"
+        ],
+        "value": "prohibit"
+      }
+    ]
+  }
+}

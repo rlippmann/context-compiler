@@ -1,0 +1,40 @@
+{
+  "id": "mutation_isolation_controller_step_result",
+  "kind": "mutation_isolation",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "operation": {
+    "fn": "controller.step",
+    "input": "use docker",
+    "result_handle": "step_result"
+  },
+  "handles": {
+    "step_result": {
+      "kind": "caller_owned_result_envelope"
+    }
+  },
+  "mutations": [
+    {
+      "target_handle": "step_result",
+      "path": [
+        "state",
+        "policies",
+        "docker"
+      ],
+      "op": "set",
+      "value": "prohibit"
+    }
+  ],
+  "expected": {
+    "authoritative_state": {
+      "premise": null,
+      "policies": {
+        "docker": "use"
+      },
+      "version": 2
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "id": "mutation_isolation_update_decision_state",
+  "kind": "mutation_isolation",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "operation": {
+    "fn": "engine.step",
+    "input": "use docker",
+    "result_handle": "decision"
+  },
+  "handles": {
+    "decision": {
+      "kind": "independently_constructed_result"
+    },
+    "decision_state": {
+      "kind": "nested_state_member",
+      "from_handle": "decision",
+      "path": [
+        "state"
+      ]
+    }
+  },
+  "mutations": [
+    {
+      "target_handle": "decision_state",
+      "path": [
+        "policies",
+        "docker"
+      ],
+      "op": "set",
+      "value": "prohibit"
+    }
+  ],
+  "expected": {
+    "authoritative_state": {
+      "premise": null,
+      "policies": {
+        "docker": "use"
+      },
+      "version": 2
+    }
+  }
+}
