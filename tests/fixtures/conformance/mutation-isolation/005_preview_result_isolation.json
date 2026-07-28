@@ -34,6 +34,15 @@
     {
       "target_handle": "state_before",
       "path": [
+        "policies",
+        "docker"
+      ],
+      "op": "set",
+      "value": "prohibit"
+    },
+    {
+      "target_handle": "state_before",
+      "path": [
         "premise"
       ],
       "op": "set",
