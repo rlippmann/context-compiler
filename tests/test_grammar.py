@@ -262,6 +262,15 @@ def test_contains_multiple_canonical_directives_reports_public_compound_detectio
     assert contains_multiple_canonical_directives(text) is expected
 
 
+def test_private_parse_canonical_directive_preserves_internal_engine_seam() -> None:
+    parsed = grammar_module._parse_canonical_directive("use docker")
+
+    assert parsed is not None
+    assert parsed.text == "use docker"
+    assert parsed.kind is DirectiveKind.USE_ITEM
+    assert parsed.operands == {"item": "docker"}
+
+
 def test_internal_match_directive_token_rejects_truncated_and_non_whitespace_separator() -> None:
     assert (
         grammar_module._match_directive_token(
