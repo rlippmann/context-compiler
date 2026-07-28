@@ -224,6 +224,12 @@ def test_grammar_fixtures() -> None:
 
 
 def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id: object) -> None:
+    _assert_allowed_keys(
+        fixture,
+        {"id", "kind", "initial_state", "operation", "handles", "mutations", "expected"},
+        fixture_id,
+        "fixture",
+    )
     assert fixture["kind"] == "mutation_isolation", fixture_id
     assert isinstance(fixture["initial_state"], dict), fixture_id
 
@@ -339,20 +345,26 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
     assert isinstance(expected, dict), fixture_id
     _assert_allowed_keys(
         expected,
-        {
-            "authoritative_state",
-            "preview_live_state_unchanged",
-            "identity_assertions",
-            "caller_owned_observations",
-        }
-        & set(expected.keys())
-        | {"authoritative_state"},
+        {"authoritative_state"}
+        | (
+            {
+                "preview_live_state_unchanged",
+                "identity_assertions",
+                "caller_owned_observations",
+            }
+            & set(expected.keys())
+        ),
         fixture_id,
         "expected",
     )
     assert isinstance(expected["authoritative_state"], dict), fixture_id
+    if "preview_live_state_unchanged" in expected:
+        assert fn == "controller.preview", fixture_id
+        assert expected["preview_live_state_unchanged"] is True, fixture_id
 
-    for assertion in expected.get("identity_assertions", []):
+    identity_assertions = expected.get("identity_assertions", [])
+    assert isinstance(identity_assertions, list), fixture_id
+    for assertion in identity_assertions:
         assert isinstance(assertion, dict), fixture_id
         assert set(assertion) == {"left_handle", "right_handle", "right_path", "same_identity"}, (
             fixture_id
@@ -364,13 +376,141 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
         assert all(isinstance(part, str) for part in assertion["right_path"]), fixture_id
         assert isinstance(assertion["same_identity"], bool), fixture_id
 
-    for observation in expected.get("caller_owned_observations", []):
+    caller_owned_observations = expected.get("caller_owned_observations", [])
+    assert isinstance(caller_owned_observations, list), fixture_id
+    for observation in caller_owned_observations:
         assert isinstance(observation, dict), fixture_id
         assert set(observation) == {"handle", "path", "value"}, fixture_id
         assert observation["handle"] in handles, fixture_id
         assert isinstance(observation["path"], list), fixture_id
         assert observation["path"], fixture_id
         assert all(isinstance(part, str) for part in observation["path"]), fixture_id
+
+
+def test_mutation_isolation_validator_rejects_unknown_top_level_field() -> None:
+    fixture = {
+        "id": "invalid_unknown_top_level",
+        "kind": "mutation_isolation",
+        "initial_state": {"premise": None, "policies": {}, "version": 2},
+        "operation": {"fn": "engine.state", "result_handle": "state_snapshot"},
+        "handles": {"state_snapshot": {"kind": "defensive_snapshot"}},
+        "mutations": [
+            {
+                "target_handle": "state_snapshot",
+                "path": ["premise"],
+                "op": "set",
+                "value": "mutated",
+            }
+        ],
+        "expected": {"authoritative_state": {"premise": None, "policies": {}, "version": 2}},
+        "unexpected": True,
+    }
+
+    with pytest.raises(AssertionError):
+        _validate_mutation_isolation_fixture(fixture, fixture["id"])
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("identity_assertions", {}),
+        ("caller_owned_observations", {}),
+    ],
+)
+def test_mutation_isolation_validator_rejects_non_list_optional_expected_collections(
+    field: str, value: object
+) -> None:
+    fixture = {
+        "id": f"invalid_{field}",
+        "kind": "mutation_isolation",
+        "initial_state": {"premise": None, "policies": {}, "version": 2},
+        "operation": {"fn": "engine.state", "result_handle": "state_snapshot"},
+        "handles": {"state_snapshot": {"kind": "defensive_snapshot"}},
+        "mutations": [
+            {
+                "target_handle": "state_snapshot",
+                "path": ["premise"],
+                "op": "set",
+                "value": "mutated",
+            }
+        ],
+        "expected": {
+            "authoritative_state": {"premise": None, "policies": {}, "version": 2},
+            field: value,
+        },
+    }
+
+    with pytest.raises(AssertionError):
+        _validate_mutation_isolation_fixture(fixture, fixture["id"])
+
+
+@pytest.mark.parametrize("value", [False, "true", 1, None])
+def test_mutation_isolation_validator_rejects_invalid_preview_live_state_unchanged_values(
+    value: object,
+) -> None:
+    fixture = {
+        "id": "invalid_preview_live_state_unchanged_value",
+        "kind": "mutation_isolation",
+        "initial_state": {"premise": None, "policies": {}, "version": 2},
+        "operation": {
+            "fn": "controller.preview",
+            "input": "use docker",
+            "result_handle": "preview_result",
+        },
+        "handles": {
+            "preview_result": {"kind": "caller_owned_result_envelope"},
+            "state_before": {
+                "kind": "defensive_snapshot",
+                "from_handle": "preview_result",
+                "path": ["state_before"],
+            },
+            "state_after": {
+                "kind": "defensive_snapshot",
+                "from_handle": "preview_result",
+                "path": ["state_after"],
+            },
+        },
+        "mutations": [
+            {
+                "target_handle": "state_before",
+                "path": ["premise"],
+                "op": "set",
+                "value": "mutated",
+            }
+        ],
+        "expected": {
+            "authoritative_state": {"premise": None, "policies": {}, "version": 2},
+            "preview_live_state_unchanged": value,
+        },
+    }
+
+    with pytest.raises(AssertionError):
+        _validate_mutation_isolation_fixture(fixture, fixture["id"])
+
+
+def test_mutation_isolation_validator_rejects_preview_flag_on_non_preview_operation() -> None:
+    fixture = {
+        "id": "invalid_preview_live_state_unchanged_non_preview",
+        "kind": "mutation_isolation",
+        "initial_state": {"premise": None, "policies": {}, "version": 2},
+        "operation": {"fn": "engine.state", "result_handle": "state_snapshot"},
+        "handles": {"state_snapshot": {"kind": "defensive_snapshot"}},
+        "mutations": [
+            {
+                "target_handle": "state_snapshot",
+                "path": ["premise"],
+                "op": "set",
+                "value": "mutated",
+            }
+        ],
+        "expected": {
+            "authoritative_state": {"premise": None, "policies": {}, "version": 2},
+            "preview_live_state_unchanged": True,
+        },
+    }
+
+    with pytest.raises(AssertionError):
+        _validate_mutation_isolation_fixture(fixture, fixture["id"])
 
 
 def _execute_mutation_isolation_operation(

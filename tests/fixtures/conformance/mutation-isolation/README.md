@@ -41,8 +41,7 @@ Examples:
 * `engine.step`
 * `controller.step`
 * `controller.preview`
-* helper accessors such as `get_decision_state`, `get_step_state`, and
-  `get_preview_state_after`
+* helper accessors such as `get_decision_state` and `get_step_state`
 
 For the current corpus, `operation` uses a closed per-function field set.
 Unknown operation fields are invalid.
