@@ -111,7 +111,7 @@ def test_demo_08_reinjected_path_does_not_instantiate_engine(
 def test_demo_09_reports_invalid_replacement_non_pending_boundary(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    module = _load_demo_module("09_llm_pending_clarification.py")
+    module = _load_demo_module("09_llm_confirmation_passthrough.py")
     monkeypatch.setattr(
         module,
         "complete_messages",
@@ -128,7 +128,7 @@ def test_demo_09_reports_invalid_replacement_non_pending_boundary(
     report = consume_last_report()
 
     assert report is not None
-    assert report["name"].startswith("09_pending_clarification_boundary")
+    assert report["name"].startswith("09_confirmation_passthrough_boundary")
     assert report["baseline_pass"] is False
     assert report["reinjected_state_pass"] is False
     assert report["compiler_pass"] is True
@@ -141,7 +141,7 @@ def test_demo_09_reports_invalid_replacement_non_pending_boundary(
 def test_demo_09_reinjected_path_does_not_call_create_engine(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    module = _load_demo_module("09_llm_pending_clarification.py")
+    module = _load_demo_module("09_llm_confirmation_passthrough.py")
 
     original_create_engine = module.create_engine
     create_engine_calls = 0

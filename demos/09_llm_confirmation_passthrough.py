@@ -1,4 +1,4 @@
-"""Demo 9: missing-source replacement applies without creating pending continuation."""
+"""Demo 9: confirmation-style followups remain ordinary passthrough."""
 
 from context_compiler import (
     DECISION_PASSTHROUGH,
@@ -22,7 +22,10 @@ from demos.common import (
 )
 from demos.llm_client import complete_messages
 
-DEMO_NAME = "09_pending_clarification_boundary — missing-source replacement stays non-pending"
+DEMO_NAME = (
+    "09_confirmation_passthrough_boundary — "
+    "missing-source replacement does not create a confirmation state"
+)
 TURN_1 = "use podman instead of docker"
 TURN_2 = "maybe"
 TURN_3 = "yes"
@@ -92,7 +95,7 @@ def main() -> None:
         print_model_output("Compiler-mediated + compact", compact_output)
     else:
         print_messages("compiler-mediated + compact", [])
-        compact_output = "[no call] compact replay did not create pending continuation"
+        compact_output = "[no call] compact replay kept confirmation-style followups as passthrough"
         print_model_output("Compiler-mediated + compact", compact_output)
 
     deterministic_initial_update = first["kind"] == DECISION_UPDATE and state_applied_after_first
@@ -102,8 +105,8 @@ def main() -> None:
     confirmation_token_not_consumed = third["kind"] == DECISION_PASSTHROUGH
     deterministic_final_state = _has_podman_use(engine.state)
 
-    baseline_has_pending_state_machine = False
-    reinjected_has_pending_state_machine = False
+    baseline_has_confirmation_state_machine = False
+    reinjected_has_confirmation_state_machine = False
 
     compiler_pass = (
         deterministic_initial_update
@@ -141,23 +144,24 @@ def main() -> None:
 
     print_spec_report(
         test_name=DEMO_NAME,
-        baseline_pass=baseline_has_pending_state_machine,
-        reinjected_state_pass=reinjected_has_pending_state_machine,
+        baseline_pass=baseline_has_confirmation_state_machine,
+        reinjected_state_pass=reinjected_has_confirmation_state_machine,
         compiler_pass=compiler_pass,
         compiler_compact_pass=compact_pass,
         expected=(
-            "missing-source replacement should apply without creating pending continuation, "
-            "and later yes/no-style input should remain ordinary passthrough"
+            "missing-source replacement should apply without creating an engine-owned "
+            "confirmation state, and later yes/no-style input should remain ordinary "
+            "passthrough"
         ),
         actual=(
             "compiler applied deterministic replacement update and treated later inputs as "
             "ordinary passthrough"
             if compiler_pass and compact_pass
-            else "compiler did not consistently preserve the non-pending replacement boundary"
+            else "compiler did not consistently preserve the confirmation-passthrough boundary"
         ),
         passed=compiler_pass and compact_pass,
-        result_pass="missing-source replacement stayed outside core pending continuation",
-        result_fail="missing-source replacement still behaved like core pending continuation",
+        result_pass="missing-source replacement stayed outside engine-owned confirmation state",
+        result_fail="missing-source replacement still behaved like engine-owned confirmation state",
     )
 
 
