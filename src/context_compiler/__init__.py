@@ -33,8 +33,6 @@ from .engine import (
     Engine,
     State,
     create_engine,
-    get_policy_items,
-    get_premise_value,
 )
 from .grammar import DirectiveKind, is_canonical_directive, render_directive, validate_directive
 
@@ -59,8 +57,6 @@ __all__ = [
     "get_decision_state",
     "get_preview_decision",
     "get_preview_state_after",
-    "get_premise_value",
-    "get_policy_items",
     "get_step_decision",
     "get_step_state",
     "is_canonical_directive",

@@ -2,7 +2,7 @@ import json
 import sys
 from typing import TextIO
 
-from . import __version__, create_engine, get_policy_items, get_premise_value
+from . import __version__, create_engine
 from .const import DECISION_CLARIFY, DECISION_PASSTHROUGH
 from .controller import (
     OUTPUT_VERSION,
@@ -80,18 +80,14 @@ def _print_interactive_help(out_stream: TextIO) -> None:
 
 
 def _render_state_lines(state: State) -> list[str]:
-    premise = get_premise_value(state)
+    premise = state["premise"]
     premise_line = "premise: (none)" if premise is None else f"premise: {premise}"
 
-    all_policy_items = get_policy_items(state)
-    if not all_policy_items:
+    policies = state["policies"]
+    if not policies:
         return [premise_line, "policies: (none)"]
 
-    use_items = set(get_policy_items(state, "use"))
-    policy_items: list[tuple[str, str]] = []
-    for item in all_policy_items:
-        value = "use" if item in use_items else "prohibit"
-        policy_items.append((item, value))
+    policy_items = sorted(policies.items())
 
     lines = [premise_line, "policies:"]
     for item, value in policy_items:

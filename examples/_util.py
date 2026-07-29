@@ -6,8 +6,6 @@ from context_compiler import (
     POLICY_USE,
     get_clarify_prompt,
     get_decision_state,
-    get_policy_items,
-    get_premise_value,
     is_clarify,
     is_update,
 )
@@ -22,12 +20,14 @@ def print_json(obj: Any) -> None:
 
 
 def _format_policy_values(state: Any, value: Literal["use", "prohibit"]) -> str:
-    items = get_policy_items(state, value)
+    items = sorted(
+        item for item, policy_value in state["policies"].items() if policy_value == value
+    )
     return ", ".join(items) if items else "(none)"
 
 
 def print_state_summary(state: Any, label: str = "state") -> None:
-    premise = get_premise_value(state)
+    premise = state["premise"]
     premise_text = premise if premise is not None else "(none)"
 
     print(f"{label}:")

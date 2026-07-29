@@ -2,6 +2,7 @@
 
 import json
 import re
+from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
 from enum import StrEnum
@@ -80,16 +81,6 @@ def create_engine(state: State | None = None) -> "Engine":
     return Engine(state=state)
 
 
-def get_premise_value(state: State) -> str | None:
-    return state[STATE_PREMISE]
-
-
-def get_policy_items(state: State, value: PolicyValue | None = None) -> list[str]:
-    if value is None:
-        return sorted(state[STATE_POLICIES].keys())
-    return sorted(k for k, v in state[STATE_POLICIES].items() if v == value)
-
-
 class Engine:
     def __init__(self, state: State | None = None) -> None:
         self._state: State
@@ -100,7 +91,7 @@ class Engine:
         return self._state[STATE_PREMISE]
 
     @property
-    def policies(self) -> dict[str, PolicyValue]:
+    def policies(self) -> Mapping[str, PolicyValue]:
         return deepcopy(self._state[STATE_POLICIES])
 
     @property
