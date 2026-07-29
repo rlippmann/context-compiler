@@ -280,7 +280,6 @@ Public result and data object names exported at package root include:
 
 - `Decision`
 - `State`
-- `Checkpoint`
 - `StepResult`
 - `PreviewResult`
 - `StructuralDiff`
