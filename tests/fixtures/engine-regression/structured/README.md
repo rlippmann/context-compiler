@@ -7,7 +7,20 @@ These fixtures define deterministic, per-turn behavioral regression coverage for
 * `scenarios/`: input stimuli and optional setup (`initial_state`)
 * `expected/`: exact per-turn expected outputs
 
-Each scenario file in `scenarios/` must have a matching file in `expected/` with the same `id`.
+Each scenario file in `scenarios/` must have a matching file in `expected/`
+with the same `id`.
+
+Identity rules:
+
+* scenario filename stem must match scenario `id`
+* expected filename stem must match expected `id`
+* scenario `id` and expected `id` must match
+
+Scenario metadata is intentionally small:
+
+* `inputs` is required
+* `initial_state` is optional setup metadata
+* `description` is optional descriptive metadata
 
 ## Turn Result Schema
 
@@ -36,7 +49,8 @@ regressions are visible in:
 
 1. Add a scenario input file under `scenarios/`.
 2. Add the matching expected per-turn golden file under `expected/`.
-3. Keep files JSON-only, deterministic, and easy to diff.
+3. Keep filenames aligned with each file's `id`.
+4. Keep files JSON-only, deterministic, and easy to diff.
 
 ### Scope Boundary
 

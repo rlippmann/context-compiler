@@ -2,6 +2,10 @@
 
 This directory contains multiple fixture suites with different contracts.
 
+Fixture files in this tree are shared cross-language contract artifacts.
+Ports should treat synchronized fixture data as normative for the covered
+surface, rather than as Python-only test inputs.
+
 ## Fixture types
 
 * [`conformance/`](conformance/) — core engine cross-language conformance contract.
@@ -51,11 +55,18 @@ Then asserts:
 * returned `Decision`
 * final `engine.state`
 
+The current runner enforces a closed fixture shape for this family.
+Unknown top-level and documented nested fields are rejected.
+
 ### Prelude
 
 `prelude` simulates prior user inputs to reach states that are not representable
 via `initial_state` (for example, runtime-only semantic continuation when the
 active engine contract supports it).
+
+Shared `step` fixtures intentionally cover representative parser and passthrough
+boundaries. They do not attempt to freeze every ambiguous natural-language edge
+case as part of the cross-language contract.
 
 ## State JSON fixtures
 
@@ -64,6 +75,9 @@ For [`conformance/state-json/`](conformance/state-json/):
 Portable serialization contract coverage for `engine.export_json()` and
 `engine.import_json(...)`, including canonical export payload shape and
 deterministic validation/error boundaries.
+
+The current runner enforces a closed fixture shape for this family.
+Unknown top-level, action, and documented expected/error fields are rejected.
 
 ## Controller fixtures
 
@@ -78,6 +92,9 @@ Portable controller contract coverage for:
 These fixtures keep a minimal, language-neutral contract matrix for controller APIs.
 They intentionally validate the raw controller result envelopes; helper accessors
 are covered separately by the public API presence contract above.
+
+The current runner enforces a closed fixture shape for this family.
+Unknown top-level, action, expected, and documented result/diff fields are rejected.
 
 ## Mutation-isolation fixtures
 
@@ -115,6 +132,9 @@ Fixtures reflect current Python behavior and tests.
 Property/fuzz invariants remain Python-local tests and are not part of the
 portable fixture contract.
 
+For conformance families that enforce identity validation in the shared runner,
+the fixture filename stem must match the fixture `id`.
+
 ## Engine regression fixtures
 
 [`engine-regression/structured/`](engine-regression/structured/)
@@ -122,6 +142,9 @@ portable fixture contract.
 These fixtures capture deterministic per-turn engine behavior using
 authoritative state snapshots, and are exercised by
 [`tests/test_structured_regression.py`](../test_structured_regression.py).
+
+Like the conformance fixture families above, these files are contract artifacts
+intended for reuse by other implementations.
 
 They validate:
 
