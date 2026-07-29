@@ -45,6 +45,10 @@ def _load(path: Path) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _assert_fixture_path_matches_id(path: Path, fixture_id: object) -> None:
+    assert path.stem == fixture_id, f"{fixture_id}: filename/id mismatch"
+
+
 def _assert_allowed_keys(
     obj: dict[str, object], allowed_keys: set[str], fixture_id: object, label: str
 ) -> None:
@@ -287,6 +291,7 @@ def test_step_fixtures() -> None:
         fixture = _load(path)
         fixture_id = fixture["id"]
 
+        _assert_fixture_path_matches_id(path, fixture_id)
         _validate_step_fixture(fixture, fixture_id)
         assert fixture["kind"] == "step", fixture_id
 
@@ -330,6 +335,7 @@ def test_state_json_fixtures() -> None:
         fixture = _load(path)
         fixture_id = fixture["id"]
 
+        _assert_fixture_path_matches_id(path, fixture_id)
         _validate_state_json_fixture(fixture, fixture_id)
         assert fixture["kind"] == "state_json", fixture_id
         engine = create_engine(state=fixture["initial_state"])
@@ -363,6 +369,7 @@ def test_controller_fixtures() -> None:
         fixture = _load(path)
         fixture_id = fixture["id"]
 
+        _assert_fixture_path_matches_id(path, fixture_id)
         _validate_controller_fixture(fixture, fixture_id)
         assert fixture["kind"] == "controller", fixture_id
         engine = create_engine(state=fixture["initial_state"])
@@ -397,6 +404,7 @@ def test_grammar_fixtures() -> None:
         fixture = _load(path)
         fixture_id = fixture["id"]
 
+        _assert_fixture_path_matches_id(path, fixture_id)
         _validate_grammar_fixture(fixture, fixture_id)
         assert fixture["kind"] == "grammar", fixture_id
         action = fixture["action"]
@@ -650,6 +658,14 @@ def test_state_json_validator_rejects_unknown_error_field() -> None:
 
     with pytest.raises(AssertionError, match="invalid keys for expected.error"):
         _validate_state_json_fixture(fixture, fixture["id"])
+
+
+def test_conformance_fixture_identity_rejects_filename_id_mismatch() -> None:
+    path = Path("/tmp/fixture_name.json")
+    fixture_id = "different_fixture_id"
+
+    with pytest.raises(AssertionError, match="filename/id mismatch"):
+        _assert_fixture_path_matches_id(path, fixture_id)
 
 
 def test_state_json_validator_rejects_missing_error_type() -> None:

@@ -21,6 +21,10 @@ def _load_json(path: Path) -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _assert_fixture_path_matches_id(path: Path, fixture_id: object, label: str) -> None:
+    assert path.stem == fixture_id, f"{fixture_id}: filename/id mismatch for {label}"
+
+
 def _assert_allowed_keys(
     obj: dict[str, object], allowed_keys: set[str], fixture_id: object, label: str
 ) -> None:
@@ -88,6 +92,8 @@ def test_structured_regression_scenarios() -> None:
         expected_path = _EXPECTED_DIR / f"{scenario_id}.json"
         expected = _load_json(expected_path)
 
+        _assert_fixture_path_matches_id(scenario_path, scenario_id, "scenario")
+        _assert_fixture_path_matches_id(expected_path, expected["id"], "expected")
         _validate_structured_scenario_fixture(scenario, scenario_id)
         _validate_structured_expected_fixture(expected, scenario_id)
         assert expected["id"] == scenario_id, f"scenario_id_mismatch: {scenario_id}"
@@ -152,3 +158,17 @@ def test_structured_scenario_validator_allows_missing_optional_metadata() -> Non
     }
 
     _validate_structured_scenario_fixture(scenario, scenario["id"])
+
+
+def test_structured_scenario_identity_rejects_filename_id_mismatch() -> None:
+    path = Path("/tmp/scenario_file.json")
+
+    with pytest.raises(AssertionError, match="filename/id mismatch for scenario"):
+        _assert_fixture_path_matches_id(path, "different_scenario_id", "scenario")
+
+
+def test_structured_expected_identity_rejects_filename_id_mismatch() -> None:
+    path = Path("/tmp/expected_file.json")
+
+    with pytest.raises(AssertionError, match="filename/id mismatch for expected"):
+        _assert_fixture_path_matches_id(path, "different_expected_id", "expected")
