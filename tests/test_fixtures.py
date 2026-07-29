@@ -51,6 +51,213 @@ def _assert_allowed_keys(
     assert set(obj) == allowed_keys, f"{fixture_id}: invalid keys for {label}"
 
 
+def _assert_str_list(value: object, fixture_id: object, label: str) -> None:
+    assert isinstance(value, list), f"{fixture_id}: invalid {label}"
+    assert all(isinstance(item, str) for item in value), f"{fixture_id}: invalid {label}"
+
+
+def _validate_step_fixture(fixture: dict[str, object], fixture_id: object) -> None:
+    _assert_allowed_keys(
+        fixture,
+        {"id", "kind", "initial_state", "input", "expected"} | ({"prelude"} & set(fixture)),
+        fixture_id,
+        "fixture",
+    )
+    assert fixture["kind"] == "step", fixture_id
+    assert isinstance(fixture["input"], str), fixture_id
+    assert isinstance(fixture["initial_state"], dict), fixture_id
+    if "prelude" in fixture:
+        _assert_str_list(fixture["prelude"], fixture_id, "prelude")
+
+    expected = fixture["expected"]
+    assert isinstance(expected, dict), fixture_id
+    _assert_allowed_keys(expected, {"decision", "state"}, fixture_id, "expected")
+    assert isinstance(expected["state"], dict), fixture_id
+
+    decision = expected["decision"]
+    assert isinstance(decision, dict), fixture_id
+    _assert_allowed_keys(
+        decision, {"kind", "prompt_to_user", "state"}, fixture_id, "expected.decision"
+    )
+    assert isinstance(decision["kind"], str), fixture_id
+    assert decision["prompt_to_user"] is None or isinstance(decision["prompt_to_user"], str), (
+        fixture_id
+    )
+    assert decision["state"] is None or isinstance(decision["state"], dict), fixture_id
+
+
+def _validate_state_json_fixture(fixture: dict[str, object], fixture_id: object) -> None:
+    _assert_allowed_keys(
+        fixture,
+        {"id", "kind", "initial_state", "action", "expected"} | ({"prelude"} & set(fixture)),
+        fixture_id,
+        "fixture",
+    )
+    assert fixture["kind"] == "state_json", fixture_id
+    assert isinstance(fixture["initial_state"], dict), fixture_id
+    if "prelude" in fixture:
+        _assert_str_list(fixture["prelude"], fixture_id, "prelude")
+
+    action = fixture["action"]
+    assert isinstance(action, dict), fixture_id
+    fn = action["fn"]
+    if fn == "export_json":
+        _assert_allowed_keys(action, {"fn"}, fixture_id, "action")
+    elif fn == "import_json":
+        _assert_allowed_keys(action, {"fn", "payload"}, fixture_id, "action")
+        assert isinstance(action["payload"], str), fixture_id
+    else:
+        assert isinstance(fn, str), fixture_id
+
+    expected = fixture["expected"]
+    assert isinstance(expected, dict), fixture_id
+    if "error" in expected:
+        _assert_allowed_keys(expected, {"error", "state"}, fixture_id, "expected")
+        error = expected["error"]
+        assert isinstance(error, dict), fixture_id
+        _assert_allowed_keys(error, {"type", "message_contains"}, fixture_id, "expected.error")
+        assert isinstance(error["type"], str), fixture_id
+        assert isinstance(error["message_contains"], str), fixture_id
+    elif fn == "export_json":
+        _assert_allowed_keys(expected, {"payload", "state"}, fixture_id, "expected")
+        assert isinstance(expected["payload"], str), fixture_id
+    else:
+        _assert_allowed_keys(expected, {"state"}, fixture_id, "expected")
+    assert isinstance(expected["state"], dict), fixture_id
+
+
+def _validate_controller_result_decision(decision: object, fixture_id: object, label: str) -> None:
+    assert isinstance(decision, dict), fixture_id
+    _assert_allowed_keys(decision, {"kind", "state", "prompt_to_user"}, fixture_id, label)
+    assert isinstance(decision["kind"], str), fixture_id
+    assert decision["state"] is None or isinstance(decision["state"], dict), fixture_id
+    assert decision["prompt_to_user"] is None or isinstance(decision["prompt_to_user"], str), (
+        fixture_id
+    )
+
+
+def _validate_controller_diff(diff: object, fixture_id: object, label: str) -> None:
+    assert isinstance(diff, dict), fixture_id
+    _assert_allowed_keys(diff, {"changed", "premise", "policies"}, fixture_id, label)
+    assert isinstance(diff["changed"], bool), fixture_id
+
+    premise = diff["premise"]
+    assert isinstance(premise, dict), fixture_id
+    _assert_allowed_keys(premise, {"before", "after", "changed"}, fixture_id, f"{label}.premise")
+    assert isinstance(premise["changed"], bool), fixture_id
+
+    policies = diff["policies"]
+    assert isinstance(policies, dict), fixture_id
+    _assert_allowed_keys(policies, {"added", "removed", "changed"}, fixture_id, f"{label}.policies")
+    assert isinstance(policies["added"], dict), fixture_id
+    assert isinstance(policies["removed"], dict), fixture_id
+    assert isinstance(policies["changed"], dict), fixture_id
+    for policy_change in policies["changed"].values():
+        assert isinstance(policy_change, dict), fixture_id
+        _assert_allowed_keys(
+            policy_change, {"before", "after"}, fixture_id, f"{label}.policies.changed"
+        )
+
+
+def _validate_controller_fixture(fixture: dict[str, object], fixture_id: object) -> None:
+    _assert_allowed_keys(
+        fixture,
+        {"id", "kind", "initial_state", "action", "expected"} | ({"prelude"} & set(fixture)),
+        fixture_id,
+        "fixture",
+    )
+    assert fixture["kind"] == "controller", fixture_id
+    assert isinstance(fixture["initial_state"], dict), fixture_id
+    if "prelude" in fixture:
+        _assert_str_list(fixture["prelude"], fixture_id, "prelude")
+
+    action = fixture["action"]
+    assert isinstance(action, dict), fixture_id
+    fn = action["fn"]
+    expected = fixture["expected"]
+    assert isinstance(expected, dict), fixture_id
+
+    if fn == "step":
+        _assert_allowed_keys(action, {"fn", "input"}, fixture_id, "action")
+        assert isinstance(action["input"], str), fixture_id
+        _assert_allowed_keys(expected, {"result", "state"}, fixture_id, "expected")
+        assert isinstance(expected["state"], dict), fixture_id
+        result = expected["result"]
+        assert isinstance(result, dict), fixture_id
+        _assert_allowed_keys(
+            result, {"output_version", "mode", "decision", "state"}, fixture_id, "expected.result"
+        )
+        _validate_controller_result_decision(
+            result["decision"], fixture_id, "expected.result.decision"
+        )
+        assert isinstance(result["state"], dict), fixture_id
+    elif fn == "preview":
+        _assert_allowed_keys(action, {"fn", "input"}, fixture_id, "action")
+        assert isinstance(action["input"], str), fixture_id
+        _assert_allowed_keys(expected, {"result", "state_after_preview"}, fixture_id, "expected")
+        assert isinstance(expected["state_after_preview"], dict), fixture_id
+        result = expected["result"]
+        assert isinstance(result, dict), fixture_id
+        _assert_allowed_keys(
+            result,
+            {
+                "output_version",
+                "mode",
+                "decision",
+                "state_before",
+                "state_after",
+                "diff",
+                "would_mutate",
+            },
+            fixture_id,
+            "expected.result",
+        )
+        _validate_controller_result_decision(
+            result["decision"], fixture_id, "expected.result.decision"
+        )
+        assert isinstance(result["state_before"], dict), fixture_id
+        assert isinstance(result["state_after"], dict), fixture_id
+        _validate_controller_diff(result["diff"], fixture_id, "expected.result.diff")
+        assert isinstance(result["would_mutate"], bool), fixture_id
+    else:
+        assert fn == "state_diff", fixture_id
+        _assert_allowed_keys(action, {"fn", "before", "after"}, fixture_id, "action")
+        assert isinstance(action["before"], dict), fixture_id
+        assert isinstance(action["after"], dict), fixture_id
+        _assert_allowed_keys(expected, {"diff"}, fixture_id, "expected")
+        _validate_controller_diff(expected["diff"], fixture_id, "expected.diff")
+
+
+def _validate_grammar_fixture(fixture: dict[str, object], fixture_id: object) -> None:
+    _assert_allowed_keys(fixture, {"id", "kind", "action", "expected"}, fixture_id, "fixture")
+    assert fixture["kind"] == "grammar", fixture_id
+
+    action = fixture["action"]
+    assert isinstance(action, dict), fixture_id
+    expected = fixture["expected"]
+    assert isinstance(expected, dict), fixture_id
+    fn = action["fn"]
+
+    if fn == "validate_directive":
+        _assert_allowed_keys(action, {"fn", "text"}, fixture_id, "action")
+        assert isinstance(action["text"], str), fixture_id
+        _assert_allowed_keys(expected, {"validated"}, fixture_id, "expected")
+        validated = expected["validated"]
+        if validated is not None:
+            assert isinstance(validated, dict), fixture_id
+            _assert_allowed_keys(validated, {"text", "kind"}, fixture_id, "expected.validated")
+            assert isinstance(validated["text"], str), fixture_id
+            assert isinstance(validated["kind"], str), fixture_id
+    else:
+        assert fn == "render_directive", fixture_id
+        _assert_allowed_keys(action, {"fn", "kind", "operands"}, fixture_id, "action")
+        assert isinstance(action["kind"], str), fixture_id
+        assert isinstance(action["operands"], dict), fixture_id
+        _assert_allowed_keys(expected, {"text", "validated_kind"}, fixture_id, "expected")
+        assert isinstance(expected["text"], str), fixture_id
+        assert isinstance(expected["validated_kind"], str), fixture_id
+
+
 def _get_path_value(obj: object, path: list[object]) -> object:
     current = obj
     for key in path:
@@ -78,6 +285,7 @@ def test_step_fixtures() -> None:
         fixture = _load(path)
         fixture_id = fixture["id"]
 
+        _validate_step_fixture(fixture, fixture_id)
         assert fixture["kind"] == "step", fixture_id
 
         engine = create_engine(state=fixture["initial_state"])
@@ -120,6 +328,7 @@ def test_state_json_fixtures() -> None:
         fixture = _load(path)
         fixture_id = fixture["id"]
 
+        _validate_state_json_fixture(fixture, fixture_id)
         assert fixture["kind"] == "state_json", fixture_id
         engine = create_engine(state=fixture["initial_state"])
         _apply_prelude(engine, fixture.get("prelude", []))
@@ -150,6 +359,7 @@ def test_controller_fixtures() -> None:
         fixture = _load(path)
         fixture_id = fixture["id"]
 
+        _validate_controller_fixture(fixture, fixture_id)
         assert fixture["kind"] == "controller", fixture_id
         engine = create_engine(state=fixture["initial_state"])
         _apply_prelude(engine, fixture.get("prelude", []))
@@ -183,6 +393,7 @@ def test_grammar_fixtures() -> None:
         fixture = _load(path)
         fixture_id = fixture["id"]
 
+        _validate_grammar_fixture(fixture, fixture_id)
         assert fixture["kind"] == "grammar", fixture_id
         action = fixture["action"]
         expected = fixture["expected"]
@@ -394,6 +605,98 @@ def test_mutation_isolation_validator_rejects_unknown_top_level_field() -> None:
 
     with pytest.raises(AssertionError):
         _validate_mutation_isolation_fixture(fixture, fixture["id"])
+
+
+def test_step_validator_rejects_unknown_expected_decision_field() -> None:
+    fixture = {
+        "id": "invalid_step_expected_decision",
+        "kind": "step",
+        "initial_state": {"premise": None, "policies": {}, "version": 2},
+        "input": "use docker",
+        "expected": {
+            "decision": {
+                "kind": "update",
+                "prompt_to_user": None,
+                "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
+                "unexpected": True,
+            },
+            "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
+        },
+    }
+
+    with pytest.raises(AssertionError, match="invalid keys for expected.decision"):
+        _validate_step_fixture(fixture, fixture["id"])
+
+
+def test_state_json_validator_rejects_unknown_error_field() -> None:
+    fixture = {
+        "id": "invalid_state_json_error",
+        "kind": "state_json",
+        "initial_state": {"premise": None, "policies": {}, "version": 2},
+        "action": {"fn": "import_json", "payload": "{"},
+        "expected": {
+            "error": {
+                "type": "ValueError",
+                "message_contains": "Invalid JSON payload",
+                "unexpected": True,
+            },
+            "state": {"premise": None, "policies": {}, "version": 2},
+        },
+    }
+
+    with pytest.raises(AssertionError, match="invalid keys for expected.error"):
+        _validate_state_json_fixture(fixture, fixture["id"])
+
+
+def test_controller_validator_rejects_unknown_preview_result_field() -> None:
+    fixture = {
+        "id": "invalid_controller_preview_result",
+        "kind": "controller",
+        "initial_state": {"premise": None, "policies": {}, "version": 2},
+        "action": {"fn": "preview", "input": "use docker"},
+        "expected": {
+            "result": {
+                "output_version": 1,
+                "mode": "preview",
+                "decision": {
+                    "kind": "update",
+                    "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
+                    "prompt_to_user": None,
+                },
+                "state_before": {"premise": None, "policies": {}, "version": 2},
+                "state_after": {"premise": None, "policies": {"docker": "use"}, "version": 2},
+                "diff": {
+                    "changed": True,
+                    "premise": {"before": None, "after": None, "changed": False},
+                    "policies": {"added": {"docker": "use"}, "removed": {}, "changed": {}},
+                },
+                "would_mutate": True,
+                "unexpected": True,
+            },
+            "state_after_preview": {"premise": None, "policies": {}, "version": 2},
+        },
+    }
+
+    with pytest.raises(AssertionError, match="invalid keys for expected.result"):
+        _validate_controller_fixture(fixture, fixture["id"])
+
+
+def test_grammar_validator_rejects_unknown_validated_field() -> None:
+    fixture = {
+        "id": "invalid_grammar_validated",
+        "kind": "grammar",
+        "action": {"fn": "validate_directive", "text": "use docker"},
+        "expected": {
+            "validated": {
+                "text": "use docker",
+                "kind": "use_item",
+                "unexpected": True,
+            }
+        },
+    }
+
+    with pytest.raises(AssertionError, match="invalid keys for expected.validated"):
+        _validate_grammar_fixture(fixture, fixture["id"])
 
 
 @pytest.mark.parametrize(
