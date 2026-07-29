@@ -1,0 +1,39 @@
+{
+  "id": "mutation_isolation_engine_policies_property",
+  "kind": "mutation_isolation",
+  "initial_state": {
+    "premise": "baseline",
+    "policies": {
+      "docker": "use"
+    },
+    "version": 2
+  },
+  "operation": {
+    "fn": "engine.policies",
+    "result_handle": "policies_snapshot"
+  },
+  "handles": {
+    "policies_snapshot": {
+      "kind": "defensive_snapshot"
+    }
+  },
+  "mutations": [
+    {
+      "target_handle": "policies_snapshot",
+      "path": [
+        "docker"
+      ],
+      "op": "set",
+      "value": "prohibit"
+    }
+  ],
+  "expected": {
+    "authoritative_state": {
+      "premise": "baseline",
+      "policies": {
+        "docker": "use"
+      },
+      "version": 2
+    }
+  }
+}

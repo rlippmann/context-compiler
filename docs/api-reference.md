@@ -103,6 +103,17 @@ The internal structure is intentionally opaque for normal host use. Prefer
 `get_premise_value(state)` and `get_policy_items(state, ...)` over direct key
 traversal unless you are working at an explicit serialization boundary.
 
+### `engine.premise`
+
+Read the current authoritative premise value from a live engine.
+
+### `engine.policies`
+
+Read the current authoritative policy mapping from a live engine.
+
+This property returns a caller-owned copy so callers cannot mutate live engine
+state through the returned mapping.
+
 ## Decision API
 
 Each user message produces a `Decision`.
@@ -145,7 +156,9 @@ elif is_update(decision):
 
 ## State Access
 
-Use the exported helpers for normal reads from a `State` snapshot.
+Use the exported helpers for normal reads from a `State` snapshot. Use
+`engine.premise` and `engine.policies` when you specifically want the current
+live engine values without reading the whole state snapshot.
 
 ### Premise helpers
 

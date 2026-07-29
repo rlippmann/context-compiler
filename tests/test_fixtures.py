@@ -222,6 +222,8 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
     fn = operation["fn"]
     assert fn in {
         "create_engine",
+        "engine.policies",
+        "engine.premise",
         "engine.state",
         "engine.step",
         "controller.step",
@@ -263,7 +265,7 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
         assert constructor_state_spec["kind"] == "caller_owned_input", fixture_id
         assert set(constructor_state_spec) == {"kind", "value"}, fixture_id
         assert constructor_state_spec["value"] == fixture["initial_state"], fixture_id
-    elif fn == "engine.state":
+    elif fn == "engine.state" or fn in {"engine.policies", "engine.premise"}:
         assert set(operation) == {"fn", "result_handle"}, fixture_id
         result_handle = operation["result_handle"]
         assert isinstance(result_handle, str), fixture_id
@@ -520,6 +522,18 @@ def _execute_mutation_isolation_operation(
         result_handle = operation["result_handle"]
         assert isinstance(result_handle, str)
         handles[result_handle] = engine.state
+        return engine, handles, produced
+
+    if fn == "engine.policies":
+        result_handle = operation["result_handle"]
+        assert isinstance(result_handle, str)
+        handles[result_handle] = engine.policies
+        return engine, handles, produced
+
+    if fn == "engine.premise":
+        result_handle = operation["result_handle"]
+        assert isinstance(result_handle, str)
+        handles[result_handle] = {"value": engine.premise}
         return engine, handles, produced
 
     if fn == "engine.step":

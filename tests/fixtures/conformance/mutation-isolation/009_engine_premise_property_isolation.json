@@ -1,0 +1,39 @@
+{
+  "id": "mutation_isolation_engine_premise_property",
+  "kind": "mutation_isolation",
+  "initial_state": {
+    "premise": "baseline",
+    "policies": {
+      "docker": "use"
+    },
+    "version": 2
+  },
+  "operation": {
+    "fn": "engine.premise",
+    "result_handle": "premise_snapshot"
+  },
+  "handles": {
+    "premise_snapshot": {
+      "kind": "defensive_snapshot"
+    }
+  },
+  "mutations": [
+    {
+      "target_handle": "premise_snapshot",
+      "path": [
+        "value"
+      ],
+      "op": "set",
+      "value": "mutated premise"
+    }
+  ],
+  "expected": {
+    "authoritative_state": {
+      "premise": "baseline",
+      "policies": {
+        "docker": "use"
+      },
+      "version": 2
+    }
+  }
+}

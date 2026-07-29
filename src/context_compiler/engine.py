@@ -96,6 +96,14 @@ class Engine:
         self._replace_state(_initial_state() if state is None else _load_state_obj(state))
 
     @property
+    def premise(self) -> str | None:
+        return self._state[STATE_PREMISE]
+
+    @property
+    def policies(self) -> dict[str, PolicyValue]:
+        return deepcopy(self._state[STATE_POLICIES])
+
+    @property
     def state(self) -> State:
         return deepcopy(self._state)
 
