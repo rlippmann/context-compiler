@@ -275,7 +275,6 @@ Common API entry points:
   `engine.import_json(...)`
 - decision helpers: `is_clarify(...)`, `is_update(...)`, `is_passthrough(...)`,
   `get_clarify_prompt(...)`, `get_decision_state(...)`
-- state helpers: `get_premise_value(...)`, `get_policy_items(...)`
 - state transport: `engine.export_json(...)`, `engine.import_json(...)`
 - controller APIs: `preview(...)`, `step(...)`, `state_diff(...)`
 
@@ -310,13 +309,11 @@ authoritative in future turns.
 
 Identical input sequences always produce identical state.
 
-The internal structure of the state is intentionally opaque to host applications.
-For normal reads, prefer `get_premise_value(state)` and
-`get_policy_items(state, ...)` over direct key traversal.
+For live engine-owned reads, use `engine.premise` and `engine.policies`.
+`engine.policies` returns a caller-owned copy.
 
-For focused reads on a live engine, `engine.premise` and `engine.policies`
-expose the same authoritative state at a narrower boundary. `engine.policies`
-returns a caller-owned copy.
+`engine.state` remains the public snapshot/serialization boundary when host code
+needs the full authoritative state object.
 
 ---
 

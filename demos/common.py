@@ -10,8 +10,6 @@ from context_compiler import (
     Decision,
     State,
     create_engine,
-    get_policy_items,
-    get_premise_value,
 )
 from demos.llm_client import Message
 
@@ -48,12 +46,14 @@ LAST_INFO_REPORT: InfoReport | None = None
 
 
 def _policy_values_text(state: State, value: Literal["use", "prohibit"]) -> str:
-    items = get_policy_items(state, value)
+    items = sorted(
+        item for item, policy_value in state["policies"].items() if policy_value == value
+    )
     return ", ".join(items) if items else "(none)"
 
 
 def _print_state_summary(state: State) -> None:
-    premise_value = get_premise_value(state)
+    premise_value = state["premise"]
     premise_text = premise_value if premise_value is not None else "(none)"
     print("compiled state:")
     print(f"- premise: {premise_text}")
@@ -297,9 +297,13 @@ def consume_last_info_report() -> InfoReport | None:
 
 
 def build_compiled_system_prompt(state: State) -> str:
-    premise_value = get_premise_value(state)
-    use_items = get_policy_items(state, "use")
-    prohibit = get_policy_items(state, "prohibit")
+    premise_value = state["premise"]
+    use_items = sorted(
+        item for item, policy_value in state["policies"].items() if policy_value == "use"
+    )
+    prohibit = sorted(
+        item for item, policy_value in state["policies"].items() if policy_value == "prohibit"
+    )
     prohibit_text = ", ".join(prohibit) if prohibit else "(none)"
     use_text = ", ".join(use_items) if use_items else "(none)"
     premise_text = premise_value if premise_value is not None else "(unset)"

@@ -2,11 +2,11 @@
 
 from _util import print_decision_summary, print_state_summary
 
-from context_compiler import POLICY_PROHIBIT, State, create_engine, get_policy_items
+from context_compiler import Engine, create_engine
 
 
-def build_prompt(state: State, user_input: str) -> str:
-    prohibit = get_policy_items(state, POLICY_PROHIBIT)
+def build_prompt(engine: Engine, user_input: str) -> str:
+    prohibit = sorted(item for item, value in engine.policies.items() if value == "prohibit")
     prohibit_text = ", ".join(prohibit) if prohibit else "(none)"
     return (
         "System: Follow authoritative conversation state.\n"
@@ -32,7 +32,7 @@ def main() -> None:
     print()
 
     print("Host prompt construction with persisted policy:")
-    prompt = build_prompt(engine.state, "how should I make this curry?")
+    prompt = build_prompt(engine, "how should I make this curry?")
     print(prompt)
 
 

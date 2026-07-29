@@ -3,10 +3,8 @@
 from context_compiler import (
     DECISION_PASSTHROUGH,
     DECISION_UPDATE,
-    POLICY_USE,
     State,
     create_engine,
-    get_policy_items,
 )
 from demos.common import (
     build_baseline_messages,
@@ -33,7 +31,7 @@ INITIAL_AUTHORITATIVE_STATE = create_engine().state
 
 
 def _has_podman_use(state: State) -> bool:
-    return "podman" in get_policy_items(state, POLICY_USE)
+    return state["policies"].get("podman") == "use"
 
 
 def _is_initial_authoritative_state(state: State) -> bool:

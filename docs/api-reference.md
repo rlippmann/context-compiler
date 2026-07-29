@@ -99,9 +99,8 @@ Boundary notes:
 
 Read the current authoritative in-memory state snapshot.
 
-The internal structure is intentionally opaque for normal host use. Prefer
-`get_premise_value(state)` and `get_policy_items(state, ...)` over direct key
-traversal unless you are working at an explicit serialization boundary.
+Use this when you need the full authoritative state snapshot, such as
+serialization, persistence, or snapshot-based host logic.
 
 ### `engine.premise`
 
@@ -156,26 +155,15 @@ elif is_update(decision):
 
 ## State Access
 
-Use the exported helpers for normal reads from a `State` snapshot. Use
-`engine.premise` and `engine.policies` when you specifically want the current
-live engine values without reading the whole state snapshot.
-
-### Premise helpers
-
-- `get_premise_value(state)` returns the current premise value or `None`
-
-### Policy helpers
-
-- `get_policy_items(state)` returns all policy items
-- `get_policy_items(state, "use")` returns `use` items
-- `get_policy_items(state, "prohibit")` returns `prohibit` items
+Use `engine.premise` and `engine.policies` for live engine-owned reads.
+Use `engine.state` when you need the full authoritative snapshot.
 
 Typical use:
 
 ```python
-from context_compiler import POLICY_PROHIBIT, get_policy_items
-
-blocked_tools = get_policy_items(state, POLICY_PROHIBIT)
+blocked_tools = sorted(
+    item for item, value in engine.policies.items() if value == "prohibit"
+)
 ```
 
 See the README’s [State Model](../README.md#state-model) section for conceptual

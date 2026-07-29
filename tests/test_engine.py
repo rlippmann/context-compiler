@@ -1,8 +1,9 @@
 import json
+from collections.abc import Mapping
 
 import pytest
 
-from context_compiler import create_engine, get_policy_items, get_premise_value
+from context_compiler import create_engine
 from context_compiler.engine import (
     Action,
     DecisionKind,
@@ -124,21 +125,17 @@ def test_grammar_owned_compound_detection_helpers_remain_unchanged() -> None:
     assert match_canonical_directive_start("clear premise!", 0) == len("clear premise")
 
 
-def test_initial_state_and_helpers() -> None:
+def test_initial_state_and_engine_properties() -> None:
     engine = create_engine()
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
-    assert get_premise_value(engine.state) is None
-    assert get_policy_items(engine.state) == []
+    assert engine.premise is None
+    assert engine.policies == {}
 
 
-def test_get_policy_items_filters_by_policy_value_sorted() -> None:
+def test_policies_property_returns_mapping_snapshot() -> None:
     engine = create_engine()
-    engine.step("use zeta")
-    engine.step("prohibit docker")
-    engine.step("use alpha")
-
-    assert get_policy_items(engine.state, "use") == ["alpha", "zeta"]
-    assert get_policy_items(engine.state, "prohibit") == ["docker"]
+    assert isinstance(engine.policies, Mapping)
+    assert engine.policies == {}
 
 
 def test_state_getter_returns_defensive_copy() -> None:
@@ -164,6 +161,7 @@ def test_policies_property_returns_defensive_copy() -> None:
     engine.step("use docker")
 
     policies = engine.policies
+    assert isinstance(policies, Mapping)
     policies["docker"] = "prohibit"
 
     assert engine.policies == {"docker": "use"}

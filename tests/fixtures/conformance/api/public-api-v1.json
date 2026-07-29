@@ -32,8 +32,6 @@
       "get_decision_state",
       "get_preview_decision",
       "get_preview_state_after",
-      "get_premise_value",
-      "get_policy_items",
       "get_step_decision",
       "get_step_state",
       "is_canonical_directive",
@@ -233,35 +231,6 @@
               "name": "preview_result",
               "kind": "POSITIONAL_OR_KEYWORD",
               "has_default": false
-            }
-          ]
-        }
-      },
-      "get_premise_value": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "state",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        }
-      },
-      "get_policy_items": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "state",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            },
-            {
-              "name": "value",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": true
             }
           ]
         }
