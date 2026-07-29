@@ -348,8 +348,10 @@ def test_state_json_fixtures() -> None:
             if error is None:
                 engine.import_json(payload)
             else:
-                with pytest.raises(ValueError, match=error["message_contains"]):
+                expected_error_type = error["type"]
+                with pytest.raises(Exception, match=error["message_contains"]) as exc_info:
                     engine.import_json(payload)
+                assert type(exc_info.value).__name__ == expected_error_type, fixture_id
         else:
             raise AssertionError(f"Unknown state_json action: {fn}")
 
@@ -648,6 +650,76 @@ def test_state_json_validator_rejects_unknown_error_field() -> None:
 
     with pytest.raises(AssertionError, match="invalid keys for expected.error"):
         _validate_state_json_fixture(fixture, fixture["id"])
+
+
+def test_state_json_validator_rejects_missing_error_type() -> None:
+    fixture = {
+        "id": "invalid_state_json_error_missing_type",
+        "kind": "state_json",
+        "initial_state": {"premise": None, "policies": {}, "version": 2},
+        "action": {"fn": "import_json", "payload": "{"},
+        "expected": {
+            "error": {
+                "message_contains": "Invalid JSON payload",
+            },
+            "state": {"premise": None, "policies": {}, "version": 2},
+        },
+    }
+
+    with pytest.raises(AssertionError, match="invalid keys for expected.error"):
+        _validate_state_json_fixture(fixture, fixture["id"])
+
+
+def test_state_json_validator_rejects_non_string_error_type() -> None:
+    fixture = {
+        "id": "invalid_state_json_error_type_shape",
+        "kind": "state_json",
+        "initial_state": {"premise": None, "policies": {}, "version": 2},
+        "action": {"fn": "import_json", "payload": "{"},
+        "expected": {
+            "error": {
+                "type": 123,
+                "message_contains": "Invalid JSON payload",
+            },
+            "state": {"premise": None, "policies": {}, "version": 2},
+        },
+    }
+
+    with pytest.raises(AssertionError):
+        _validate_state_json_fixture(fixture, fixture["id"])
+
+
+def test_state_json_runner_rejects_incorrect_error_type_name(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fixture = {
+        "id": "invalid_state_json_runtime_error_type",
+        "kind": "state_json",
+        "initial_state": {"premise": None, "policies": {}, "version": 2},
+        "action": {"fn": "import_json", "payload": "{"},
+        "expected": {
+            "error": {
+                "type": "ValueError",
+                "message_contains": "boom",
+            },
+            "state": {"premise": None, "policies": {}, "version": 2},
+        },
+    }
+    engine = create_engine(state=fixture["initial_state"])
+
+    def _boom(_: str) -> None:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr(engine, "import_json", _boom)
+
+    action = fixture["action"]
+    expected = fixture["expected"]
+    error = expected["error"]
+
+    with pytest.raises(AssertionError, match=fixture["id"]):
+        with pytest.raises(Exception, match=error["message_contains"]) as exc_info:
+            engine.import_json(action["payload"])
+        assert type(exc_info.value).__name__ == error["type"], fixture["id"]
 
 
 def test_state_json_validator_rejects_unknown_action_fn() -> None:
