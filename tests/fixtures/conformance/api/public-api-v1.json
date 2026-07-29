@@ -624,29 +624,35 @@
     "public_members": {
       "mode": "exact",
       "members": {
-        "export_json": {
-          "kind": "method",
-          "signature": {
-            "params": []
-          }
-        },
-        "import_json": {
-          "kind": "method",
-          "signature": {
+      "export_json": {
+        "kind": "method",
+        "signature": {
+          "params": []
+        }
+      },
+      "import_json": {
+        "kind": "method",
+        "signature": {
             "params": [
               {
                 "name": "payload",
                 "kind": "POSITIONAL_OR_KEYWORD",
                 "has_default": false
-              }
-            ]
-          }
-        },
-        "state": {
-          "kind": "property"
-        },
-        "step": {
-          "kind": "method",
+            }
+          ]
+        }
+      },
+      "policies": {
+        "kind": "property"
+      },
+      "premise": {
+        "kind": "property"
+      },
+      "state": {
+        "kind": "property"
+      },
+      "step": {
+        "kind": "method",
           "signature": {
             "params": [
               {

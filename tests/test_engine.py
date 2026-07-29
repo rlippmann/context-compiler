@@ -150,6 +150,26 @@ def test_state_getter_returns_defensive_copy() -> None:
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
+def test_premise_property_exposes_authoritative_premise_value() -> None:
+    engine = create_engine()
+    assert engine.premise is None
+
+    engine.step("set premise concise replies")
+
+    assert engine.premise == "concise replies"
+
+
+def test_policies_property_returns_defensive_copy() -> None:
+    engine = create_engine()
+    engine.step("use docker")
+
+    policies = engine.policies
+    policies["docker"] = "prohibit"
+
+    assert engine.policies == {"docker": "use"}
+    assert engine.state["policies"] == {"docker": "use"}
+
+
 def test_export_json_returns_complete_representation_of_state() -> None:
     engine = create_engine()
     payload = engine.export_json()

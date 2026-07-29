@@ -271,7 +271,8 @@ reference.
 Common API entry points:
 
 - engine lifecycle: `create_engine(...)`, `engine.step(...)`, `engine.state`,
-  `engine.export_json(...)`, `engine.import_json(...)`
+  `engine.premise`, `engine.policies`, `engine.export_json(...)`,
+  `engine.import_json(...)`
 - decision helpers: `is_clarify(...)`, `is_update(...)`, `is_passthrough(...)`,
   `get_clarify_prompt(...)`, `get_decision_state(...)`
 - state helpers: `get_premise_value(...)`, `get_policy_items(...)`
@@ -312,6 +313,10 @@ Identical input sequences always produce identical state.
 The internal structure of the state is intentionally opaque to host applications.
 For normal reads, prefer `get_premise_value(state)` and
 `get_policy_items(state, ...)` over direct key traversal.
+
+For focused reads on a live engine, `engine.premise` and `engine.policies`
+expose the same authoritative state at a narrower boundary. `engine.policies`
+returns a caller-owned copy.
 
 ---
 
