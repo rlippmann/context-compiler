@@ -167,7 +167,7 @@ def test_main_with_json_flag_runs_repl_with_json_mode(monkeypatch: pytest.Monkey
     assert called["json_mode"] is True
 
 
-def test_render_decision_lines_uses_confirm_prefix_for_question_prompts() -> None:
+def test_render_decision_lines_uses_error_prefix_for_all_clarify_prompts() -> None:
     lines = repl_module._render_decision_lines(
         {
             "kind": "clarify",
@@ -176,7 +176,7 @@ def test_render_decision_lines_uses_confirm_prefix_for_question_prompts() -> Non
         }
     )
 
-    assert lines == ["confirm: Proceed?"]
+    assert lines == ["error: Proceed?"]
 
 
 def test_render_diff_lines_includes_added_policy_entries() -> None:
@@ -198,20 +198,6 @@ def test_render_diff_lines_includes_added_policy_entries() -> None:
         "diff:",
         "- + use docker",
     ]
-
-
-@pytest.mark.parametrize(
-    ("value", "expected"),
-    [
-        ("yes", True),
-        (" no! ", True),
-        ("maybe", False),
-    ],
-)
-def test_is_confirmation_input_recognizes_affirmative_and_negative_tokens(
-    value: str, expected: bool
-) -> None:
-    assert repl_module._is_confirmation_input(value) is expected
 
 
 def test_main_json_requires_non_interactive_stdio(
@@ -498,8 +484,7 @@ def test_repl_interactive_help_commands() -> None:
         "  clear state",
         "Bare input behavior remains unchanged.",
         "preview is a deterministic dry-run and never mutates live state.",
-        "Only question prompts accept yes/no confirmations",
-        "Other clarify prompts are errors and do not accept yes/no",
+        "clarify results are immediate messages and do not reserve later input.",
     ]
     assert lines[0] == "Context Compiler REPL (0.5). Type help for commands."
     assert lines[1] == "Non-directive input is passthrough."
@@ -947,17 +932,12 @@ def test_repl_replacement_invalid_followups_are_passthrough() -> None:
     assert lines[-2:] == ["passthrough", "passthrough"]
 
 
-def test_repl_interactive_prints_confirm_and_error_for_clarify_types() -> None:
+def test_repl_interactive_prints_error_for_clarify_output() -> None:
     error_out = _TTYStringIO()
     run_repl(_TTYStringIO("use docker\nprohibit docker\nquit\n"), error_out)
     error_lines = error_out.getvalue().splitlines()
     assert 'error: "docker" is currently in use.' in error_lines
     assert "Remove or replace it before prohibiting it." in error_lines
-
-    confirm_out = _TTYStringIO()
-    run_repl(_TTYStringIO("use podman instead of docker\nquit\n"), confirm_out)
-    confirm_lines = confirm_out.getvalue().splitlines()
-    assert "updated" in confirm_lines
 
 
 def test_repl_prohibited_replacement_followup_tokens_remain_passthrough() -> None:
@@ -1045,7 +1025,7 @@ def test_repl_interactive_admin_idempotency_outputs_updated_with_unchanged_state
     assert lines.count("policies: (none)") == 3
 
 
-def test_repl_interactive_confirm_vs_error_alignment_for_actual_clarify_behaviors() -> None:
+def test_repl_interactive_clarify_output_alignment_for_actual_behaviors() -> None:
     lines = _run_interactive_lines(
         "set premise concise\n"
         "set premise verbose\n"
