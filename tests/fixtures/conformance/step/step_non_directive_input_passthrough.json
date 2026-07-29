@@ -1,0 +1,22 @@
+{
+  "id": "step_non_directive_input_passthrough",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "input": "hello there",
+  "expected": {
+    "decision": {
+      "kind": "passthrough",
+      "prompt_to_user": null,
+      "state": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    }
+  }
+}
