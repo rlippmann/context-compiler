@@ -1,0 +1,22 @@
+{
+  "id": "step_natural_language_request_passthrough",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "input": "please use docker",
+  "expected": {
+    "decision": {
+      "kind": "passthrough",
+      "prompt_to_user": null,
+      "state": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    }
+  }
+}
