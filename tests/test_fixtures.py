@@ -101,13 +101,13 @@ def _validate_state_json_fixture(fixture: dict[str, object], fixture_id: object)
     action = fixture["action"]
     assert isinstance(action, dict), fixture_id
     fn = action["fn"]
+    assert fn in {"export_json", "import_json"}, fixture_id
     if fn == "export_json":
         _assert_allowed_keys(action, {"fn"}, fixture_id, "action")
-    elif fn == "import_json":
+    else:
+        assert fn == "import_json", fixture_id
         _assert_allowed_keys(action, {"fn", "payload"}, fixture_id, "action")
         assert isinstance(action["payload"], str), fixture_id
-    else:
-        assert isinstance(fn, str), fixture_id
 
     expected = fixture["expected"]
     assert isinstance(expected, dict), fixture_id
@@ -174,6 +174,7 @@ def _validate_controller_fixture(fixture: dict[str, object], fixture_id: object)
     action = fixture["action"]
     assert isinstance(action, dict), fixture_id
     fn = action["fn"]
+    assert fn in {"step", "preview", "state_diff"}, fixture_id
     expected = fixture["expected"]
     assert isinstance(expected, dict), fixture_id
 
@@ -237,6 +238,7 @@ def _validate_grammar_fixture(fixture: dict[str, object], fixture_id: object) ->
     expected = fixture["expected"]
     assert isinstance(expected, dict), fixture_id
     fn = action["fn"]
+    assert fn in {"validate_directive", "render_directive"}, fixture_id
 
     if fn == "validate_directive":
         _assert_allowed_keys(action, {"fn", "text"}, fixture_id, "action")
@@ -374,18 +376,18 @@ def test_controller_fixtures() -> None:
             assert engine.state == expected["state"], fixture_id
             continue
 
-        if fn == "preview":
+        elif fn == "preview":
             before = engine.state
             result = preview(engine, action["input"])
 
             assert result == expected["result"], fixture_id
             assert engine.state == before, fixture_id
             assert engine.state == expected["state_after_preview"], fixture_id
-            continue
-
-        assert fn == "state_diff", fixture_id
-        diff = state_diff(action["before"], action["after"])
-        assert diff == expected["diff"], fixture_id
+        elif fn == "state_diff":
+            diff = state_diff(action["before"], action["after"])
+            assert diff == expected["diff"], fixture_id
+        else:
+            raise AssertionError(f"Unknown controller action: {fn}")
 
 
 def test_grammar_fixtures() -> None:
@@ -408,14 +410,14 @@ def test_grammar_fixtures() -> None:
                 assert validated is not None, fixture_id
                 assert validated.text == expected_validated["text"], fixture_id
                 assert validated.kind.value == expected_validated["kind"], fixture_id
-            continue
-
-        assert fn == "render_directive", fixture_id
-        rendered = render_directive(DirectiveKind(action["kind"]), **action["operands"])
-        assert rendered == expected["text"], fixture_id
-        validated = validate_directive(rendered)
-        assert validated is not None, fixture_id
-        assert validated.kind.value == expected["validated_kind"], fixture_id
+        elif fn == "render_directive":
+            rendered = render_directive(DirectiveKind(action["kind"]), **action["operands"])
+            assert rendered == expected["text"], fixture_id
+            validated = validate_directive(rendered)
+            assert validated is not None, fixture_id
+            assert validated.kind.value == expected["validated_kind"], fixture_id
+        else:
+            raise AssertionError(f"Unknown grammar action: {fn}")
 
 
 def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id: object) -> None:
@@ -648,6 +650,37 @@ def test_state_json_validator_rejects_unknown_error_field() -> None:
         _validate_state_json_fixture(fixture, fixture["id"])
 
 
+def test_state_json_validator_rejects_unknown_action_fn() -> None:
+    fixture = {
+        "id": "invalid_state_json_fn",
+        "kind": "state_json",
+        "initial_state": {"premise": None, "policies": {}, "version": 2},
+        "action": {"fn": "delete_json"},
+        "expected": {
+            "state": {"premise": None, "policies": {}, "version": 2},
+        },
+    }
+
+    with pytest.raises(AssertionError):
+        _validate_state_json_fixture(fixture, fixture["id"])
+
+
+def test_state_json_validator_rejects_wrong_branch_action_fields() -> None:
+    fixture = {
+        "id": "invalid_state_json_export_fields",
+        "kind": "state_json",
+        "initial_state": {"premise": None, "policies": {}, "version": 2},
+        "action": {"fn": "export_json", "payload": "{}"},
+        "expected": {
+            "payload": "{}",
+            "state": {"premise": None, "policies": {}, "version": 2},
+        },
+    }
+
+    with pytest.raises(AssertionError, match="invalid keys for action"):
+        _validate_state_json_fixture(fixture, fixture["id"])
+
+
 def test_controller_validator_rejects_unknown_preview_result_field() -> None:
     fixture = {
         "id": "invalid_controller_preview_result",
@@ -681,6 +714,48 @@ def test_controller_validator_rejects_unknown_preview_result_field() -> None:
         _validate_controller_fixture(fixture, fixture["id"])
 
 
+def test_controller_validator_rejects_unknown_action_fn() -> None:
+    fixture = {
+        "id": "invalid_controller_fn",
+        "kind": "controller",
+        "initial_state": {"premise": None, "policies": {}, "version": 2},
+        "action": {"fn": "execute", "input": "use docker"},
+        "expected": {"state": {"premise": None, "policies": {}, "version": 2}},
+    }
+
+    with pytest.raises(AssertionError):
+        _validate_controller_fixture(fixture, fixture["id"])
+
+
+def test_controller_validator_rejects_wrong_branch_action_fields() -> None:
+    fixture = {
+        "id": "invalid_controller_step_fields",
+        "kind": "controller",
+        "initial_state": {"premise": None, "policies": {}, "version": 2},
+        "action": {
+            "fn": "step",
+            "input": "use docker",
+            "before": {"premise": None, "policies": {}, "version": 2},
+        },
+        "expected": {
+            "result": {
+                "output_version": 1,
+                "mode": "step",
+                "decision": {
+                    "kind": "update",
+                    "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
+                    "prompt_to_user": None,
+                },
+                "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
+            },
+            "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
+        },
+    }
+
+    with pytest.raises(AssertionError, match="invalid keys for action"):
+        _validate_controller_fixture(fixture, fixture["id"])
+
+
 def test_grammar_validator_rejects_unknown_validated_field() -> None:
     fixture = {
         "id": "invalid_grammar_validated",
@@ -696,6 +771,34 @@ def test_grammar_validator_rejects_unknown_validated_field() -> None:
     }
 
     with pytest.raises(AssertionError, match="invalid keys for expected.validated"):
+        _validate_grammar_fixture(fixture, fixture["id"])
+
+
+def test_grammar_validator_rejects_unknown_action_fn() -> None:
+    fixture = {
+        "id": "invalid_grammar_fn",
+        "kind": "grammar",
+        "action": {"fn": "parse_directive", "text": "use docker"},
+        "expected": {"validated": None},
+    }
+
+    with pytest.raises(AssertionError):
+        _validate_grammar_fixture(fixture, fixture["id"])
+
+
+def test_grammar_validator_rejects_wrong_branch_action_fields() -> None:
+    fixture = {
+        "id": "invalid_grammar_validate_fields",
+        "kind": "grammar",
+        "action": {
+            "fn": "validate_directive",
+            "text": "use docker",
+            "kind": "use_item",
+        },
+        "expected": {"validated": {"text": "use docker", "kind": "use_item"}},
+    }
+
+    with pytest.raises(AssertionError, match="invalid keys for action"):
         _validate_grammar_fixture(fixture, fixture["id"])
 
 
