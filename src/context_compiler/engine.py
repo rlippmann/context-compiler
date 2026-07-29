@@ -45,14 +45,12 @@ class Decision(TypedDict):
 @dataclass(frozen=True)
 class Action:
     kind: Literal[
-        "compound_directive_invalid",
         "set_premise",
         "change_premise",
         "use_item",
         "prohibit_item",
         "remove_policy_item",
         "replace_use",
-        "replace_use_incomplete",
         "clear_premise",
         "reset_policies",
         "clear_state",
@@ -68,13 +66,6 @@ _PASSTHROUGH: Decision = {
     "state": None,
     "prompt_to_user": None,
 }
-
-_AFFIRMATIVE_CONFIRMATIONS = {"yes", "yes please", "yep", "yeah", "sure", "ok", "okay"}
-_NEGATIVE_CONFIRMATIONS = {"no", "nope", "no thanks"}
-_TRAILING_CONFIRM_PUNCT_RE = re.compile(r"[.,!?]+$")
-_COMPOUND_DIRECTIVE_PROMPT = (
-    "Multiple directives are not supported in one input.\nSubmit each directive separately."
-)
 
 
 def create_engine(state: State | None = None) -> "Engine":
@@ -120,9 +111,6 @@ class Engine:
 
     def _pre_mutation_clarify(self, action: Action) -> Decision | None:
         # Single clarify path: all clarify outcomes are detected before any mutation.
-        if action.kind == "compound_directive_invalid":
-            return _clarify(_COMPOUND_DIRECTIVE_PROMPT)
-
         if action.kind in {"set_premise", "change_premise"}:
             assert action.value is not None
             if _sanitize_premise_value(action.value) == "":
@@ -157,12 +145,6 @@ class Engine:
                 return _clarify(
                     "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
                 )
-
-        if action.kind == "replace_use_incomplete":
-            return _clarify(
-                "Replacement requires both new and old items.\n"
-                "Use 'use <new item> instead of <old item>' with non-empty values."
-            )
 
         if action.kind == "set_premise" and self._state[STATE_PREMISE] is not None:
             return _clarify("Premise already set.\nUse 'change premise to <value>' to modify it.")
@@ -373,14 +355,6 @@ def _normalize_item(value: str) -> str:
     normalized = re.sub(r"\s+", " ", normalized).strip()
     normalized = re.sub(r"^(?:a|an|the)\b\s*", "", normalized)
     return normalized.strip()
-
-
-def _normalize_confirmation(text: str) -> str:
-    normalized = unicode_normalize("NFKC", text)
-    normalized = normalized.lower().strip()
-    normalized = re.sub(r"\s+", " ", normalized)
-    normalized = _TRAILING_CONFIRM_PUNCT_RE.sub("", normalized).strip()
-    return re.sub(r"\s+", " ", normalized)
 
 
 def _clarify(prompt: str) -> Decision:

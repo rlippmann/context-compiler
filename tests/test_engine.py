@@ -8,7 +8,6 @@ from context_compiler.engine import (
     Action,
     DecisionKind,
     Engine,
-    _normalize_confirmation,
     _parse_directive,
 )
 from context_compiler.grammar import (
@@ -17,10 +16,6 @@ from context_compiler.grammar import (
 )
 
 pytestmark = pytest.mark.contract
-
-COMPOUND_DIRECTIVE_PROMPT = (
-    "Multiple directives are not supported in one input.\nSubmit each directive separately."
-)
 
 
 def test_decision_kind_strenum_behavior() -> None:
@@ -61,14 +56,9 @@ def test_parse_directive_returns_none_for_invalid_syntax_and_passthrough_inputs(
     assert _parse_directive("hello there") is None
 
 
-def test_pre_mutation_clarify_legacy_invalid_action_branches_remain_stable() -> None:
+def test_pre_mutation_clarify_empty_operand_branches_remain_stable() -> None:
     engine = create_engine()
 
-    assert engine._pre_mutation_clarify(Action(kind="compound_directive_invalid")) == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": COMPOUND_DIRECTIVE_PROMPT,
-    }
     assert engine._pre_mutation_clarify(Action(kind="set_premise", value="")) == {
         "kind": "clarify",
         "state": None,
@@ -101,14 +91,6 @@ def test_pre_mutation_clarify_legacy_invalid_action_branches_remain_stable() -> 
         "state": None,
         "prompt_to_user": (
             "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
-        ),
-    }
-    assert engine._pre_mutation_clarify(Action(kind="replace_use_incomplete")) == {
-        "kind": "clarify",
-        "state": None,
-        "prompt_to_user": (
-            "Replacement requires both new and old items.\n"
-            "Use 'use <new item> instead of <old item>' with non-empty values."
         ),
     }
 
@@ -302,11 +284,6 @@ def test_import_json_accepts_valid_policy_key_and_normalizes_it() -> None:
     )
 
     assert engine.state == {"premise": None, "policies": {"docker": "use"}, "version": 2}
-
-
-def test_normalize_confirmation_collapses_unicode_spacing_and_trailing_punctuation() -> None:
-    assert _normalize_confirmation("  YES!!  ") == "yes"
-    assert _normalize_confirmation("No\t\tthanks...\n") == "no thanks"
 
 
 def test_replace_use_clarifies_when_old_policy_is_not_use_in_invalid_internal_state() -> None:
@@ -1199,9 +1176,7 @@ def test_directive_like_substrings_inside_larger_words_do_not_trigger_compound_r
 
     decision = engine.step(user_input)
 
-    assert not (
-        decision["kind"] == "clarify" and decision["prompt_to_user"] == COMPOUND_DIRECTIVE_PROMPT
-    )
+    assert decision["kind"] != "clarify"
     assert decision["kind"] == expected_decision_kind
     assert engine.state == expected_state
 
@@ -1290,9 +1265,7 @@ def test_all_canonical_directive_starts_remain_single_directive_when_valid(
 
     decision = engine.step(directive_start)
 
-    assert not (
-        decision["kind"] == "clarify" and decision["prompt_to_user"] == COMPOUND_DIRECTIVE_PROMPT
-    )
+    assert decision["kind"] != "passthrough"
 
 
 def test_compound_passthrough_after_prior_missing_source_replacement_update() -> None:
