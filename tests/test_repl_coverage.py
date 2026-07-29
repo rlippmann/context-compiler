@@ -1,7 +1,6 @@
 from io import StringIO
 
 from context_compiler.repl import (
-    _normalize_confirmation_token,
     _print_command_error,
     _render_diff_lines,
     run_repl,
@@ -46,10 +45,6 @@ def test_print_command_error_leading_blank_line() -> None:
     out = StringIO()
     _print_command_error(out, leading_blank=True, message="boom")
     assert out.getvalue().splitlines() == ["", "error: boom"]
-
-
-def test_normalize_confirmation_token_strips_trailing_punctuation() -> None:
-    assert _normalize_confirmation_token(" YES PLEASE!! ") == "yes please"
 
 
 def test_interactive_state_step_and_preview_command_error_paths() -> None:

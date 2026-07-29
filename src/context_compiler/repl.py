@@ -19,12 +19,6 @@ from .engine import Decision, DecisionKind, Engine, State
 _EXIT_TOKENS = {"exit", "quit"}
 _HELP_TOKENS = {"help", "?"}
 _MULTI_COMMAND_PROMPT = "Multiple commands detected.\nEnter one command per line."
-_AFFIRMATIVE_CONFIRMATIONS = {"yes", "yes please", "yep", "yeah", "sure", "ok", "okay"}
-_NEGATIVE_CONFIRMATIONS = {"no", "nope", "no thanks"}
-_STEP_PENDING_CONFIRMATION_ERROR = (
-    "step command only accepts confirmation while clarification is pending.\n"
-    "Use yes/no (or variants), or use preview/state."
-)
 _CLI_HELP_TEXT = """Usage:
   context-compiler [--help] [--version] [--json]
                    [--initial-state-json <json> | --initial-state-file <path>]
@@ -75,8 +69,7 @@ def _print_interactive_help(out_stream: TextIO) -> None:
     print("  clear state", file=out_stream)
     print("Bare input behavior remains unchanged.", file=out_stream)
     print("preview is a deterministic dry-run and never mutates live state.", file=out_stream)
-    print("Only question prompts accept yes/no confirmations", file=out_stream)
-    print("Other clarify prompts are errors and do not accept yes/no", file=out_stream)
+    print("clarify results are immediate messages and do not reserve later input.", file=out_stream)
 
 
 def _render_state_lines(state: State) -> list[str]:
@@ -102,8 +95,6 @@ def _render_decision_lines(decision: Decision) -> list[str]:
     if kind == DECISION_CLARIFY:
         prompt = decision["prompt_to_user"] or ""
         prompt_lines = prompt.splitlines() if prompt else [""]
-        if prompt.endswith("?"):
-            return [f"confirm: {prompt_lines[0]}", *prompt_lines[1:]]
         return [f"error: {prompt_lines[0]}", *prompt_lines[1:]]
 
     state = decision["state"]
@@ -249,18 +240,6 @@ def _apply_preload_from_options(engine: Engine, options: dict[str, str | bool]) 
         path = options["initial_state_file"]
         assert isinstance(path, str)
         engine.import_json(_read_utf8_file(path))
-
-
-def _normalize_confirmation_token(value: str) -> str:
-    normalized = value.strip().lower()
-    while normalized and normalized[-1] in ".,!?":
-        normalized = normalized[:-1]
-    return " ".join(normalized.split())
-
-
-def _is_confirmation_input(value: str) -> bool:
-    normalized = _normalize_confirmation_token(value)
-    return normalized in _AFFIRMATIVE_CONFIRMATIONS or normalized in _NEGATIVE_CONFIRMATIONS
 
 
 def run_repl(

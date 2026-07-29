@@ -40,8 +40,6 @@ def _oracle_render_decision(decision: dict[str, object]) -> list[str]:
         prompt_obj = decision["prompt_to_user"]
         prompt = prompt_obj if isinstance(prompt_obj, str) else ""
         prompt_lines = prompt.splitlines() if prompt else [""]
-        if prompt.endswith("?"):
-            return [f"confirm: {prompt_lines[0]}", *prompt_lines[1:]]
         return [f"error: {prompt_lines[0]}", *prompt_lines[1:]]
 
     state_obj = decision["state"]
