@@ -1,0 +1,23 @@
+{
+  "id": "state_json_import_json_normalizes_policy_keys",
+  "kind": "state_json",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "action": {
+    "fn": "import_json",
+    "payload": "{\"premise\":null,\"policies\":{\" The Docker \":\"prohibit\",\"dont use\":\"use\"},\"version\":2}"
+  },
+  "expected": {
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker": "prohibit",
+        "don't use": "use"
+      },
+      "version": 2
+    }
+  }
+}
