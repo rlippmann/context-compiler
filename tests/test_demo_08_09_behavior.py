@@ -108,7 +108,7 @@ def test_demo_08_reinjected_path_does_not_instantiate_engine(
     assert report["reinjected_state_pass"] is False
 
 
-def test_demo_09_reports_invalid_replacement_non_pending_boundary(
+def test_demo_09_reports_independent_followup_passthrough_boundary(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     module = _load_demo_module("09_llm_confirmation_passthrough.py")

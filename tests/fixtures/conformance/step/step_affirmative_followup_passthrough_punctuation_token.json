@@ -1,5 +1,5 @@
 {
-  "id": "step_pending_unmatched_reuses_prompt",
+  "id": "step_affirmative_followup_passthrough_punctuation_token",
   "kind": "step",
   "initial_state": {
     "premise": null,
@@ -9,7 +9,7 @@
   "prelude": [
     "use kubectl instead of docker"
   ],
-  "input": "sounds good",
+  "input": " okay!!! ",
   "expected": {
     "decision": {
       "kind": "passthrough",

@@ -51,7 +51,7 @@ def test_example_03_clarify_gate_blocks_llm_and_allows_later_update(
     output = capsys.readouterr().out
 
     assert decision_kinds == ["update", "clarify", "update"]
-    assert "Host behavior: clarification pending, do NOT call LLM." in output
+    assert "Host behavior: clarification returned, do NOT call LLM." in output
     assert llm_calls == []
 
 

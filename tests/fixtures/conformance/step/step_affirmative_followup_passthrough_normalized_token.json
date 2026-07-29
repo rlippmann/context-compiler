@@ -1,5 +1,5 @@
 {
-  "id": "step_pending_affirmative_normalized_token",
+  "id": "step_affirmative_followup_passthrough_normalized_token",
   "kind": "step",
   "initial_state": {
     "premise": null,

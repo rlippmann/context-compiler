@@ -612,7 +612,7 @@ def test_repl_non_interactive_json_multi_command_chunk_error() -> None:
     ]
 
 
-def test_repl_non_interactive_json_step_pending_confirmation_error() -> None:
+def test_repl_non_interactive_json_step_runs_normally_after_replace_update() -> None:
     rows = _run_non_interactive_json_lines(
         "use kubectl instead of docker\nstep set premise concise\nyes\nquit\n"
     )
@@ -722,7 +722,7 @@ def test_repl_step_command_runs_normally_after_invalid_replacement() -> None:
     assert lines[-1] == "passthrough"
 
 
-def test_repl_step_command_confirmation_token_is_passthrough_without_pending() -> None:
+def test_repl_step_command_affirmative_followup_is_passthrough() -> None:
     out = StringIO()
     run_repl(StringIO("use kubectl instead of docker\nstep yes\nquit\n"), out)
     lines = [line for line in out.getvalue().splitlines() if line.strip()]
@@ -734,7 +734,7 @@ def test_repl_step_command_confirmation_token_is_passthrough_without_pending() -
     assert lines[-1] == "passthrough"
 
 
-def test_repl_step_command_negative_confirmation_is_passthrough_without_pending() -> None:
+def test_repl_step_command_negative_followup_is_passthrough() -> None:
     out = StringIO()
     run_repl(StringIO("use kubectl instead of docker\nstep no\nquit\n"), out)
     lines = [line for line in out.getvalue().splitlines() if line.strip()]
@@ -876,7 +876,7 @@ def test_repl_non_interactive_remove_policy_flow() -> None:
     assert lines.count("policies: (none)") == 2
 
 
-def test_repl_contradiction_clarify_is_not_pending_confirmable() -> None:
+def test_repl_contradiction_clarify_does_not_reserve_followup_tokens() -> None:
     lines = _run_non_interactive_lines("use docker\nprohibit docker\nno\nquit\n")
     assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use docker"])
     assert _contains_subsequence(

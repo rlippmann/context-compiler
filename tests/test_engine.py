@@ -744,7 +744,7 @@ def test_replace_use_identity_is_noop_update() -> None:
     assert engine.state == before
 
 
-def test_replace_use_missing_source_applies_as_use_update_without_pending() -> None:
+def test_replace_use_missing_source_applies_as_use_update() -> None:
     engine = create_engine()
 
     d1 = engine.step("use kubectl instead of docker")
@@ -756,7 +756,7 @@ def test_replace_use_missing_source_applies_as_use_update_without_pending() -> N
     assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
 
-def test_replace_use_missing_source_yes_confirmation_is_passthrough() -> None:
+def test_replace_use_missing_source_yes_followup_is_passthrough() -> None:
     engine = create_engine()
 
     first = engine.step("use kubectl instead of docker")
@@ -772,7 +772,7 @@ def test_replace_use_missing_source_yes_confirmation_is_passthrough() -> None:
     assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
 
-def test_replace_use_missing_source_no_confirmation_has_no_mutation() -> None:
+def test_replace_use_missing_source_no_followup_has_no_mutation() -> None:
     engine = create_engine()
     engine.step("use kubectl instead of docker")
     before = engine.state
@@ -835,7 +835,7 @@ def test_replace_use_missing_source_with_empty_probe_uses_invalid_prompt() -> No
     }
 
 
-def test_replace_use_ky_prohibit_returns_non_pending_clarify() -> None:
+def test_replace_use_ky_prohibit_returns_clarify_without_mutation() -> None:
     engine = create_engine()
     engine.step("prohibit docker")
     engine.step("use pytest")
@@ -866,7 +866,7 @@ def test_replace_use_ky_prohibit_yes_does_not_authorize_mutation() -> None:
     assert engine.state == before
 
 
-def test_replace_use_kx_prohibit_returns_non_pending_clarify() -> None:
+def test_replace_use_kx_prohibit_returns_clarify_without_mutation() -> None:
     engine = create_engine()
     engine.step("use docker")
     engine.step("prohibit kubectl")
@@ -920,7 +920,7 @@ def test_replace_use_invalid_source_state_prohibit_clarifies_without_mutation() 
     assert engine.state == before
 
 
-def test_replace_use_kx_prohibit_no_confirmation_has_no_mutation() -> None:
+def test_replace_use_kx_prohibit_no_followup_has_no_mutation() -> None:
     engine = create_engine()
     engine.step("use docker")
     engine.step("prohibit kubectl")
@@ -973,7 +973,7 @@ def test_missing_source_replacement_negative_followup_is_passthrough() -> None:
     assert engine.state["policies"] == {"kubectl": "use"}
 
 
-def test_missing_source_replacement_confirmation_tokens_are_not_consumed() -> None:
+def test_missing_source_replacement_affirmative_followup_tokens_are_passthrough() -> None:
     engine = create_engine()
     engine.step("use kubectl instead of docker")
 
@@ -1059,7 +1059,7 @@ def test_prohibited_replacement_yes_cannot_override_conflicting_target_polarity(
     assert engine.state["policies"] == {"docker": "use", "kubectl": "prohibit"}
 
 
-def test_import_json_clears_pending_clarification_yes_no_not_confirmation() -> None:
+def test_import_json_does_not_change_independent_yes_no_followup_behavior() -> None:
     engine = create_engine()
     first = engine.step("use kubectl instead of docker")
     assert first["kind"] == "update"

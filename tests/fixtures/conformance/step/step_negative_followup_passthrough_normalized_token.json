@@ -1,5 +1,5 @@
 {
-  "id": "step_pending_affirmative_punctuation_token",
+  "id": "step_negative_followup_passthrough_normalized_token",
   "kind": "step",
   "initial_state": {
     "premise": null,
@@ -9,7 +9,7 @@
   "prelude": [
     "use kubectl instead of docker"
   ],
-  "input": " okay!!! ",
+  "input": "no thanks.",
   "expected": {
     "decision": {
       "kind": "passthrough",

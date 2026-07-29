@@ -1,11 +1,15 @@
 {
-  "id": "controller_preview_clarify_reports_non_mutating_and_restores_pending",
+  "id": "controller_preview_replace_prohibited_old_matches_execution_without_mutation",
   "kind": "controller",
   "initial_state": {
     "premise": null,
     "policies": {},
     "version": 2
   },
+  "prelude": [
+    "prohibit docker",
+    "use pytest"
+  ],
   "action": {
     "fn": "preview",
     "input": "use kubectl instead of docker"
@@ -15,48 +19,47 @@
       "output_version": 1,
       "mode": "preview",
       "decision": {
-        "kind": "update",
-        "state": {
-          "premise": null,
-          "policies": {
-            "kubectl": "use"
-          },
-          "version": 2
-        },
-        "prompt_to_user": null
+        "kind": "clarify",
+        "state": null,
+        "prompt_to_user": "\"docker\" is currently prohibited.\nSubmit explicit directive(s) to remove it or use a different item."
       },
       "state_before": {
         "premise": null,
-        "policies": {},
+        "policies": {
+          "docker": "prohibit",
+          "pytest": "use"
+        },
         "version": 2
       },
       "state_after": {
         "premise": null,
         "policies": {
-          "kubectl": "use"
+          "docker": "prohibit",
+          "pytest": "use"
         },
         "version": 2
       },
       "diff": {
-        "changed": true,
+        "changed": false,
         "premise": {
           "before": null,
           "after": null,
           "changed": false
         },
         "policies": {
-          "added": {
-            "kubectl": "use"
-          },
+          "added": {},
           "removed": {},
           "changed": {}
         }
       },
-      "would_mutate": true
+      "would_mutate": false
     },
     "state_after_preview": {
       "premise": null,
-      "policies": {},
+      "policies": {
+        "docker": "prohibit",
+        "pytest": "use"
+      },
       "version": 2
     }
   }
