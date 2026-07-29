@@ -73,7 +73,7 @@ def test_preview_missing_source_replacement_reports_update_without_live_mutation
     assert yes["kind"] == "passthrough"
 
 
-def test_preview_prohibited_replacement_clarify_matches_execution_without_pending() -> None:
+def test_preview_prohibited_replacement_clarify_matches_execution_without_mutation() -> None:
     engine = create_engine()
     engine.step("use docker")
     engine.step("prohibit kubectl")
@@ -242,9 +242,9 @@ def test_controller_helpers_are_importable_from_package_root() -> None:
     assert callable(diff_has_changes)
 
 
-@pytest.mark.parametrize("confirmation", ["yes", "no"])
-def test_preview_followup_tokens_after_invalid_replacement_are_passthrough(
-    confirmation: str,
+@pytest.mark.parametrize("followup_token", ["yes", "no"])
+def test_preview_followup_tokens_after_replace_update_are_passthrough(
+    followup_token: str,
 ) -> None:
     engine = create_engine()
     initial = engine.step("use kubectl instead of docker")
@@ -254,7 +254,7 @@ def test_preview_followup_tokens_after_invalid_replacement_are_passthrough(
         "prompt_to_user": None,
     }
 
-    preview_result = preview(engine, confirmation)
+    preview_result = preview(engine, followup_token)
     assert preview_result["decision"] == {
         "kind": "passthrough",
         "state": None,
@@ -269,6 +269,6 @@ def test_preview_followup_tokens_after_invalid_replacement_are_passthrough(
 
     assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
-    final = step(engine, confirmation)
+    final = step(engine, followup_token)
     assert final["decision"] == {"kind": "passthrough", "state": None, "prompt_to_user": None}
     assert final["state"] == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}

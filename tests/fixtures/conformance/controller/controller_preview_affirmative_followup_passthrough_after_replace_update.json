@@ -1,5 +1,5 @@
 {
-  "id": "controller_preview_replace_prohibited_old_matches_execution_without_pending",
+  "id": "controller_preview_affirmative_followup_passthrough_after_replace_update",
   "kind": "controller",
   "initial_state": {
     "premise": null,
@@ -7,35 +7,32 @@
     "version": 2
   },
   "prelude": [
-    "prohibit docker",
-    "use pytest"
+    "use kubectl instead of docker"
   ],
   "action": {
     "fn": "preview",
-    "input": "use kubectl instead of docker"
+    "input": "yes"
   },
   "expected": {
     "result": {
       "output_version": 1,
       "mode": "preview",
       "decision": {
-        "kind": "clarify",
+        "kind": "passthrough",
         "state": null,
-        "prompt_to_user": "\"docker\" is currently prohibited.\nSubmit explicit directive(s) to remove it or use a different item."
+        "prompt_to_user": null
       },
       "state_before": {
         "premise": null,
         "policies": {
-          "docker": "prohibit",
-          "pytest": "use"
+          "kubectl": "use"
         },
         "version": 2
       },
       "state_after": {
         "premise": null,
         "policies": {
-          "docker": "prohibit",
-          "pytest": "use"
+          "kubectl": "use"
         },
         "version": 2
       },
@@ -57,8 +54,7 @@
     "state_after_preview": {
       "premise": null,
       "policies": {
-        "docker": "prohibit",
-        "pytest": "use"
+        "kubectl": "use"
       },
       "version": 2
     }

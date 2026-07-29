@@ -115,7 +115,7 @@ def test_invalid_replacement_does_not_block_following_directives() -> None:
     }
 
 
-def test_invalid_replacement_non_confirmation_followup_is_passthrough() -> None:
+def test_replace_update_independent_followup_is_passthrough() -> None:
     engine = create_engine()
     first = engine.step("use kubectl instead of docker")
     second = engine.step("sounds good")

@@ -96,7 +96,7 @@ unsynchronized TypeScript port.
 They intentionally do **not** include:
 
 * checkpoint APIs
-* pending-continuation APIs
+* removed continuation-state APIs
 * obsolete TypeScript-only authority surfaces
 * implementation-mechanism requirements such as `deepcopy`, frozen objects, or
   `readonly`

@@ -60,9 +60,8 @@ Unknown top-level and documented nested fields are rejected.
 
 ### Prelude
 
-`prelude` simulates prior user inputs to reach states that are not representable
-via `initial_state` (for example, runtime-only semantic continuation when the
-active engine contract supports it).
+`prelude` simulates prior user inputs to reach states through the public engine
+surface before the main fixture input runs.
 
 Shared `step` fixtures intentionally cover representative parser and passthrough
 boundaries. They do not attempt to freeze every ambiguous natural-language edge
@@ -153,17 +152,9 @@ They validate:
 * clarification prompt behavior
 * authoritative state parity against expected snapshots
 
-If a future engine contract restores supported continuation behavior,
-planned conformance coverage should include:
-
-* incomplete directives do not create pending continuation
-* compound directives do not create pending continuation
-* malformed replacement syntax does not create pending continuation
-* valid canonical directives that clarify without pending continuation
-* valid canonical directives that clarify and create pending continuation
-* deterministic `yes` resolution of the exact blocked transition
-* deterministic `no` rejection that clears pending continuation
-* deterministic handling of unrelated input while pending
+The current conformance corpus assumes the engine owns authoritative state only.
+Clarify results do not reserve later user input or create portable continuation
+state.
 
 ## Test runner
 

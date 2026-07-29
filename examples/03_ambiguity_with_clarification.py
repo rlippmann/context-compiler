@@ -24,7 +24,7 @@ def main() -> None:
     print()
 
     if is_clarify(decision2):
-        print("Host behavior: clarification pending, do NOT call LLM.")
+        print("Host behavior: clarification returned, do NOT call LLM.")
         print(f"Clarify prompt: {get_clarify_prompt(decision2)}")
     else:
         fake_llm("use peanuts")
