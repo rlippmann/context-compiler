@@ -2,11 +2,22 @@ import context_compiler
 import context_compiler.grammar as grammar_module
 
 
-def test_root_reexports_read_only_grammar_contract() -> None:
-    assert context_compiler.DirectiveKind is grammar_module.DirectiveKind
-    assert context_compiler.validate_directive is grammar_module.validate_directive
-    assert context_compiler.render_directive is grammar_module.render_directive
-    assert context_compiler.is_canonical_directive is grammar_module.is_canonical_directive
+def test_root_does_not_export_public_grammar_surface() -> None:
+    for name in (
+        "DirectiveKind",
+        "validate_directive",
+        "render_directive",
+        "is_canonical_directive",
+    ):
+        assert name not in context_compiler.__all__
+        assert not hasattr(context_compiler, name)
+
+
+def test_grammar_submodule_preserves_public_grammar_surface() -> None:
+    assert grammar_module.DirectiveKind is not None
+    assert grammar_module.validate_directive is not None
+    assert grammar_module.render_directive is not None
+    assert grammar_module.is_canonical_directive is not None
 
 
 def test_root_does_not_export_private_grammar_implementation() -> None:

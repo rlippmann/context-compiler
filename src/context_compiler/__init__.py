@@ -36,7 +36,6 @@ from .engine import (
     State,
     create_engine,
 )
-from .grammar import DirectiveKind, is_canonical_directive, render_directive, validate_directive
 
 __version__ = version("context-compiler")
 
@@ -46,7 +45,6 @@ __all__ = [
     "DECISION_CLARIFY",
     "DECISION_PASSTHROUGH",
     "DECISION_UPDATE",
-    "DirectiveKind",
     "Engine",
     "POLICY_PROHIBIT",
     "POLICY_USE",
@@ -63,14 +61,11 @@ __all__ = [
     "get_preview_state_after",
     "get_step_decision",
     "get_step_state",
-    "is_canonical_directive",
     "is_clarify",
     "is_passthrough",
     "is_update",
     "preview",
     "preview_would_mutate",
-    "render_directive",
     "state_diff",
     "step",
-    "validate_directive",
 ]
