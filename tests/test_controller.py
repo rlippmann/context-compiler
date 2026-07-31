@@ -5,14 +5,18 @@ import pytest
 
 from context_compiler import (
     create_engine,
+    get_step_decision,
+    get_step_state,
+)
+from context_compiler.audit import (
     diff_has_changes,
     get_preview_decision,
     get_preview_state_after,
-    get_step_decision,
-    get_step_state,
+    preview,
     preview_would_mutate,
+    state_diff,
 )
-from context_compiler.controller import preview, state_diff, step
+from context_compiler.controller import step
 
 _CONTROLLER_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "controller"
 

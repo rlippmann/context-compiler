@@ -276,14 +276,15 @@ Common API entry points:
 - decision helpers: `is_clarify(...)`, `is_update(...)`, `is_passthrough(...)`,
   `get_clarify_prompt(...)`, `get_decision_state(...)`
 - state transport: `engine.export_json(...)`, `engine.import_json(...)`
-- controller APIs: `preview(...)`, `step(...)`, `state_diff(...)`
+- controller API: `step(...)`
+- audit APIs: `preview(...)`, `state_diff(...)`
 
-### Controller API (Reusable Outside REPL)
+### Controller And Audit APIs (Reusable Outside REPL)
 
-- `preview(engine, user_input)` performs a deterministic dry run and restores
-  live engine state afterward
 - `step(engine, user_input)` returns a reusable result envelope around one
   engine turn
+- `preview(engine, user_input)` performs a deterministic dry run and restores
+  live engine state afterward
 - `state_diff(state_before, state_after)` summarizes structural state changes
 
 For examples and helper accessors such as `get_step_decision(...)`,

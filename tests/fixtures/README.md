@@ -13,9 +13,11 @@ surface, rather than as Python-only test inputs.
 * [`engine-regression/structured/`](engine-regression/structured/) — deterministic per-turn engine regression fixtures using authoritative state snapshots.
 `conformance/` and `engine-regression/structured/` both cover engine behavior at different layers.
 
-## API contract fixture
+## API contract fixtures
 
-[`conformance/api/public-api-v1.json`](conformance/api/public-api-v1.json) defines the current portable core public API contract for Python and ports.
+[`conformance/api/public-api-v1.json`](conformance/api/public-api-v1.json) defines the current portable core root public API contract for Python and ports.
+
+[`conformance/api/public-audit-v1.json`](conformance/api/public-audit-v1.json) defines the current portable audit-module public API contract for Python and ports.
 
 Ports may sync this artifact with conformance fixtures.
 
@@ -32,10 +34,13 @@ Ports should check equivalent public exports, members, and signatures using lang
 
 Behavioral semantics remain covered by conformance and structured fixtures.
 
-The API contract includes the public controller helper accessors:
+The root API contract includes the public step helper accessors:
 
 * `get_step_decision`
 * `get_step_state`
+
+The audit API contract includes:
+
 * `get_preview_decision`
 * `get_preview_state_after`
 * `preview_would_mutate`
@@ -88,9 +93,10 @@ Portable controller contract coverage for:
 * `preview(engine, user_input)` result envelope, `would_mutate`, and non-mutation of live engine state
 * `state_diff(state_before, state_after)` deterministic structural diff output
 
-These fixtures keep a minimal, language-neutral contract matrix for controller APIs.
-They intentionally validate the raw controller result envelopes; helper accessors
-are covered separately by the public API presence contract above.
+These fixtures keep a minimal, language-neutral contract matrix for step and
+audit APIs. They intentionally validate the raw result envelopes; helper
+accessors are covered separately by the root and audit API presence contracts
+above.
 
 The current runner enforces a closed fixture shape for this family.
 Unknown top-level, action, expected, and documented result/diff fields are rejected.

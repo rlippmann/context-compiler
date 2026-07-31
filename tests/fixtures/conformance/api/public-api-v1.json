@@ -21,24 +21,16 @@
       "POLICY_PROHIBIT",
       "POLICY_USE",
       "PolicyValue",
-      "PreviewResult",
       "State",
       "StepResult",
-      "StructuralDiff",
-      "diff_has_changes",
       "create_engine",
       "get_clarify_prompt",
       "get_decision_state",
-      "get_preview_decision",
-      "get_preview_state_after",
       "get_step_decision",
       "get_step_state",
       "is_clarify",
       "is_passthrough",
       "is_update",
-      "preview",
-      "preview_would_mutate",
-      "state_diff",
       "step"
     ],
     "members": {
@@ -74,52 +66,11 @@
       "PolicyValue": {
         "kind": "type_alias"
       },
-      "PreviewResult": {
-        "kind": "type"
-      },
       "State": {
         "kind": "type"
       },
       "StepResult": {
         "kind": "type"
-      },
-      "StructuralDiff": {
-        "kind": "type"
-      },
-      "diff_has_changes": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "diff",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        },
-        "shape_probes": [
-          {
-            "kwargs": {
-              "diff": {
-                "changed": true,
-                "premise": {
-                  "before": null,
-                  "after": "concise",
-                  "changed": true
-                },
-                "policies": {
-                  "added": {},
-                  "removed": {},
-                  "changed": {}
-                }
-              }
-            },
-            "return_shape": {
-              "type": "boolean",
-              "const": true
-            }
-          }
-        ]
       },
       "create_engine": {
         "kind": "callable",
@@ -209,30 +160,6 @@
             }
           }
         ]
-      },
-      "get_preview_decision": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "preview_result",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        }
-      },
-      "get_preview_state_after": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "preview_result",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        }
       },
       "get_step_decision": {
         "kind": "callable",
@@ -339,120 +266,6 @@
             "return_shape": {
               "type": "boolean",
               "const": true
-            }
-          }
-        ]
-      },
-      "preview": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "engine",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            },
-            {
-              "name": "user_input",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        },
-        "shape_probes": [
-          {
-            "kwargs": {
-              "engine": {
-                "fixture": "empty_engine"
-              },
-              "user_input": "use docker"
-            },
-            "return_shape": {
-              "type": "object",
-              "required_keys": [
-                "output_version",
-                "mode",
-                "decision",
-                "state_before",
-                "state_after",
-                "diff",
-                "would_mutate"
-              ],
-              "properties": {
-                "output_version": {
-                  "type": "number",
-                  "const": 1
-                },
-                "mode": {
-                  "type": "string",
-                  "const": "preview"
-                },
-                "would_mutate": {
-                  "type": "boolean",
-                  "const": true
-                }
-              }
-            }
-          }
-        ]
-      },
-      "preview_would_mutate": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "preview_result",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        }
-      },
-      "state_diff": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "before",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            },
-            {
-              "name": "after",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        },
-        "shape_probes": [
-          {
-            "kwargs": {
-              "before": {
-                "premise": null,
-                "policies": {},
-                "version": 2
-              },
-              "after": {
-                "premise": null,
-                "policies": {
-                  "docker": "use"
-                },
-                "version": 2
-              }
-            },
-            "return_shape": {
-              "type": "object",
-              "required_keys": [
-                "changed",
-                "premise",
-                "policies"
-              ],
-              "properties": {
-                "changed": {
-                  "type": "boolean",
-                  "const": true
-                }
-              }
             }
           }
         ]

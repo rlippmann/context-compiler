@@ -4,14 +4,16 @@ from _util import print_decision_summary, print_state_summary
 
 from context_compiler import (
     create_engine,
-    diff_has_changes,
-    get_preview_decision,
     get_step_decision,
     get_step_state,
+    step,
+)
+from context_compiler.audit import (
+    diff_has_changes,
+    get_preview_decision,
     preview,
     preview_would_mutate,
     state_diff,
-    step,
 )
 
 
