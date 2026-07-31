@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 import context_compiler
+import context_compiler.grammar as grammar
 
 _CONTRACT_PATH = (
     Path(__file__).resolve().parent / "fixtures" / "conformance" / "api" / "public-api-v1.json"
@@ -43,7 +44,7 @@ def _assert_shape(value: object, shape: dict[str, object], contract: dict[str, o
         assert actual_members == sorted(expected_members.keys())
         return
     if "kind" in shape and shape["kind"] == "validated_directive":
-        assert value == context_compiler.validate_directive(shape["text"])
+        assert value == grammar.validate_directive(shape["text"])
         return
 
     expected_types = shape["type"]
