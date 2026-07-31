@@ -1,9 +1,15 @@
-import inspect
-import json
 from pathlib import Path
 
+from _api_contract_harness import (
+    assert_shape,
+    assert_signature_matches,
+    load_api_contract,
+    resolve_probe_value,
+    validate_engine_member_runtime,
+    validate_export_kind,
+)
+
 import context_compiler
-import context_compiler.grammar as grammar
 
 _CONTRACT_PATH = (
     Path(__file__).resolve().parent / "fixtures" / "conformance" / "api" / "public-api-v1.json"
@@ -11,88 +17,12 @@ _CONTRACT_PATH = (
 
 
 def _load_contract() -> dict[str, object]:
-    return json.loads(_CONTRACT_PATH.read_text(encoding="utf-8"))
-
-
-def _json_type_matches(value: object, expected: str) -> bool:
-    return {
-        "null": value is None,
-        "string": isinstance(value, str),
-        "object": isinstance(value, dict),
-        "array": isinstance(value, list),
-        "boolean": isinstance(value, bool),
-        "number": isinstance(value, int | float) and not isinstance(value, bool),
-    }[expected]
-
-
-def _resolve_probe_value(value: object) -> object:
-    if not isinstance(value, dict) or "fixture" not in value:
-        return value
-
-    fixture = value["fixture"]
-    if fixture == "empty_engine":
-        return context_compiler.create_engine()
-
-    raise AssertionError(f"Unknown probe fixture: {fixture}")
-
-
-def _assert_shape(value: object, shape: dict[str, object], contract: dict[str, object]) -> None:
-    if "kind" in shape and shape["kind"] == "engine_instance":
-        assert isinstance(value, context_compiler.Engine)
-        expected_members = contract["engine"]["public_members"]["members"]
-        actual_members = sorted(name for name in dir(value) if not name.startswith("_"))
-        assert actual_members == sorted(expected_members.keys())
-        return
-    if "kind" in shape and shape["kind"] == "validated_directive":
-        assert value == grammar.validate_directive(shape["text"])
-        return
-
-    expected_types = shape["type"]
-    if isinstance(expected_types, str):
-        expected_types = [expected_types]
-    assert any(_json_type_matches(value, expected_type) for expected_type in expected_types)
-
-    if "const" in shape:
-        assert value == shape["const"]
-
-    if isinstance(value, dict):
-        required_keys = shape.get("required_keys", [])
-        assert set(required_keys).issubset(value)
-        properties = shape.get("properties", {})
-        for key, property_shape in properties.items():
-            if key in value:
-                _assert_shape(value[key], property_shape, contract)
-
-
-def _assert_signature_matches(obj: object, expected: dict[str, object], label: str) -> None:
-    signature = inspect.signature(obj)
-    params = list(signature.parameters.values())
-    expected_params = expected["params"]
-
-    assert len(params) == len(expected_params), label
-    for actual, expected_param in zip(params, expected_params, strict=True):
-        assert actual.name == expected_param["name"], label
-        assert actual.kind.name == expected_param["kind"], label
-        assert (actual.default is not inspect.Signature.empty) is expected_param["has_default"], (
-            label
-        )
-
-
-def _assert_export_kind(name: str, exported: object, expected_kind: str) -> None:
-    if expected_kind == "callable":
-        assert inspect.isroutine(exported), name
-        return
-    if expected_kind == "constant":
-        assert not inspect.isroutine(exported) and not inspect.isclass(exported), name
-        return
-    if expected_kind == "type_alias":
-        assert not inspect.isroutine(exported) and not inspect.isclass(exported), name
-        return
-    if expected_kind == "type":
-        assert inspect.isclass(exported), name
-        return
-    assert expected_kind == "class", name
-    assert inspect.isclass(exported), name
+    return load_api_contract(
+        _CONTRACT_PATH,
+        expected_module="context_compiler",
+        allowed_export_kinds={"callable", "constant", "type_alias", "type", "class"},
+        allowed_engine_member_kinds={"method", "property"},
+    )
 
 
 def test_api_contract_fixture_matches_python_public_surface() -> None:
@@ -110,18 +40,18 @@ def test_api_contract_fixture_matches_python_public_surface() -> None:
 
     for name, export_contract in export_members.items():
         exported = getattr(context_compiler, name)
-        _assert_export_kind(name, exported, export_contract["kind"])
+        validate_export_kind(name, exported, export_contract["kind"])
         if "value" in export_contract:
             assert exported == export_contract["value"], name
         if "signature" in export_contract:
-            _assert_signature_matches(exported, export_contract["signature"], name)
+            assert_signature_matches(exported, export_contract["signature"], name)
         for probe in export_contract.get("shape_probes", []):
-            args = [_resolve_probe_value(value) for value in probe.get("args", [])]
+            args = [resolve_probe_value(value) for value in probe.get("args", [])]
             kwargs = {
-                key: _resolve_probe_value(value) for key, value in probe.get("kwargs", {}).items()
+                key: resolve_probe_value(value) for key, value in probe.get("kwargs", {}).items()
             }
             result = exported(*args, **kwargs)
-            _assert_shape(result, probe["return_shape"], contract)
+            assert_shape(result, probe["return_shape"], contract)
 
     engine = context_compiler.create_engine()
     engine_contract = contract["engine"]["public_members"]
@@ -133,14 +63,7 @@ def test_api_contract_fixture_matches_python_public_surface() -> None:
     engine_type = type(engine)
     for name, member_contract in expected_members.items():
         assert hasattr(engine, name), name
-        kind = member_contract["kind"]
-
-        if kind == "property":
-            assert isinstance(inspect.getattr_static(engine_type, name), property), name
-            continue
-
-        assert callable(getattr(engine, name)), name
-        _assert_signature_matches(getattr(engine, name), member_contract["signature"], name)
+        validate_engine_member_runtime(engine_type, engine, name, member_contract)
 
 
 def test_api_contract_fixture_forbidden_exports_are_not_present() -> None:
