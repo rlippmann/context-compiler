@@ -189,10 +189,11 @@ Conceptual boundary:
 - imported policy keys are normalized during `import_json(...)`
 - if a policy key normalizes to `""`, the payload is invalid and is rejected
 
-## Controller APIs
+## Controller And Audit APIs
 
-These controller APIs are public package exports and can be used directly in
-host code, not only through the REPL.
+The `step(...)` convenience wrapper remains part of the root host-facing API.
+
+Preview and structural diff helpers live under `context_compiler.audit`.
 
 ### `step(engine, user_input)`
 
@@ -229,8 +230,8 @@ state snapshots.
 Typical use:
 
 ```python
-from context_compiler import (
-    create_engine,
+from context_compiler import create_engine
+from context_compiler.audit import (
     diff_has_changes,
     get_preview_state_after,
     preview,
@@ -246,7 +247,7 @@ if diff_has_changes(diff):
     show_preview(diff)
 ```
 
-Controller helper functions:
+Audit helper functions:
 
 - `get_step_decision(step_result)`
 - `get_step_state(step_result)`
@@ -255,7 +256,7 @@ Controller helper functions:
 - `preview_would_mutate(preview_result)`
 - `diff_has_changes(diff)`
 
-For controller result-envelope details, see the controller conformance fixture
+For audit result-envelope details, see the fixture
 documentation in [tests/fixtures/README.md](../tests/fixtures/README.md).
 
 ## Public Constants
@@ -281,8 +282,6 @@ Public result and data object names exported at package root include:
 - `Decision`
 - `State`
 - `StepResult`
-- `PreviewResult`
-- `StructuralDiff`
 - `Engine`
 
 These names are part of the public package surface. For the exact portable API
