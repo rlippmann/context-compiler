@@ -4,8 +4,6 @@
   "target": "context-compiler-ports",
   "module": "context_compiler",
   "forbidden_exports": [
-    "DecisionKind",
-    "PolicyValue",
     "CheckpointPending",
     "CheckpointPendingReplacement",
     "PendingReplacement",
@@ -15,6 +13,7 @@
     "mode": "exact",
     "names": [
       "Decision",
+      "DecisionKind",
       "DECISION_CLARIFY",
       "DECISION_PASSTHROUGH",
       "DECISION_UPDATE",
@@ -22,6 +21,7 @@
       "Engine",
       "POLICY_PROHIBIT",
       "POLICY_USE",
+      "PolicyValue",
       "PreviewResult",
       "State",
       "StepResult",
@@ -49,6 +49,9 @@
       "Decision": {
         "kind": "type"
       },
+      "DecisionKind": {
+        "kind": "class"
+      },
       "DECISION_CLARIFY": {
         "kind": "constant",
         "value": "clarify"
@@ -74,6 +77,9 @@
       "POLICY_USE": {
         "kind": "constant",
         "value": "use"
+      },
+      "PolicyValue": {
+        "kind": "type_alias"
       },
       "PreviewResult": {
         "kind": "type"
