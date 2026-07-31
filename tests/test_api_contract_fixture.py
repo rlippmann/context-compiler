@@ -150,6 +150,11 @@ def test_api_contract_fixture_forbidden_exports_are_not_present() -> None:
         assert not hasattr(context_compiler, name), name
 
 
+def test_public_annotation_dependencies_are_importable_from_root() -> None:
+    assert context_compiler.PolicyValue is not None
+    assert context_compiler.DecisionKind is not None
+
+
 def test_api_contract_fixture_has_unique_entries() -> None:
     contract = _load_contract()
     export_names = contract["exports"]["names"]

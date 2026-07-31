@@ -30,7 +30,9 @@ from .decision_helpers import (
 )
 from .engine import (
     Decision,
+    DecisionKind,
     Engine,
+    PolicyValue,
     State,
     create_engine,
 )
@@ -40,6 +42,7 @@ __version__ = version("context-compiler")
 
 __all__ = [
     "Decision",
+    "DecisionKind",
     "DECISION_CLARIFY",
     "DECISION_PASSTHROUGH",
     "DECISION_UPDATE",
@@ -47,6 +50,7 @@ __all__ = [
     "Engine",
     "POLICY_PROHIBIT",
     "POLICY_USE",
+    "PolicyValue",
     "PreviewResult",
     "State",
     "StepResult",
