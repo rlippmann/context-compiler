@@ -1,0 +1,11 @@
+{
+  "id": "grammar_decompose_invalid_noncanonical",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "please use docker"
+  },
+  "expected": {
+    "directive": null
+  }
+}

@@ -17,7 +17,7 @@ from .const import (
     STATE_PREMISE,
     STATE_VERSION,
 )
-from .grammar import DirectiveKind, _parse_canonical_directive
+from .grammar import DirectiveKind, decompose_directive
 
 PolicyValue = Literal["use", "prohibit"]
 
@@ -259,9 +259,7 @@ class Engine:
 
 
 def _parse_directive(user_input: str) -> Action | None:
-    # Engine semantics intentionally depend on grammar's internal parsed form.
-    # This keeps syntax authority in grammar without making the parser a public API.
-    parsed = _parse_canonical_directive(user_input)
+    parsed = decompose_directive(user_input)
     if parsed is None:
         return None
 

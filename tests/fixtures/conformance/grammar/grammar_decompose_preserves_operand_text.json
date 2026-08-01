@@ -1,0 +1,17 @@
+{
+  "id": "grammar_decompose_preserves_operand_text",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "Use    Docker Engine"
+  },
+  "expected": {
+    "directive": {
+      "text": "Use    Docker Engine",
+      "kind": "use_item",
+      "operands": {
+        "item": "Docker Engine"
+      }
+    }
+  }
+}
