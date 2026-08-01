@@ -265,7 +265,7 @@ def _parse_replace_use(trimmed_text: str) -> CanonicalDirective | None:
     )
 
 
-def _parse_directive(text: str) -> CanonicalDirective | None:
+def decompose_directive(text: str) -> CanonicalDirective | None:
     trimmed_text = _trim_ascii_whitespace(text)
     if trimmed_text == "":
         return None
@@ -365,10 +365,6 @@ def _parse_directive(text: str) -> CanonicalDirective | None:
         )
 
     return None
-
-
-def decompose_directive(text: str) -> CanonicalDirective | None:
-    return _parse_directive(text)
 
 
 def validate_directive(text: str) -> ValidatedDirective | None:

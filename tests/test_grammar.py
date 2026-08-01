@@ -323,7 +323,7 @@ def test_contains_multiple_canonical_directives_reports_public_compound_detectio
     assert contains_multiple_canonical_directives(text) is expected
 
 
-def test_private_parse_canonical_directive_preserves_internal_engine_seam() -> None:
+def test_decompose_directive_returns_canonical_operands_for_use_item() -> None:
     parsed = decompose_directive("use docker")
 
     assert parsed is not None

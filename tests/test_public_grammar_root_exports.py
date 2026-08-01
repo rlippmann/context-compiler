@@ -33,8 +33,6 @@ def test_root_does_not_export_private_grammar_implementation() -> None:
         "_REPLACE_RE",
         "_match_directive_token",
         "_match_canonical_directive_start",
-        "_parse_directive",
-        "_parse_canonical_directive",
     ):
         assert name not in context_compiler.__all__
         assert not hasattr(context_compiler, name)
