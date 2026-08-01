@@ -71,19 +71,23 @@ submodule.
 
 Public grammar surface:
 
+- `CanonicalDirective`
 - `DirectiveKind`
 - `ValidatedDirective`
+- `decompose_directive(text)`
 - `validate_directive(text)`
 - `is_canonical_directive(text)`
 - `render_directive(kind, /, **operands)`
 
-Use this surface for exact canonical validation or canonical directive string
-construction only.
+Use this surface for exact canonical validation, canonical directive syntax
+decomposition, or canonical directive string construction only.
 
 Boundary notes:
 
-- no public parser is exposed
+- decomposition exposes canonical syntax only
+- operands are grammar-level text, not normalized semantic values
 - validation returns `None` for any non-canonical input
+- decomposition returns `None` for any non-canonical input
 - rendering is syntax-only and performs no state interpretation
 - `engine.step(...)` remains the authority for clarification, state
   transitions, and mutation behavior
@@ -94,6 +98,10 @@ Boundary notes:
 - `use <new> instead of <old>` with an absent `<old>` is not a pending or
   clarification-only runtime category; it follows the deterministic semantic
   rules defined in the specification
+
+`CanonicalDirective.operands` preserves the grammar-recognized operand text.
+Core does not lowercase operands, collapse internal operand whitespace, or
+convert operand text into engine/domain identifiers at the grammar layer.
 
 ### `engine.state`
 

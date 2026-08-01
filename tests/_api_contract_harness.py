@@ -68,6 +68,10 @@ def assert_shape(
         assert value == grammar.validate_directive(shape["text"])
         return
 
+    if "kind" in shape and shape["kind"] == "canonical_directive":
+        assert value == grammar.decompose_directive(shape["text"])
+        return
+
     expected_types = shape["type"]
     if isinstance(expected_types, str):
         expected_types = [expected_types]
@@ -371,6 +375,15 @@ def _validate_shape_spec(shape: object, label: str) -> None:
             _require_fields(shape, {"kind", "text", "directive_kind"}, label)
             _assert_type(shape["text"], str, f"{label}.text")
             _assert_type(shape["directive_kind"], str, f"{label}.directive_kind")
+            return
+        if kind == "canonical_directive":
+            _assert_closed_keys(shape, {"kind", "text", "directive_kind", "operands"}, label)
+            _require_fields(shape, {"kind", "text", "directive_kind", "operands"}, label)
+            _assert_type(shape["text"], str, f"{label}.text")
+            _assert_type(shape["directive_kind"], str, f"{label}.directive_kind")
+            _assert_string_keyed_dict(shape["operands"], f"{label}.operands")
+            for operand_name, operand_value in shape["operands"].items():
+                _assert_type(operand_value, str, f"{label}.operands[{operand_name!r}]")
             return
         raise AssertionError(f"{label}.kind has unsupported shape kind {kind!r}")
 

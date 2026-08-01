@@ -26,7 +26,7 @@ class ValidatedDirective:
 
 
 @dataclass(frozen=True, slots=True)
-class _GrammarParsedDirective:
+class CanonicalDirective:
     text: str
     kind: DirectiveKind
     operands: MappingProxyType[str, str]
@@ -243,7 +243,7 @@ def _contains_multiple_canonical_directives(text: str) -> bool:
     return False
 
 
-def _parse_replace_use(trimmed_text: str) -> _GrammarParsedDirective | None:
+def _parse_replace_use(trimmed_text: str) -> CanonicalDirective | None:
     match = _REPLACE_RE.fullmatch(trimmed_text)
     if match is None:
         return None
@@ -258,14 +258,14 @@ def _parse_replace_use(trimmed_text: str) -> _GrammarParsedDirective | None:
     normalized_payload = _normalized_for_matching(trimmed_text)
     if normalized_payload.count(_INSTEAD_OF_DELIMITER) != 1:
         return None
-    return _GrammarParsedDirective(
+    return CanonicalDirective(
         text=trimmed_text,
         kind=DirectiveKind.REPLACE_USE,
         operands=MappingProxyType({"new_item": new_item, "old_item": old_item}),
     )
 
 
-def _parse_directive(text: str) -> _GrammarParsedDirective | None:
+def _parse_directive(text: str) -> CanonicalDirective | None:
     trimmed_text = _trim_ascii_whitespace(text)
     if trimmed_text == "":
         return None
@@ -275,17 +275,17 @@ def _parse_directive(text: str) -> _GrammarParsedDirective | None:
     normalized = _normalized_for_matching(trimmed_text)
 
     if normalized == "clear premise":
-        return _GrammarParsedDirective(
+        return CanonicalDirective(
             text=text, kind=DirectiveKind.CLEAR_PREMISE, operands=MappingProxyType({})
         )
     if normalized == "reset policies":
-        return _GrammarParsedDirective(
+        return CanonicalDirective(
             text=text,
             kind=DirectiveKind.RESET_POLICIES,
             operands=MappingProxyType({}),
         )
     if normalized == "clear state":
-        return _GrammarParsedDirective(
+        return CanonicalDirective(
             text=text, kind=DirectiveKind.CLEAR_STATE, operands=MappingProxyType({})
         )
 
@@ -296,7 +296,7 @@ def _parse_directive(text: str) -> _GrammarParsedDirective | None:
         value = match.group("value")
         if not _operand_has_content(value) or _operand_starts_with_token(value, "to"):
             return None
-        return _GrammarParsedDirective(
+        return CanonicalDirective(
             text=text,
             kind=DirectiveKind.SET_PREMISE,
             operands=MappingProxyType({"value": value}),
@@ -309,7 +309,7 @@ def _parse_directive(text: str) -> _GrammarParsedDirective | None:
         value = match.group("value")
         if not _operand_has_content(value):
             return None
-        return _GrammarParsedDirective(
+        return CanonicalDirective(
             text=text,
             kind=DirectiveKind.CHANGE_PREMISE,
             operands=MappingProxyType({"value": value}),
@@ -332,7 +332,7 @@ def _parse_directive(text: str) -> _GrammarParsedDirective | None:
             or _INSTEAD_OF_DELIMITER in normalized_item
         ):
             return None
-        return _GrammarParsedDirective(
+        return CanonicalDirective(
             text=text,
             kind=DirectiveKind.USE_ITEM,
             operands=MappingProxyType({"item": item}),
@@ -345,7 +345,7 @@ def _parse_directive(text: str) -> _GrammarParsedDirective | None:
         item = match.group("item")
         if not _operand_has_content(item):
             return None
-        return _GrammarParsedDirective(
+        return CanonicalDirective(
             text=text,
             kind=DirectiveKind.PROHIBIT_ITEM,
             operands=MappingProxyType({"item": item}),
@@ -358,7 +358,7 @@ def _parse_directive(text: str) -> _GrammarParsedDirective | None:
         item = match.group("item")
         if not _operand_has_content(item):
             return None
-        return _GrammarParsedDirective(
+        return CanonicalDirective(
             text=text,
             kind=DirectiveKind.REMOVE_POLICY,
             operands=MappingProxyType({"item": item}),
@@ -367,15 +367,15 @@ def _parse_directive(text: str) -> _GrammarParsedDirective | None:
     return None
 
 
+def decompose_directive(text: str) -> CanonicalDirective | None:
+    return _parse_directive(text)
+
+
 def validate_directive(text: str) -> ValidatedDirective | None:
-    parsed = _parse_directive(text)
+    parsed = decompose_directive(text)
     if parsed is None:
         return None
     return ValidatedDirective(text=parsed.text, kind=parsed.kind)
-
-
-def _parse_canonical_directive(text: str) -> _GrammarParsedDirective | None:
-    return _parse_directive(text)
 
 
 def match_canonical_directive_start(text: str, start: int) -> int | None:
@@ -426,8 +426,10 @@ def render_directive(kind: DirectiveKind, /, **operands: str) -> str:
 
 
 __all__ = [
+    "CanonicalDirective",
     "DirectiveKind",
     "ValidatedDirective",
+    "decompose_directive",
     "is_canonical_directive",
     "render_directive",
     "validate_directive",

@@ -4,18 +4,58 @@
   "module": "context_compiler.grammar",
   "exports": {
     "names": [
+      "CanonicalDirective",
       "DirectiveKind",
       "ValidatedDirective",
+      "decompose_directive",
       "is_canonical_directive",
       "render_directive",
       "validate_directive"
     ],
     "members": {
+      "CanonicalDirective": {
+        "kind": "class"
+      },
       "DirectiveKind": {
         "kind": "class"
       },
       "ValidatedDirective": {
         "kind": "class"
+      },
+      "decompose_directive": {
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "text",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
+          {
+            "kwargs": {
+              "text": "use docker"
+            },
+            "return_shape": {
+              "kind": "canonical_directive",
+              "text": "use docker",
+              "directive_kind": "use_item",
+              "operands": {
+                "item": "docker"
+              }
+            }
+          },
+          {
+            "kwargs": {
+              "text": "please use docker"
+            },
+            "return_shape": {
+              "type": "null"
+            }
+          }
+        ]
       },
       "is_canonical_directive": {
         "kind": "callable",

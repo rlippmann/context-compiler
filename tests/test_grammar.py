@@ -5,9 +5,11 @@ import pytest
 
 import context_compiler.grammar as grammar_module
 from context_compiler.grammar import (
+    CanonicalDirective,
     DirectiveKind,
     ValidatedDirective,
     contains_multiple_canonical_directives,
+    decompose_directive,
     is_canonical_directive,
     match_canonical_directive_start,
     render_directive,
@@ -51,6 +53,17 @@ def test_validated_directive_is_frozen_and_slotted() -> None:
         validated.text = "change premise to concise replies"  # type: ignore[misc]
 
 
+def test_canonical_directive_is_frozen_and_slotted() -> None:
+    directive = CanonicalDirective(
+        text="use docker",
+        kind=DirectiveKind.USE_ITEM,
+        operands=MappingProxyType({"item": "docker"}),
+    )
+    assert directive.__slots__ == ("text", "kind", "operands")
+    with pytest.raises(FrozenInstanceError):
+        directive.kind = DirectiveKind.PROHIBIT_ITEM  # type: ignore[misc]
+
+
 @pytest.mark.parametrize(
     ("text", "expected_kind"),
     [
@@ -74,6 +87,35 @@ def test_validate_directive_accepts_each_canonical_family(
 
 
 @pytest.mark.parametrize(
+    ("text", "expected_kind", "expected_operands"),
+    [
+        ("set premise concise replies", DirectiveKind.SET_PREMISE, {"value": "concise replies"}),
+        ("change premise to formal tone", DirectiveKind.CHANGE_PREMISE, {"value": "formal tone"}),
+        ("use docker", DirectiveKind.USE_ITEM, {"item": "docker"}),
+        ("prohibit peanuts", DirectiveKind.PROHIBIT_ITEM, {"item": "peanuts"}),
+        ("remove policy docker", DirectiveKind.REMOVE_POLICY, {"item": "docker"}),
+        (
+            "use podman instead of docker",
+            DirectiveKind.REPLACE_USE,
+            {"new_item": "podman", "old_item": "docker"},
+        ),
+        ("clear premise", DirectiveKind.CLEAR_PREMISE, {}),
+        ("reset policies", DirectiveKind.RESET_POLICIES, {}),
+        ("clear state", DirectiveKind.CLEAR_STATE, {}),
+    ],
+)
+def test_decompose_directive_accepts_each_canonical_family(
+    text: str, expected_kind: DirectiveKind, expected_operands: dict[str, str]
+) -> None:
+    decomposed = decompose_directive(text)
+    assert decomposed == CanonicalDirective(
+        text=text,
+        kind=expected_kind,
+        operands=MappingProxyType(expected_operands),
+    )
+
+
+@pytest.mark.parametrize(
     "text",
     [
         "",
@@ -93,6 +135,7 @@ def test_validate_directive_accepts_each_canonical_family(
 )
 def test_validate_directive_rejects_non_canonical_inputs(text: str) -> None:
     assert validate_directive(text) is None
+    assert decompose_directive(text) is None
     assert is_canonical_directive(text) is False
 
 
@@ -109,6 +152,24 @@ def test_validate_directive_accepts_lexically_normalized_canonical_input(
 ) -> None:
     validated = validate_directive(text)
     assert validated == ValidatedDirective(text=text, kind=expected_kind)
+
+
+@pytest.mark.parametrize(
+    ("text", "expected_operands"),
+    [
+        ("Use docker", {"item": "docker"}),
+        ("use\tdocker", {"item": "docker"}),
+        (" use docker ", {"item": "docker"}),
+        ("Use    Docker", {"item": "Docker"}),
+        ("use docker  engine", {"item": "docker  engine"}),
+    ],
+)
+def test_decompose_directive_preserves_current_operand_casing_and_whitespace(
+    text: str, expected_operands: dict[str, str]
+) -> None:
+    decomposed = decompose_directive(text)
+    assert decomposed is not None
+    assert dict(decomposed.operands) == expected_operands
 
 
 @pytest.mark.parametrize(
@@ -263,12 +324,20 @@ def test_contains_multiple_canonical_directives_reports_public_compound_detectio
 
 
 def test_private_parse_canonical_directive_preserves_internal_engine_seam() -> None:
-    parsed = grammar_module._parse_canonical_directive("use docker")
+    parsed = decompose_directive("use docker")
 
     assert parsed is not None
     assert parsed.text == "use docker"
     assert parsed.kind is DirectiveKind.USE_ITEM
     assert parsed.operands == {"item": "docker"}
+
+
+def test_validate_directive_is_projection_of_decomposition() -> None:
+    decomposed = decompose_directive("use docker")
+    validated = validate_directive("use docker")
+
+    assert decomposed is not None
+    assert validated == ValidatedDirective(text=decomposed.text, kind=decomposed.kind)
 
 
 def test_internal_match_directive_token_rejects_truncated_and_non_whitespace_separator() -> None:

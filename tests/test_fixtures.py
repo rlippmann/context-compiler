@@ -6,7 +6,12 @@ import pytest
 
 from context_compiler import create_engine, get_decision_state
 from context_compiler.controller import get_step_state, preview, state_diff, step
-from context_compiler.grammar import DirectiveKind, render_directive, validate_directive
+from context_compiler.grammar import (
+    DirectiveKind,
+    decompose_directive,
+    render_directive,
+    validate_directive,
+)
 
 _STEP_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "conformance" / "step"
 _STATE_JSON_FIXTURES_DIR = (
@@ -242,9 +247,26 @@ def _validate_grammar_fixture(fixture: dict[str, object], fixture_id: object) ->
     expected = fixture["expected"]
     assert isinstance(expected, dict), fixture_id
     fn = action["fn"]
-    assert fn in {"validate_directive", "render_directive"}, fixture_id
+    assert fn in {"decompose_directive", "validate_directive", "render_directive"}, fixture_id
 
-    if fn == "validate_directive":
+    if fn == "decompose_directive":
+        _assert_allowed_keys(action, {"fn", "text"}, fixture_id, "action")
+        assert isinstance(action["text"], str), fixture_id
+        _assert_allowed_keys(expected, {"directive"}, fixture_id, "expected")
+        directive = expected["directive"]
+        if directive is not None:
+            assert isinstance(directive, dict), fixture_id
+            _assert_allowed_keys(
+                directive, {"text", "kind", "operands"}, fixture_id, "expected.directive"
+            )
+            assert isinstance(directive["text"], str), fixture_id
+            assert isinstance(directive["kind"], str), fixture_id
+            assert isinstance(directive["operands"], dict), fixture_id
+            assert all(isinstance(key, str) for key in directive["operands"]), fixture_id
+            assert all(isinstance(value, str) for value in directive["operands"].values()), (
+                fixture_id
+            )
+    elif fn == "validate_directive":
         _assert_allowed_keys(action, {"fn", "text"}, fixture_id, "action")
         assert isinstance(action["text"], str), fixture_id
         _assert_allowed_keys(expected, {"validated"}, fixture_id, "expected")
@@ -411,7 +433,17 @@ def test_grammar_fixtures() -> None:
         expected = fixture["expected"]
         fn = action["fn"]
 
-        if fn == "validate_directive":
+        if fn == "decompose_directive":
+            directive = decompose_directive(action["text"])
+            expected_directive = expected["directive"]
+            if expected_directive is None:
+                assert directive is None, fixture_id
+            else:
+                assert directive is not None, fixture_id
+                assert directive.text == expected_directive["text"], fixture_id
+                assert directive.kind.value == expected_directive["kind"], fixture_id
+                assert dict(directive.operands) == expected_directive["operands"], fixture_id
+        elif fn == "validate_directive":
             validated = validate_directive(action["text"])
             expected_validated = expected["validated"]
             if expected_validated is None:

@@ -12,6 +12,7 @@ from context_compiler.engine import (
 )
 from context_compiler.grammar import (
     contains_multiple_canonical_directives,
+    decompose_directive,
     match_canonical_directive_start,
 )
 
@@ -43,6 +44,17 @@ def test_parse_directive_delegates_canonical_kinds_to_existing_actions() -> None
     assert _parse_directive("clear premise") == Action(kind="clear_premise")
     assert _parse_directive("reset policies") == Action(kind="reset_policies")
     assert _parse_directive("clear state") == Action(kind="clear_state")
+
+
+def test_engine_parse_directive_matches_public_decomposition_boundary() -> None:
+    parsed = decompose_directive("use podman instead of docker")
+
+    assert parsed is not None
+    assert _parse_directive(parsed.text) == Action(
+        kind="replace_use",
+        new_item=parsed.operands["new_item"],
+        old_item=parsed.operands["old_item"],
+    )
 
 
 def test_parse_directive_returns_none_for_invalid_syntax_and_passthrough_inputs() -> None:
