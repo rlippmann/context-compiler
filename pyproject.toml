@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "context-compiler"
-version = "0.9.0dev3"
+version = "0.9.0dev4"
 description = "Deterministic conversational state engine for LLM applications."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -70,6 +70,14 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+extend-select = ["D100", "D101", "D102", "D103"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["D100", "D101", "D102", "D103"]
+"demos/**/*.py" = ["D100", "D101", "D102", "D103"]
+"examples/**/*.py" = ["D100", "D101", "D102", "D103"]
+"evals/**/*.py" = ["D100", "D101", "D102", "D103"]
+"host_support/**/*.py" = ["D100", "D101", "D102", "D103"]
 
 [tool.mypy]
 python_version = "3.11"
