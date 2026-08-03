@@ -26,9 +26,9 @@ pytestmark = pytest.mark.contract
             ),
         ),
         (
-            "03_ambiguity_with_clarification.py",
+            "03_ambiguity_with_error.py",
             (
-                "Host behavior: clarification returned, do NOT call LLM.",
+                "Host behavior: error returned, do NOT call LLM.",
                 "Remove or replace it before using it.",
             ),
         ),

@@ -28,7 +28,7 @@ Runnable application-layer enforcement-point integrations live in
 
 | Demo | Behavior | Concept | Most visible with |
 | :--: | --- | :--: | --- |
-| [01](./01_llm_contradiction_clarify.py) | Contradiction blocking | clarification gate | small instruct models |
+| [01](./01_llm_contradiction_error.py) | Contradiction blocking | error gate | small instruct models |
 | [02](./02_llm_constraint_guardrail.py) | Policy state stays active across turns | authoritative policy state | small or quantized models |
 | [03](./03_llm_premise_guardrail.py) | Premise updates stay authoritative | fixed, repeatable premise updates | models that summarize conversation |
 | [04](./04_llm_tool_denylist_guardrail.py) | Tool governance | application-layer tool gating from saved state | general assistant models |

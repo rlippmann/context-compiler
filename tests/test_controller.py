@@ -78,7 +78,7 @@ def test_preview_missing_source_replacement_reports_update_without_live_mutation
     assert yes["kind"] == DecisionKind.NO_DIRECTIVE
 
 
-def test_preview_prohibited_replacement_clarify_matches_execution_without_mutation() -> None:
+def test_preview_prohibited_replacement_error_matches_execution_without_mutation() -> None:
     engine = create_engine()
     engine.step("use docker")
     engine.step("prohibit kubectl")
@@ -86,7 +86,7 @@ def test_preview_prohibited_replacement_clarify_matches_execution_without_mutati
     result = preview(engine, "use kubectl instead of docker")
 
     assert result["decision"] == {
-        "kind": DecisionKind.CLARIFY,
+        "kind": DecisionKind.ERROR,
         "state": None,
         "prompt_to_user": (
             '"kubectl" is currently prohibited.\n'

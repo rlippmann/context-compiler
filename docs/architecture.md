@@ -8,7 +8,7 @@ authority inside a larger host application stack.
 Responsibilities:
 
 - apply deterministic state transitions
-- enforce deterministic clarification gates for core-owned state semantics
+- enforce deterministic error gates for core-owned state semantics
 - export/import authoritative state
 
 Examples:

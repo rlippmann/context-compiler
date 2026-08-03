@@ -38,7 +38,7 @@ Behavioral details are defined in `docs/DirectiveGrammarSpec.md`.
 Explicit user commitments persist reliably within a conversation.
 A change directive replaces previously set state. It does not judge whether earlier conversation content was "correct."
 
-M1 established deterministic state transitions and explicit clarification behavior.
+M1 established deterministic state transitions and explicit error behavior.
 The current authoritative state shape and directive semantics are defined in `DirectiveGrammarSpec.md` (0.5 / schema version 2).
 
 **Core capability:**
@@ -53,7 +53,7 @@ The current authoritative state shape and directive semantics are defined in `Di
 
 - Directive grammar (conservative pattern set)
 - State data model (authoritative conversational state)
-- Deterministic update rules for explicit directives and clarification
+- Deterministic update rules for explicit directives and error
 - Clarification mechanism for ambiguous mutations
 - Context serialization interface (`export_json` / `import_json`, state → app layer)
 - Reference integration harness (example host)
@@ -129,7 +129,7 @@ Current ownership after 0.8:
 
 - `context-compiler` owns the Authority Layer:
   deterministic state transitions, canonical directive application, semantic
-  validation, clarification and confirmation handling, preview/diff,
+  validation, error and confirmation handling, preview/diff,
   controller behavior, and authoritative state
 - `context-compiler-directive-drafter` owns Acquisition Layer drafting:
   natural-language-to-directive drafting, candidate directive generation,

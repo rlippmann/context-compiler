@@ -1,25 +1,21 @@
 {
-  "id": "step_conflict_prohibit_clarify",
+  "id": "step_change_premise_missing_error",
   "kind": "step",
   "initial_state": {
     "premise": null,
-    "policies": {
-      "docker": "use"
-    },
+    "policies": {},
     "version": 2
   },
-  "input": "prohibit docker",
+  "input": "change premise to concise replies",
   "expected": {
     "decision": {
-      "kind": "clarify",
+      "kind": "error",
       "prompt_to_user": null,
       "state": null
     },
     "state": {
       "premise": null,
-      "policies": {
-        "docker": "use"
-      },
+      "policies": {},
       "version": 2
     }
   }

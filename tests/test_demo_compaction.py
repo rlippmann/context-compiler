@@ -11,7 +11,7 @@ def test_compaction_drops_only_update_lines_and_keeps_no_directive_lines() -> No
     assert state == {"premise": "concise", "policies": {"docker": "use"}, "version": 2}
 
 
-def test_compaction_keeps_first_clarify_line_and_stops_replay() -> None:
+def test_compaction_keeps_first_error_line_and_stops_replay() -> None:
     compacted, state, prompt = compact_user_turns(
         ["use docker", "prohibit docker", "set premise ignored", "hello"]
     )

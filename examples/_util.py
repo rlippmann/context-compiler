@@ -4,9 +4,9 @@ from typing import Any, Literal
 from context_compiler import (
     POLICY_PROHIBIT,
     POLICY_USE,
-    get_clarify_prompt,
     get_decision_state,
-    is_clarify,
+    get_error_prompt,
+    is_error,
     is_update,
 )
 
@@ -44,11 +44,11 @@ def print_decision_summary(decision: Any) -> None:
         print_state_summary(state, "compiled state")
         return
 
-    if is_clarify(decision):
-        print("result: clarify")
-        prompt = get_clarify_prompt(decision)
+    if is_error(decision):
+        print("result: error")
+        prompt = get_error_prompt(decision)
         if isinstance(prompt, str) and prompt:
-            print("clarify prompt:")
+            print("error prompt:")
             for line in prompt.splitlines():
                 print(f"- {line}")
         return

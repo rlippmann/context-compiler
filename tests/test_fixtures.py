@@ -329,7 +329,7 @@ def test_step_fixtures() -> None:
 
         assert decision["kind"] == expected_decision["kind"], fixture_id
 
-        if decision["kind"] == DecisionKind.CLARIFY:
+        if decision["kind"] == DecisionKind.ERROR:
             assert decision["state"] == expected_decision["state"], fixture_id
             expected_prompt = expected_decision["prompt_to_user"]
             actual_prompt = decision["prompt_to_user"]

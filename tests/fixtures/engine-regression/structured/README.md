@@ -43,7 +43,7 @@ regressions are visible in:
 
 ## Prompt Matching
 
-`decision.prompt_to_user` is matched exactly, including clarify text.
+`decision.prompt_to_user` is matched exactly, including error text.
 
 ## Adding a Scenario
 

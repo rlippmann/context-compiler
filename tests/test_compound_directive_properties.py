@@ -83,7 +83,7 @@ def test_embedded_canonical_tokens_do_not_trigger_compound_detection(
 
     decision = engine.step(f"use docker {prefix}{token}{suffix}")
 
-    assert decision["prompt_to_user"] is not None or decision["kind"] != DecisionKind.CLARIFY
+    assert decision["prompt_to_user"] is not None or decision["kind"] != DecisionKind.ERROR
     assert decision["kind"] == DecisionKind.UPDATE
     assert engine.state != before
 

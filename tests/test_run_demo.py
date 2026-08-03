@@ -50,7 +50,7 @@ def _info_report() -> run_demo.InfoReport:
 
 def test_demo_file_mapping_uses_current_0_5_demo_filenames() -> None:
     assert run_demo.DEMO_FILES == {
-        "1": "01_llm_contradiction_clarify.py",
+        "1": "01_llm_contradiction_error.py",
         "2": "02_llm_constraint_guardrail.py",
         "3": "03_llm_premise_guardrail.py",
         "4": "04_llm_tool_denylist_guardrail.py",

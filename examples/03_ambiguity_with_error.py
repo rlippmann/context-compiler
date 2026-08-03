@@ -1,8 +1,8 @@
-"""Example 3: contradiction clarify flow with host-side blocking."""
+"""Example 3: contradiction error flow with host-side blocking."""
 
 from _util import print_decision_summary, print_state_summary
 
-from context_compiler import create_engine, get_clarify_prompt, is_clarify
+from context_compiler import create_engine, get_error_prompt, is_error
 
 
 def fake_llm(user_input: str) -> str:
@@ -23,9 +23,9 @@ def main() -> None:
     print_decision_summary(decision2)
     print()
 
-    if is_clarify(decision2):
-        print("Host behavior: clarification returned, do NOT call LLM.")
-        print(f"Clarify prompt: {get_clarify_prompt(decision2)}")
+    if is_error(decision2):
+        print("Host behavior: error returned, do NOT call LLM.")
+        print(f"Error prompt: {get_error_prompt(decision2)}")
     else:
         fake_llm("use peanuts")
     print()

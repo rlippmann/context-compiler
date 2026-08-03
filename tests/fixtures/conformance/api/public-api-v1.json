@@ -14,7 +14,7 @@
     "names": [
       "Decision",
       "DecisionKind",
-      "DECISION_CLARIFY",
+      "DECISION_ERROR",
       "DECISION_NO_DIRECTIVE",
       "DECISION_UPDATE",
       "Engine",
@@ -24,11 +24,11 @@
       "State",
       "StepResult",
       "create_engine",
-      "get_clarify_prompt",
+      "get_error_prompt",
       "get_decision_state",
       "get_step_decision",
       "get_step_state",
-      "is_clarify",
+      "is_error",
       "is_no_directive",
       "is_update",
       "step"
@@ -40,9 +40,9 @@
       "DecisionKind": {
         "kind": "class"
       },
-      "DECISION_CLARIFY": {
+      "DECISION_ERROR": {
         "kind": "constant",
-        "value": "clarify"
+        "value": "error"
       },
       "DECISION_NO_DIRECTIVE": {
         "kind": "constant",
@@ -92,7 +92,7 @@
           }
         ]
       },
-      "get_clarify_prompt": {
+      "get_error_prompt": {
         "kind": "callable",
         "signature": {
           "params": [
@@ -107,7 +107,7 @@
           {
             "kwargs": {
               "decision": {
-                "kind": "clarify",
+                "kind": "error",
                 "state": null,
                 "prompt_to_user": "confirm?"
               }
@@ -185,7 +185,7 @@
           ]
         }
       },
-      "is_clarify": {
+      "is_error": {
         "kind": "callable",
         "signature": {
           "params": [
@@ -200,7 +200,7 @@
           {
             "kwargs": {
               "decision": {
-                "kind": "clarify",
+                "kind": "error",
                 "state": null,
                 "prompt_to_user": "confirm?"
               }

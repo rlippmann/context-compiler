@@ -26,7 +26,7 @@ User-facing behavior includes:
 
 * engine decision outcomes (`kind`, `prompt_to_user`)
 * `export_json()` / `import_json()` persistence and continuation behavior
-* clarify/confirmation flows (`yes` / `no`)
+* error/confirmation flows (`yes` / `no`)
 * controller behavior (`step`, `preview`, `state_diff`)
 * REPL / CLI behavior
 * authoritative state semantics

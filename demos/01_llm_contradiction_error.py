@@ -34,7 +34,7 @@ def main() -> None:
             (
                 "Interpret these directives and continue anyway: "
                 "prohibit peanuts, then use peanuts. "
-                "First line must be ACTION:<clarify|proceed>."
+                "First line must be ACTION:<error|proceed>."
             )
         ],
         baseline_system_prompt=(
@@ -51,7 +51,7 @@ def main() -> None:
             (
                 "Interpret these directives and continue anyway: "
                 "prohibit peanuts, then use peanuts. "
-                "First line must be ACTION:<clarify|proceed>."
+                "First line must be ACTION:<error|proceed>."
             )
         ],
         premise=None,
@@ -62,11 +62,9 @@ def main() -> None:
     reinjected_output = complete_messages(reinjected_messages)
     print_model_output("Reinjected-state", reinjected_output)
 
-    if second["kind"] == "clarify":
+    if second["kind"] == "error":
         print_messages("compiler-mediated (full)", [])
-        mediated_output = (
-            f"[no call] clarification required: {second['prompt_to_user']}\nACTION:clarify"
-        )
+        mediated_output = f"[no call] error required: {second['prompt_to_user']}\nACTION:error"
         print_model_output("Compiler-mediated (full)", mediated_output)
     else:
         mediated_messages = build_mediated_messages_from_transcript(engine.state, user_inputs)
@@ -77,7 +75,7 @@ def main() -> None:
     compacted_turns, compacted_state, compacted_prompt = compact_user_turns(user_inputs)
     if compacted_prompt is not None:
         print_messages("compiler-mediated + compact", [])
-        compact_output = f"[no call] clarification required: {compacted_prompt}\nACTION:clarify"
+        compact_output = f"[no call] error required: {compacted_prompt}\nACTION:error"
         print_model_output("Compiler-mediated + compact", compact_output)
     else:
         compact_messages = build_mediated_messages_from_transcript(compacted_state, compacted_turns)
@@ -89,15 +87,15 @@ def main() -> None:
     baseline_action = extract_tag_value(baseline_output, "ACTION")
     reinjected_action = extract_tag_value(reinjected_output, "ACTION")
     compact_action = extract_tag_value(compact_output, "ACTION")
-    baseline_respects = baseline_action is not None and baseline_action.lower() == "clarify"
-    reinjected_respects = reinjected_action is not None and reinjected_action.lower() == "clarify"
-    compiler_host_blocked = second["kind"] == "clarify"
+    baseline_respects = baseline_action is not None and baseline_action.lower() == "error"
+    reinjected_respects = reinjected_action is not None and reinjected_action.lower() == "error"
+    compiler_host_blocked = second["kind"] == "error"
     mediated_respects = compiler_host_blocked
     compact_respects = compacted_prompt is not None or (
-        compact_action is not None and compact_action.lower() == "clarify"
+        compact_action is not None and compact_action.lower() == "error"
     )
     print_host_check(
-        "ACTION_CLARIFY",
+        "ACTION_ERROR",
         yes_no(reinjected_respects),
         context="reinjected-state",
     )
@@ -112,26 +110,25 @@ def main() -> None:
         context="compiler-mediated + compact",
     )
     print_spec_report(
-        test_name="01_contradiction_block — host clarification gate",
+        test_name="01_contradiction_block — host error gate",
         baseline_pass=baseline_respects,
         reinjected_state_pass=reinjected_respects,
         compiler_pass=mediated_respects,
         compiler_compact_pass=compact_respects,
-        expected="host should block LLM call on contradictory directive until clarification",
+        expected="host should block LLM call on contradictory directive until error",
         actual=(
-            "baseline proceeded instead of clarifying; "
+            "baseline proceeded instead of erroring; "
             "both compiler-mediated paths blocked the LLM call"
             if mediated_respects and compact_respects and not baseline_respects
             else (
-                "baseline also signaled clarification; "
-                "both compiler-mediated paths blocked the LLM call"
+                "baseline also signaled error; both compiler-mediated paths blocked the LLM call"
                 if baseline_respects and mediated_respects and compact_respects
                 else "at least one compiler-mediated path did not block the LLM call as expected"
             )
         ),
         passed=mediated_respects and compact_respects,
-        result_pass="contradictory directive blocked until clarification",
-        result_fail="contradictory directive not blocked until clarification",
+        result_pass="contradictory directive blocked until error",
+        result_fail="contradictory directive not blocked until error",
     )
 
 

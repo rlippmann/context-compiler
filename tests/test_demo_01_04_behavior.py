@@ -37,17 +37,17 @@ def _sequenced_outputs(outputs: list[str]) -> Callable[[object], str]:
     return _fake_complete_messages
 
 
-def test_demo_01_reports_host_clarification_gate(
+def test_demo_01_reports_host_error_gate(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    module = _load_demo_module("01_llm_contradiction_clarify.py")
+    module = _load_demo_module("01_llm_contradiction_error.py")
     monkeypatch.setattr(
         module,
         "complete_messages",
         _sequenced_outputs(
             [
                 "ACTION:proceed\nI will continue.",
-                "ACTION:clarify\nNeed clarification.",
+                "ACTION:error\nNeed error.",
             ]
         ),
     )
@@ -69,10 +69,10 @@ def test_demo_01_reports_host_clarification_gate(
     assert "reinjected-state: PASS" in output
 
 
-def test_demo_01_calls_llm_when_second_turn_is_not_clarify(
+def test_demo_01_calls_llm_when_second_turn_is_not_error(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    module = _load_demo_module("01_llm_contradiction_clarify.py")
+    module = _load_demo_module("01_llm_contradiction_error.py")
     call_count = 0
 
     class _FakeEngine:
@@ -91,7 +91,7 @@ def test_demo_01_calls_llm_when_second_turn_is_not_clarify(
         call_count += 1
         if call_count == 1:
             return "ACTION:proceed"
-        return "ACTION:clarify"
+        return "ACTION:error"
 
     monkeypatch.setattr(module, "create_engine", _FakeEngine)
     monkeypatch.setattr(module, "complete_messages", fake_complete_messages)
@@ -109,7 +109,7 @@ def test_demo_01_calls_llm_when_second_turn_is_not_clarify(
 def test_demo_01_baseline_and_compiler_use_intentionally_different_gates(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    module = _load_demo_module("01_llm_contradiction_clarify.py")
+    module = _load_demo_module("01_llm_contradiction_error.py")
 
     class _FakeEngine:
         def __init__(self) -> None:
@@ -128,7 +128,7 @@ def test_demo_01_baseline_and_compiler_use_intentionally_different_gates(
         "complete_messages",
         _sequenced_outputs(
             [
-                "ACTION:clarify",
+                "ACTION:error",
                 "ACTION:proceed",
                 "ACTION:proceed",
                 "ACTION:proceed",
@@ -247,7 +247,7 @@ def test_demo_02_uses_same_prohibited_content_check_for_baseline_and_compiler(
     assert "compiler: PASS" in output
 
 
-def test_demo_02_compact_clarify_branch_skips_compact_llm_call(
+def test_demo_02_compact_error_branch_skips_compact_llm_call(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     module = _load_demo_module("02_llm_constraint_guardrail.py")
@@ -263,7 +263,7 @@ def test_demo_02_compact_clarify_branch_skips_compact_llm_call(
     monkeypatch.setattr(
         module,
         "compact_user_turns",
-        lambda turns: ([], {"premise": None, "policies": {}, "version": 2}, "Need clarification."),
+        lambda turns: ([], {"premise": None, "policies": {}, "version": 2}, "Need error."),
     )
 
     module.main()
@@ -309,7 +309,7 @@ def test_demo_03_reports_explicit_premise_change(
     assert "compiler+compact: PASS" in output
 
 
-def test_demo_03_compact_clarify_branch_reports_compact_fail(
+def test_demo_03_compact_error_branch_reports_compact_fail(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     module = _load_demo_module("03_llm_premise_guardrail.py")
@@ -325,7 +325,7 @@ def test_demo_03_compact_clarify_branch_reports_compact_fail(
     monkeypatch.setattr(
         module,
         "compact_user_turns",
-        lambda turns: ([], {"premise": None, "policies": {}, "version": 2}, "Need clarification."),
+        lambda turns: ([], {"premise": None, "policies": {}, "version": 2}, "Need error."),
     )
 
     module.main()
@@ -372,7 +372,7 @@ def test_demo_04_reports_denylisted_tool_avoidance(
     assert "compiler+compact: PASS" in output
 
 
-def test_demo_04_compact_clarify_branch_skips_compact_tool_call(
+def test_demo_04_compact_error_branch_skips_compact_tool_call(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     module = _load_demo_module("04_llm_tool_denylist_guardrail.py")
@@ -388,7 +388,7 @@ def test_demo_04_compact_clarify_branch_skips_compact_tool_call(
     monkeypatch.setattr(
         module,
         "compact_user_turns",
-        lambda turns: ([], {"premise": None, "policies": {}, "version": 2}, "Need clarification."),
+        lambda turns: ([], {"premise": None, "policies": {}, "version": 2}, "Need error."),
     )
 
     module.main()

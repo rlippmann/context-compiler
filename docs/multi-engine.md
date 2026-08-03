@@ -79,7 +79,7 @@ Pattern:
 
 1. Select ordered source directives
 2. Replay each directive via `engine.step(...)`
-3. Handle any returned `clarify` decisions explicitly
+3. Handle any returned `error` decisions explicitly
 
 This keeps conflict handling in normal engine behavior and avoids adding merge
 rules to core state APIs.

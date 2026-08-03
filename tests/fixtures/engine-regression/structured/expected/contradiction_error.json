@@ -1,5 +1,5 @@
 {
-  "id": "contradiction_clarify",
+  "id": "contradiction_error",
   "turns": [
     {
       "state": {
@@ -24,7 +24,7 @@
         "version": 2
       },
       "decision": {
-        "kind": "clarify",
+        "kind": "error",
         "prompt_to_user": "\"docker\" is currently in use.\nRemove or replace it before prohibiting it."
       },
       "input": "prohibit docker"

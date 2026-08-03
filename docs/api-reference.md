@@ -53,14 +53,14 @@ Typical use:
 decision = engine.step("set premise current project uses uv")
 ```
 
-Behavior for directive handling and clarification is
+Behavior for directive handling and error is
 defined by the [Directive Grammar Specification](DirectiveGrammarSpec.md).
 
 Important grammar contract:
 
 - one input may contain at most one canonical directive
 - directive-shaped invalid input is outside the canonical language
-- `clarify` is reserved for canonical directives that fail semantic evaluation
+- `error` is reserved for canonical directives that fail semantic evaluation
 - quote characters do not create protected literal regions inside recognized
   directive payloads
 
@@ -89,14 +89,14 @@ Boundary notes:
 - validation returns `None` for any non-canonical input
 - decomposition returns `None` for any non-canonical input
 - rendering is syntax-only and performs no state interpretation
-- `engine.step(...)` remains the authority for clarification, state
+- `engine.step(...)` remains the authority for error, state
   transitions, and mutation behavior
 - `engine.step(...)` is not a general natural-language repair surface; host
   code should send canonical directives when it wants deterministic mutation
 - failed replacement requests are not reinterpreted by core into different
   directives
 - `use <new> instead of <old>` with an absent `<old>` is not a pending or
-  clarification-only runtime category; it follows the deterministic semantic
+  error-only runtime category; it follows the deterministic semantic
   rules defined in the specification
 
 `CanonicalDirective.operands` preserves the grammar-recognized operand text.
@@ -127,7 +127,7 @@ Each user message produces a `Decision`.
 
 ```python
 class Decision(TypedDict):
-    kind: Literal["no_directive", "update", "clarify"]
+    kind: Literal["no_directive", "update", "error"]
     state: dict | None
     prompt_to_user: str | None
 ```
@@ -138,25 +138,25 @@ Decision kinds:
 | --- | --- |
 | `no_directive` | no canonical directive recognized; no authoritative state change; host decides what to do next |
 | `update` | authoritative state changed; host may apply downstream behavior using updated state |
-| `clarify` | show `prompt_to_user`; do not continue normal downstream processing yet |
+| `error` | show `prompt_to_user`; do not continue normal downstream processing yet |
 
 Helper functions:
 
 - `is_no_directive(decision)`
 - `is_update(decision)`
-- `is_clarify(decision)`
-- `get_clarify_prompt(decision)`
+- `is_error(decision)`
+- `get_error_prompt(decision)`
 - `get_decision_state(decision)`
 
 Typical use:
 
 ```python
-from context_compiler import get_clarify_prompt, is_clarify, is_update
+from context_compiler import get_error_prompt, is_error, is_update
 
 decision = engine.step(user_input)
 
-if is_clarify(decision):
-    show_to_user(get_clarify_prompt(decision))
+if is_error(decision):
+    show_to_user(get_error_prompt(decision))
 elif is_update(decision):
     apply_runtime_rules()
 ```
@@ -273,7 +273,7 @@ Decision-kind constants:
 
 - `DECISION_NO_DIRECTIVE`
 - `DECISION_UPDATE`
-- `DECISION_CLARIFY`
+- `DECISION_ERROR`
 
 Policy-value constants:
 

@@ -155,7 +155,7 @@ They validate:
 
 * per-turn input handling
 * `Decision.kind` outcomes
-* clarification prompt behavior
+* error prompt behavior
 * authoritative state parity against expected snapshots
 
 The current conformance corpus assumes the engine owns authoritative state only.

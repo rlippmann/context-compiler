@@ -33,7 +33,7 @@ class State(TypedDict):
 class DecisionKind(StrEnum):
     UPDATE = "update"
     NO_DIRECTIVE = "no_directive"
-    CLARIFY = "clarify"
+    ERROR = "error"
 
 
 class Decision(TypedDict):
@@ -100,26 +100,26 @@ class Engine:
         if action is None:
             return _NO_DIRECTIVE.copy()
 
-        clarify_decision = self._pre_mutation_clarify(action)
-        if clarify_decision is not None:
-            return clarify_decision
+        error_decision = self._pre_mutation_error(action)
+        if error_decision is not None:
+            return error_decision
 
         return self._apply_action(action)
 
     def _replace_state(self, state: State) -> None:
         self._state = state
 
-    def _pre_mutation_clarify(self, action: Action) -> Decision | None:
-        # Single clarify path: all clarify outcomes are detected before any mutation.
+    def _pre_mutation_error(self, action: Action) -> Decision | None:
+        # Single error path: all error outcomes are detected before any mutation.
         if action.kind in {"set_premise", "change_premise"}:
             assert action.value is not None
             if _sanitize_premise_value(action.value) == "":
                 if action.kind == "set_premise":
-                    return _clarify(
+                    return _error(
                         "Premise value cannot be empty.\n"
                         "Use 'set premise <value>' with a non-empty value."
                     )
-                return _clarify(
+                return _error(
                     "Premise value cannot be empty.\n"
                     "Use 'change premise to <value>' with a non-empty value."
                 )
@@ -127,7 +127,7 @@ class Engine:
         if action.kind == "remove_policy_item":
             assert action.item is not None
             if _normalize_item(action.item) == "":
-                return _clarify(
+                return _error(
                     "Policy item cannot be empty.\n"
                     "Use 'remove policy <item>' with a non-empty value."
                 )
@@ -135,28 +135,28 @@ class Engine:
         if action.kind == "use_item":
             assert action.item is not None
             if _normalize_item(action.item) == "":
-                return _clarify(
+                return _error(
                     "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value."
                 )
 
         if action.kind == "prohibit_item":
             assert action.item is not None
             if _normalize_item(action.item) == "":
-                return _clarify(
+                return _error(
                     "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
                 )
 
         if action.kind == "set_premise" and self._state[STATE_PREMISE] is not None:
-            return _clarify("Premise already set.\nUse 'change premise to <value>' to modify it.")
+            return _error("Premise already set.\nUse 'change premise to <value>' to modify it.")
 
         if action.kind == "change_premise" and self._state[STATE_PREMISE] is None:
-            return _clarify("No premise is set.\nUse 'set premise <value>' to define one.")
+            return _error("No premise is set.\nUse 'set premise <value>' to define one.")
 
         if action.kind == "use_item":
             assert action.item is not None
             item_key = _normalize_item(action.item)
             if self._state[STATE_POLICIES].get(item_key) == POLICY_PROHIBIT:
-                return _clarify(
+                return _error(
                     f'"{item_key}" is currently prohibited.\nRemove or replace it before using it.'
                 )
 
@@ -164,7 +164,7 @@ class Engine:
             assert action.item is not None
             item_key = _normalize_item(action.item)
             if self._state[STATE_POLICIES].get(item_key) == POLICY_USE:
-                return _clarify(
+                return _error(
                     f'"{item_key}" is currently in use.\n'
                     "Remove or replace it before prohibiting it."
                 )
@@ -180,17 +180,17 @@ class Engine:
             old_state = self._state[STATE_POLICIES].get(old_key)
             new_state = self._state[STATE_POLICIES].get(new_key)
             if old_state == POLICY_PROHIBIT:
-                return _clarify(
+                return _error(
                     f'"{action.old_item}" is currently prohibited.\n'
                     "Submit explicit directive(s) to remove it or use a different item."
                 )
             if new_state == POLICY_PROHIBIT:
-                return _clarify(
+                return _error(
                     f'"{action.new_item}" is currently prohibited.\n'
                     "Submit explicit directive(s) to remove it or use a different item."
                 )
             if old_state not in {None, POLICY_USE}:
-                return _clarify(
+                return _error(
                     f'"{action.old_item}" is not currently in use.\n'
                     "Replacement requires an active 'use' policy."
                 )
@@ -355,9 +355,9 @@ def _normalize_item(value: str) -> str:
     return normalized.strip()
 
 
-def _clarify(prompt: str) -> Decision:
+def _error(prompt: str) -> Decision:
     return {
-        "kind": DecisionKind.CLARIFY,
+        "kind": DecisionKind.ERROR,
         "state": None,
         "prompt_to_user": prompt,
     }

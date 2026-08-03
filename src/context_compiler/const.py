@@ -14,7 +14,7 @@ POLICY_PROHIBIT: Final = "prohibit"
 # Decision kinds
 DECISION_NO_DIRECTIVE: Final = "no_directive"
 DECISION_UPDATE: Final = "update"
-DECISION_CLARIFY: Final = "clarify"
+DECISION_ERROR: Final = "error"
 
 # Schema version
 SCHEMA_VERSION: Final = 2

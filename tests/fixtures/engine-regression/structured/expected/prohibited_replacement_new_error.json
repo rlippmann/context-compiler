@@ -1,10 +1,10 @@
 {
-  "id": "prohibited_replacement_old_clarify",
+  "id": "prohibited_replacement_new_error",
   "turns": [
     {
       "state": {
         "policies": {
-          "docker": "prohibit"
+          "docker": "use"
         },
         "premise": null,
         "version": 2
@@ -13,13 +13,13 @@
         "kind": "update",
         "prompt_to_user": null
       },
-      "input": "prohibit docker"
+      "input": "use docker"
     },
     {
       "state": {
         "policies": {
-          "docker": "prohibit",
-          "pytest": "use"
+          "docker": "use",
+          "kubectl": "prohibit"
         },
         "premise": null,
         "version": 2
@@ -28,28 +28,28 @@
         "kind": "update",
         "prompt_to_user": null
       },
-      "input": "use pytest"
+      "input": "prohibit kubectl"
     },
     {
       "state": {
         "policies": {
-          "docker": "prohibit",
-          "pytest": "use"
+          "docker": "use",
+          "kubectl": "prohibit"
         },
         "premise": null,
         "version": 2
       },
       "decision": {
-        "kind": "clarify",
-        "prompt_to_user": "\"docker\" is currently prohibited.\nSubmit explicit directive(s) to remove it or use a different item."
+        "kind": "error",
+        "prompt_to_user": "\"kubectl\" is currently prohibited.\nSubmit explicit directive(s) to remove it or use a different item."
       },
       "input": "use kubectl instead of docker"
     },
     {
       "state": {
         "policies": {
-          "docker": "prohibit",
-          "pytest": "use"
+          "docker": "use",
+          "kubectl": "prohibit"
         },
         "premise": null,
         "version": 2
@@ -58,7 +58,7 @@
         "kind": "no_directive",
         "prompt_to_user": null
       },
-      "input": "yes"
+      "input": "no"
     }
   ]
 }

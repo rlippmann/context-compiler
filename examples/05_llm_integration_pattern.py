@@ -6,9 +6,9 @@ from context_compiler import (
     Engine,
     State,
     create_engine,
-    get_clarify_prompt,
     get_decision_state,
-    is_clarify,
+    get_error_prompt,
+    is_error,
     is_no_directive,
     is_update,
 )
@@ -36,9 +36,9 @@ def handle_turn(engine_input: str, engine: Engine) -> None:
     elif is_update(decision):
         print("Host action: update -> call fake_llm() with compiled state")
         fake_llm(get_decision_state(decision), engine_input)
-    elif is_clarify(decision):
-        print("Host action: clarify -> show prompt, DO NOT call LLM")
-        print("clarify prompt:", get_clarify_prompt(decision))
+    elif is_error(decision):
+        print("Host action: error -> show prompt, DO NOT call LLM")
+        print("error prompt:", get_error_prompt(decision))
     print()
 
 
