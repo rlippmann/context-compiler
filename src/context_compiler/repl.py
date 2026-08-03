@@ -3,7 +3,7 @@ import sys
 from typing import TextIO
 
 from . import __version__, create_engine
-from .const import DECISION_CLARIFY, DECISION_PASSTHROUGH
+from .const import DECISION_CLARIFY, DECISION_NO_DIRECTIVE
 from .controller import (
     OUTPUT_VERSION,
     PreviewResult,
@@ -90,8 +90,8 @@ def _render_state_lines(state: State) -> list[str]:
 
 def _render_decision_lines(decision: Decision) -> list[str]:
     kind = decision["kind"]
-    if kind == DECISION_PASSTHROUGH:
-        return ["passthrough"]
+    if kind == DECISION_NO_DIRECTIVE:
+        return ["no_directive"]
     if kind == DECISION_CLARIFY:
         prompt = decision["prompt_to_user"] or ""
         prompt_lines = prompt.splitlines() if prompt else [""]
@@ -253,7 +253,7 @@ def run_repl(
 
     if _is_interactive(in_stream, out_stream):
         print("Context Compiler REPL (0.5). Type help for commands.", file=out_stream)
-        print("Non-directive input is passthrough.", file=out_stream)
+        print("Non-directive input is no_directive.", file=out_stream)
 
         while True:
             line = in_stream.readline()

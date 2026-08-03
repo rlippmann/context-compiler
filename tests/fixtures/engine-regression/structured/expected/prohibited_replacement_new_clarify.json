@@ -55,7 +55,7 @@
         "version": 2
       },
       "decision": {
-        "kind": "passthrough",
+        "kind": "no_directive",
         "prompt_to_user": null
       },
       "input": "no"

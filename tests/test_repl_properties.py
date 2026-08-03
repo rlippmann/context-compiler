@@ -33,8 +33,8 @@ def _run_repl_lines(lines: list[str]) -> tuple[str, list[str]]:
 
 def _oracle_render_decision(decision: dict[str, object]) -> list[str]:
     kind = decision["kind"]
-    if kind == "passthrough":
-        return ["passthrough"]
+    if kind == "no_directive":
+        return ["no_directive"]
 
     if kind == "clarify":
         prompt_obj = decision["prompt_to_user"]

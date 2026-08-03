@@ -57,7 +57,7 @@ def test_engine_parse_directive_matches_public_decomposition_boundary() -> None:
     )
 
 
-def test_parse_directive_returns_none_for_invalid_syntax_and_passthrough_inputs() -> None:
+def test_parse_directive_returns_none_for_invalid_syntax_and_no_directive_inputs() -> None:
     assert _parse_directive("set premise") is None
     assert _parse_directive("change premise to") is None
     assert _parse_directive("use") is None
@@ -390,7 +390,7 @@ def test_state_property_is_read_only() -> None:
         engine.state = {"premise": None, "policies": {}, "version": 2}
 
 
-def test_non_matching_input_is_passthrough() -> None:
+def test_non_matching_input_is_no_directive() -> None:
     engine = create_engine()
     before = engine.state
 
@@ -404,7 +404,7 @@ def test_non_matching_input_is_passthrough() -> None:
         "don't use docker",
     ]:
         decision = engine.step(text)
-        assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+        assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
 
     assert engine.state == before
 
@@ -455,36 +455,36 @@ def test_set_premise_lifecycle_rules() -> None:
     assert engine.state == before
 
 
-def test_set_premise_empty_payload_remains_passthrough() -> None:
+def test_set_premise_empty_payload_remains_no_directive() -> None:
     engine = create_engine()
     before = engine.state
     d1 = engine.step("set premise")
-    assert d1 == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert d1 == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_set_premise_whitespace_payload_remains_passthrough() -> None:
+def test_set_premise_whitespace_payload_remains_no_directive() -> None:
     engine = create_engine()
     before = engine.state
     d1 = engine.step("set premise    ")
-    assert d1 == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert d1 == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_set_premise_to_variant_remains_passthrough() -> None:
+def test_set_premise_to_variant_remains_no_directive() -> None:
     engine = create_engine()
 
     decision = engine.step("set premise to concise replies")
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
-def test_set_premise_to_with_whitespace_payload_remains_passthrough() -> None:
+def test_set_premise_to_with_whitespace_payload_remains_no_directive() -> None:
     engine = create_engine()
 
     decision = engine.step("set premise to   ")
 
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
@@ -505,54 +505,54 @@ def test_change_premise_requires_existing_premise() -> None:
     assert engine.state["premise"] == "second"
 
 
-def test_change_premise_to_empty_payload_remains_passthrough() -> None:
+def test_change_premise_to_empty_payload_remains_no_directive() -> None:
     engine = create_engine()
     engine.step("set premise baseline")
     before = engine.state
 
     d1 = engine.step("change premise to")
-    assert d1 == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert d1 == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_change_premise_to_without_space_payload_and_empty_variant_remain_passthrough() -> None:
+def test_change_premise_to_without_space_payload_and_empty_variant_remain_no_directive() -> None:
     engine = create_engine()
     engine.step("set premise baseline")
     before = engine.state
 
     near_miss = engine.step("change premise baseline")
-    assert near_miss == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert near_miss == {"kind": "no_directive", "state": None, "prompt_to_user": None}
 
     decision = engine.step("change premise to")
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_change_premise_to_whitespace_payload_remains_passthrough() -> None:
+def test_change_premise_to_whitespace_payload_remains_no_directive() -> None:
     engine = create_engine()
     engine.step("set premise baseline")
     before = engine.state
 
     d1 = engine.step("change premise to    ")
-    assert d1 == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert d1 == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_change_premise_missing_to_variant_is_passthrough() -> None:
+def test_change_premise_missing_to_variant_is_no_directive() -> None:
     engine = create_engine()
     before = engine.state
 
     decision = engine.step("change premise concise replies")
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_change_premise_with_whitespace_after_prefix_remains_passthrough() -> None:
+def test_change_premise_with_whitespace_after_prefix_remains_no_directive() -> None:
     engine = create_engine(state={"premise": "baseline", "policies": {}, "version": 2})
 
     decision = engine.step("change premise   ")
 
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == {"premise": "baseline", "policies": {}, "version": 2}
 
 
@@ -613,27 +613,27 @@ def test_policy_directives_and_idempotent_update() -> None:
     assert engine2.state["policies"] == {"docker": "prohibit"}
 
 
-def test_use_empty_payload_remains_passthrough() -> None:
+def test_use_empty_payload_remains_no_directive() -> None:
     engine = create_engine()
     before = engine.state
 
     for text in ["use", "use ", "use    "]:
         decision = engine.step(text)
-        assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+        assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
         assert engine.state == before
 
 
-def test_prohibit_empty_payload_remains_passthrough() -> None:
+def test_prohibit_empty_payload_remains_no_directive() -> None:
     engine = create_engine()
     before = engine.state
 
     for text in ["prohibit", "prohibit ", "prohibit    "]:
         decision = engine.step(text)
-        assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+        assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
         assert engine.state == before
 
 
-def test_replace_use_incomplete_payload_remains_passthrough() -> None:
+def test_replace_use_incomplete_payload_remains_no_directive() -> None:
     engine = create_engine()
     before = engine.state
 
@@ -645,7 +645,7 @@ def test_replace_use_incomplete_payload_remains_passthrough() -> None:
         "use instead of y",
     ]:
         decision = engine.step(text)
-        assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+        assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
         assert engine.state == before
 
 
@@ -692,23 +692,23 @@ def test_remove_policy_missing_item_is_idempotent_update() -> None:
     assert engine.state == before
 
 
-def test_remove_policy_empty_payload_remains_passthrough() -> None:
+def test_remove_policy_empty_payload_remains_no_directive() -> None:
     engine = create_engine()
     before = engine.state
 
     decision = engine.step("remove policy")
 
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_remove_policy_whitespace_payload_remains_passthrough() -> None:
+def test_remove_policy_whitespace_payload_remains_no_directive() -> None:
     engine = create_engine()
     before = engine.state
 
     decision = engine.step("remove policy    ")
 
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
@@ -745,7 +745,7 @@ def test_replace_use_missing_source_applies_as_use_update() -> None:
     assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
 
-def test_replace_use_missing_source_yes_followup_is_passthrough() -> None:
+def test_replace_use_missing_source_yes_followup_is_no_directive() -> None:
     engine = create_engine()
 
     first = engine.step("use kubectl instead of docker")
@@ -757,7 +757,7 @@ def test_replace_use_missing_source_yes_followup_is_passthrough() -> None:
     assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
     second = engine.step("yes")
-    assert second == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert second == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
 
@@ -767,7 +767,7 @@ def test_replace_use_missing_source_no_followup_has_no_mutation() -> None:
     before = engine.state
 
     decision = engine.step("no")
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
@@ -851,7 +851,7 @@ def test_replace_use_ky_prohibit_yes_does_not_authorize_mutation() -> None:
 
     assert first["kind"] == "clarify"
     decision = engine.step("yes")
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
@@ -918,7 +918,7 @@ def test_replace_use_kx_prohibit_no_followup_has_no_mutation() -> None:
 
     assert first["kind"] == "clarify"
     decision = engine.step("no")
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
@@ -932,7 +932,7 @@ def test_missing_source_replacement_does_not_block_following_directives() -> Non
     assert engine.state["policies"] == {"docker": "use", "kubectl": "use"}
 
     third = engine.step("yes")
-    assert third == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert third == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state["policies"] == {"docker": "use", "kubectl": "use"}
 
 
@@ -948,86 +948,86 @@ def test_missing_source_replacement_does_not_suspend_admin_commands() -> None:
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
     resolved = engine.step("yes")
-    assert resolved == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert resolved == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state["policies"] == {}
 
 
-def test_missing_source_replacement_negative_followup_is_passthrough() -> None:
+def test_missing_source_replacement_negative_followup_is_no_directive() -> None:
     engine = create_engine()
     engine.step("use kubectl instead of docker")
 
     decision = engine.step("no")
 
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state["policies"] == {"kubectl": "use"}
 
 
-def test_missing_source_replacement_affirmative_followup_tokens_are_passthrough() -> None:
+def test_missing_source_replacement_affirmative_followup_tokens_are_no_directive() -> None:
     engine = create_engine()
     engine.step("use kubectl instead of docker")
 
     decision = engine.step("  YES!!!  ")
-    assert decision["kind"] == "passthrough"
+    assert decision["kind"] == "no_directive"
     assert engine.state["policies"] == {"kubectl": "use"}
 
 
-def test_missing_source_replacement_affirmative_token_variants_are_passthrough() -> None:
+def test_missing_source_replacement_affirmative_token_variants_are_no_directive() -> None:
     for token in ["yes please", "Yep", "yeah", "ok", "  OKAY...  ", "sure!"]:
         engine = create_engine()
         engine.step("use kubectl instead of docker")
         decision = engine.step(token)
-        assert decision["kind"] == "passthrough"
+        assert decision["kind"] == "no_directive"
         assert engine.state["policies"] == {"kubectl": "use"}
 
 
-def test_missing_source_replacement_negative_tokens_are_passthrough() -> None:
+def test_missing_source_replacement_negative_tokens_are_no_directive() -> None:
     engine = create_engine()
     engine.step("use kubectl instead of docker")
     before = engine.state
 
     decision = engine.step("  NO!!!  ")
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_missing_source_replacement_no_thanks_is_passthrough() -> None:
+def test_missing_source_replacement_no_thanks_is_no_directive() -> None:
     engine = create_engine()
     engine.step("use kubectl instead of docker")
     before = engine.state
 
     decision = engine.step("no thanks.")
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_missing_source_replacement_negative_token_variants_are_passthrough() -> None:
+def test_missing_source_replacement_negative_token_variants_are_no_directive() -> None:
     for token in ["nope", "Nope??", " no ", "NO THANKS!"]:
         engine = create_engine()
         engine.step("use kubectl instead of docker")
         before = engine.state
         decision = engine.step(token)
-        assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+        assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
         assert engine.state == before
 
 
-def test_missing_source_replacement_unmatched_followup_is_passthrough() -> None:
+def test_missing_source_replacement_unmatched_followup_is_no_directive() -> None:
     engine = create_engine()
     engine.step("use kubectl instead of docker")
     before = engine.state
 
     second = engine.step("maybe")
-    assert second == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert second == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_missing_source_replacement_unmatched_followups_remain_passthrough() -> None:
+def test_missing_source_replacement_unmatched_followups_remain_no_directive() -> None:
     engine = create_engine()
     engine.step("use kubectl instead of docker")
     before = engine.state
 
-    assert engine.step("later") == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert engine.step("later") == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.step("still later") == {
-        "kind": "passthrough",
+        "kind": "no_directive",
         "state": None,
         "prompt_to_user": None,
     }
@@ -1044,7 +1044,7 @@ def test_prohibited_replacement_yes_cannot_override_conflicting_target_polarity(
     assert engine.state["policies"] == {"docker": "use", "kubectl": "prohibit"}
 
     second = engine.step("yes")
-    assert second["kind"] == "passthrough"
+    assert second["kind"] == "no_directive"
     assert engine.state["policies"] == {"docker": "use", "kubectl": "prohibit"}
 
 
@@ -1057,11 +1057,11 @@ def test_import_json_does_not_change_independent_yes_no_followup_behavior() -> N
     engine.import_json(json.dumps(imported))
 
     yes_decision = engine.step("yes")
-    assert yes_decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert yes_decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == imported
 
     no_decision = engine.step("no")
-    assert no_decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert no_decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
 
 
 def test_remove_policy_uses_normalized_item_matching() -> None:
@@ -1124,7 +1124,7 @@ def test_remove_policy_uses_normalized_item_matching() -> None:
         ),
     ],
 )
-def test_compound_directives_remain_passthrough_without_mutation(
+def test_compound_directives_remain_no_directive_without_mutation(
     user_input: str, initial_state: dict[str, object]
 ) -> None:
     engine = create_engine(state=initial_state)
@@ -1132,16 +1132,16 @@ def test_compound_directives_remain_passthrough_without_mutation(
 
     decision = engine.step(user_input)
 
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_quoted_non_directive_leading_input_remains_passthrough() -> None:
+def test_quoted_non_directive_leading_input_remains_no_directive() -> None:
     engine = create_engine()
 
     decision = engine.step('"use docker and prohibit peanuts"')
 
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
@@ -1277,10 +1277,10 @@ def test_all_canonical_directive_starts_remain_single_directive_when_valid(
 
     decision = engine.step(directive_start)
 
-    assert decision["kind"] != "passthrough"
+    assert decision["kind"] != "no_directive"
 
 
-def test_compound_passthrough_after_prior_missing_source_replacement_update() -> None:
+def test_compound_no_directive_after_prior_missing_source_replacement_update() -> None:
     engine = create_engine()
     first = engine.step("use kubectl instead of docker")
     assert first == {
@@ -1291,7 +1291,7 @@ def test_compound_passthrough_after_prior_missing_source_replacement_update() ->
 
     decision = engine.step("use docker and prohibit peanuts")
 
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
 

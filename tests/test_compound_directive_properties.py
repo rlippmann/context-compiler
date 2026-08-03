@@ -32,13 +32,13 @@ SEPARATOR_CHARS = " \t\n\r,.;:!?-/()[]"
 LETTER_CHARS = string.ascii_lowercase
 
 
-def _assert_compound_passthrough(user_input: str) -> None:
+def _assert_compound_no_directive(user_input: str) -> None:
     engine = create_engine()
     before = engine.state
 
     decision = engine.step(user_input)
 
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
@@ -48,7 +48,7 @@ def _assert_compound_passthrough(user_input: str) -> None:
     second=st.sampled_from(CANONICAL_SECOND_DIRECTIVES),
 )
 def test_compound_separator_robustness(separator: str, second: str) -> None:
-    _assert_compound_passthrough(f"use docker{separator}{second}")
+    _assert_compound_no_directive(f"use docker{separator}{second}")
 
 
 @settings(max_examples=50)
@@ -65,7 +65,7 @@ def test_compound_arbitrary_intervening_text(chunks: list[str], second: str) -> 
     lowered = intervening.lower()
     assume(all(token not in lowered for token in CANONICAL_STARTS))
 
-    _assert_compound_passthrough(f"use docker {intervening} {second}")
+    _assert_compound_no_directive(f"use docker {intervening} {second}")
 
 
 @settings(max_examples=50)
@@ -103,7 +103,7 @@ def test_leading_non_directive_text_disables_compound_detection(prefix: str, sec
     before = engine.state
     decision = engine.step(f"{prefix} use docker {second}")
 
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
@@ -124,7 +124,7 @@ def test_case_mutated_second_directive_does_not_trigger_compound_detection(
 
     decision = engine.step(f"use docker {second_start}")
 
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
@@ -142,7 +142,7 @@ def test_case_mutated_second_directive_does_not_trigger_compound_detection(
 def test_quotes_do_not_create_protected_region_after_first_directive(
     quote: str, payload: str, closing: str, second: str
 ) -> None:
-    _assert_compound_passthrough(f"use {quote}{payload}{closing} {second}")
+    _assert_compound_no_directive(f"use {quote}{payload}{closing} {second}")
 
 
 @settings(max_examples=20)
@@ -150,11 +150,11 @@ def test_quotes_do_not_create_protected_region_after_first_directive(
     quote=st.sampled_from(['"', "'"]),
     second=st.sampled_from(CANONICAL_SECOND_DIRECTIVES),
 )
-def test_fully_quoted_input_remains_passthrough(quote: str, second: str) -> None:
+def test_fully_quoted_input_remains_no_directive(quote: str, second: str) -> None:
     engine = create_engine()
     before = engine.state
 
     decision = engine.step(f"{quote}use docker {second}{quote}")
 
-    assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert engine.state == before

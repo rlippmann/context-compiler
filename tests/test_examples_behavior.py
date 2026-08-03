@@ -79,7 +79,7 @@ def test_example_04_tool_governance_blocks_and_allows_expected_tools(
     assert allowed_tools == ["kubectl"]
 
 
-def test_example_05_dispatches_passthrough_update_and_clarify_correctly(
+def test_example_05_dispatches_no_directive_update_and_clarify_correctly(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     module = _load_example_module("05_llm_integration_pattern.py")
@@ -100,12 +100,12 @@ def test_example_05_dispatches_passthrough_update_and_clarify_correctly(
     monkeypatch.setattr(module, "print_decision_summary", capture_decision_summary)
     monkeypatch.setattr(module, "fake_llm", capture_fake_llm)
 
-    module.handle_turn("hello there", engine)  # passthrough
+    module.handle_turn("hello there", engine)  # no_directive
     module.handle_turn("set premise concise replies", engine)  # update
     calls_before_clarify = len(llm_calls)
     module.handle_turn("set premise verbose replies", engine)  # clarify
 
-    assert decision_kinds == ["passthrough", "update", "clarify"]
+    assert decision_kinds == ["no_directive", "update", "clarify"]
     assert len(llm_calls) == calls_before_clarify
     assert llm_calls[0][0] is None
     assert llm_calls[0][1] == "hello there"

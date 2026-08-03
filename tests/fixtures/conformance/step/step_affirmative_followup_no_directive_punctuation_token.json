@@ -1,5 +1,5 @@
 {
-  "id": "step_affirmative_followup_passthrough_punctuation_token",
+  "id": "step_affirmative_followup_no_directive_punctuation_token",
   "kind": "step",
   "initial_state": {
     "premise": null,
@@ -12,7 +12,7 @@
   "input": " okay!!! ",
   "expected": {
     "decision": {
-      "kind": "passthrough",
+      "kind": "no_directive",
       "prompt_to_user": null,
       "state": null
     },

@@ -58,7 +58,7 @@ All authoritative mutations originate from canonical user directives passed to
 
 The host:
 
-- handles `passthrough` input outside core;
+- handles `no_directive` input outside core;
 - displays clarification prompts when core returns `clarify`;
 - calls the LLM only when the returned `Decision.kind` allows it;
 - may perform non-canonical drafting or repair before calling core.
@@ -67,14 +67,15 @@ The host:
 
 ```python
 class Decision(TypedDict):
-    kind: Literal["passthrough", "update", "clarify"]
+    kind: Literal["no_directive", "update", "clarify"]
     state: dict | None
     prompt_to_user: str | None
 ```
 
 Semantics:
 
-- `passthrough`: forward user input to the host/model path
+- `no_directive`: no canonical directive was recognized by core, no authoritative
+  state change was made, and the host decides what to do next
 - `update`: canonical directive parsed and semantic evaluation completed without
   a blocking conflict
 - `clarify`: canonical directive parsed, but semantic evaluation could not
@@ -117,7 +118,7 @@ Properties:
 
 ### 6.1 Lexical normalization before classification
 
-Before classifying raw input as passthrough, directive-shaped invalid input, or
+Before classifying raw input as no_directive, directive-shaped invalid input, or
 canonical directive, core must apply lexical normalization only for
 presentation-level differences.
 
@@ -167,13 +168,13 @@ In particular, lexical normalization must not:
 Every raw input must be classified into exactly one of these categories before
 semantic evaluation:
 
-1. `passthrough`
+1. `no_directive`
 2. directive-shaped invalid input
 3. canonical directive
 
-### 6.3 Passthrough
+### 6.3 No directive
 
-Input is `passthrough` when it does not begin with a canonical directive
+Input is `no_directive` when it does not begin with a canonical directive
 introducer recognized under Section 6.1 and cannot be classified as a
 directive-shaped attempt under Section 6.4.
 
@@ -390,7 +391,7 @@ is outside the canonical language.
 
 Examples:
 
-- passthrough: `"use docker and prohibit peanuts"`
+- no_directive: `"use docker and prohibit peanuts"`
 - directive-shaped invalid: `use "docker and prohibit peanuts"`
 - directive-shaped invalid: `set premise "use docker and prohibit peanuts"`
 
@@ -715,10 +716,10 @@ source material for later conformance fixtures.
 | `clear premise` | canonical directive | clear premise | may apply or no-op |
 | `reset policies` | canonical directive | reset policies | may apply or no-op |
 | `clear state` | canonical directive | clear state | may apply or no-op |
-| `hello there` | passthrough | none | not directive-shaped |
+| `hello there` | no_directive | none | not directive-shaped |
 | `Use docker` | canonical directive | use item | keyword case is normalized |
-| `"use docker"` | passthrough | none | quoted wrapper has no directive semantics |
-| `allow docker` | passthrough | none | alias is outside canonical grammar |
+| `"use docker"` | no_directive | none | quoted wrapper has no directive semantics |
+| `allow docker` | no_directive | none | alias is outside canonical grammar |
 | `use\tdocker` | canonical directive | use item | tab normalizes to canonical separator |
 | <code> use docker </code> | canonical directive | use item | boundary ASCII whitespace is trimmed |
 | `Use    Docker` | canonical directive | use item | keyword and separator presentation normalize; operand text remains `Docker` |
@@ -736,8 +737,8 @@ source material for later conformance fixtures.
 | `clear state then set premise project` | directive-shaped invalid input | none | compound attempt |
 | `use "docker and prohibit peanuts"` | directive-shaped invalid input | none | quotes do not protect embedded directive text |
 | `set premise "use docker and prohibit peanuts"` | directive-shaped invalid input | none | quotes do not protect embedded directive text |
-| `yes` with no pending continuation | passthrough | none | confirmation text has no standalone directive grammar meaning |
-| malformed replacement followed later by `yes` | directive-shaped invalid input, then passthrough | none | invalid syntax never creates confirmable pending state |
+| `yes` with no pending continuation | no_directive | none | confirmation text has no standalone directive grammar meaning |
+| malformed replacement followed later by `yes` | directive-shaped invalid input, then no_directive | none | invalid syntax never creates confirmable pending state |
 
 ## 14. Invariants
 

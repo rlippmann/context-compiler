@@ -9,7 +9,7 @@ from context_compiler import (
     get_clarify_prompt,
     get_decision_state,
     is_clarify,
-    is_passthrough,
+    is_no_directive,
     is_update,
 )
 
@@ -29,8 +29,9 @@ def handle_turn(engine_input: str, engine: Engine) -> None:
     print(f"User: {engine_input}")
     print_decision_summary(decision)
 
-    if is_passthrough(decision):
-        print("Host action: passthrough -> call fake_llm() without state")
+    if is_no_directive(decision):
+        print("Host action: no_directive -> core recognized no canonical directive")
+        print("Host choice in this example: call fake_llm() without state")
         fake_llm(None, engine_input)
     elif is_update(decision):
         print("Host action: update -> call fake_llm() with compiled state")

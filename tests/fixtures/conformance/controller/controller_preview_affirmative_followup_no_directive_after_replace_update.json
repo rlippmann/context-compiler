@@ -1,5 +1,5 @@
 {
-  "id": "controller_preview_affirmative_followup_passthrough_after_replace_update",
+  "id": "controller_preview_affirmative_followup_no_directive_after_replace_update",
   "kind": "controller",
   "initial_state": {
     "premise": null,
@@ -18,7 +18,7 @@
       "output_version": 1,
       "mode": "preview",
       "decision": {
-        "kind": "passthrough",
+        "kind": "no_directive",
         "state": null,
         "prompt_to_user": null
       },

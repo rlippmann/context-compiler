@@ -1,7 +1,7 @@
 from demos.common import compact_user_turns
 
 
-def test_compaction_drops_only_update_lines_and_keeps_passthrough_lines() -> None:
+def test_compaction_drops_only_update_lines_and_keeps_no_directive_lines() -> None:
     compacted, state, prompt = compact_user_turns(
         ["hello", "set premise concise", "world", "use docker"]
     )

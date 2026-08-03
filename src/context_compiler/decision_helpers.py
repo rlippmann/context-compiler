@@ -1,6 +1,6 @@
 """Public helpers for safer decision inspection in host-side code."""
 
-from .const import DECISION_CLARIFY, DECISION_PASSTHROUGH, DECISION_UPDATE
+from .const import DECISION_CLARIFY, DECISION_NO_DIRECTIVE, DECISION_UPDATE
 from .engine import Decision, State
 
 
@@ -12,8 +12,8 @@ def is_clarify(decision: Decision) -> bool:
     return decision["kind"] == DECISION_CLARIFY
 
 
-def is_passthrough(decision: Decision) -> bool:
-    return decision["kind"] == DECISION_PASSTHROUGH
+def is_no_directive(decision: Decision) -> bool:
+    return decision["kind"] == DECISION_NO_DIRECTIVE
 
 
 def get_clarify_prompt(decision: Decision) -> str | None:

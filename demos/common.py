@@ -90,7 +90,7 @@ def print_decision(title: str, decision: Decision, state: State) -> None:
             _print_multiline_prompt("clarify prompt", prompt)
         _print_state_summary(state)
     else:
-        print("result: passthrough")
+        print("result: no_directive")
         _print_state_summary(state)
     print()
 
@@ -253,7 +253,7 @@ def compact_user_turns(
 
     Rules:
     - drop update lines
-    - keep passthrough lines
+    - keep no_directive lines
     - keep first clarify line and stop
     - return prompt_to_user for clarify, else None
     - returned state is engine state at stop point

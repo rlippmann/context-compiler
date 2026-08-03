@@ -11,7 +11,7 @@
   "input": "remove policy docker and prohibit peanuts",
   "expected": {
     "decision": {
-      "kind": "passthrough",
+      "kind": "no_directive",
       "prompt_to_user": null,
       "state": null
     },

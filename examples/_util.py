@@ -53,4 +53,4 @@ def print_decision_summary(decision: Any) -> None:
                 print(f"- {line}")
         return
 
-    print("result: passthrough")
+    print("result: no_directive")

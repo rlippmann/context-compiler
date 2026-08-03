@@ -1,26 +1,21 @@
 {
-  "id": "step_affirmative_followup_passthrough_normalized_token",
+  "id": "step_quoted_leading_directive_text_no_directive",
   "kind": "step",
   "initial_state": {
     "premise": null,
     "policies": {},
     "version": 2
   },
-  "prelude": [
-    "use kubectl instead of docker"
-  ],
-  "input": "  YES!!!  ",
+  "input": "\"use docker and prohibit peanuts\"",
   "expected": {
     "decision": {
-      "kind": "passthrough",
+      "kind": "no_directive",
       "prompt_to_user": null,
       "state": null
     },
     "state": {
       "premise": null,
-      "policies": {
-        "kubectl": "use"
-      },
+      "policies": {},
       "version": 2
     }
   }
