@@ -24,11 +24,13 @@ def main() -> None:
     print_state_summary(state_before, "state before preview")
 
     print("\nPreview: prohibit peanuts")
+    # Preview uses the same transition semantics as apply, but must not mutate live state.
     preview_result = preview(engine, "prohibit peanuts")
     print("would_mutate:", preview_would_mutate(preview_result))
     print_decision_summary(get_preview_decision(preview_result))
 
     state_after_preview = engine.state
+    # Compare live state before and after preview to show the dry-run contract directly.
     diff_after_preview = state_diff(state_before, state_after_preview)
     print("state changed after preview:", diff_has_changes(diff_after_preview))
 

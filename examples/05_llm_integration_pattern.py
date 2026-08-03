@@ -28,10 +28,12 @@ def handle_turn(engine_input: str, engine: Engine) -> None:
     print_decision_summary(decision)
 
     if is_no_directive(decision):
+        # Ordinary input stays host-managed; this example forwards it to the model unchanged.
         print("Host action: no_directive -> core recognized no canonical directive")
         print("Host choice in this example: call fake_llm() without state")
         fake_llm(None, engine_input)
     elif is_update(decision):
+        # Successful directives produce authoritative state that host code can pass downstream.
         print("Host action: update -> call fake_llm() with compiled state")
         fake_llm(decision["state"], engine_input)
     elif is_error(decision):

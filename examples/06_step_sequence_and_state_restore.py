@@ -19,6 +19,7 @@ def main() -> None:
         print_decision_summary(engine.step(turn))
     print()
 
+    # Hosts can persist authoritative state directly instead of replaying prior turns.
     state_json = engine.export_json()
     restored = create_engine()
     restored.import_json(state_json)
