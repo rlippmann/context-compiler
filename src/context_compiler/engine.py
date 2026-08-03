@@ -68,6 +68,12 @@ class Action:
     old_item: str | None = None
 
 
+@dataclass(frozen=True)
+class _EvaluatedTransition:
+    decision: Decision
+    next_state: State
+
+
 _NO_DIRECTIVE: NoDirectiveDecision = {"kind": DECISION_NO_DIRECTIVE}
 
 
@@ -99,20 +105,27 @@ class Engine:
         self._replace_state(_load_state_json(payload))
 
     def step(self, user_input: str) -> Decision:
+        evaluated = self._evaluate_transition(self._state, user_input)
+        self._replace_state(evaluated.next_state)
+        return evaluated.decision
+
+    def _evaluate_transition(self, state: State, user_input: str) -> _EvaluatedTransition:
         action = _parse_directive(user_input)
         if action is None:
-            return _NO_DIRECTIVE.copy()
+            return _EvaluatedTransition(decision=_NO_DIRECTIVE.copy(), next_state=deepcopy(state))
 
-        error_decision = self._pre_mutation_error(action)
+        error_decision = self._pre_mutation_error(action, state=state)
         if error_decision is not None:
-            return error_decision
+            return _EvaluatedTransition(decision=error_decision, next_state=deepcopy(state))
 
-        return self._apply_action(action)
+        next_state = self._apply_action(action, state=state)
+        return _EvaluatedTransition(decision=_update_decision(next_state), next_state=next_state)
 
     def _replace_state(self, state: State) -> None:
         self._state = state
 
-    def _pre_mutation_error(self, action: Action) -> Decision | None:
+    def _pre_mutation_error(self, action: Action, *, state: State | None = None) -> Decision | None:
+        candidate_state = self._state if state is None else state
         # Single error path: all error outcomes are detected before any mutation.
         if action.kind in {"set_premise", "change_premise"}:
             assert action.value is not None
@@ -149,16 +162,16 @@ class Engine:
                     "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
                 )
 
-        if action.kind == "set_premise" and self._state[STATE_PREMISE] is not None:
+        if action.kind == "set_premise" and candidate_state[STATE_PREMISE] is not None:
             return _error("Premise already set.\nUse 'change premise to <value>' to modify it.")
 
-        if action.kind == "change_premise" and self._state[STATE_PREMISE] is None:
+        if action.kind == "change_premise" and candidate_state[STATE_PREMISE] is None:
             return _error("No premise is set.\nUse 'set premise <value>' to define one.")
 
         if action.kind == "use_item":
             assert action.item is not None
             item_key = _normalize_item(action.item)
-            if self._state[STATE_POLICIES].get(item_key) == POLICY_PROHIBIT:
+            if candidate_state[STATE_POLICIES].get(item_key) == POLICY_PROHIBIT:
                 return _error(
                     f'"{item_key}" is currently prohibited.\nRemove or replace it before using it.'
                 )
@@ -166,7 +179,7 @@ class Engine:
         if action.kind == "prohibit_item":
             assert action.item is not None
             item_key = _normalize_item(action.item)
-            if self._state[STATE_POLICIES].get(item_key) == POLICY_USE:
+            if candidate_state[STATE_POLICIES].get(item_key) == POLICY_USE:
                 return _error(
                     f'"{item_key}" is currently in use.\n'
                     "Remove or replace it before prohibiting it."
@@ -180,8 +193,8 @@ class Engine:
             if new_key == old_key:
                 return None
 
-            old_state = self._state[STATE_POLICIES].get(old_key)
-            new_state = self._state[STATE_POLICIES].get(new_key)
+            old_state = candidate_state[STATE_POLICIES].get(old_key)
+            new_state = candidate_state[STATE_POLICIES].get(new_key)
             if old_state == POLICY_PROHIBIT:
                 return _error(
                     f'"{action.old_item}" is currently prohibited.\n'
@@ -200,65 +213,65 @@ class Engine:
 
         return None
 
-    def _apply_action(self, action: Action) -> Decision:
+    def _apply_action(self, action: Action, *, state: State) -> State:
+        next_state = deepcopy(state)
         kind = action.kind
 
         if kind == "set_premise":
             assert action.value is not None
-            self._state[STATE_PREMISE] = _sanitize_premise_value(action.value)
-            return _update_decision(self._state)
+            next_state[STATE_PREMISE] = _sanitize_premise_value(action.value)
+            return next_state
 
         if kind == "change_premise":
             assert action.value is not None
-            self._state[STATE_PREMISE] = _sanitize_premise_value(action.value)
-            return _update_decision(self._state)
+            next_state[STATE_PREMISE] = _sanitize_premise_value(action.value)
+            return next_state
 
         if kind == "use_item":
             assert action.item is not None
             item_key = _normalize_item(action.item)
             # Idempotent directives are updates even if state does not change.
-            self._state[STATE_POLICIES][item_key] = POLICY_USE
-            return _update_decision(self._state)
+            next_state[STATE_POLICIES][item_key] = POLICY_USE
+            return next_state
 
         if kind == "prohibit_item":
             assert action.item is not None
             item_key = _normalize_item(action.item)
             # Idempotent directives are updates even if state does not change.
-            self._state[STATE_POLICIES][item_key] = POLICY_PROHIBIT
-            return _update_decision(self._state)
+            next_state[STATE_POLICIES][item_key] = POLICY_PROHIBIT
+            return next_state
 
         if kind == "replace_use":
             assert action.new_item is not None
             assert action.old_item is not None
-            self._apply_replacement_explicit(action.new_item, action.old_item)
-            return _update_decision(self._state)
+            self._apply_replacement_explicit(next_state, action.new_item, action.old_item)
+            return next_state
 
         if kind == "remove_policy_item":
             assert action.item is not None
             item_key = _normalize_item(action.item)
-            self._state[STATE_POLICIES].pop(item_key, None)
-            return _update_decision(self._state)
+            next_state[STATE_POLICIES].pop(item_key, None)
+            return next_state
 
         if kind == "clear_premise":
-            self._state[STATE_PREMISE] = None
-            return _update_decision(self._state)
+            next_state[STATE_PREMISE] = None
+            return next_state
 
         if kind == "reset_policies":
-            self._state[STATE_POLICIES] = {}
-            return _update_decision(self._state)
+            next_state[STATE_POLICIES] = {}
+            return next_state
 
-        self._state = _initial_state()
-        return _update_decision(self._state)
+        return _initial_state()
 
-    def _apply_replacement_explicit(self, new_item: str, old_item: str) -> None:
+    def _apply_replacement_explicit(self, state: State, new_item: str, old_item: str) -> None:
         new_key = _normalize_item(new_item)
         old_key = _normalize_item(old_item)
 
         if new_key == old_key:
             return
 
-        self._state[STATE_POLICIES].pop(old_key, None)
-        self._state[STATE_POLICIES][new_key] = POLICY_USE
+        state[STATE_POLICIES].pop(old_key, None)
+        state[STATE_POLICIES][new_key] = POLICY_USE
 
 
 def _parse_directive(user_input: str) -> Action | None:
