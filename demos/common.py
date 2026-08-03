@@ -5,7 +5,7 @@ import re
 from typing import Literal, NotRequired, TypedDict
 
 from context_compiler import (
-    DECISION_CLARIFY,
+    DECISION_ERROR,
     DECISION_UPDATE,
     Decision,
     State,
@@ -83,11 +83,11 @@ def print_decision(title: str, decision: Decision, state: State) -> None:
     if decision["kind"] == DECISION_UPDATE:
         print("result: updated")
         _print_state_summary(state)
-    elif decision["kind"] == DECISION_CLARIFY:
-        print("result: clarify")
+    elif decision["kind"] == DECISION_ERROR:
+        print("result: error")
         prompt = decision["prompt_to_user"]
         if prompt:
-            _print_multiline_prompt("clarify prompt", prompt)
+            _print_multiline_prompt("error prompt", prompt)
         _print_state_summary(state)
     else:
         print("result: no_directive")
@@ -254,8 +254,8 @@ def compact_user_turns(
     Rules:
     - drop update lines
     - keep no_directive lines
-    - keep first clarify line and stop
-    - return prompt_to_user for clarify, else None
+    - keep first error line and stop
+    - return prompt_to_user for error, else None
     - returned state is engine state at stop point
     """
 
@@ -268,7 +268,7 @@ def compact_user_turns(
         if decision["kind"] == DECISION_UPDATE:
             continue
         compacted_turns.append(turn)
-        if decision["kind"] == DECISION_CLARIFY:
+        if decision["kind"] == DECISION_ERROR:
             prompt_to_user = decision["prompt_to_user"]
             break
 

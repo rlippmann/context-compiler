@@ -19,7 +19,7 @@
       "output_version": 1,
       "mode": "preview",
       "decision": {
-        "kind": "clarify",
+        "kind": "error",
         "state": null,
         "prompt_to_user": "\"docker\" is currently prohibited.\nSubmit explicit directive(s) to remove it or use a different item."
       },

@@ -1,5 +1,5 @@
 {
-  "id": "controller_preview_clarify_reports_non_mutating_and_restores_live_state",
+  "id": "controller_preview_error_reports_non_mutating_and_restores_live_state",
   "kind": "controller",
   "initial_state": {
     "premise": null,

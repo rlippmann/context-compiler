@@ -38,10 +38,10 @@ Shows core authority-layer state being used in later turns.
 Demonstrates premise as authoritative context for future turns.  
 Shows `set premise ...` followed by `change premise to ...`.
 
-## 03_ambiguity_with_clarification.py
+## 03_ambiguity_with_error.py
 
-Shows `clarify` behavior before state changes.  
-Shows how the app handles `clarify` and skips the LLM call.
+Shows `error` behavior before state changes.  
+Shows how the app handles `error` and skips the LLM call.
 
 ## 04_tool_governance_denylist.py
 
@@ -51,7 +51,7 @@ Shows how apps can prevent denied tools from being selected without changing com
 ## 05_llm_integration_pattern.py
 
 Shows end-to-end app control flow around compiler outcomes.  
-Shows what to do on `clarify`, when to call the model, and how host code can
+Shows what to do on `error`, when to call the model, and how host code can
 use saved state downstream.
 Includes a single-item policy removal step via `remove policy <item>`.
 

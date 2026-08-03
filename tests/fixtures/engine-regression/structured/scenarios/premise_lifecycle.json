@@ -1,5 +1,5 @@
 {
-  "description": "Premise lifecycle updates and clarify gates",
+  "description": "Premise lifecycle updates and error gates",
   "id": "premise_lifecycle",
   "initial_state": null,
   "inputs": [

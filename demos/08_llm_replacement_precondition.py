@@ -35,7 +35,7 @@ def main() -> None:
         [
             (
                 "Analyze this input as state transition logic: 'use podman instead of docker'. "
-                "First line must be ACTION:<clarify|proceed>."
+                "First line must be ACTION:<error|proceed>."
             )
         ],
         baseline_system_prompt=(
@@ -50,7 +50,7 @@ def main() -> None:
         [
             (
                 "Analyze this input as state transition logic: 'use podman instead of docker'. "
-                "First line must be ACTION:<clarify|proceed>."
+                "First line must be ACTION:<error|proceed>."
             )
         ],
         premise=None,
@@ -77,7 +77,7 @@ def main() -> None:
         print_model_output("Compiler-mediated + compact", compact_output)
     else:
         print_messages("compiler-mediated + compact", [])
-        compact_output = "[no call] unexpected clarify was produced during compaction"
+        compact_output = "[no call] unexpected error was produced during compaction"
         print_model_output("Compiler-mediated + compact", compact_output)
 
     state_applied = not _is_initial_authoritative_state(engine.state)

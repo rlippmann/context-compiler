@@ -20,7 +20,7 @@ from demos.llm_client import (
 )
 
 DEMO_FILES: dict[str, str] = {
-    "1": "01_llm_contradiction_clarify.py",
+    "1": "01_llm_contradiction_error.py",
     "2": "02_llm_constraint_guardrail.py",
     "3": "03_llm_premise_guardrail.py",
     "4": "04_llm_tool_denylist_guardrail.py",

@@ -1,6 +1,6 @@
 {
   "description": "Replacement from missing old item applies as deterministic use update",
-  "id": "replacement_clarify",
+  "id": "replacement_error",
   "initial_state": null,
   "inputs": [
     "use podman instead of docker"

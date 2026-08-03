@@ -1,0 +1,9 @@
+{
+  "description": "Policy contradiction yields error with no mutation",
+  "id": "contradiction_error",
+  "initial_state": null,
+  "inputs": [
+    "use docker",
+    "prohibit docker"
+  ]
+}

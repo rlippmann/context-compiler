@@ -1,6 +1,6 @@
 {
-  "description": "Replacement to a prohibited new item stays an ordinary clarify",
-  "id": "prohibited_replacement_new_clarify",
+  "description": "Replacement to a prohibited new item stays an ordinary error",
+  "id": "prohibited_replacement_new_error",
   "initial_state": null,
   "inputs": [
     "use docker",

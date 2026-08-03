@@ -139,7 +139,7 @@ def main() -> None:
     compacted_inputs, compacted_state, compacted_prompt = compact_user_turns(USER_INPUTS)
     if compacted_prompt is not None:
         print_messages("compiler-mediated + compact", [])
-        compact_output = f"[no call] clarification required: {compacted_prompt}"
+        compact_output = f"[no call] error required: {compacted_prompt}"
         print_model_output("Compiler-mediated + compact", compact_output)
     else:
         compact_messages = build_compact_compiler_messages(compacted_state, compacted_inputs)

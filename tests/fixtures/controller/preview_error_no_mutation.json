@@ -1,5 +1,5 @@
 {
-  "id": "controller_preview_clarify_no_mutation",
+  "id": "controller_preview_error_no_mutation",
   "kind": "controller_preview",
   "input": "use kubectl instead of docker",
   "expected": {

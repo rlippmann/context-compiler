@@ -168,10 +168,10 @@ def test_main_with_json_flag_runs_repl_with_json_mode(monkeypatch: pytest.Monkey
     assert called["json_mode"] is True
 
 
-def test_render_decision_lines_uses_error_prefix_for_all_clarify_prompts() -> None:
+def test_render_decision_lines_uses_error_prefix_for_all_error_prompts() -> None:
     lines = repl_module._render_decision_lines(
         {
-            "kind": "clarify",
+            "kind": "error",
             "state": None,
             "prompt_to_user": "Proceed?",
         }
@@ -440,7 +440,7 @@ def test_repl_update_flow() -> None:
     assert lines == ["updated", "premise: concise", "policies: (none)"]
 
 
-def test_repl_clarify_flow() -> None:
+def test_repl_error_flow() -> None:
     lines = _run_non_interactive_lines("prohibit docker\nuse kubectl instead of docker\nquit\n")
     assert _contains_subsequence(
         lines, ["updated", "premise: (none)", "policies:", "- prohibit docker"]
@@ -485,7 +485,7 @@ def test_repl_interactive_help_commands() -> None:
         "  clear state",
         "Bare input behavior remains unchanged.",
         "preview is a deterministic dry-run and never mutates live state.",
-        "clarify results are immediate messages and do not reserve later input.",
+        "error results are immediate messages and do not reserve later input.",
     ]
     assert lines[0] == "Context Compiler REPL (0.5). Type help for commands."
     assert lines[1] == "Non-directive input is no_directive."
@@ -543,12 +543,12 @@ def test_repl_non_interactive_json_state_command() -> None:
     assert state["policies"] == {}
 
 
-def test_repl_non_interactive_json_clarify_and_no_directive() -> None:
+def test_repl_non_interactive_json_error_and_no_directive() -> None:
     rows = _run_non_interactive_json_lines(
         "prohibit docker\nuse kubectl instead of docker\nyes\nhello\nquit\n"
     )
     assert rows[1]["mode"] == "step"
-    assert rows[1]["decision"]["kind"] == "clarify"
+    assert rows[1]["decision"]["kind"] == "error"
     assert rows[3]["mode"] == "step"
     assert rows[3]["decision"]["kind"] == "no_directive"
 
@@ -788,7 +788,7 @@ def test_repl_interactive_rejects_multi_command_chunk() -> None:
     assert "updated" not in lines
 
 
-def test_repl_non_interactive_rejects_multi_command_chunk_with_human_readable_clarify() -> None:
+def test_repl_non_interactive_rejects_multi_command_chunk_with_human_readable_error() -> None:
     out = StringIO()
     run_repl(
         _ChunkedInput(["set premise concise\nprohibit peanuts\n", "quit\n"]),  # type: ignore[arg-type]
@@ -862,7 +862,7 @@ def test_repl_non_interactive_remove_policy_flow() -> None:
     assert lines.count("policies: (none)") == 2
 
 
-def test_repl_contradiction_clarify_does_not_reserve_followup_tokens() -> None:
+def test_repl_contradiction_error_does_not_reserve_followup_tokens() -> None:
     lines = _run_non_interactive_lines("use docker\nprohibit docker\nno\nquit\n")
     assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use docker"])
     assert _contains_subsequence(
@@ -933,7 +933,7 @@ def test_repl_replacement_invalid_followups_are_no_directive() -> None:
     assert lines[-2:] == ["no_directive", "no_directive"]
 
 
-def test_repl_interactive_prints_error_for_clarify_output() -> None:
+def test_repl_interactive_prints_error_for_error_output() -> None:
     error_out = _TTYStringIO()
     run_repl(_TTYStringIO("use docker\nprohibit docker\nquit\n"), error_out)
     error_lines = error_out.getvalue().splitlines()
@@ -1026,7 +1026,7 @@ def test_repl_interactive_admin_idempotency_outputs_updated_with_unchanged_state
     assert lines.count("policies: (none)") == 3
 
 
-def test_repl_interactive_clarify_output_alignment_for_actual_behaviors() -> None:
+def test_repl_interactive_error_output_alignment_for_actual_behaviors() -> None:
     lines = _run_interactive_lines(
         "set premise concise\n"
         "set premise verbose\n"

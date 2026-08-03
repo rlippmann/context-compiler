@@ -6,7 +6,7 @@
 
 Context Compiler is a deterministic conversational state authority for LLM applications.
 It handles canonical directive execution, semantic validation, deterministic
-clarify decisions, runtime semantic continuation boundaries, and structured authoritative state for
+error decisions, runtime semantic continuation boundaries, and structured authoritative state for
 the host.
 
 ## What Context Compiler provides
@@ -14,7 +14,7 @@ the host.
 Context Compiler gives hosts fixed state rules:
 
 - handle canonical explicit state changes with deterministic rules
-- clarification instead of silent overwrite for blocked/ambiguous changes
+- error instead of silent overwrite for blocked/ambiguous changes
 - preserve supported pending continuation when explicit confirmation is required
 - export and import authoritative state for host-managed persistence
 - produce structured authoritative state for downstream host decisions
@@ -93,7 +93,7 @@ use podman instead of docker
 - Without explicit state transition rules: behavior depends on host/model handling
 - Context Compiler: applies the deterministic resulting transition when
   `docker` is absent and `use podman` is otherwise valid; other semantic
-  conflicts may still clarify
+  conflicts may still error
 
 ### Lifecycle enforcement
 
@@ -103,7 +103,7 @@ change premise to formal tone
 ```
 
 - Without explicit transition checks: behavior depends on host/model handling
-- Context Compiler: asks for clarification and keeps saved state unchanged
+- Context Compiler: asks for error and keeps saved state unchanged
 
 ---
 
@@ -120,7 +120,7 @@ Decision
      │
      ▼
 Host Application
- ├─ clarify → ask user
+ ├─ error → ask user
  ├─ no_directive → no canonical directive recognized; host decides what to do next
  └─ update → authoritative state mutated; host may use compiled state downstream
 ```
@@ -137,8 +137,8 @@ Use Context Compiler in your host application first:
 ```python
 from context_compiler import (
     create_engine,
-    get_clarify_prompt,
-    is_clarify,
+    get_error_prompt,
+    is_error,
     is_update,
 )
 
@@ -147,8 +147,8 @@ engine = create_engine()
 user_input = "set premise current project uses uv"
 decision = engine.step(user_input)
 
-if is_clarify(decision):
-    show_to_user(get_clarify_prompt(decision))
+if is_error(decision):
+    show_to_user(get_error_prompt(decision))
 elif is_update(decision):
     messages = build_messages(engine.state, user_input)
     render(call_llm(messages))
@@ -248,7 +248,7 @@ Each user message produces a `Decision`.
 
 ```python
 class Decision(TypedDict):
-    kind: Literal["no_directive", "update", "clarify"]
+    kind: Literal["no_directive", "update", "error"]
     state: dict | None
     prompt_to_user: str | None
 ```
@@ -259,10 +259,10 @@ Meaning:
 | --- | --- |
 | no_directive | no canonical directive recognized; no authoritative state change; host decides what to do next |
 | update | authoritative state mutated; host may use updated state downstream |
-| clarify | show `prompt_to_user` and do not continue normal downstream processing yet |
+| error | show `prompt_to_user` and do not continue normal downstream processing yet |
 
-For normal app code, prefer the exported decision helpers (`is_clarify`,
-`is_update`, `is_no_directive`, `get_clarify_prompt`, `get_decision_state`)
+For normal app code, prefer the exported decision helpers (`is_error`,
+`is_update`, `is_no_directive`, `get_error_prompt`, `get_decision_state`)
 instead of direct key traversal.
 
 See [docs/api-reference.md](docs/api-reference.md) for the full public API
@@ -273,8 +273,8 @@ Common API entry points:
 - engine lifecycle: `create_engine(...)`, `engine.step(...)`, `engine.state`,
   `engine.premise`, `engine.policies`, `engine.export_json(...)`,
   `engine.import_json(...)`
-- decision helpers: `is_clarify(...)`, `is_update(...)`, `is_no_directive(...)`,
-  `get_clarify_prompt(...)`, `get_decision_state(...)`
+- decision helpers: `is_error(...)`, `is_update(...)`, `is_no_directive(...)`,
+  `get_error_prompt(...)`, `get_decision_state(...)`
 - state transport: `engine.export_json(...)`, `engine.import_json(...)`
 - controller API: `step(...)`
 - audit APIs: `preview(...)`, `state_diff(...)`
@@ -411,14 +411,14 @@ User: clear state
 
 Grammar invariant: one input may contain at most one canonical directive.
 Directive-shaped invalid input is outside the canonical language, and
-`clarify` is reserved for canonical directives that later fail semantic
+`error` is reserved for canonical directives that later fail semantic
 evaluation against authoritative state.
 
 Pending continuation is a separate runtime layer. It may exist only after a
-canonical directive reaches a supported semantic `clarify` case. It never
+canonical directive reaches a supported semantic `error` case. It never
 repairs malformed syntax or reinterprets non-canonical input as a directive.
 An absent source item in a canonical replacement directive is not, by itself,
-such a `clarify` case.
+such a `error` case.
 
 Examples:
 
@@ -466,7 +466,7 @@ boundary, see [DirectiveGrammarSpec.md](docs/DirectiveGrammarSpec.md).
 **Isn't this just prompt reinjection?**
 No. Prompt construction is one downstream use of authoritative state.
 Context Compiler is the authority layer that decides when state changes are
-allowed, when clarification is required, and how continuation state is
+allowed, when error is required, and how continuation state is
 restored. For runnable application-layer examples, see
 [`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations).
 
@@ -489,7 +489,7 @@ User: prohibit python_script
 
 Without an authority layer, the application must invent conflict-resolution and
 continuation rules itself. Context Compiler applies deterministic
-state-transition rules and can return clarification instead of silently
+state-transition rules and can return error instead of silently
 overwriting state.
 
 ---
@@ -501,7 +501,7 @@ overwriting state.
 - State changes only through explicit user directives or confirmation.
 - Identical input sequences produce identical compiler state.
 - Model responses never modify compiler state.
-- Ambiguous directives trigger clarification instead of changing state.
+- Ambiguous directives trigger error instead of changing state.
 - Syntax errors never create pending continuation.
 
 Behavioral tests and Hypothesis-based property tests verify these invariants.

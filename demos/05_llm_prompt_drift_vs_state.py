@@ -254,7 +254,7 @@ def _run_demo(turns: int = _DEFAULT_TURNS) -> None:
     compacted_turns, compacted_state, compacted_prompt = compact_user_turns(user_inputs)
     if compacted_prompt is not None:
         print_messages("compiler-mediated + compact", [])
-        compact_output = f"[no call] clarification required: {compacted_prompt}"
+        compact_output = f"[no call] error required: {compacted_prompt}"
         print_model_output("Compiler-mediated + compact", compact_output)
     else:
         premise_value = compacted_state["premise"]

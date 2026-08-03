@@ -68,38 +68,38 @@ def test_parse_directive_returns_none_for_invalid_syntax_and_no_directive_inputs
     assert _parse_directive("hello there") is None
 
 
-def test_pre_mutation_clarify_empty_operand_branches_remain_stable() -> None:
+def test_pre_mutation_error_empty_operand_branches_remain_stable() -> None:
     engine = create_engine()
 
-    assert engine._pre_mutation_clarify(Action(kind="set_premise", value="")) == {
-        "kind": "clarify",
+    assert engine._pre_mutation_error(Action(kind="set_premise", value="")) == {
+        "kind": "error",
         "state": None,
         "prompt_to_user": (
             "Premise value cannot be empty.\nUse 'set premise <value>' with a non-empty value."
         ),
     }
-    assert engine._pre_mutation_clarify(Action(kind="change_premise", value="")) == {
-        "kind": "clarify",
+    assert engine._pre_mutation_error(Action(kind="change_premise", value="")) == {
+        "kind": "error",
         "state": None,
         "prompt_to_user": (
             "Premise value cannot be empty.\n"
             "Use 'change premise to <value>' with a non-empty value."
         ),
     }
-    assert engine._pre_mutation_clarify(Action(kind="remove_policy_item", item="")) == {
-        "kind": "clarify",
+    assert engine._pre_mutation_error(Action(kind="remove_policy_item", item="")) == {
+        "kind": "error",
         "state": None,
         "prompt_to_user": (
             "Policy item cannot be empty.\nUse 'remove policy <item>' with a non-empty value."
         ),
     }
-    assert engine._pre_mutation_clarify(Action(kind="use_item", item="")) == {
-        "kind": "clarify",
+    assert engine._pre_mutation_error(Action(kind="use_item", item="")) == {
+        "kind": "error",
         "state": None,
         "prompt_to_user": "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value.",
     }
-    assert engine._pre_mutation_clarify(Action(kind="prohibit_item", item="")) == {
-        "kind": "clarify",
+    assert engine._pre_mutation_error(Action(kind="prohibit_item", item="")) == {
+        "kind": "error",
         "state": None,
         "prompt_to_user": (
             "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
@@ -306,7 +306,7 @@ def test_replace_use_clarifies_when_old_policy_is_not_use_in_invalid_internal_st
     decision = engine.step("use kubectl instead of docker")
 
     assert decision == {
-        "kind": "clarify",
+        "kind": "error",
         "state": None,
         "prompt_to_user": (
             "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
@@ -421,7 +421,7 @@ def test_lexical_normalization_accepts_canonical_directives() -> None:
     assert engine.step("clear state\t")["kind"] == DecisionKind.UPDATE
     assert engine.step("Use docker")["kind"] == DecisionKind.UPDATE
     assert engine.step("use\tdocker")["kind"] == DecisionKind.UPDATE
-    assert engine.step(" prohibit docker")["kind"] == DecisionKind.CLARIFY
+    assert engine.step(" prohibit docker")["kind"] == DecisionKind.ERROR
 
 
 def test_clear_premise_is_idempotent_update_when_already_null() -> None:
@@ -452,7 +452,7 @@ def test_set_premise_lifecycle_rules() -> None:
     before = engine.state
     d2 = engine.step("set premise new")
     assert d2 == {
-        "kind": DecisionKind.CLARIFY,
+        "kind": DecisionKind.ERROR,
         "state": None,
         "prompt_to_user": ("Premise already set.\nUse 'change premise to <value>' to modify it."),
     }
@@ -505,7 +505,7 @@ def test_change_premise_requires_existing_premise() -> None:
 
     d1 = engine.step("change premise to concise")
     assert d1 == {
-        "kind": "clarify",
+        "kind": "error",
         "state": None,
         "prompt_to_user": "No premise is set.\nUse 'set premise <value>' to define one.",
     }
@@ -613,7 +613,7 @@ def test_policy_directives_and_idempotent_update() -> None:
     assert engine.state["policies"] == {"docker": "use"}
 
     d3 = engine.step("prohibit docker")
-    assert d3["kind"] == "clarify"
+    assert d3["kind"] == "error"
     assert d3["prompt_to_user"] == (
         '"docker" is currently in use.\nRemove or replace it before prohibiting it.'
     )
@@ -626,7 +626,7 @@ def test_policy_directives_and_idempotent_update() -> None:
     assert engine2.state["policies"] == {"docker": "prohibit"}
 
     d5 = engine2.step("use docker")
-    assert d5["kind"] == "clarify"
+    assert d5["kind"] == "error"
     assert d5["prompt_to_user"] == (
         '"docker" is currently prohibited.\nRemove or replace it before using it.'
     )
@@ -815,7 +815,7 @@ def test_replace_use_missing_source_still_reports_target_prohibit_when_new_item_
 
     decision = engine.step("use kubectl instead of docker")
     assert decision == {
-        "kind": "clarify",
+        "kind": "error",
         "state": None,
         "prompt_to_user": (
             '"kubectl" is currently prohibited.\n'
@@ -860,7 +860,7 @@ def test_replace_use_missing_source_with_empty_probe_uses_invalid_prompt() -> No
     }
 
 
-def test_replace_use_ky_prohibit_returns_clarify_without_mutation() -> None:
+def test_replace_use_ky_prohibit_returns_error_without_mutation() -> None:
     engine = create_engine()
     engine.step("prohibit docker")
     engine.step("use pytest")
@@ -871,7 +871,7 @@ def test_replace_use_ky_prohibit_returns_clarify_without_mutation() -> None:
         "Submit explicit directive(s) to remove it or use a different item."
     )
     assert first == {
-        "kind": "clarify",
+        "kind": "error",
         "state": None,
         "prompt_to_user": expected,
     }
@@ -885,13 +885,13 @@ def test_replace_use_ky_prohibit_yes_does_not_authorize_mutation() -> None:
     first = engine.step("use kubectl instead of docker")
     before = engine.state
 
-    assert first["kind"] == "clarify"
+    assert first["kind"] == "error"
     decision = engine.step("yes")
     assert decision == {"kind": DecisionKind.NO_DIRECTIVE, "state": None, "prompt_to_user": None}
     assert engine.state == before
 
 
-def test_replace_use_kx_prohibit_returns_clarify_without_mutation() -> None:
+def test_replace_use_kx_prohibit_returns_error_without_mutation() -> None:
     engine = create_engine()
     engine.step("use docker")
     engine.step("prohibit kubectl")
@@ -902,14 +902,14 @@ def test_replace_use_kx_prohibit_returns_clarify_without_mutation() -> None:
         "Submit explicit directive(s) to remove it or use a different item."
     )
     assert first == {
-        "kind": "clarify",
+        "kind": "error",
         "state": None,
         "prompt_to_user": expected,
     }
     assert engine.state["policies"] == {"docker": "use", "kubectl": "prohibit"}
 
 
-def test_replace_use_priority_prefers_source_prohibit_clarify_when_both_prohibit() -> None:
+def test_replace_use_priority_prefers_source_prohibit_error_when_both_prohibit() -> None:
     engine = create_engine()
     engine.step("prohibit docker")
     engine.step("prohibit kubectl")
@@ -920,7 +920,7 @@ def test_replace_use_priority_prefers_source_prohibit_clarify_when_both_prohibit
         "Submit explicit directive(s) to remove it or use a different item."
     )
     assert first == {
-        "kind": "clarify",
+        "kind": "error",
         "state": None,
         "prompt_to_user": expected,
     }
@@ -935,7 +935,7 @@ def test_replace_use_invalid_source_state_prohibit_clarifies_without_mutation() 
 
     decision = engine.step("use kubectl instead of docker")
     assert decision == {
-        "kind": "clarify",
+        "kind": "error",
         "state": None,
         "prompt_to_user": (
             '"docker" is currently prohibited.\n'
@@ -952,7 +952,7 @@ def test_replace_use_kx_prohibit_no_followup_has_no_mutation() -> None:
     first = engine.step("use kubectl instead of docker")
     before = engine.state
 
-    assert first["kind"] == "clarify"
+    assert first["kind"] == "error"
     decision = engine.step("no")
     assert decision == {"kind": DecisionKind.NO_DIRECTIVE, "state": None, "prompt_to_user": None}
     assert engine.state == before
@@ -1092,7 +1092,7 @@ def test_prohibited_replacement_yes_cannot_override_conflicting_target_polarity(
     engine.step("prohibit kubectl")
 
     first = engine.step("use kubectl instead of docker")
-    assert first["kind"] == "clarify"
+    assert first["kind"] == "error"
     assert engine.state["policies"] == {"docker": "use", "kubectl": "prohibit"}
 
     second = engine.step("yes")
@@ -1248,7 +1248,7 @@ def test_directive_like_substrings_inside_larger_words_do_not_trigger_compound_r
 
     decision = engine.step(user_input)
 
-    assert decision["kind"] != DecisionKind.CLARIFY
+    assert decision["kind"] != DecisionKind.ERROR
     assert decision["kind"] == expected_decision_kind
     assert engine.state == expected_state
 

@@ -1,7 +1,7 @@
 from importlib.metadata import version
 
 from .const import (
-    DECISION_CLARIFY,
+    DECISION_ERROR,
     DECISION_NO_DIRECTIVE,
     DECISION_UPDATE,
     POLICY_PROHIBIT,
@@ -14,9 +14,9 @@ from .controller import (
     step,
 )
 from .decision_helpers import (
-    get_clarify_prompt,
     get_decision_state,
-    is_clarify,
+    get_error_prompt,
+    is_error,
     is_no_directive,
     is_update,
 )
@@ -34,7 +34,7 @@ __version__ = version("context-compiler")
 __all__ = [
     "Decision",
     "DecisionKind",
-    "DECISION_CLARIFY",
+    "DECISION_ERROR",
     "DECISION_NO_DIRECTIVE",
     "DECISION_UPDATE",
     "Engine",
@@ -44,11 +44,11 @@ __all__ = [
     "State",
     "StepResult",
     "create_engine",
-    "get_clarify_prompt",
+    "get_error_prompt",
     "get_decision_state",
     "get_step_decision",
     "get_step_state",
-    "is_clarify",
+    "is_error",
     "is_no_directive",
     "is_update",
     "step",

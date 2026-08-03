@@ -1,5 +1,5 @@
 {
-  "id": "step_replace_prohibited_new_clarify_without_mutation",
+  "id": "step_replace_prohibited_new_error_without_mutation",
   "kind": "step",
   "initial_state": {
     "premise": null,
@@ -13,7 +13,7 @@
   "input": "use kubectl instead of docker",
   "expected": {
     "decision": {
-      "kind": "clarify",
+      "kind": "error",
       "prompt_to_user": "\"kubectl\" is currently prohibited.\nSubmit explicit directive(s) to remove it or use a different item.",
       "state": null
     },

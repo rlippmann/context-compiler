@@ -37,7 +37,7 @@ Later implementation and conformance work must follow this document.
 | Pending continuation | Runtime state representing a deterministic blocked semantic transition awaiting explicit user authorization |
 | Decision | Compiler instruction returned to the host |
 
-`clarify` is a semantic outcome, not a parsing category.
+`error` is a semantic outcome, not a parsing category.
 Pending continuation is a semantic runtime concept, not a parsing category.
 
 ## 2. System Responsibilities
@@ -59,7 +59,7 @@ All authoritative mutations originate from canonical user directives passed to
 The host:
 
 - handles `no_directive` input outside core;
-- displays clarification prompts when core returns `clarify`;
+- displays error prompts when core returns `error`;
 - calls the LLM only when the returned `Decision.kind` allows it;
 - may perform non-canonical drafting or repair before calling core.
 
@@ -67,7 +67,7 @@ The host:
 
 ```python
 class Decision(TypedDict):
-    kind: Literal["no_directive", "update", "clarify"]
+    kind: Literal["no_directive", "update", "error"]
     state: dict | None
     prompt_to_user: str | None
 ```
@@ -78,7 +78,7 @@ Semantics:
   state change was made, and the host decides what to do next
 - `update`: canonical directive parsed and semantic evaluation completed without
   a blocking conflict
-- `clarify`: canonical directive parsed, but semantic evaluation could not
+- `error`: canonical directive parsed, but semantic evaluation could not
   safely execute under current authoritative state
 
 This specification does not add a new runtime `Decision.kind` for
@@ -218,7 +218,7 @@ Examples:
 - `clear state then set premise project`
 
 Directive-shaped invalid input is a grammar failure. It is not semantic
-`clarify`.
+`error`.
 
 ### 6.5 Canonical directive
 
@@ -418,12 +418,12 @@ Semantic evaluation may produce:
 
 - apply
 - no-op update
-- `clarify`
+- `error`
 
-`clarify` is reserved for state-dependent conflicts or precondition failures of
+`error` is reserved for state-dependent conflicts or precondition failures of
 an already parsed canonical directive.
 
-Some semantic `clarify` outcomes may additionally establish pending
+Some semantic `error` outcomes may additionally establish pending
 continuation runtime state. That state represents a deterministic blocked
 transition that core has already identified but must not apply without explicit
 user authorization.
@@ -438,22 +438,22 @@ state-fact mismatch, not an ambiguity of user intent.
 - `set premise <value>`
   - syntax: canonical only if Section 7.1 matches exactly
   - semantic precondition: premise is currently `null`
-  - possible outcomes: apply, `clarify`
+  - possible outcomes: apply, `error`
 
 - `change premise to <value>`
   - syntax: canonical only if Section 7.1 matches exactly
   - semantic precondition: premise is currently non-`null`
-  - possible outcomes: apply, `clarify`
+  - possible outcomes: apply, `error`
 
 - `use <item>`
   - syntax: canonical only if Section 7.2 matches exactly
   - semantic precondition: item is not currently prohibited
-  - possible outcomes: apply, no-op update, `clarify`
+  - possible outcomes: apply, no-op update, `error`
 
 - `prohibit <item>`
   - syntax: canonical only if Section 7.2 matches exactly
   - semantic precondition: item is not currently in use
-  - possible outcomes: apply, no-op update, `clarify`
+  - possible outcomes: apply, no-op update, `error`
 
 - `remove policy <item>`
   - syntax: canonical only if Section 7.2 matches exactly
@@ -463,7 +463,7 @@ state-fact mismatch, not an ambiguity of user intent.
 - `use <new> instead of <old>`
   - syntax: canonical only if Section 7.3 matches exactly
   - semantic preconditions: replacement-specific state rules
-  - possible outcomes: apply, no-op update, `clarify`
+  - possible outcomes: apply, no-op update, `error`
 
 - `clear premise`, `reset policies`, `clear state`
   - syntax: exact literal only
@@ -515,11 +515,11 @@ This is a semantic identity rule, not a parsing rule.
 
 - `set premise X`
   - apply when no premise exists
-  - `clarify` when a premise already exists
+  - `error` when a premise already exists
 
 - `change premise to X`
   - apply when a premise exists
-  - `clarify` when no premise exists
+  - `error` when no premise exists
 
 Premise lifecycle is slot-based, not operand-identity based.
 
@@ -533,12 +533,12 @@ Let `k` be the policy identity key for `ITEM` under Section 10.1.
 - `use ITEM`
   - apply when `k` is absent
   - no-op update when `policies[k] == "use"`
-  - `clarify` when `policies[k] == "prohibit"`
+  - `error` when `policies[k] == "prohibit"`
 
 - `prohibit ITEM`
   - apply when `k` is absent
   - no-op update when `policies[k] == "prohibit"`
-  - `clarify` when `policies[k] == "use"`
+  - `error` when `policies[k] == "use"`
 
 - `remove policy ITEM`
   - remove `k` when present
@@ -550,27 +550,27 @@ Let `kx` be the policy identity key for `REPLACE_NEW` under Section 10.1 and
 `ky` be the policy identity key for `REPLACE_OLD` under Section 10.1.
 
 - replacement parses independently of state;
-- semantic evaluation may still reject the operation with `clarify`;
+- semantic evaluation may still reject the operation with `error`;
 - replacement is not a repair mechanism for malformed input;
 - replacement is not a natural-language correction surface.
 
-The replacement-specific `clarify` cases are state-dependent and belong to
+The replacement-specific `error` cases are state-dependent and belong to
 semantic evaluation, not parsing.
 
 Normative classification for the historical missing-source case:
 
 - if `ky` is absent and applying `use <new>` is otherwise semantically valid,
-  `use <new> instead of <old>` is not a clarification case;
+  `use <new> instead of <old>` is not a error case;
 - core applies the deterministic resulting transition of asserting
   `REPLACE_NEW` as `use`;
 - the user's incorrect assumption about the current presence of `<old>` does
   not by itself create semantic ambiguity or pending continuation;
 - malformed replacement syntax remains invalid grammar, and other semantic
-  conflicts for a canonical replacement may still return `clarify`.
+  conflicts for a canonical replacement may still return `error`.
 
 ### 9.5 Clarify rule
 
-Core returns `clarify` only after:
+Core returns `error` only after:
 
 1. canonical parsing succeeds; and
 2. semantic evaluation finds a state conflict or state-dependent precondition
@@ -601,7 +601,7 @@ Pending continuation must never:
 ### 10.1 Supported contract shape
 
 When the active engine contract supports pending continuation, it is limited to
-semantic `clarify` cases where:
+semantic `error` cases where:
 
 - the triggering input was already a canonical directive;
 - the blocked transition is deterministic;
@@ -628,7 +628,7 @@ Within semantic evaluation, pending continuation is intended only for
 deterministic blocked transitions that do not expand authority beyond the
 parsed canonical operation. In particular, the historical missing-source
 replacement case (`use <new> instead of <old>` when `<old>` is absent) is not
-a pending or clarification case under this specification; it deterministically
+a pending or error case under this specification; it deterministically
 applies the resulting `use <new>` transition when otherwise semantically
 valid.
 
@@ -702,17 +702,17 @@ source material for later conformance fixtures.
 
 | Input | Classification | Parsed operation | Semantic note |
 | --- | --- | --- | --- |
-| `set premise concise replies` | canonical directive | set premise | may apply or clarify depending on premise state |
-| `change premise to concise replies` | canonical directive | change premise | may apply or clarify depending on premise state |
-| `use docker` | canonical directive | use item | may apply, no-op, or clarify |
+| `set premise concise replies` | canonical directive | set premise | may apply or error depending on premise state |
+| `change premise to concise replies` | canonical directive | change premise | may apply or error depending on premise state |
+| `use docker` | canonical directive | use item | may apply, no-op, or error |
 | `use Docker` | canonical directive | use item | same policy identity as `use docker` |
 | `prohibit Docker` after `use docker` | canonical directive | prohibit item | same policy identity triggers contradiction |
 | `use don’t` | canonical directive | use item | may share policy identity with `use don't` as representation normalization |
 | `use don't` | canonical directive | use item | apostrophe-character variants do not require a distinct policy identity |
-| `prohibit peanuts` | canonical directive | prohibit item | may apply, no-op, or clarify |
+| `prohibit peanuts` | canonical directive | prohibit item | may apply, no-op, or error |
 | `remove policy docker` | canonical directive | remove policy | may apply or no-op |
-| `use podman instead of docker` | canonical directive | replace use | may apply, no-op, or clarify |
-| `use podman instead of docker` when `docker` is absent and `use podman` is otherwise valid | canonical directive | replace use | applies deterministically as the resulting `use podman` transition; not a pending/clarification case |
+| `use podman instead of docker` | canonical directive | replace use | may apply, no-op, or error |
+| `use podman instead of docker` when `docker` is absent and `use podman` is otherwise valid | canonical directive | replace use | applies deterministically as the resulting `use podman` transition; not a pending/error case |
 | `clear premise` | canonical directive | clear premise | may apply or no-op |
 | `reset policies` | canonical directive | reset policies | may apply or no-op |
 | `clear state` | canonical directive | clear state | may apply or no-op |
@@ -745,7 +745,7 @@ source material for later conformance fixtures.
 1. State changes only from canonical directives that pass semantic evaluation.
 2. Same input sequence yields identical state and decisions.
 3. LLM output never mutates authoritative state.
-4. `clarify` is semantic, not syntactic.
+4. `error` is semantic, not syntactic.
 5. A single input never applies more than one canonical directive.
 6. Core does not repair non-canonical human input into canonical directives.
 7. Pending continuation, when supported, originates only from successful

@@ -29,10 +29,10 @@ def _load_example_module(filename: str) -> ModuleType:
     return module
 
 
-def test_example_03_clarify_gate_blocks_llm_and_allows_later_update(
+def test_example_03_error_gate_blocks_llm_and_allows_later_update(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    module = _load_example_module("03_ambiguity_with_clarification.py")
+    module = _load_example_module("03_ambiguity_with_error.py")
     decision_kinds: list[DecisionKind] = []
     llm_calls: list[str] = []
 
@@ -54,10 +54,10 @@ def test_example_03_clarify_gate_blocks_llm_and_allows_later_update(
 
     assert decision_kinds == [
         DecisionKind.UPDATE,
-        DecisionKind.CLARIFY,
+        DecisionKind.ERROR,
         DecisionKind.UPDATE,
     ]
-    assert "Host behavior: clarification returned, do NOT call LLM." in output
+    assert "Host behavior: error returned, do NOT call LLM." in output
     assert llm_calls == []
 
 
@@ -85,7 +85,7 @@ def test_example_04_tool_governance_blocks_and_allows_expected_tools(
     assert allowed_tools == ["kubectl"]
 
 
-def test_example_05_dispatches_no_directive_update_and_clarify_correctly(
+def test_example_05_dispatches_no_directive_update_and_error_correctly(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     module = _load_example_module("05_llm_integration_pattern.py")
@@ -108,15 +108,15 @@ def test_example_05_dispatches_no_directive_update_and_clarify_correctly(
 
     module.handle_turn("hello there", engine)  # no_directive
     module.handle_turn("set premise concise replies", engine)  # update
-    calls_before_clarify = len(llm_calls)
-    module.handle_turn("set premise verbose replies", engine)  # clarify
+    calls_before_error = len(llm_calls)
+    module.handle_turn("set premise verbose replies", engine)  # error
 
     assert decision_kinds == [
         DecisionKind.NO_DIRECTIVE,
         DecisionKind.UPDATE,
-        DecisionKind.CLARIFY,
+        DecisionKind.ERROR,
     ]
-    assert len(llm_calls) == calls_before_clarify
+    assert len(llm_calls) == calls_before_error
     assert llm_calls[0][0] is None
     assert llm_calls[0][1] == "hello there"
     assert llm_calls[1][0] is not None

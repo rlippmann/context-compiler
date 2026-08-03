@@ -698,20 +698,20 @@ def main() -> None:
         if task.directives is not None:
             print(f"[3/3] Compiler: {task.task_id}", file=sys.stderr)
             engine = create_engine()
-            clarify_error: dict[str, Any] | None = None
+            error_result: dict[str, Any] | None = None
             for index, directive in enumerate(task.directives):
                 decision = engine.step(directive)
-                if str(decision["kind"]) == "clarify":
-                    clarify_error = {
-                        "error": "compiler_lane_clarify",
+                if str(decision["kind"]) == "error":
+                    error_result = {
+                        "error": "compiler_lane_error",
                         "directive_index": index,
                         "directive": directive,
                         "prompt_to_user": decision.get("prompt_to_user"),
                     }
                     break
 
-            if clarify_error is not None:
-                task_result["compiler_result"] = clarify_error
+            if error_result is not None:
+                task_result["compiler_result"] = error_result
             else:
                 compiled_state = engine.state
                 task_prompt = (

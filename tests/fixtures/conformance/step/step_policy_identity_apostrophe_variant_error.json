@@ -1,21 +1,26 @@
 {
-  "id": "step_change_premise_missing_clarify",
+  "id": "step_policy_identity_apostrophe_variant_error",
   "kind": "step",
   "initial_state": {
     "premise": null,
     "policies": {},
     "version": 2
   },
-  "input": "change premise to concise replies",
+  "prelude": [
+    "use don't"
+  ],
+  "input": "prohibit don’t",
   "expected": {
     "decision": {
-      "kind": "clarify",
+      "kind": "error",
       "prompt_to_user": null,
       "state": null
     },
     "state": {
       "premise": null,
-      "policies": {},
+      "policies": {
+        "don't": "use"
+      },
       "version": 2
     }
   }

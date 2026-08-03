@@ -1,5 +1,5 @@
 {
-  "id": "step_set_premise_existing_clarify",
+  "id": "step_set_premise_existing_error",
   "kind": "step",
   "initial_state": {
     "premise": "existing premise",
@@ -9,7 +9,7 @@
   "input": "set premise concise replies",
   "expected": {
     "decision": {
-      "kind": "clarify",
+      "kind": "error",
       "prompt_to_user": null,
       "state": null
     },

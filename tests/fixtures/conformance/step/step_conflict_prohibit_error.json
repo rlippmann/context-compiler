@@ -1,25 +1,24 @@
 {
-  "id": "step_policy_identity_apostrophe_variant_clarify",
+  "id": "step_conflict_prohibit_error",
   "kind": "step",
   "initial_state": {
     "premise": null,
-    "policies": {},
+    "policies": {
+      "docker": "use"
+    },
     "version": 2
   },
-  "prelude": [
-    "use don't"
-  ],
-  "input": "prohibit don’t",
+  "input": "prohibit docker",
   "expected": {
     "decision": {
-      "kind": "clarify",
+      "kind": "error",
       "prompt_to_user": null,
       "state": null
     },
     "state": {
       "premise": null,
       "policies": {
-        "don't": "use"
+        "docker": "use"
       },
       "version": 2
     }

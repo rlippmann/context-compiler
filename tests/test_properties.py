@@ -304,8 +304,8 @@ def test_use_item_with_empty_normalized_payload_clarifies_without_mutation(
     d2 = engine.step(f"use {item}")
 
     expected_prompt = "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value."
-    assert d1 == {"kind": DecisionKind.CLARIFY, "state": None, "prompt_to_user": expected_prompt}
-    assert d2 == {"kind": DecisionKind.CLARIFY, "state": None, "prompt_to_user": expected_prompt}
+    assert d1 == {"kind": DecisionKind.ERROR, "state": None, "prompt_to_user": expected_prompt}
+    assert d2 == {"kind": DecisionKind.ERROR, "state": None, "prompt_to_user": expected_prompt}
     assert engine.state == before
 
 
@@ -340,8 +340,8 @@ def test_prohibit_item_with_empty_normalized_payload_clarifies_without_mutation(
     d2 = engine.step(f"prohibit {item}")
 
     expected_prompt = "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
-    assert d1 == {"kind": DecisionKind.CLARIFY, "state": None, "prompt_to_user": expected_prompt}
-    assert d2 == {"kind": DecisionKind.CLARIFY, "state": None, "prompt_to_user": expected_prompt}
+    assert d1 == {"kind": DecisionKind.ERROR, "state": None, "prompt_to_user": expected_prompt}
+    assert d2 == {"kind": DecisionKind.ERROR, "state": None, "prompt_to_user": expected_prompt}
     assert engine.state == before
 
 
@@ -382,7 +382,7 @@ def test_contradiction_use_after_prohibit_always_clarifies(item: str) -> None:
     before = engine.state
 
     decision = engine.step(f"use {item}")
-    assert decision["kind"] == DecisionKind.CLARIFY
+    assert decision["kind"] == DecisionKind.ERROR
     assert engine.state == before
 
 
@@ -399,7 +399,7 @@ def test_contradiction_prohibit_after_use_always_clarifies(item: str) -> None:
     before = engine.state
 
     decision = engine.step(f"prohibit {item}")
-    assert decision["kind"] == DecisionKind.CLARIFY
+    assert decision["kind"] == DecisionKind.ERROR
     assert engine.state == before
 
 

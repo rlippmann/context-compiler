@@ -231,7 +231,7 @@ def test_demo05_non_veg_detection_ignores_inflected_or_freeform_negation(line: s
 
 @given(
     tag=st.sampled_from(["ACTION", "action", " Action "]),
-    value=st.sampled_from(["clarify", "proceed"]),
+    value=st.sampled_from(["error", "proceed"]),
     pre=st.sampled_from(["", " ", "\t"]),
     post=st.sampled_from(["", " ", "\t"]),
 )

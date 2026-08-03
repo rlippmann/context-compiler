@@ -20,7 +20,7 @@
         "version": 2
       },
       "decision": {
-        "kind": "clarify",
+        "kind": "error",
         "prompt_to_user": "Premise already set.\nUse 'change premise to <value>' to modify it."
       },
       "input": "set premise formal replies"
@@ -56,7 +56,7 @@
         "version": 2
       },
       "decision": {
-        "kind": "clarify",
+        "kind": "error",
         "prompt_to_user": "No premise is set.\nUse 'set premise <value>' to define one."
       },
       "input": "change premise to formal tone"

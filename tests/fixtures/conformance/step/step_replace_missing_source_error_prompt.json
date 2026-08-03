@@ -1,5 +1,5 @@
 {
-  "id": "step_replace_missing_source_clarify_prompt",
+  "id": "step_replace_missing_source_error_prompt",
   "kind": "step",
   "initial_state": {
     "premise": null,

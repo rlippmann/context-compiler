@@ -36,7 +36,7 @@ def _oracle_render_decision(decision: dict[str, object]) -> list[str]:
     if kind == "no_directive":
         return ["no_directive"]
 
-    if kind == "clarify":
+    if kind == "error":
         prompt_obj = decision["prompt_to_user"]
         prompt = prompt_obj if isinstance(prompt_obj, str) else ""
         prompt_lines = prompt.splitlines() if prompt else [""]
