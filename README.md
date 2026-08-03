@@ -137,7 +137,6 @@ Use Context Compiler in your host application first:
 ```python
 from context_compiler import (
     create_engine,
-    get_error_message,
     is_error,
     is_update,
 )
@@ -148,7 +147,7 @@ user_input = "set premise current project uses uv"
 decision = engine.step(user_input)
 
 if is_error(decision):
-    show_to_user(get_error_message(decision))
+    show_to_user(decision["message"])
 elif is_update(decision):
     messages = build_messages(engine.state, user_input)
     render(call_llm(messages))

@@ -6,8 +6,6 @@ from context_compiler import (
     Engine,
     State,
     create_engine,
-    get_decision_state,
-    get_error_message,
     is_error,
     is_no_directive,
     is_update,
@@ -35,10 +33,10 @@ def handle_turn(engine_input: str, engine: Engine) -> None:
         fake_llm(None, engine_input)
     elif is_update(decision):
         print("Host action: update -> call fake_llm() with compiled state")
-        fake_llm(get_decision_state(decision), engine_input)
+        fake_llm(decision["state"], engine_input)
     elif is_error(decision):
         print("Host action: error -> show prompt, DO NOT call LLM")
-        print("error message:", get_error_message(decision))
+        print("error message:", decision["message"])
     print()
 
 

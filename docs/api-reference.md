@@ -159,12 +159,12 @@ Helper functions:
 Typical use:
 
 ```python
-from context_compiler import get_error_message, is_error, is_update
+from context_compiler import is_error, is_update
 
 decision = engine.step(user_input)
 
 if is_error(decision):
-    show_to_user(get_error_message(decision))
+    show_to_user(decision["message"])
 elif is_update(decision):
     apply_runtime_rules()
 ```
