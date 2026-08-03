@@ -43,3 +43,12 @@ def test_public_grammar_contract_matches_surface() -> None:
             for probe in member.get("shape_probes", []):
                 result = exported(*probe.get("args", []), **probe.get("kwargs", {}))
                 assert_shape(result, probe["return_shape"])
+
+
+def test_public_grammar_contract_has_unique_entries() -> None:
+    contract = _load_contract()
+    export_names = contract["exports"]["names"]
+    members = contract["exports"]["members"]
+
+    assert len(export_names) == len(set(export_names))
+    assert set(members) == set(export_names)
