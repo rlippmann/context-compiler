@@ -2,6 +2,7 @@
 
 from typing import TypeGuard
 
+from .const import DECISION_ERROR, DECISION_NO_DIRECTIVE, DECISION_UPDATE
 from .engine import (
     Decision,
     ErrorDecision,
@@ -12,15 +13,15 @@ from .engine import (
 
 
 def is_update(decision: Decision) -> TypeGuard[UpdateDecision]:
-    return decision["kind"] == "update"
+    return decision["kind"] == DECISION_UPDATE
 
 
 def is_error(decision: Decision) -> TypeGuard[ErrorDecision]:
-    return decision["kind"] == "error"
+    return decision["kind"] == DECISION_ERROR
 
 
 def is_no_directive(decision: Decision) -> TypeGuard[NoDirectiveDecision]:
-    return decision["kind"] == "no_directive"
+    return decision["kind"] == DECISION_NO_DIRECTIVE
 
 
 def get_error_message(decision: Decision) -> str | None:
