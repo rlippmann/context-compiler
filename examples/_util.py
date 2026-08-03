@@ -4,8 +4,6 @@ from typing import Any, Literal
 from context_compiler import (
     POLICY_PROHIBIT,
     POLICY_USE,
-    get_decision_state,
-    get_error_message,
     is_error,
     is_update,
 )
@@ -39,15 +37,14 @@ def print_state_summary(state: Any, label: str = "state") -> None:
 def print_decision_summary(decision: Any) -> None:
     if is_update(decision):
         print("result: updated")
-        state = get_decision_state(decision)
-        assert isinstance(state, dict)
+        state = decision["state"]
         print_state_summary(state, "compiled state")
         return
 
     if is_error(decision):
         print("result: error")
-        prompt = get_error_message(decision)
-        if isinstance(prompt, str) and prompt:
+        prompt = decision["message"]
+        if prompt:
             print("error message:")
             for line in prompt.splitlines():
                 print(f"- {line}")
