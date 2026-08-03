@@ -6,6 +6,7 @@ import pytest
 
 from context_compiler import create_engine, get_decision_state
 from context_compiler.controller import get_step_state, preview, state_diff, step
+from context_compiler.engine import DecisionKind
 from context_compiler.grammar import (
     DirectiveKind,
     decompose_directive,
@@ -328,7 +329,7 @@ def test_step_fixtures() -> None:
 
         assert decision["kind"] == expected_decision["kind"], fixture_id
 
-        if decision["kind"] == "clarify":
+        if decision["kind"] == DecisionKind.CLARIFY:
             assert decision["state"] == expected_decision["state"], fixture_id
             expected_prompt = expected_decision["prompt_to_user"]
             actual_prompt = decision["prompt_to_user"]
@@ -339,7 +340,7 @@ def test_step_fixtures() -> None:
         else:
             assert decision == expected_decision, fixture_id
 
-        if decision["kind"] == "update":
+        if decision["kind"] == DecisionKind.UPDATE:
             assert decision["state"] == engine.state, fixture_id
 
         assert engine.state == expected["state"], fixture_id

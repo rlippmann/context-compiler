@@ -5,6 +5,8 @@ from types import ModuleType
 
 import pytest
 
+from context_compiler.engine import DecisionKind
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES_DIR = REPO_ROOT / "examples"
 
@@ -31,13 +33,13 @@ def test_example_03_clarify_gate_blocks_llm_and_allows_later_update(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     module = _load_example_module("03_ambiguity_with_clarification.py")
-    decision_kinds: list[str] = []
+    decision_kinds: list[DecisionKind] = []
     llm_calls: list[str] = []
 
     def capture_decision_summary(decision: object) -> None:
         assert isinstance(decision, dict)
         kind = decision.get("kind")
-        assert isinstance(kind, str)
+        assert isinstance(kind, DecisionKind)
         decision_kinds.append(kind)
 
     def fake_llm(user_input: str) -> str:
@@ -50,7 +52,11 @@ def test_example_03_clarify_gate_blocks_llm_and_allows_later_update(
     module.main()
     output = capsys.readouterr().out
 
-    assert decision_kinds == ["update", "clarify", "update"]
+    assert decision_kinds == [
+        DecisionKind.UPDATE,
+        DecisionKind.CLARIFY,
+        DecisionKind.UPDATE,
+    ]
     assert "Host behavior: clarification returned, do NOT call LLM." in output
     assert llm_calls == []
 
@@ -84,13 +90,13 @@ def test_example_05_dispatches_no_directive_update_and_clarify_correctly(
 ) -> None:
     module = _load_example_module("05_llm_integration_pattern.py")
     engine = module.create_engine()
-    decision_kinds: list[str] = []
+    decision_kinds: list[DecisionKind] = []
     llm_calls: list[tuple[object, str]] = []
 
     def capture_decision_summary(decision: object) -> None:
         assert isinstance(decision, dict)
         kind = decision.get("kind")
-        assert isinstance(kind, str)
+        assert isinstance(kind, DecisionKind)
         decision_kinds.append(kind)
 
     def capture_fake_llm(state: object, user_input: str) -> str:
@@ -105,7 +111,11 @@ def test_example_05_dispatches_no_directive_update_and_clarify_correctly(
     calls_before_clarify = len(llm_calls)
     module.handle_turn("set premise verbose replies", engine)  # clarify
 
-    assert decision_kinds == ["no_directive", "update", "clarify"]
+    assert decision_kinds == [
+        DecisionKind.NO_DIRECTIVE,
+        DecisionKind.UPDATE,
+        DecisionKind.CLARIFY,
+    ]
     assert len(llm_calls) == calls_before_clarify
     assert llm_calls[0][0] is None
     assert llm_calls[0][1] == "hello there"

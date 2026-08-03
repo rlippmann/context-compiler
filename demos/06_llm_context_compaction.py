@@ -1,6 +1,7 @@
 """Demo 6: host-side prompt replacement from authoritative step-derived state."""
 
 from context_compiler import create_engine
+from context_compiler.engine import DecisionKind
 from demos.common import compact_user_turns, is_verbose, print_info_report
 
 DEMO_NAME = "06_context_compaction — superseded directives eliminated"
@@ -43,7 +44,7 @@ def _compile_premise(turns: list[str]) -> str:
     engine = create_engine()
     for turn in turns:
         decision = engine.step(turn)
-        assert decision["kind"] == "update"
+        assert decision["kind"] == DecisionKind.UPDATE
     compiled_premise = engine.premise
     assert compiled_premise is not None
     return compiled_premise

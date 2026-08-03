@@ -6,6 +6,8 @@ from types import ModuleType
 
 import pytest
 
+from context_compiler.engine import DecisionKind
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -81,8 +83,8 @@ def test_demo_01_calls_llm_when_second_turn_is_not_clarify(
         def step(self, _text: str) -> dict[str, str]:
             self._step_count += 1
             if self._step_count == 1:
-                return {"kind": "update"}
-            return {"kind": "no_directive"}
+                return {"kind": DecisionKind.UPDATE}
+            return {"kind": DecisionKind.NO_DIRECTIVE}
 
     def fake_complete_messages(_messages: object) -> str:
         nonlocal call_count
@@ -117,8 +119,8 @@ def test_demo_01_baseline_and_compiler_use_intentionally_different_gates(
         def step(self, _text: str) -> dict[str, str]:
             self._step_count += 1
             if self._step_count == 1:
-                return {"kind": "update"}
-            return {"kind": "no_directive"}
+                return {"kind": DecisionKind.UPDATE}
+            return {"kind": DecisionKind.NO_DIRECTIVE}
 
     monkeypatch.setattr(module, "create_engine", _FakeEngine)
     monkeypatch.setattr(
