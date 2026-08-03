@@ -4,6 +4,9 @@ from pathlib import Path
 import pytest
 
 from context_compiler import (
+    DECISION_ERROR,
+    DECISION_NO_DIRECTIVE,
+    DECISION_UPDATE,
     create_engine,
     get_step_decision,
     get_step_state,
@@ -17,7 +20,6 @@ from context_compiler.audit import (
     state_diff,
 )
 from context_compiler.controller import step
-from context_compiler.engine import DecisionKind
 
 _CONTROLLER_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "controller"
 
@@ -28,7 +30,7 @@ def test_step_wrapper_returns_state_snapshot_and_contract_shape() -> None:
 
     assert result["output_version"] == 1
     assert result["mode"] == "step"
-    assert result["decision"]["kind"] == DecisionKind.UPDATE
+    assert result["decision"]["kind"] == DECISION_UPDATE
     assert result["state"] == engine.state
     assert result["state"] == {
         "premise": "concise replies",
@@ -44,7 +46,7 @@ def test_preview_update_does_not_mutate_engine_state() -> None:
     result = preview(engine, "set premise concise replies")
 
     assert result["mode"] == "preview"
-    assert result["decision"]["kind"] == DecisionKind.UPDATE
+    assert result["decision"]["kind"] == DECISION_UPDATE
     assert result["state_before"] == before
     assert result["state_after"] == {
         "premise": "concise replies",
@@ -61,7 +63,7 @@ def test_preview_missing_source_replacement_reports_update_without_live_mutation
     result = preview(engine, "use kubectl instead of docker")
 
     assert result["decision"] == {
-        "kind": DecisionKind.UPDATE,
+        "kind": DECISION_UPDATE,
         "state": {"premise": None, "policies": {"kubectl": "use"}, "version": 2},
     }
     assert result["state_before"] == {"premise": None, "policies": {}, "version": 2}
@@ -74,7 +76,7 @@ def test_preview_missing_source_replacement_reports_update_without_live_mutation
     assert result["would_mutate"] is True
 
     yes = engine.step("yes")
-    assert yes["kind"] == DecisionKind.NO_DIRECTIVE
+    assert yes["kind"] == DECISION_NO_DIRECTIVE
 
 
 def test_preview_prohibited_replacement_error_matches_execution_without_mutation() -> None:
@@ -85,7 +87,7 @@ def test_preview_prohibited_replacement_error_matches_execution_without_mutation
     result = preview(engine, "use kubectl instead of docker")
 
     assert result["decision"] == {
-        "kind": DecisionKind.ERROR,
+        "kind": DECISION_ERROR,
         "message": (
             '"kubectl" is currently prohibited.\n'
             "Submit explicit directive(s) to remove it or use a different item."
@@ -102,7 +104,7 @@ def test_preview_idempotent_update_is_not_a_mutation() -> None:
 
     result = preview(engine, "use docker")
 
-    assert result["decision"]["kind"] == DecisionKind.UPDATE
+    assert result["decision"]["kind"] == DECISION_UPDATE
     assert result["state_before"] == result["state_after"]
     assert result["diff"]["changed"] is False
     assert result["would_mutate"] is False
@@ -252,12 +254,12 @@ def test_preview_followup_tokens_after_replace_update_are_no_directive(
     engine = create_engine()
     initial = engine.step("use kubectl instead of docker")
     assert initial == {
-        "kind": DecisionKind.UPDATE,
+        "kind": DECISION_UPDATE,
         "state": {"premise": None, "policies": {"kubectl": "use"}, "version": 2},
     }
 
     preview_result = preview(engine, followup_token)
-    assert preview_result["decision"] == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert preview_result["decision"] == {"kind": DECISION_NO_DIRECTIVE}
     assert preview_result["state_after"] == {
         "premise": None,
         "policies": {"kubectl": "use"},
@@ -268,5 +270,5 @@ def test_preview_followup_tokens_after_replace_update_are_no_directive(
     assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
     final = step(engine, followup_token)
-    assert final["decision"] == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert final["decision"] == {"kind": DECISION_NO_DIRECTIVE}
     assert final["state"] == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}

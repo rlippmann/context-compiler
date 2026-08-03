@@ -4,9 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from context_compiler import create_engine, get_decision_state
+from context_compiler import DECISION_ERROR, DECISION_UPDATE, create_engine, get_decision_state
 from context_compiler.controller import get_step_state, preview, state_diff, step
-from context_compiler.engine import DecisionKind
 from context_compiler.grammar import (
     DirectiveKind,
     decompose_directive,
@@ -340,7 +339,7 @@ def test_step_fixtures() -> None:
 
         assert decision["kind"] == expected_decision["kind"], fixture_id
 
-        if decision["kind"] == DecisionKind.ERROR:
+        if decision["kind"] == DECISION_ERROR:
             expected_message = expected_decision.get("message")
             actual_message = decision["message"]
             if expected_message is None:
@@ -350,7 +349,7 @@ def test_step_fixtures() -> None:
         else:
             assert decision == expected_decision, fixture_id
 
-        if decision["kind"] == DecisionKind.UPDATE:
+        if decision["kind"] == DECISION_UPDATE:
             assert decision["state"] == engine.state, fixture_id
 
         assert engine.state == expected["state"], fixture_id

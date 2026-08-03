@@ -3,10 +3,9 @@ from collections.abc import Mapping
 
 import pytest
 
-from context_compiler import create_engine
+from context_compiler import DECISION_ERROR, DECISION_NO_DIRECTIVE, DECISION_UPDATE, create_engine
 from context_compiler.engine import (
     Action,
-    DecisionKind,
     Engine,
     _parse_directive,
 )
@@ -17,13 +16,6 @@ from context_compiler.grammar import (
 )
 
 pytestmark = pytest.mark.contract
-
-
-def test_decision_kind_strenum_behavior() -> None:
-    for kind in DecisionKind:
-        assert kind == kind.value
-        assert str(kind) == kind.value
-        assert DecisionKind(kind.value) is kind
 
 
 def test_parse_directive_delegates_canonical_kinds_to_existing_actions() -> None:
@@ -396,7 +388,7 @@ def test_non_matching_input_is_no_directive() -> None:
         "don't use docker",
     ]:
         decision = engine.step(text)
-        assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+        assert decision == {"kind": DECISION_NO_DIRECTIVE}
 
     assert engine.state == before
 
@@ -404,12 +396,12 @@ def test_non_matching_input_is_no_directive() -> None:
 def test_lexical_normalization_accepts_canonical_directives() -> None:
     engine = create_engine()
 
-    assert engine.step("clear premise ")["kind"] == DecisionKind.UPDATE
-    assert engine.step(" reset policies")["kind"] == DecisionKind.UPDATE
-    assert engine.step("clear state\t")["kind"] == DecisionKind.UPDATE
-    assert engine.step("Use docker")["kind"] == DecisionKind.UPDATE
-    assert engine.step("use\tdocker")["kind"] == DecisionKind.UPDATE
-    assert engine.step(" prohibit docker")["kind"] == DecisionKind.ERROR
+    assert engine.step("clear premise ")["kind"] == DECISION_UPDATE
+    assert engine.step(" reset policies")["kind"] == DECISION_UPDATE
+    assert engine.step("clear state\t")["kind"] == DECISION_UPDATE
+    assert engine.step("Use docker")["kind"] == DECISION_UPDATE
+    assert engine.step("use\tdocker")["kind"] == DECISION_UPDATE
+    assert engine.step(" prohibit docker")["kind"] == DECISION_ERROR
 
 
 def test_clear_premise_is_idempotent_update_when_already_null() -> None:
@@ -417,7 +409,7 @@ def test_clear_premise_is_idempotent_update_when_already_null() -> None:
     before = engine.state
 
     decision = engine.step("clear premise")
-    assert decision == {"kind": DecisionKind.UPDATE, "state": before}
+    assert decision == {"kind": DECISION_UPDATE, "state": before}
     assert engine.state == before
 
 
@@ -426,7 +418,7 @@ def test_clear_state_is_idempotent_update_when_already_empty() -> None:
     before = engine.state
 
     decision = engine.step("clear state")
-    assert decision == {"kind": DecisionKind.UPDATE, "state": before}
+    assert decision == {"kind": DECISION_UPDATE, "state": before}
     assert engine.state == before
 
 
@@ -434,13 +426,13 @@ def test_set_premise_lifecycle_rules() -> None:
     engine = create_engine()
 
     d1 = engine.step("set premise   concise   replies")
-    assert d1["kind"] == DecisionKind.UPDATE
+    assert d1["kind"] == DECISION_UPDATE
     assert engine.state["premise"] == "concise replies"
 
     before = engine.state
     d2 = engine.step("set premise new")
     assert d2 == {
-        "kind": DecisionKind.ERROR,
+        "kind": DECISION_ERROR,
         "message": ("Premise already set.\nUse 'change premise to <value>' to modify it."),
     }
     assert engine.state == before
@@ -450,7 +442,7 @@ def test_set_premise_empty_payload_remains_no_directive() -> None:
     engine = create_engine()
     before = engine.state
     d1 = engine.step("set premise")
-    assert d1 == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert d1 == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -458,7 +450,7 @@ def test_set_premise_whitespace_payload_remains_no_directive() -> None:
     engine = create_engine()
     before = engine.state
     d1 = engine.step("set premise    ")
-    assert d1 == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert d1 == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -466,7 +458,7 @@ def test_set_premise_to_variant_remains_no_directive() -> None:
     engine = create_engine()
 
     decision = engine.step("set premise to concise replies")
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert decision == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
@@ -475,7 +467,7 @@ def test_set_premise_to_with_whitespace_payload_remains_no_directive() -> None:
 
     decision = engine.step("set premise to   ")
 
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert decision == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
@@ -491,7 +483,7 @@ def test_change_premise_requires_existing_premise() -> None:
 
     engine.step("set premise first")
     d2 = engine.step("change premise to second")
-    assert d2["kind"] == DecisionKind.UPDATE
+    assert d2["kind"] == DECISION_UPDATE
     assert engine.state["premise"] == "second"
 
 
@@ -501,7 +493,7 @@ def test_change_premise_to_empty_payload_remains_no_directive() -> None:
     before = engine.state
 
     d1 = engine.step("change premise to")
-    assert d1 == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert d1 == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -511,10 +503,10 @@ def test_change_premise_to_without_space_payload_and_empty_variant_remain_no_dir
     before = engine.state
 
     near_miss = engine.step("change premise baseline")
-    assert near_miss == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert near_miss == {"kind": DECISION_NO_DIRECTIVE}
 
     decision = engine.step("change premise to")
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert decision == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -524,7 +516,7 @@ def test_change_premise_to_whitespace_payload_remains_no_directive() -> None:
     before = engine.state
 
     d1 = engine.step("change premise to    ")
-    assert d1 == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert d1 == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -533,7 +525,7 @@ def test_change_premise_missing_to_variant_is_no_directive() -> None:
     before = engine.state
 
     decision = engine.step("change premise concise replies")
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert decision == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -542,7 +534,7 @@ def test_change_premise_with_whitespace_after_prefix_remains_no_directive() -> N
 
     decision = engine.step("change premise   ")
 
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert decision == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == {"premise": "baseline", "policies": {}, "version": 2}
 
 
@@ -552,8 +544,8 @@ def test_canonical_premise_forms_still_update_normally() -> None:
     first = engine.step("set premise concise replies")
     second = engine.step("change premise to concise bullet points")
 
-    assert first["kind"] == DecisionKind.UPDATE
-    assert second["kind"] == DecisionKind.UPDATE
+    assert first["kind"] == DECISION_UPDATE
+    assert second["kind"] == DECISION_UPDATE
     assert engine.state["premise"] == "concise bullet points"
 
 
@@ -563,11 +555,11 @@ def test_clear_premise_and_clear_state() -> None:
     engine.step("use docker")
 
     d1 = engine.step("clear premise")
-    assert d1["kind"] == DecisionKind.UPDATE
+    assert d1["kind"] == DECISION_UPDATE
     assert engine.state == {"premise": None, "policies": {"docker": "use"}, "version": 2}
 
     d2 = engine.step("clear state")
-    assert d2["kind"] == DecisionKind.UPDATE
+    assert d2["kind"] == DECISION_UPDATE
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
@@ -575,11 +567,11 @@ def test_policy_directives_and_idempotent_update() -> None:
     engine = create_engine()
 
     d1 = engine.step("use   The Docker")
-    assert d1["kind"] == DecisionKind.UPDATE
+    assert d1["kind"] == DECISION_UPDATE
     assert engine.state["policies"] == {"docker": "use"}
 
     d2 = engine.step("use docker")
-    assert d2["kind"] == DecisionKind.UPDATE
+    assert d2["kind"] == DECISION_UPDATE
     assert engine.state["policies"] == {"docker": "use"}
 
     d3 = engine.step("prohibit docker")
@@ -609,7 +601,7 @@ def test_use_empty_payload_remains_no_directive() -> None:
 
     for text in ["use", "use ", "use    "]:
         decision = engine.step(text)
-        assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+        assert decision == {"kind": DECISION_NO_DIRECTIVE}
         assert engine.state == before
 
 
@@ -619,7 +611,7 @@ def test_prohibit_empty_payload_remains_no_directive() -> None:
 
     for text in ["prohibit", "prohibit ", "prohibit    "]:
         decision = engine.step(text)
-        assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+        assert decision == {"kind": DECISION_NO_DIRECTIVE}
         assert engine.state == before
 
 
@@ -635,19 +627,19 @@ def test_replace_use_incomplete_payload_remains_no_directive() -> None:
         "use instead of y",
     ]:
         decision = engine.step(text)
-        assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+        assert decision == {"kind": DECISION_NO_DIRECTIVE}
         assert engine.state == before
 
 
 def test_reset_policies_is_update_even_when_already_empty() -> None:
     engine = create_engine()
     d1 = engine.step("reset policies")
-    assert d1["kind"] == DecisionKind.UPDATE
+    assert d1["kind"] == DECISION_UPDATE
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
     engine.step("use docker")
     d2 = engine.step("reset policies")
-    assert d2["kind"] == DecisionKind.UPDATE
+    assert d2["kind"] == DECISION_UPDATE
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
@@ -657,7 +649,7 @@ def test_remove_policy_removes_existing_use_policy() -> None:
 
     decision = engine.step("remove policy docker")
 
-    assert decision["kind"] == DecisionKind.UPDATE
+    assert decision["kind"] == DECISION_UPDATE
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
@@ -667,7 +659,7 @@ def test_remove_policy_removes_existing_prohibit_policy() -> None:
 
     decision = engine.step("remove policy docker")
 
-    assert decision["kind"] == DecisionKind.UPDATE
+    assert decision["kind"] == DECISION_UPDATE
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
@@ -678,7 +670,7 @@ def test_remove_policy_missing_item_is_idempotent_update() -> None:
 
     decision = engine.step("remove policy podman")
 
-    assert decision == {"kind": DecisionKind.UPDATE, "state": before}
+    assert decision == {"kind": DECISION_UPDATE, "state": before}
     assert engine.state == before
 
 
@@ -688,7 +680,7 @@ def test_remove_policy_empty_payload_remains_no_directive() -> None:
 
     decision = engine.step("remove policy")
 
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert decision == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -698,7 +690,7 @@ def test_remove_policy_whitespace_payload_remains_no_directive() -> None:
 
     decision = engine.step("remove policy    ")
 
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert decision == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -708,7 +700,7 @@ def test_replace_use_success() -> None:
 
     decision = engine.step("use kubectl instead of docker")
 
-    assert decision["kind"] == DecisionKind.UPDATE
+    assert decision["kind"] == DECISION_UPDATE
     assert engine.state["policies"] == {"kubectl": "use"}
 
 
@@ -719,7 +711,7 @@ def test_replace_use_identity_is_noop_update() -> None:
 
     decision = engine.step("use the docker instead of docker")
 
-    assert decision["kind"] == DecisionKind.UPDATE
+    assert decision["kind"] == DECISION_UPDATE
     assert engine.state == before
 
 
@@ -745,7 +737,7 @@ def test_replace_use_missing_source_yes_followup_is_no_directive() -> None:
     assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
     second = engine.step("yes")
-    assert second == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert second == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
 
@@ -755,7 +747,7 @@ def test_replace_use_missing_source_no_followup_has_no_mutation() -> None:
     before = engine.state
 
     decision = engine.step("no")
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert decision == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -780,7 +772,7 @@ def test_replace_use_missing_source_ignores_unrelated_existing_policies() -> Non
     engine.step("use python and docker")
 
     decision = engine.step("use kubectl instead of python")
-    assert decision["kind"] == DecisionKind.UPDATE
+    assert decision["kind"] == DECISION_UPDATE
     assert engine.state["policies"] == {"kubectl": "use", "python and docker": "use"}
 
 
@@ -790,7 +782,7 @@ def test_replace_use_missing_source_ignores_other_conflicting_entries() -> None:
     engine.step("prohibit python tooling")
 
     decision = engine.step("use kubectl instead of python")
-    assert decision["kind"] == DecisionKind.UPDATE
+    assert decision["kind"] == DECISION_UPDATE
     assert engine.state["policies"] == {
         "kubectl": "use",
         "python and docker": "use",
@@ -803,7 +795,7 @@ def test_replace_use_missing_source_with_empty_probe_uses_invalid_prompt() -> No
     engine.step("use python and docker")
 
     decision = engine.step("use kubectl instead of the")
-    assert decision["kind"] == DecisionKind.UPDATE
+    assert decision["kind"] == DECISION_UPDATE
     assert engine.state == {
         "premise": None,
         "policies": {"kubectl": "use", "python and docker": "use"},
@@ -837,7 +829,7 @@ def test_replace_use_ky_prohibit_yes_does_not_authorize_mutation() -> None:
 
     assert first["kind"] == "error"
     decision = engine.step("yes")
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert decision == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -901,7 +893,7 @@ def test_replace_use_kx_prohibit_no_followup_has_no_mutation() -> None:
 
     assert first["kind"] == "error"
     decision = engine.step("no")
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert decision == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -915,7 +907,7 @@ def test_missing_source_replacement_does_not_block_following_directives() -> Non
     assert engine.state["policies"] == {"docker": "use", "kubectl": "use"}
 
     third = engine.step("yes")
-    assert third == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert third == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state["policies"] == {"docker": "use", "kubectl": "use"}
 
 
@@ -931,7 +923,7 @@ def test_missing_source_replacement_does_not_suspend_admin_commands() -> None:
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
     resolved = engine.step("yes")
-    assert resolved == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert resolved == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state["policies"] == {}
 
 
@@ -941,7 +933,7 @@ def test_missing_source_replacement_negative_followup_is_no_directive() -> None:
 
     decision = engine.step("no")
 
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert decision == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state["policies"] == {"kubectl": "use"}
 
 
@@ -950,7 +942,7 @@ def test_missing_source_replacement_affirmative_followup_tokens_are_no_directive
     engine.step("use kubectl instead of docker")
 
     decision = engine.step("  YES!!!  ")
-    assert decision["kind"] == DecisionKind.NO_DIRECTIVE
+    assert decision["kind"] == DECISION_NO_DIRECTIVE
     assert engine.state["policies"] == {"kubectl": "use"}
 
 
@@ -959,7 +951,7 @@ def test_missing_source_replacement_affirmative_token_variants_are_no_directive(
         engine = create_engine()
         engine.step("use kubectl instead of docker")
         decision = engine.step(token)
-        assert decision["kind"] == DecisionKind.NO_DIRECTIVE
+        assert decision["kind"] == DECISION_NO_DIRECTIVE
         assert engine.state["policies"] == {"kubectl": "use"}
 
 
@@ -969,7 +961,7 @@ def test_missing_source_replacement_negative_tokens_are_no_directive() -> None:
     before = engine.state
 
     decision = engine.step("  NO!!!  ")
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert decision == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -979,7 +971,7 @@ def test_missing_source_replacement_no_thanks_is_no_directive() -> None:
     before = engine.state
 
     decision = engine.step("no thanks.")
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert decision == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -989,7 +981,7 @@ def test_missing_source_replacement_negative_token_variants_are_no_directive() -
         engine.step("use kubectl instead of docker")
         before = engine.state
         decision = engine.step(token)
-        assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+        assert decision == {"kind": DECISION_NO_DIRECTIVE}
         assert engine.state == before
 
 
@@ -999,7 +991,7 @@ def test_missing_source_replacement_unmatched_followup_is_no_directive() -> None
     before = engine.state
 
     second = engine.step("maybe")
-    assert second == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert second == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -1008,8 +1000,8 @@ def test_missing_source_replacement_unmatched_followups_remain_no_directive() ->
     engine.step("use kubectl instead of docker")
     before = engine.state
 
-    assert engine.step("later") == {"kind": DecisionKind.NO_DIRECTIVE}
-    assert engine.step("still later") == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert engine.step("later") == {"kind": DECISION_NO_DIRECTIVE}
+    assert engine.step("still later") == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -1023,24 +1015,24 @@ def test_prohibited_replacement_yes_cannot_override_conflicting_target_polarity(
     assert engine.state["policies"] == {"docker": "use", "kubectl": "prohibit"}
 
     second = engine.step("yes")
-    assert second["kind"] == DecisionKind.NO_DIRECTIVE
+    assert second["kind"] == DECISION_NO_DIRECTIVE
     assert engine.state["policies"] == {"docker": "use", "kubectl": "prohibit"}
 
 
 def test_import_json_does_not_change_independent_yes_no_followup_behavior() -> None:
     engine = create_engine()
     first = engine.step("use kubectl instead of docker")
-    assert first["kind"] == DecisionKind.UPDATE
+    assert first["kind"] == DECISION_UPDATE
 
     imported = {"premise": "baseline", "policies": {"pytest": "use"}, "version": 2}
     engine.import_json(json.dumps(imported))
 
     yes_decision = engine.step("yes")
-    assert yes_decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert yes_decision == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == imported
 
     no_decision = engine.step("no")
-    assert no_decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert no_decision == {"kind": DECISION_NO_DIRECTIVE}
 
 
 def test_remove_policy_uses_normalized_item_matching() -> None:
@@ -1048,7 +1040,7 @@ def test_remove_policy_uses_normalized_item_matching() -> None:
     engine.step("use The Docker")
 
     decision = engine.step("remove policy the docker")
-    assert decision["kind"] == DecisionKind.UPDATE
+    assert decision["kind"] == DECISION_UPDATE
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
@@ -1111,7 +1103,7 @@ def test_compound_directives_remain_no_directive_without_mutation(
 
     decision = engine.step(user_input)
 
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert decision == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -1120,7 +1112,7 @@ def test_quoted_non_directive_leading_input_remains_no_directive() -> None:
 
     decision = engine.step('"use docker and prohibit peanuts"')
 
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert decision == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
@@ -1167,7 +1159,7 @@ def test_directive_like_substrings_inside_larger_words_do_not_trigger_compound_r
 
     decision = engine.step(user_input)
 
-    assert decision["kind"] != DecisionKind.ERROR
+    assert decision["kind"] != DECISION_ERROR
     assert decision["kind"] == expected_decision_kind
     assert engine.state == expected_state
 
@@ -1230,7 +1222,7 @@ def test_valid_single_directives_still_work(
     decision = engine.step(user_input)
 
     assert decision == {
-        "kind": DecisionKind.UPDATE,
+        "kind": DECISION_UPDATE,
         "state": expected_state,
     }
     assert engine.state == expected_state
@@ -1259,20 +1251,20 @@ def test_all_canonical_directive_starts_remain_single_directive_when_valid(
 
     decision = engine.step(directive_start)
 
-    assert decision["kind"] != DecisionKind.NO_DIRECTIVE
+    assert decision["kind"] != DECISION_NO_DIRECTIVE
 
 
 def test_compound_no_directive_after_prior_missing_source_replacement_update() -> None:
     engine = create_engine()
     first = engine.step("use kubectl instead of docker")
     assert first == {
-        "kind": DecisionKind.UPDATE,
+        "kind": DECISION_UPDATE,
         "state": {"premise": None, "policies": {"kubectl": "use"}, "version": 2},
     }
 
     decision = engine.step("use docker and prohibit peanuts")
 
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+    assert decision == {"kind": DECISION_NO_DIRECTIVE}
     assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
 

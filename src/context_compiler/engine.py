@@ -5,7 +5,6 @@ import re
 from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
-from enum import StrEnum
 from typing import Literal, TypedDict
 from unicodedata import normalize as unicode_normalize
 
@@ -31,12 +30,6 @@ class State(TypedDict):
     premise: str | None
     policies: dict[str, PolicyValue]
     version: Literal[2]
-
-
-class DecisionKind(StrEnum):
-    UPDATE = "update"
-    NO_DIRECTIVE = "no_directive"
-    ERROR = "error"
 
 
 class NoDirectiveDecision(TypedDict):

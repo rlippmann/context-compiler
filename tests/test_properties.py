@@ -6,9 +6,9 @@ from unicodedata import normalize as unicode_normalize
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from context_compiler import create_engine
+from context_compiler import DECISION_ERROR, DECISION_NO_DIRECTIVE, DECISION_UPDATE, create_engine
 from context_compiler.controller import preview, state_diff
-from context_compiler.engine import DecisionKind, State
+from context_compiler.engine import State
 from context_compiler.grammar import (
     DirectiveKind,
     match_canonical_directive_start,
@@ -304,8 +304,8 @@ def test_use_item_with_empty_normalized_payload_clarifies_without_mutation(
     d2 = engine.step(f"use {item}")
 
     expected_prompt = "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value."
-    assert d1 == {"kind": DecisionKind.ERROR, "message": expected_prompt}
-    assert d2 == {"kind": DecisionKind.ERROR, "message": expected_prompt}
+    assert d1 == {"kind": DECISION_ERROR, "message": expected_prompt}
+    assert d2 == {"kind": DECISION_ERROR, "message": expected_prompt}
     assert engine.state == before
 
 
@@ -318,8 +318,8 @@ def test_idempotent_prohibit_item_is_update_and_stable_state(item: str) -> None:
     d1 = engine.step(f"prohibit {item}")
     d2 = engine.step(f"prohibit {item}")
 
-    assert d1["kind"] == DecisionKind.UPDATE
-    assert d2["kind"] == DecisionKind.UPDATE
+    assert d1["kind"] == DECISION_UPDATE
+    assert d2["kind"] == DECISION_UPDATE
     assert len(engine.state["policies"]) == 1
 
 
@@ -340,8 +340,8 @@ def test_prohibit_item_with_empty_normalized_payload_clarifies_without_mutation(
     d2 = engine.step(f"prohibit {item}")
 
     expected_prompt = "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
-    assert d1 == {"kind": DecisionKind.ERROR, "message": expected_prompt}
-    assert d2 == {"kind": DecisionKind.ERROR, "message": expected_prompt}
+    assert d1 == {"kind": DECISION_ERROR, "message": expected_prompt}
+    assert d2 == {"kind": DECISION_ERROR, "message": expected_prompt}
     assert engine.state == before
 
 
@@ -352,7 +352,7 @@ def test_non_matching_inputs_can_remain_no_directive_only(inputs: list[str]) -> 
 
     for text in inputs:
         decision = engine.step(f"please {text}")
-        assert decision["kind"] == DecisionKind.NO_DIRECTIVE
+        assert decision["kind"] == DECISION_NO_DIRECTIVE
 
     assert engine.state == before
 
@@ -364,7 +364,7 @@ def test_no_directive_sequence_preserves_state_and_decision_kind(inputs: list[st
 
     for text in inputs:
         decision = engine.step(f"prefix {text}")
-        assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
+        assert decision == {"kind": DECISION_NO_DIRECTIVE}
         assert engine.state == before
 
 
@@ -378,7 +378,7 @@ def test_contradiction_use_after_prohibit_always_clarifies(item: str) -> None:
     before = engine.state
 
     decision = engine.step(f"use {item}")
-    assert decision["kind"] == DecisionKind.ERROR
+    assert decision["kind"] == DECISION_ERROR
     assert engine.state == before
 
 
@@ -395,7 +395,7 @@ def test_contradiction_prohibit_after_use_always_clarifies(item: str) -> None:
     before = engine.state
 
     decision = engine.step(f"prohibit {item}")
-    assert decision["kind"] == DecisionKind.ERROR
+    assert decision["kind"] == DECISION_ERROR
     assert engine.state == before
 
 
@@ -455,7 +455,7 @@ def test_deterministic_replacement_matches_equivalent_explicit_transition(
     decision = engine.step(f"use {new_item} instead of {old_item}")
 
     assert expected_decision == {
-        "kind": DecisionKind.UPDATE,
+        "kind": DECISION_UPDATE,
         "state": expected_state,
     }
     assert decision == expected_decision
@@ -463,7 +463,7 @@ def test_deterministic_replacement_matches_equivalent_explicit_transition(
 
     if not old_present:
         followup = engine.step("yes")
-        assert followup == {"kind": DecisionKind.NO_DIRECTIVE}
+        assert followup == {"kind": DECISION_NO_DIRECTIVE}
         assert engine.state == expected_state
 
 

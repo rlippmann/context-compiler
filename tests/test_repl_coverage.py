@@ -1,5 +1,6 @@
 from io import StringIO
 
+from context_compiler import DECISION_UPDATE
 from context_compiler.repl import (
     _print_command_error,
     _render_diff_lines,
@@ -17,7 +18,7 @@ def test_render_diff_lines_covers_premise_removed_and_changed_policy() -> None:
         "output_version": 1,
         "mode": "preview",
         "decision": {
-            "kind": "update",
+            "kind": DECISION_UPDATE,
             "state": {"premise": "next", "policies": {}},
         },
         "state_before": {"premise": "before", "policies": {"docker": "use"}},
