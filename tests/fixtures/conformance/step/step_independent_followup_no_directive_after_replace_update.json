@@ -1,21 +1,26 @@
 {
-  "id": "step_natural_language_request_passthrough",
+  "id": "step_independent_followup_no_directive_after_replace_update",
   "kind": "step",
   "initial_state": {
     "premise": null,
     "policies": {},
     "version": 2
   },
-  "input": "please use docker",
+  "prelude": [
+    "use kubectl instead of docker"
+  ],
+  "input": "sounds good",
   "expected": {
     "decision": {
-      "kind": "passthrough",
+      "kind": "no_directive",
       "prompt_to_user": null,
       "state": null
     },
     "state": {
       "premise": null,
-      "policies": {},
+      "policies": {
+        "kubectl": "use"
+      },
       "version": 2
     }
   }

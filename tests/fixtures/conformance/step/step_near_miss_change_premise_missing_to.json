@@ -9,7 +9,7 @@
   "input": "change premise concise",
   "expected": {
     "decision": {
-      "kind": "passthrough",
+      "kind": "no_directive",
       "prompt_to_user": null,
       "state": null
     },

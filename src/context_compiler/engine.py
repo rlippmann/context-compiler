@@ -32,7 +32,7 @@ class State(TypedDict):
 
 class DecisionKind(StrEnum):
     UPDATE = "update"
-    PASSTHROUGH = "passthrough"
+    NO_DIRECTIVE = "no_directive"
     CLARIFY = "clarify"
 
 
@@ -61,8 +61,8 @@ class Action:
     old_item: str | None = None
 
 
-_PASSTHROUGH: Decision = {
-    "kind": DecisionKind.PASSTHROUGH,
+_NO_DIRECTIVE: Decision = {
+    "kind": DecisionKind.NO_DIRECTIVE,
     "state": None,
     "prompt_to_user": None,
 }
@@ -98,7 +98,7 @@ class Engine:
     def step(self, user_input: str) -> Decision:
         action = _parse_directive(user_input)
         if action is None:
-            return _PASSTHROUGH.copy()
+            return _NO_DIRECTIVE.copy()
 
         clarify_decision = self._pre_mutation_clarify(action)
         if clarify_decision is not None:

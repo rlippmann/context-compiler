@@ -1,26 +1,21 @@
 {
-  "id": "step_negative_followup_passthrough_punctuation_token",
+  "id": "step_natural_language_request_no_directive",
   "kind": "step",
   "initial_state": {
     "premise": null,
     "policies": {},
     "version": 2
   },
-  "prelude": [
-    "use kubectl instead of docker"
-  ],
-  "input": " NOPE?? ",
+  "input": "please use docker",
   "expected": {
     "decision": {
-      "kind": "passthrough",
+      "kind": "no_directive",
       "prompt_to_user": null,
       "state": null
     },
     "state": {
       "premise": null,
-      "policies": {
-        "kubectl": "use"
-      },
+      "policies": {},
       "version": 2
     }
   }

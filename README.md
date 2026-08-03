@@ -59,7 +59,7 @@ Context Compiler makes state-change rules explicit so behavior stays repeatable.
 The architecture has three layers:
 
 - syntax classification decides whether input is a canonical directive, invalid
-  directive-shaped syntax, or ordinary passthrough
+  directive-shaped syntax, or ordinary no_directive
 - semantic evaluation decides whether a canonical directive updates state,
   clarifies, or no-ops
 - semantic continuation optionally preserves a deterministic blocked transition
@@ -121,8 +121,8 @@ Decision
      ▼
 Host Application
  ├─ clarify → ask user
- ├─ passthrough → call LLM
- └─ update → authoritative state mutated; host may call LLM with compiled state
+ ├─ no_directive → no canonical directive recognized; host decides what to do next
+ └─ update → authoritative state mutated; host may use compiled state downstream
 ```
 
 The compiler never calls the LLM. Your app decides what to do with the returned
@@ -248,7 +248,7 @@ Each user message produces a `Decision`.
 
 ```python
 class Decision(TypedDict):
-    kind: Literal["passthrough", "update", "clarify"]
+    kind: Literal["no_directive", "update", "clarify"]
     state: dict | None
     prompt_to_user: str | None
 ```
@@ -257,12 +257,12 @@ Meaning:
 
 | kind | host behavior |
 | --- | --- |
-| passthrough | forward user input to LLM |
-| update | authoritative state mutated; host may call LLM with updated state |
-| clarify | show `prompt_to_user` and do not call the LLM |
+| no_directive | no canonical directive recognized; no authoritative state change; host decides what to do next |
+| update | authoritative state mutated; host may use updated state downstream |
+| clarify | show `prompt_to_user` and do not continue normal downstream processing yet |
 
 For normal app code, prefer the exported decision helpers (`is_clarify`,
-`is_update`, `is_passthrough`, `get_clarify_prompt`, `get_decision_state`)
+`is_update`, `is_no_directive`, `get_clarify_prompt`, `get_decision_state`)
 instead of direct key traversal.
 
 See [docs/api-reference.md](docs/api-reference.md) for the full public API
@@ -273,7 +273,7 @@ Common API entry points:
 - engine lifecycle: `create_engine(...)`, `engine.step(...)`, `engine.state`,
   `engine.premise`, `engine.policies`, `engine.export_json(...)`,
   `engine.import_json(...)`
-- decision helpers: `is_clarify(...)`, `is_update(...)`, `is_passthrough(...)`,
+- decision helpers: `is_clarify(...)`, `is_update(...)`, `is_no_directive(...)`,
   `get_clarify_prompt(...)`, `get_decision_state(...)`
 - state transport: `engine.export_json(...)`, `engine.import_json(...)`
 - controller API: `step(...)`

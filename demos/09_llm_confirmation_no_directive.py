@@ -1,7 +1,7 @@
-"""Demo 9: confirmation-style followups remain ordinary passthrough."""
+"""Demo 9: confirmation-style followups remain ordinary no_directive."""
 
 from context_compiler import (
-    DECISION_PASSTHROUGH,
+    DECISION_NO_DIRECTIVE,
     DECISION_UPDATE,
     State,
     create_engine,
@@ -21,7 +21,7 @@ from demos.common import (
 from demos.llm_client import complete_messages
 
 DEMO_NAME = (
-    "09_confirmation_passthrough_boundary — "
+    "09_confirmation_no_directive_boundary — "
     "missing-source replacement does not create a confirmation state"
 )
 TURN_1 = "use podman instead of docker"
@@ -93,14 +93,16 @@ def main() -> None:
         print_model_output("Compiler-mediated + compact", compact_output)
     else:
         print_messages("compiler-mediated + compact", [])
-        compact_output = "[no call] compact replay kept confirmation-style followups as passthrough"
+        compact_output = (
+            "[no call] compact replay kept confirmation-style followups as no_directive"
+        )
         print_model_output("Compiler-mediated + compact", compact_output)
 
     deterministic_initial_update = first["kind"] == DECISION_UPDATE and state_applied_after_first
-    unrelated_followup_passthrough = (
-        second["kind"] == DECISION_PASSTHROUGH and state_preserved_after_second
+    unrelated_followup_no_directive = (
+        second["kind"] == DECISION_NO_DIRECTIVE and state_preserved_after_second
     )
-    confirmation_token_not_consumed = third["kind"] == DECISION_PASSTHROUGH
+    confirmation_token_not_consumed = third["kind"] == DECISION_NO_DIRECTIVE
     deterministic_final_state = _has_podman_use(engine.state)
 
     baseline_has_confirmation_state_machine = False
@@ -108,7 +110,7 @@ def main() -> None:
 
     compiler_pass = (
         deterministic_initial_update
-        and unrelated_followup_passthrough
+        and unrelated_followup_no_directive
         and confirmation_token_not_consumed
         and deterministic_final_state
     )
@@ -125,8 +127,8 @@ def main() -> None:
         context="compiler-mediated",
     )
     print_host_check(
-        "UNRELATED_FOLLOWUP_PASSTHROUGH",
-        yes_no(unrelated_followup_passthrough),
+        "UNRELATED_FOLLOWUP_NO_DIRECTIVE",
+        yes_no(unrelated_followup_no_directive),
         context="compiler-mediated",
     )
     print_host_check(
@@ -149,13 +151,13 @@ def main() -> None:
         expected=(
             "missing-source replacement should apply without creating an engine-owned "
             "confirmation state, and later yes/no-style input should remain ordinary "
-            "passthrough"
+            "no_directive"
         ),
         actual=(
             "compiler applied deterministic replacement update and treated later inputs as "
-            "ordinary passthrough"
+            "ordinary no_directive"
             if compiler_pass and compact_pass
-            else "compiler did not consistently preserve the confirmation-passthrough boundary"
+            else "compiler did not consistently preserve the confirmation-no_directive boundary"
         ),
         passed=compiler_pass and compact_pass,
         result_pass="missing-source replacement stayed outside engine-owned confirmation state",

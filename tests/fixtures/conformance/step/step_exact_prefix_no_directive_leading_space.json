@@ -1,20 +1,24 @@
 {
-  "id": "step_quoted_leading_directive_text_passthrough",
+  "id": "step_exact_prefix_no_directive_leading_space",
   "kind": "step",
   "initial_state": {
     "premise": null,
     "policies": {},
     "version": 2
   },
-  "input": "\"use docker and prohibit peanuts\"",
+  "input": " set premise concise",
   "expected": {
     "decision": {
-      "kind": "passthrough",
+      "kind": "update",
       "prompt_to_user": null,
-      "state": null
+      "state": {
+        "premise": "concise",
+        "policies": {},
+        "version": 2
+      }
     },
     "state": {
-      "premise": null,
+      "premise": "concise",
       "policies": {},
       "version": 2
     }

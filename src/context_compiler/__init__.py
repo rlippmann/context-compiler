@@ -2,7 +2,7 @@ from importlib.metadata import version
 
 from .const import (
     DECISION_CLARIFY,
-    DECISION_PASSTHROUGH,
+    DECISION_NO_DIRECTIVE,
     DECISION_UPDATE,
     POLICY_PROHIBIT,
     POLICY_USE,
@@ -17,7 +17,7 @@ from .decision_helpers import (
     get_clarify_prompt,
     get_decision_state,
     is_clarify,
-    is_passthrough,
+    is_no_directive,
     is_update,
 )
 from .engine import (
@@ -35,7 +35,7 @@ __all__ = [
     "Decision",
     "DecisionKind",
     "DECISION_CLARIFY",
-    "DECISION_PASSTHROUGH",
+    "DECISION_NO_DIRECTIVE",
     "DECISION_UPDATE",
     "Engine",
     "POLICY_PROHIBIT",
@@ -49,7 +49,7 @@ __all__ = [
     "get_step_decision",
     "get_step_state",
     "is_clarify",
-    "is_passthrough",
+    "is_no_directive",
     "is_update",
     "step",
 ]

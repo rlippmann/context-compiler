@@ -346,25 +346,25 @@ def test_prohibit_item_with_empty_normalized_payload_clarifies_without_mutation(
 
 
 @given(st.lists(st.text(max_size=80), min_size=0, max_size=20))
-def test_non_matching_inputs_can_remain_passthrough_only(inputs: list[str]) -> None:
+def test_non_matching_inputs_can_remain_no_directive_only(inputs: list[str]) -> None:
     engine = create_engine()
     before = engine.state
 
     for text in inputs:
         decision = engine.step(f"please {text}")
-        assert decision["kind"] == "passthrough"
+        assert decision["kind"] == "no_directive"
 
     assert engine.state == before
 
 
 @given(st.lists(st.text(max_size=50), min_size=0, max_size=30))
-def test_passthrough_sequence_preserves_state_and_decision_kind(inputs: list[str]) -> None:
+def test_no_directive_sequence_preserves_state_and_decision_kind(inputs: list[str]) -> None:
     engine = create_engine()
     before = engine.state
 
     for text in inputs:
         decision = engine.step(f"prefix {text}")
-        assert decision == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+        assert decision == {"kind": "no_directive", "state": None, "prompt_to_user": None}
         assert engine.state == before
 
 
@@ -460,7 +460,7 @@ def test_deterministic_replacement_matches_equivalent_explicit_transition(
 
     if not old_present:
         followup = engine.step("yes")
-        assert followup == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+        assert followup == {"kind": "no_directive", "state": None, "prompt_to_user": None}
         assert engine.state == expected_state
 
 

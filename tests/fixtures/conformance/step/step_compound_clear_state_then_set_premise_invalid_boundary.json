@@ -11,7 +11,7 @@
   "input": "clear state then set premise project",
   "expected": {
     "decision": {
-      "kind": "passthrough",
+      "kind": "no_directive",
       "prompt_to_user": null,
       "state": null
     },

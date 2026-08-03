@@ -74,7 +74,7 @@ def test_preview_missing_source_replacement_reports_update_without_live_mutation
     assert result["would_mutate"] is True
 
     yes = engine.step("yes")
-    assert yes["kind"] == "passthrough"
+    assert yes["kind"] == "no_directive"
 
 
 def test_preview_prohibited_replacement_clarify_matches_execution_without_mutation() -> None:
@@ -247,7 +247,7 @@ def test_controller_helpers_are_importable_from_package_root() -> None:
 
 
 @pytest.mark.parametrize("followup_token", ["yes", "no"])
-def test_preview_followup_tokens_after_replace_update_are_passthrough(
+def test_preview_followup_tokens_after_replace_update_are_no_directive(
     followup_token: str,
 ) -> None:
     engine = create_engine()
@@ -260,7 +260,7 @@ def test_preview_followup_tokens_after_replace_update_are_passthrough(
 
     preview_result = preview(engine, followup_token)
     assert preview_result["decision"] == {
-        "kind": "passthrough",
+        "kind": "no_directive",
         "state": None,
         "prompt_to_user": None,
     }
@@ -274,5 +274,5 @@ def test_preview_followup_tokens_after_replace_update_are_passthrough(
     assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
     final = step(engine, followup_token)
-    assert final["decision"] == {"kind": "passthrough", "state": None, "prompt_to_user": None}
+    assert final["decision"] == {"kind": "no_directive", "state": None, "prompt_to_user": None}
     assert final["state"] == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}

@@ -68,7 +68,7 @@ Unknown top-level and documented nested fields are rejected.
 `prelude` simulates prior user inputs to reach states through the public engine
 surface before the main fixture input runs.
 
-Shared `step` fixtures intentionally cover representative parser and passthrough
+Shared `step` fixtures intentionally cover representative parser and no_directive
 boundaries. They do not attempt to freeze every ambiguous natural-language edge
 case as part of the cross-language contract.
 

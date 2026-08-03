@@ -7,7 +7,7 @@
     "CheckpointPending",
     "CheckpointPendingReplacement",
     "PendingReplacement",
-    "_PASSTHROUGH"
+    "_NO_DIRECTIVE"
   ],
   "exports": {
     "mode": "exact",
@@ -15,7 +15,7 @@
       "Decision",
       "DecisionKind",
       "DECISION_CLARIFY",
-      "DECISION_PASSTHROUGH",
+      "DECISION_NO_DIRECTIVE",
       "DECISION_UPDATE",
       "Engine",
       "POLICY_PROHIBIT",
@@ -29,7 +29,7 @@
       "get_step_decision",
       "get_step_state",
       "is_clarify",
-      "is_passthrough",
+      "is_no_directive",
       "is_update",
       "step"
     ],
@@ -44,9 +44,9 @@
         "kind": "constant",
         "value": "clarify"
       },
-      "DECISION_PASSTHROUGH": {
+      "DECISION_NO_DIRECTIVE": {
         "kind": "constant",
-        "value": "passthrough"
+        "value": "no_directive"
       },
       "DECISION_UPDATE": {
         "kind": "constant",
@@ -212,7 +212,7 @@
           }
         ]
       },
-      "is_passthrough": {
+      "is_no_directive": {
         "kind": "callable",
         "signature": {
           "params": [
@@ -227,7 +227,7 @@
           {
             "kwargs": {
               "decision": {
-                "kind": "passthrough",
+                "kind": "no_directive",
                 "state": null,
                 "prompt_to_user": null
               }

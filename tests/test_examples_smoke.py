@@ -42,7 +42,7 @@ pytestmark = pytest.mark.contract
         (
             "05_llm_integration_pattern.py",
             (
-                "Host action: passthrough -> call fake_llm() without state",
+                "Host action: no_directive -> core recognized no canonical directive",
                 "Host action: update -> call fake_llm() with compiled state",
             ),
         ),

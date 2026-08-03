@@ -127,7 +127,7 @@ Each user message produces a `Decision`.
 
 ```python
 class Decision(TypedDict):
-    kind: Literal["passthrough", "update", "clarify"]
+    kind: Literal["no_directive", "update", "clarify"]
     state: dict | None
     prompt_to_user: str | None
 ```
@@ -136,13 +136,13 @@ Decision kinds:
 
 | kind | Intended host use |
 | --- | --- |
-| `passthrough` | forward the user input to the model/runtime |
+| `no_directive` | no canonical directive recognized; no authoritative state change; host decides what to do next |
 | `update` | authoritative state changed; host may apply downstream behavior using updated state |
 | `clarify` | show `prompt_to_user`; do not continue normal downstream processing yet |
 
 Helper functions:
 
-- `is_passthrough(decision)`
+- `is_no_directive(decision)`
 - `is_update(decision)`
 - `is_clarify(decision)`
 - `get_clarify_prompt(decision)`
@@ -271,7 +271,7 @@ documentation in [tests/fixtures/README.md](../tests/fixtures/README.md).
 
 Decision-kind constants:
 
-- `DECISION_PASSTHROUGH`
+- `DECISION_NO_DIRECTIVE`
 - `DECISION_UPDATE`
 - `DECISION_CLARIFY`
 

@@ -487,7 +487,7 @@ def test_repl_interactive_help_commands() -> None:
         "clarify results are immediate messages and do not reserve later input.",
     ]
     assert lines[0] == "Context Compiler REPL (0.5). Type help for commands."
-    assert lines[1] == "Non-directive input is passthrough."
+    assert lines[1] == "Non-directive input is no_directive."
     expected_help_len = len(expected_help)
     assert lines[2 : 2 + expected_help_len] == expected_help
     assert lines[2 + expected_help_len : 2 + (2 * expected_help_len)] == expected_help
@@ -498,7 +498,7 @@ def test_repl_non_interactive_uses_human_readable_output() -> None:
     run_repl(StringIO("hello\nquit\n"), out)
 
     lines = out.getvalue().splitlines()
-    assert lines == ["passthrough"]
+    assert lines == ["no_directive"]
 
 
 def _run_non_interactive_json_lines(text: str) -> list[dict[str, object]]:
@@ -542,14 +542,14 @@ def test_repl_non_interactive_json_state_command() -> None:
     assert state["policies"] == {}
 
 
-def test_repl_non_interactive_json_clarify_and_passthrough() -> None:
+def test_repl_non_interactive_json_clarify_and_no_directive() -> None:
     rows = _run_non_interactive_json_lines(
         "prohibit docker\nuse kubectl instead of docker\nyes\nhello\nquit\n"
     )
     assert rows[1]["mode"] == "step"
     assert rows[1]["decision"]["kind"] == "clarify"
     assert rows[3]["mode"] == "step"
-    assert rows[3]["decision"]["kind"] == "passthrough"
+    assert rows[3]["decision"]["kind"] == "no_directive"
 
 
 def test_repl_non_interactive_json_machine_readable_errors() -> None:
@@ -645,8 +645,8 @@ def test_repl_non_interactive_preview_reports_no_mutation_after_invalid_replacem
         lines,
         ["updated", "premise: (none)", "policies:", "- use kubectl"],
     )
-    assert _contains_subsequence(lines, ["preview", "passthrough", "would_mutate: no"])
-    assert lines[-1] == "passthrough"
+    assert _contains_subsequence(lines, ["preview", "no_directive", "would_mutate: no"])
+    assert lines[-1] == "no_directive"
 
 
 def test_repl_non_interactive_preview_decline_reports_no_mutation() -> None:
@@ -654,7 +654,7 @@ def test_repl_non_interactive_preview_decline_reports_no_mutation() -> None:
     run_repl(StringIO("use kubectl instead of docker\npreview no\nquit\n"), out)
     lines = [line for line in out.getvalue().splitlines() if line.strip()]
 
-    assert _contains_subsequence(lines, ["preview", "passthrough"])
+    assert _contains_subsequence(lines, ["preview", "no_directive"])
     assert _contains_subsequence(lines, ["would_mutate: no", "diff:", "- (none)"])
 
 
@@ -685,7 +685,7 @@ def test_repl_state_command_after_invalid_replacement_shows_unchanged_state() ->
         ["updated", "premise: (none)", "policies:", "- use kubectl"],
     )
     assert _contains_subsequence(lines, ["premise: (none)", "policies:", "- use kubectl"])
-    assert lines[-1] == "passthrough"
+    assert lines[-1] == "no_directive"
 
 
 def test_repl_step_command_runs_normally_after_invalid_replacement() -> None:
@@ -704,10 +704,10 @@ def test_repl_step_command_runs_normally_after_invalid_replacement() -> None:
         lines,
         ["updated", "premise: concise", "policies:", "- use kubectl"],
     )
-    assert lines[-1] == "passthrough"
+    assert lines[-1] == "no_directive"
 
 
-def test_repl_step_command_affirmative_followup_is_passthrough() -> None:
+def test_repl_step_command_affirmative_followup_is_no_directive() -> None:
     out = StringIO()
     run_repl(StringIO("use kubectl instead of docker\nstep yes\nquit\n"), out)
     lines = [line for line in out.getvalue().splitlines() if line.strip()]
@@ -716,10 +716,10 @@ def test_repl_step_command_affirmative_followup_is_passthrough() -> None:
         lines,
         ["updated", "premise: (none)", "policies:", "- use kubectl"],
     )
-    assert lines[-1] == "passthrough"
+    assert lines[-1] == "no_directive"
 
 
-def test_repl_step_command_negative_followup_is_passthrough() -> None:
+def test_repl_step_command_negative_followup_is_no_directive() -> None:
     out = StringIO()
     run_repl(StringIO("use kubectl instead of docker\nstep no\nquit\n"), out)
     lines = [line for line in out.getvalue().splitlines() if line.strip()]
@@ -728,7 +728,7 @@ def test_repl_step_command_negative_followup_is_passthrough() -> None:
         lines,
         ["updated", "premise: (none)", "policies:", "- use kubectl"],
     )
-    assert lines[-1] == "passthrough"
+    assert lines[-1] == "no_directive"
 
 
 def test_repl_preview_available_after_invalid_replacement() -> None:
@@ -736,8 +736,8 @@ def test_repl_preview_available_after_invalid_replacement() -> None:
     run_repl(StringIO("use kubectl instead of docker\npreview yes\nyes\nquit\n"), out)
     lines = [line for line in out.getvalue().splitlines() if line.strip()]
 
-    assert _contains_subsequence(lines, ["preview", "passthrough", "would_mutate: no"])
-    assert lines[-1] == "passthrough"
+    assert _contains_subsequence(lines, ["preview", "no_directive", "would_mutate: no"])
+    assert lines[-1] == "no_directive"
 
 
 def test_repl_interactive_preview_available_after_invalid_replacement() -> None:
@@ -747,8 +747,8 @@ def test_repl_interactive_preview_available_after_invalid_replacement() -> None:
         lines,
         ["updated", "premise: (none)", "policies:", "- use kubectl"],
     )
-    assert _contains_subsequence(lines, ["preview", "passthrough", "would_mutate: no"])
-    assert lines[-1] == "passthrough"
+    assert _contains_subsequence(lines, ["preview", "no_directive", "would_mutate: no"])
+    assert lines[-1] == "no_directive"
 
 
 def test_repl_interactive_help_available_after_invalid_replacement() -> None:
@@ -760,7 +760,7 @@ def test_repl_interactive_help_available_after_invalid_replacement() -> None:
     )
     assert _contains_subsequence(lines, ["Commands: help/? exit/quit"])
     assert _contains_subsequence(lines, ["REPL command layer (not engine directives):"])
-    assert lines[-1] == "passthrough"
+    assert lines[-1] == "no_directive"
 
 
 def test_repl_preview_idempotent_admin_action_reports_no_mutation() -> None:
@@ -817,7 +817,7 @@ def test_repl_non_interactive_accepts_crlf_single_line_without_multi_command_err
     )
 
     lines = out.getvalue().splitlines()
-    assert lines == ["passthrough"]
+    assert lines == ["no_directive"]
 
 
 def test_repl_interactive_rejects_embedded_carriage_return_multi_command_chunk() -> None:
@@ -833,23 +833,23 @@ def test_repl_interactive_rejects_embedded_carriage_return_multi_command_chunk()
     assert "updated" not in lines
 
 
-def test_repl_invalid_directive_near_misses_remain_passthrough() -> None:
+def test_repl_invalid_directive_near_misses_remain_no_directive() -> None:
     lines = _run_non_interactive_lines("actually use uv\nno use peanuts\nallow docker\nquit\n")
-    assert lines == ["passthrough", "passthrough", "passthrough"]
+    assert lines == ["no_directive", "no_directive", "no_directive"]
 
 
-def test_repl_empty_policy_payloads_and_incomplete_replacement_remain_passthrough() -> None:
+def test_repl_empty_policy_payloads_and_incomplete_replacement_remain_no_directive() -> None:
     lines = _run_non_interactive_lines(
         "use\nprohibit   \nuse x instead of\nuse instead of y\nquit\n"
     )
-    assert lines == ["passthrough", "passthrough", "passthrough", "passthrough"]
+    assert lines == ["no_directive", "no_directive", "no_directive", "no_directive"]
 
 
-def test_repl_premise_to_variant_near_misses_remain_passthrough() -> None:
+def test_repl_premise_to_variant_near_misses_remain_no_directive() -> None:
     lines = _run_non_interactive_lines(
         "set premise to concise replies\nchange premise concise replies\nquit\n"
     )
-    assert lines == ["passthrough", "passthrough"]
+    assert lines == ["no_directive", "no_directive"]
 
 
 def test_repl_non_interactive_remove_policy_flow() -> None:
@@ -869,7 +869,7 @@ def test_repl_contradiction_clarify_does_not_reserve_followup_tokens() -> None:
         [
             'error: "docker" is currently in use.',
             "Remove or replace it before prohibiting it.",
-            "passthrough",
+            "no_directive",
         ],
     )
 
@@ -885,14 +885,14 @@ def test_repl_change_premise_without_existing_premise_renders_exact_error() -> N
     )
 
 
-def test_repl_set_premise_empty_payload_remains_passthrough() -> None:
+def test_repl_set_premise_empty_payload_remains_no_directive() -> None:
     lines = _run_non_interactive_lines("set premise\nquit\n")
-    assert lines == ["passthrough"]
+    assert lines == ["no_directive"]
 
 
-def test_repl_change_premise_empty_payload_remains_passthrough() -> None:
+def test_repl_change_premise_empty_payload_remains_no_directive() -> None:
     lines = _run_non_interactive_lines("change premise to\nquit\n")
-    assert lines == ["passthrough"]
+    assert lines == ["no_directive"]
 
 
 def test_repl_use_item_when_prohibited_renders_exact_error() -> None:
@@ -926,10 +926,10 @@ def test_repl_replace_use_when_old_policy_not_use_renders_exact_error(
     )
 
 
-def test_repl_replacement_invalid_followups_are_passthrough() -> None:
+def test_repl_replacement_invalid_followups_are_no_directive() -> None:
     lines = _run_non_interactive_lines("use podman instead of docker\nmaybe\nyes please!!\nquit\n")
     assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use podman"])
-    assert lines[-2:] == ["passthrough", "passthrough"]
+    assert lines[-2:] == ["no_directive", "no_directive"]
 
 
 def test_repl_interactive_prints_error_for_clarify_output() -> None:
@@ -940,7 +940,7 @@ def test_repl_interactive_prints_error_for_clarify_output() -> None:
     assert "Remove or replace it before prohibiting it." in error_lines
 
 
-def test_repl_prohibited_replacement_followup_tokens_remain_passthrough() -> None:
+def test_repl_prohibited_replacement_followup_tokens_remain_no_directive() -> None:
     lines = _run_non_interactive_lines(
         "use docker\nprohibit podman\nuse podman instead of docker\nno\nno\nquit\n"
     )
@@ -967,7 +967,7 @@ def test_repl_prohibited_replacement_followup_tokens_remain_passthrough() -> Non
             "Submit explicit directive(s) to remove it or use a different item.",
         ],
     )
-    assert lines[-1] == "passthrough"
+    assert lines[-1] == "no_directive"
 
 
 def test_repl_premise_lifecycle_outputs_expected_state_shape() -> None:
@@ -999,22 +999,22 @@ def test_repl_interactive_renders_updated_state_blocks_for_multiple_operations()
     assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use docker"])
 
 
-def test_repl_interactive_tokens_after_invalid_replacement_are_passthrough() -> None:
+def test_repl_interactive_tokens_after_invalid_replacement_are_no_directive() -> None:
     lines_yes = _run_interactive_lines("use podman instead of docker\nyeah\nquit\n")
     assert "updated" in lines_yes
-    assert lines_yes[-1] == "passthrough"
+    assert lines_yes[-1] == "no_directive"
 
     lines_ok = _run_interactive_lines("use buildah instead of docker\nok\nquit\n")
     assert "updated" in lines_ok
-    assert lines_ok[-1] == "passthrough"
+    assert lines_ok[-1] == "no_directive"
 
     lines_nope = _run_interactive_lines("use nerdctl instead of docker\nnope\nquit\n")
     assert "updated" in lines_nope
-    assert lines_nope[-1] == "passthrough"
+    assert lines_nope[-1] == "no_directive"
 
     lines_no_thanks = _run_interactive_lines("use helm instead of docker\nno thanks\nquit\n")
     assert "updated" in lines_no_thanks
-    assert lines_no_thanks[-1] == "passthrough"
+    assert lines_no_thanks[-1] == "no_directive"
 
 
 def test_repl_interactive_admin_idempotency_outputs_updated_with_unchanged_state() -> None:
@@ -1045,16 +1045,16 @@ def test_repl_interactive_clarify_output_alignment_for_actual_behaviors() -> Non
     )
 
 
-def test_repl_interactive_passthrough_prints_passthrough_label() -> None:
+def test_repl_interactive_no_directive_prints_no_directive_label() -> None:
     lines = _run_interactive_lines("actually use uv\nquit\n")
-    assert "passthrough" in lines
+    assert "no_directive" in lines
 
 
 def test_repl_interactive_blank_line_is_ignored_without_output() -> None:
     lines = _run_interactive_lines("\nset premise concise\nquit\n")
 
     assert lines[0] == "Context Compiler REPL (0.5). Type help for commands."
-    assert lines[1] == "Non-directive input is passthrough."
+    assert lines[1] == "Non-directive input is no_directive."
     assert lines.count("updated") == 1
     assert _contains_subsequence(lines, ["updated", "premise: concise", "policies: (none)"])
 
@@ -1063,7 +1063,7 @@ def test_repl_interactive_eof_returns_cleanly_after_startup_banner() -> None:
     lines = _run_interactive_lines("")
     assert lines == [
         "Context Compiler REPL (0.5). Type help for commands.",
-        "Non-directive input is passthrough.",
+        "Non-directive input is no_directive.",
     ]
 
 
@@ -1127,7 +1127,7 @@ def test_repl_interactive_step_command_paths_after_invalid_replacement() -> None
         lines,
         ["updated", "premise: (none)", "policies:", "- use kubectl"],
     )
-    assert lines[-2:] == ["passthrough", "passthrough"]
+    assert lines[-2:] == ["no_directive", "no_directive"]
 
 
 def test_repl_interactive_preview_requires_payload() -> None:
