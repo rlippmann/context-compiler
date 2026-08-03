@@ -122,19 +122,12 @@ def step(engine: Engine, user_input: str) -> StepResult:
 
 
 def preview(engine: Engine, user_input: str) -> PreviewResult:
-    state_json = engine.export_json()
     state_before = engine.state
-
-    decision: Decision | None = None
-    state_after: State | None = None
-    try:
-        decision = engine.step(user_input)
-        state_after = engine.state
-    finally:
-        engine.import_json(state_json)
-
-    assert decision is not None
-    assert state_after is not None
+    # Preview intentionally consumes the engine's private evaluator so preview and
+    # committed execution share one transition path without making evaluation public.
+    evaluated = engine._evaluate_transition(state_before, user_input)  # noqa: SLF001
+    decision = evaluated.decision
+    state_after = evaluated.next_state
 
     diff = state_diff(state_before, state_after)
     would_mutate = diff["changed"]
