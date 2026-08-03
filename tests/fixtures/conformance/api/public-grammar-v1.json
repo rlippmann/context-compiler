@@ -7,8 +7,10 @@
       "CanonicalDirective",
       "DirectiveKind",
       "ValidatedDirective",
+      "contains_multiple_canonical_directives",
       "decompose_directive",
       "is_canonical_directive",
+      "match_canonical_directive_start",
       "render_directive",
       "validate_directive"
     ],
@@ -21,6 +23,38 @@
       },
       "ValidatedDirective": {
         "kind": "class"
+      },
+      "contains_multiple_canonical_directives": {
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "text",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
+          {
+            "kwargs": {
+              "text": "use docker and prohibit peanuts"
+            },
+            "return_shape": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          {
+            "kwargs": {
+              "text": "use docker"
+            },
+            "return_shape": {
+              "type": "boolean",
+              "const": false
+            }
+          }
+        ]
       },
       "decompose_directive": {
         "kind": "callable",
@@ -76,6 +110,44 @@
             "return_shape": {
               "type": "boolean",
               "const": true
+            }
+          }
+        ]
+      },
+      "match_canonical_directive_start": {
+        "kind": "callable",
+        "signature": {
+          "params": [
+            {
+              "name": "text",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            },
+            {
+              "name": "start",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
+          ]
+        },
+        "shape_probes": [
+          {
+            "kwargs": {
+              "text": "please use docker",
+              "start": 7
+            },
+            "return_shape": {
+              "type": "number",
+              "const": 10
+            }
+          },
+          {
+            "kwargs": {
+              "text": "abuse docker",
+              "start": 1
+            },
+            "return_shape": {
+              "type": "null"
             }
           }
         ]

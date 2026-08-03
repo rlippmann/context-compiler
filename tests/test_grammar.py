@@ -279,8 +279,22 @@ def test_internal_grammar_specs_use_immutable_mapping() -> None:
 
 
 def test_internal_canonical_start_match_rejects_out_of_range_positions() -> None:
-    assert grammar_module._match_canonical_directive_start("use docker", -1) is None
-    assert grammar_module._match_canonical_directive_start("use docker", len("use docker")) is None
+    assert match_canonical_directive_start("use docker", -1) is None
+    assert match_canonical_directive_start("use docker", len("use docker")) is None
+
+
+def test_public_grammar_all_includes_semantic_surface() -> None:
+    assert grammar_module.__all__ == [
+        "CanonicalDirective",
+        "DirectiveKind",
+        "ValidatedDirective",
+        "contains_multiple_canonical_directives",
+        "decompose_directive",
+        "is_canonical_directive",
+        "match_canonical_directive_start",
+        "render_directive",
+        "validate_directive",
+    ]
 
 
 def test_validate_directive_rejects_near_miss_without_required_delimiter() -> None:

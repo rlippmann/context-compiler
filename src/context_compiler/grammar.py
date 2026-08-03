@@ -173,7 +173,14 @@ def _operand_starts_with_token(value: str, token: str) -> bool:
     return normalized == token or normalized.startswith(f"{token} ")
 
 
-def _match_canonical_directive_start(text: str, start: int) -> int | None:
+def match_canonical_directive_start(text: str, start: int) -> int | None:
+    """Locate a canonical directive prefix at a given character position.
+
+    This classifies whether canonical directive syntax begins at ``start`` and,
+    when it does, returns the index immediately after the directive keyword
+    prefix. It does not parse operands, validate the full directive payload, or
+    evaluate multi-directive state semantics.
+    """
     if start < 0 or start >= len(text):
         return None
 
@@ -230,13 +237,20 @@ def _match_directive_token(
     return index
 
 
-def _contains_multiple_canonical_directives(text: str) -> bool:
-    first_start = _match_canonical_directive_start(text, 0)
+def contains_multiple_canonical_directives(text: str) -> bool:
+    """Report whether text contains more than one canonical directive start.
+
+    This detects compound directive text by looking for multiple canonical
+    directive prefixes in the same input. It does not parse directive operands,
+    repair malformed text, or determine whether a whole string should be
+    accepted as a single directive.
+    """
+    first_start = match_canonical_directive_start(text, 0)
     if first_start is None:
         return False
 
     for index in range(first_start, len(text)):
-        next_start = _match_canonical_directive_start(text, index)
+        next_start = match_canonical_directive_start(text, index)
         if next_start is not None:
             return True
 
@@ -266,10 +280,17 @@ def _parse_replace_use(trimmed_text: str) -> CanonicalDirective | None:
 
 
 def decompose_directive(text: str) -> CanonicalDirective | None:
+    """Parse one canonical directive into its semantic kind and operands.
+
+    This determines whether ``text`` is a single canonical directive and, when
+    it is, returns the directive kind plus canonical operand names with the
+    original operand text preserved. It does not repair input, infer intent, or
+    evaluate directive effects against compiler state.
+    """
     trimmed_text = _trim_ascii_whitespace(text)
     if trimmed_text == "":
         return None
-    if _contains_multiple_canonical_directives(trimmed_text):
+    if contains_multiple_canonical_directives(trimmed_text):
         return None
 
     normalized = _normalized_for_matching(trimmed_text)
@@ -368,25 +389,37 @@ def decompose_directive(text: str) -> CanonicalDirective | None:
 
 
 def validate_directive(text: str) -> ValidatedDirective | None:
+    """Classify whether text is a canonical directive.
+
+    This determines whether ``text`` belongs to one canonical directive family
+    and returns only the normalized semantic kind needed for classification. It
+    does not expose operands, render directives, repair malformed text, or
+    evaluate any state transition.
+    """
     parsed = decompose_directive(text)
     if parsed is None:
         return None
     return ValidatedDirective(text=parsed.text, kind=parsed.kind)
 
 
-def match_canonical_directive_start(text: str, start: int) -> int | None:
-    return _match_canonical_directive_start(text, start)
-
-
-def contains_multiple_canonical_directives(text: str) -> bool:
-    return _contains_multiple_canonical_directives(text)
-
-
 def is_canonical_directive(text: str) -> bool:
+    """Return whether text is exactly one canonical directive.
+
+    This provides boolean directive classification for callers that only need a
+    yes-or-no answer. It does not parse operands, explain rejection reasons, or
+    perform validation beyond canonical grammar recognition.
+    """
     return validate_directive(text) is not None
 
 
 def render_directive(kind: DirectiveKind, /, **operands: str) -> str:
+    """Render canonical directive text from a semantic kind and operands.
+
+    This determines the exact canonical spelling for an existing grammar
+    capability and rejects operand combinations that would not round-trip as the
+    requested directive kind. It does not infer missing operands, parse user
+    input, or extend the grammar with new behaviors.
+    """
     try:
         normalized_kind = kind if isinstance(kind, DirectiveKind) else DirectiveKind(kind)
         spec = _DIRECTIVE_SPECS[normalized_kind]
@@ -425,8 +458,10 @@ __all__ = [
     "CanonicalDirective",
     "DirectiveKind",
     "ValidatedDirective",
+    "contains_multiple_canonical_directives",
     "decompose_directive",
     "is_canonical_directive",
+    "match_canonical_directive_start",
     "render_directive",
     "validate_directive",
 ]
