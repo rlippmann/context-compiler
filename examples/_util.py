@@ -8,6 +8,8 @@ from context_compiler import (
     is_update,
 )
 
+# These helpers only format readable example output; they are not part of the library API.
+
 
 def canonical_json(obj: Any) -> str:
     return json.dumps(obj, sort_keys=True, separators=(",", ":"))
