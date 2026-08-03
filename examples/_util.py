@@ -5,7 +5,7 @@ from context_compiler import (
     POLICY_PROHIBIT,
     POLICY_USE,
     get_decision_state,
-    get_error_prompt,
+    get_error_message,
     is_error,
     is_update,
 )
@@ -46,9 +46,9 @@ def print_decision_summary(decision: Any) -> None:
 
     if is_error(decision):
         print("result: error")
-        prompt = get_error_prompt(decision)
+        prompt = get_error_message(decision)
         if isinstance(prompt, str) and prompt:
-            print("error prompt:")
+            print("error message:")
             for line in prompt.splitlines():
                 print(f"- {line}")
         return

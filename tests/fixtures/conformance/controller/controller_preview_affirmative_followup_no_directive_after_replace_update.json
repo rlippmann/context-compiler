@@ -18,9 +18,7 @@
       "output_version": 1,
       "mode": "preview",
       "decision": {
-        "kind": "no_directive",
-        "state": null,
-        "prompt_to_user": null
+        "kind": "no_directive"
       },
       "state_before": {
         "premise": null,

@@ -12,7 +12,6 @@
   "expected": {
     "decision": {
       "kind": "update",
-      "prompt_to_user": null,
       "state": {
         "premise": null,
         "policies": {

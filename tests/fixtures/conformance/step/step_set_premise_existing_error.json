@@ -10,8 +10,7 @@
   "expected": {
     "decision": {
       "kind": "error",
-      "prompt_to_user": null,
-      "state": null
+      "message": "Premise already set.\nUse 'change premise to <value>' to modify it."
     },
     "state": {
       "premise": "existing premise",

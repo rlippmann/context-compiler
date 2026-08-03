@@ -62,12 +62,16 @@ def _validate_structured_expected_fixture(expected: dict[str, object], fixture_i
         decision = turn["decision"]
         assert isinstance(decision, dict), fixture_id
         _assert_allowed_keys(
-            decision, {"kind", "prompt_to_user"}, fixture_id, "expected.turn.decision"
+            decision, {"kind"} | ({"message"} & set(decision)), fixture_id, "expected.turn.decision"
         )
         assert isinstance(decision["kind"], str), fixture_id
-        assert decision["prompt_to_user"] is None or isinstance(decision["prompt_to_user"], str), (
-            fixture_id
-        )
+        if decision["kind"] == "error":
+            _assert_allowed_keys(
+                decision, {"kind", "message"}, fixture_id, "expected.turn.decision"
+            )
+            assert isinstance(decision["message"], str), fixture_id
+        else:
+            _assert_allowed_keys(decision, {"kind"}, fixture_id, "expected.turn.decision")
 
 
 def _state_diff(expected: object, actual: object) -> str:
@@ -121,9 +125,10 @@ def test_structured_regression_scenarios() -> None:
             assert decision["kind"] == expected_decision["kind"], (
                 f"{context} decision_kind_mismatch"
             )
-            assert decision["prompt_to_user"] == expected_decision["prompt_to_user"], (
-                f"{context} prompt_to_user_mismatch"
-            )
+            if decision["kind"] == "error":
+                assert decision["message"] == expected_decision["message"], (
+                    f"{context} message_mismatch"
+                )
 
             expected_state = expected_turn["state"]
             if state != expected_state:
@@ -139,7 +144,6 @@ def test_structured_expected_validator_rejects_unknown_turn_decision_field() -> 
                 "input": "use docker",
                 "decision": {
                     "kind": "update",
-                    "prompt_to_user": None,
                     "unexpected": True,
                 },
                 "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},

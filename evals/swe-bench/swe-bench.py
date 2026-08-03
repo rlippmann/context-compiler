@@ -33,7 +33,7 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
-from context_compiler import create_engine
+from context_compiler import create_engine, is_error
 
 RUBRIC_WEIGHTS: dict[str, int] = {
     "Correct fix locus": 2,
@@ -701,12 +701,12 @@ def main() -> None:
             error_result: dict[str, Any] | None = None
             for index, directive in enumerate(task.directives):
                 decision = engine.step(directive)
-                if str(decision["kind"]) == "error":
+                if is_error(decision):
                     error_result = {
                         "error": "compiler_lane_error",
                         "directive_index": index,
                         "directive": directive,
-                        "prompt_to_user": decision.get("prompt_to_user"),
+                        "message": decision["message"],
                     }
                     break
 

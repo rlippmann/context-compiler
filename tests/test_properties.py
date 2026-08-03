@@ -304,8 +304,8 @@ def test_use_item_with_empty_normalized_payload_clarifies_without_mutation(
     d2 = engine.step(f"use {item}")
 
     expected_prompt = "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value."
-    assert d1 == {"kind": DecisionKind.ERROR, "state": None, "prompt_to_user": expected_prompt}
-    assert d2 == {"kind": DecisionKind.ERROR, "state": None, "prompt_to_user": expected_prompt}
+    assert d1 == {"kind": DecisionKind.ERROR, "message": expected_prompt}
+    assert d2 == {"kind": DecisionKind.ERROR, "message": expected_prompt}
     assert engine.state == before
 
 
@@ -340,8 +340,8 @@ def test_prohibit_item_with_empty_normalized_payload_clarifies_without_mutation(
     d2 = engine.step(f"prohibit {item}")
 
     expected_prompt = "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
-    assert d1 == {"kind": DecisionKind.ERROR, "state": None, "prompt_to_user": expected_prompt}
-    assert d2 == {"kind": DecisionKind.ERROR, "state": None, "prompt_to_user": expected_prompt}
+    assert d1 == {"kind": DecisionKind.ERROR, "message": expected_prompt}
+    assert d2 == {"kind": DecisionKind.ERROR, "message": expected_prompt}
     assert engine.state == before
 
 
@@ -364,11 +364,7 @@ def test_no_directive_sequence_preserves_state_and_decision_kind(inputs: list[st
 
     for text in inputs:
         decision = engine.step(f"prefix {text}")
-        assert decision == {
-            "kind": DecisionKind.NO_DIRECTIVE,
-            "state": None,
-            "prompt_to_user": None,
-        }
+        assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
         assert engine.state == before
 
 
@@ -461,18 +457,13 @@ def test_deterministic_replacement_matches_equivalent_explicit_transition(
     assert expected_decision == {
         "kind": DecisionKind.UPDATE,
         "state": expected_state,
-        "prompt_to_user": None,
     }
     assert decision == expected_decision
     assert engine.state == expected_state
 
     if not old_present:
         followup = engine.step("yes")
-        assert followup == {
-            "kind": DecisionKind.NO_DIRECTIVE,
-            "state": None,
-            "prompt_to_user": None,
-        }
+        assert followup == {"kind": DecisionKind.NO_DIRECTIVE}
         assert engine.state == expected_state
 
 

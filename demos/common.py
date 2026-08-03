@@ -5,11 +5,11 @@ import re
 from typing import Literal, NotRequired, TypedDict
 
 from context_compiler import (
-    DECISION_ERROR,
-    DECISION_UPDATE,
     Decision,
     State,
     create_engine,
+    is_error,
+    is_update,
 )
 from demos.llm_client import Message
 
@@ -80,14 +80,14 @@ def print_decision(title: str, decision: Decision, state: State) -> None:
     if not is_verbose():
         return
     print(f"Compiler decision ({title}):")
-    if decision["kind"] == DECISION_UPDATE:
+    if is_update(decision):
         print("result: updated")
         _print_state_summary(state)
-    elif decision["kind"] == DECISION_ERROR:
+    elif is_error(decision):
         print("result: error")
-        prompt = decision["prompt_to_user"]
-        if prompt:
-            _print_multiline_prompt("error prompt", prompt)
+        message = decision["message"]
+        if message:
+            _print_multiline_prompt("error message", message)
         _print_state_summary(state)
     else:
         print("result: no_directive")
@@ -255,24 +255,24 @@ def compact_user_turns(
     - drop update lines
     - keep no_directive lines
     - keep first error line and stop
-    - return prompt_to_user for error, else None
+    - return message for error, else None
     - returned state is engine state at stop point
     """
 
     engine = create_engine()
     compacted_turns: list[str] = []
-    prompt_to_user: str | None = None
+    message: str | None = None
 
     for turn in user_turns:
         decision = engine.step(turn)
-        if decision["kind"] == DECISION_UPDATE:
+        if is_update(decision):
             continue
         compacted_turns.append(turn)
-        if decision["kind"] == DECISION_ERROR:
-            prompt_to_user = decision["prompt_to_user"]
+        if is_error(decision):
+            message = decision["message"]
             break
 
-    return compacted_turns, engine.state, prompt_to_user
+    return compacted_turns, engine.state, message
 
 
 def build_mediated_messages_from_transcript(

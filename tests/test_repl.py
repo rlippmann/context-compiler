@@ -172,8 +172,7 @@ def test_render_decision_lines_uses_error_prefix_for_all_error_prompts() -> None
     lines = repl_module._render_decision_lines(
         {
             "kind": "error",
-            "state": None,
-            "prompt_to_user": "Proceed?",
+            "message": "Proceed?",
         }
     )
 
@@ -186,7 +185,6 @@ def test_render_diff_lines_includes_added_policy_entries() -> None:
         "decision": {
             "kind": "update",
             "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
-            "prompt_to_user": None,
         },
         "diff": {
             "premise": {"changed": False, "before": None, "after": None},
@@ -606,7 +604,6 @@ def test_repl_non_interactive_json_step_runs_normally_after_replace_update() -> 
         "command": "step",
         "decision": {
             "kind": "update",
-            "prompt_to_user": None,
             "state": {"premise": "concise", "policies": {"kubectl": "use"}, "version": 2},
         },
         "mode": "step",
@@ -1152,7 +1149,6 @@ def test_repl_interactive_preview_renders_structural_diff_lines(
         "decision": {
             "kind": "update",
             "state": {"premise": "after", "policies": {"docker": "prohibit"}},
-            "prompt_to_user": None,
         },
         "state_before": {"premise": "before", "policies": {"docker": "use", "kubectl": "use"}},
         "state_after": {"premise": "after", "policies": {"docker": "prohibit"}},

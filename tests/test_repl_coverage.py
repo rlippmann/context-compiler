@@ -19,7 +19,6 @@ def test_render_diff_lines_covers_premise_removed_and_changed_policy() -> None:
         "decision": {
             "kind": "update",
             "state": {"premise": "next", "policies": {}},
-            "prompt_to_user": None,
         },
         "state_before": {"premise": "before", "policies": {"docker": "use"}},
         "state_after": {"premise": "next", "policies": {"docker": "prohibit"}},

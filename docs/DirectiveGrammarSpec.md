@@ -66,10 +66,18 @@ The host:
 ## 4. Decision API Contract
 
 ```python
-class Decision(TypedDict):
-    kind: Literal["no_directive", "update", "error"]
-    state: dict | None
-    prompt_to_user: str | None
+class NoDirectiveDecision(TypedDict):
+    kind: Literal["no_directive"]
+
+class UpdateDecision(TypedDict):
+    kind: Literal["update"]
+    state: State
+
+class ErrorDecision(TypedDict):
+    kind: Literal["error"]
+    message: str
+
+Decision = NoDirectiveDecision | UpdateDecision | ErrorDecision
 ```
 
 Semantics:

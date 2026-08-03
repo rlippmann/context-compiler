@@ -1,6 +1,6 @@
 """Demo 1: compiler blocks contradictory directives before model call."""
 
-from context_compiler import create_engine
+from context_compiler import create_engine, is_error
 from demos.common import (
     build_baseline_messages,
     build_mediated_messages_from_transcript,
@@ -62,9 +62,9 @@ def main() -> None:
     reinjected_output = complete_messages(reinjected_messages)
     print_model_output("Reinjected-state", reinjected_output)
 
-    if second["kind"] == "error":
+    if is_error(second):
         print_messages("compiler-mediated (full)", [])
-        mediated_output = f"[no call] error required: {second['prompt_to_user']}\nACTION:error"
+        mediated_output = f"[no call] error required: {second['message']}\nACTION:error"
         print_model_output("Compiler-mediated (full)", mediated_output)
     else:
         mediated_messages = build_mediated_messages_from_transcript(engine.state, user_inputs)
@@ -89,7 +89,7 @@ def main() -> None:
     compact_action = extract_tag_value(compact_output, "ACTION")
     baseline_respects = baseline_action is not None and baseline_action.lower() == "error"
     reinjected_respects = reinjected_action is not None and reinjected_action.lower() == "error"
-    compiler_host_blocked = second["kind"] == "error"
+    compiler_host_blocked = is_error(second)
     mediated_respects = compiler_host_blocked
     compact_respects = compacted_prompt is not None or (
         compact_action is not None and compact_action.lower() == "error"

@@ -28,7 +28,7 @@ Each expected turn uses:
 
 * `input`
 * `decision.kind`
-* `decision.prompt_to_user`
+* `decision.message` for `error` turns only
 * `state`
 
 `decision.state` is intentionally omitted because the expected authoritative
@@ -43,7 +43,7 @@ regressions are visible in:
 
 ## Prompt Matching
 
-`decision.prompt_to_user` is matched exactly, including error text.
+`decision.message` is matched exactly, including error text.
 
 ## Adding a Scenario
 
@@ -56,7 +56,7 @@ regressions are visible in:
 
 These fixtures validate **deterministic engine behavior only**:
 
-* `engine.step(...)` outputs (`Decision.kind`, `prompt_to_user`)
+* `engine.step(...)` outputs (`Decision.kind`, `message` on `error` only)
 * post-turn authoritative state snapshot
 
 They do **not** cover:

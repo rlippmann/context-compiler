@@ -5,8 +5,6 @@ from types import ModuleType
 
 import pytest
 
-from context_compiler.engine import DecisionKind
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES_DIR = REPO_ROOT / "examples"
 
@@ -33,13 +31,13 @@ def test_example_03_error_gate_blocks_llm_and_allows_later_update(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     module = _load_example_module("03_ambiguity_with_error.py")
-    decision_kinds: list[DecisionKind] = []
+    decision_kinds: list[str] = []
     llm_calls: list[str] = []
 
     def capture_decision_summary(decision: object) -> None:
         assert isinstance(decision, dict)
         kind = decision.get("kind")
-        assert isinstance(kind, DecisionKind)
+        assert isinstance(kind, str)
         decision_kinds.append(kind)
 
     def fake_llm(user_input: str) -> str:
@@ -53,9 +51,9 @@ def test_example_03_error_gate_blocks_llm_and_allows_later_update(
     output = capsys.readouterr().out
 
     assert decision_kinds == [
-        DecisionKind.UPDATE,
-        DecisionKind.ERROR,
-        DecisionKind.UPDATE,
+        "update",
+        "error",
+        "update",
     ]
     assert "Host behavior: error returned, do NOT call LLM." in output
     assert llm_calls == []
@@ -90,13 +88,13 @@ def test_example_05_dispatches_no_directive_update_and_error_correctly(
 ) -> None:
     module = _load_example_module("05_llm_integration_pattern.py")
     engine = module.create_engine()
-    decision_kinds: list[DecisionKind] = []
+    decision_kinds: list[str] = []
     llm_calls: list[tuple[object, str]] = []
 
     def capture_decision_summary(decision: object) -> None:
         assert isinstance(decision, dict)
         kind = decision.get("kind")
-        assert isinstance(kind, DecisionKind)
+        assert isinstance(kind, str)
         decision_kinds.append(kind)
 
     def capture_fake_llm(state: object, user_input: str) -> str:
@@ -112,9 +110,9 @@ def test_example_05_dispatches_no_directive_update_and_error_correctly(
     module.handle_turn("set premise verbose replies", engine)  # error
 
     assert decision_kinds == [
-        DecisionKind.NO_DIRECTIVE,
-        DecisionKind.UPDATE,
-        DecisionKind.ERROR,
+        "no_directive",
+        "update",
+        "error",
     ]
     assert len(llm_calls) == calls_before_error
     assert llm_calls[0][0] is None

@@ -9,12 +9,11 @@
   "prelude": [
     "use don't"
   ],
-  "input": "prohibit don’t",
+  "input": "prohibit don\u2019t",
   "expected": {
     "decision": {
       "kind": "error",
-      "prompt_to_user": null,
-      "state": null
+      "message": "\"don't\" is currently in use.\nRemove or replace it before prohibiting it."
     },
     "state": {
       "premise": null,

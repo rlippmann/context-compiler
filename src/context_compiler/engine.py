@@ -36,10 +36,21 @@ class DecisionKind(StrEnum):
     ERROR = "error"
 
 
-class Decision(TypedDict):
-    kind: DecisionKind
-    state: State | None
-    prompt_to_user: str | None
+class NoDirectiveDecision(TypedDict):
+    kind: Literal["no_directive"]
+
+
+class UpdateDecision(TypedDict):
+    kind: Literal["update"]
+    state: State
+
+
+class ErrorDecision(TypedDict):
+    kind: Literal["error"]
+    message: str
+
+
+Decision = NoDirectiveDecision | UpdateDecision | ErrorDecision
 
 
 @dataclass(frozen=True)
@@ -61,11 +72,7 @@ class Action:
     old_item: str | None = None
 
 
-_NO_DIRECTIVE: Decision = {
-    "kind": DecisionKind.NO_DIRECTIVE,
-    "state": None,
-    "prompt_to_user": None,
-}
+_NO_DIRECTIVE: NoDirectiveDecision = {"kind": "no_directive"}
 
 
 def create_engine(state: State | None = None) -> "Engine":
@@ -355,17 +362,9 @@ def _normalize_item(value: str) -> str:
     return normalized.strip()
 
 
-def _error(prompt: str) -> Decision:
-    return {
-        "kind": DecisionKind.ERROR,
-        "state": None,
-        "prompt_to_user": prompt,
-    }
+def _error(message: str) -> ErrorDecision:
+    return {"kind": "error", "message": message}
 
 
-def _update_decision(state: State) -> Decision:
-    return {
-        "kind": DecisionKind.UPDATE,
-        "state": deepcopy(state),
-        "prompt_to_user": None,
-    }
+def _update_decision(state: State) -> UpdateDecision:
+    return {"kind": "update", "state": deepcopy(state)}

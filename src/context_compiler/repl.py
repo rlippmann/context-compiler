@@ -3,7 +3,6 @@ import sys
 from typing import TextIO
 
 from . import __version__, create_engine
-from .const import DECISION_ERROR, DECISION_NO_DIRECTIVE
 from .controller import (
     OUTPUT_VERSION,
     PreviewResult,
@@ -14,7 +13,8 @@ from .controller import (
 )
 from .controller import preview as controller_preview
 from .controller import step as controller_step
-from .engine import Decision, DecisionKind, Engine, State
+from .decision_helpers import is_error, is_no_directive, is_update
+from .engine import Decision, Engine, State
 
 _EXIT_TOKENS = {"exit", "quit"}
 _HELP_TOKENS = {"help", "?"}
@@ -44,11 +44,7 @@ def _has_embedded_newline(raw_line: str) -> bool:
 
 
 def _multi_command_decision() -> Decision:
-    return {
-        "kind": DecisionKind.ERROR,
-        "state": None,
-        "prompt_to_user": _MULTI_COMMAND_PROMPT,
-    }
+    return {"kind": "error", "message": _MULTI_COMMAND_PROMPT}
 
 
 def _print_interactive_help(out_stream: TextIO) -> None:
@@ -89,16 +85,15 @@ def _render_state_lines(state: State) -> list[str]:
 
 
 def _render_decision_lines(decision: Decision) -> list[str]:
-    kind = decision["kind"]
-    if kind == DECISION_NO_DIRECTIVE:
+    if is_no_directive(decision):
         return ["no_directive"]
-    if kind == DECISION_ERROR:
-        prompt = decision["prompt_to_user"] or ""
-        prompt_lines = prompt.splitlines() if prompt else [""]
+    if is_error(decision):
+        message = decision["message"]
+        prompt_lines = message.splitlines() if message else [""]
         return [f"error: {prompt_lines[0]}", *prompt_lines[1:]]
 
+    assert is_update(decision)
     state = decision["state"]
-    assert state is not None
     return ["updated", *_render_state_lines(state)]
 
 
