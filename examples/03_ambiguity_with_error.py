@@ -2,7 +2,7 @@
 
 from _util import print_decision_summary, print_state_summary
 
-from context_compiler import create_engine, get_error_prompt, is_error
+from context_compiler import create_engine, get_error_message, is_error
 
 
 def fake_llm(user_input: str) -> str:
@@ -25,7 +25,7 @@ def main() -> None:
 
     if is_error(decision2):
         print("Host behavior: error returned, do NOT call LLM.")
-        print(f"Error prompt: {get_error_prompt(decision2)}")
+        print(f"Error message: {get_error_message(decision2)}")
     else:
         fake_llm("use peanuts")
     print()

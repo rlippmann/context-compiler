@@ -1,10 +1,10 @@
 """Demo 9: confirmation-style followups remain ordinary no_directive."""
 
 from context_compiler import (
-    DECISION_NO_DIRECTIVE,
-    DECISION_UPDATE,
     State,
     create_engine,
+    is_no_directive,
+    is_update,
 )
 from demos.common import (
     build_baseline_messages,
@@ -98,11 +98,9 @@ def main() -> None:
         )
         print_model_output("Compiler-mediated + compact", compact_output)
 
-    deterministic_initial_update = first["kind"] == DECISION_UPDATE and state_applied_after_first
-    unrelated_followup_no_directive = (
-        second["kind"] == DECISION_NO_DIRECTIVE and state_preserved_after_second
-    )
-    confirmation_token_not_consumed = third["kind"] == DECISION_NO_DIRECTIVE
+    deterministic_initial_update = is_update(first) and state_applied_after_first
+    unrelated_followup_no_directive = is_no_directive(second) and state_preserved_after_second
+    confirmation_token_not_consumed = is_no_directive(third)
     deterministic_final_state = _has_podman_use(engine.state)
 
     baseline_has_confirmation_state_machine = False

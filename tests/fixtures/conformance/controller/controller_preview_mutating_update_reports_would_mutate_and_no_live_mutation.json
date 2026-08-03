@@ -20,8 +20,7 @@
           "premise": "concise replies",
           "policies": {},
           "version": 2
-        },
-        "prompt_to_user": null
+        }
       },
       "state_before": {
         "premise": null,

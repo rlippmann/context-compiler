@@ -1,6 +1,6 @@
 """Demo 8: missing-source replacement applies deterministically from authoritative state."""
 
-from context_compiler import DECISION_UPDATE, State, create_engine
+from context_compiler import State, create_engine, is_update
 from demos.common import (
     build_baseline_messages,
     build_reinjected_messages,
@@ -61,7 +61,7 @@ def main() -> None:
     reinjected_output = complete_messages(reinjected_messages)
     print_model_output("Reinjected-state", reinjected_output)
 
-    if decision["kind"] == DECISION_UPDATE:
+    if is_update(decision):
         print_messages("compiler-mediated (full)", [])
         mediated_output = "[no call] authoritative state applied deterministic replacement update"
         print_model_output("Compiler-mediated (full)", mediated_output)
@@ -86,7 +86,7 @@ def main() -> None:
 
     baseline_has_authoritative_precondition = False
     reinjected_has_authoritative_precondition = False
-    compiler_pass = decision["kind"] == DECISION_UPDATE and state_applied
+    compiler_pass = is_update(decision) and state_applied
     compact_pass = compacted_prompt is None and compact_state_applied and compact_no_pending
 
     print_host_check(
@@ -101,7 +101,7 @@ def main() -> None:
     )
     print_host_check(
         "COMPILER_BLOCKED_INVALID_REPLACEMENT",
-        yes_no(decision["kind"] == DECISION_UPDATE),
+        yes_no(is_update(decision)),
         context="compiler-mediated",
     )
     print_host_check(

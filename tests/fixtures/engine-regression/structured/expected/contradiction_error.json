@@ -10,8 +10,7 @@
         "version": 2
       },
       "decision": {
-        "kind": "update",
-        "prompt_to_user": null
+        "kind": "update"
       },
       "input": "use docker"
     },
@@ -25,7 +24,7 @@
       },
       "decision": {
         "kind": "error",
-        "prompt_to_user": "\"docker\" is currently in use.\nRemove or replace it before prohibiting it."
+        "message": "\"docker\" is currently in use.\nRemove or replace it before prohibiting it."
       },
       "input": "prohibit docker"
     }

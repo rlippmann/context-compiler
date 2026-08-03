@@ -39,7 +39,7 @@ def _assert_compound_no_directive(user_input: str) -> None:
 
     decision = engine.step(user_input)
 
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE, "state": None, "prompt_to_user": None}
+    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -83,7 +83,7 @@ def test_embedded_canonical_tokens_do_not_trigger_compound_detection(
 
     decision = engine.step(f"use docker {prefix}{token}{suffix}")
 
-    assert decision["prompt_to_user"] is not None or decision["kind"] != DecisionKind.ERROR
+    assert decision["kind"] != DecisionKind.ERROR or decision["message"] != ""
     assert decision["kind"] == DecisionKind.UPDATE
     assert engine.state != before
 
@@ -104,7 +104,7 @@ def test_leading_non_directive_text_disables_compound_detection(prefix: str, sec
     before = engine.state
     decision = engine.step(f"{prefix} use docker {second}")
 
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE, "state": None, "prompt_to_user": None}
+    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -125,7 +125,7 @@ def test_case_mutated_second_directive_does_not_trigger_compound_detection(
 
     decision = engine.step(f"use docker {second_start}")
 
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE, "state": None, "prompt_to_user": None}
+    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
     assert engine.state == before
 
 
@@ -157,5 +157,5 @@ def test_fully_quoted_input_remains_no_directive(quote: str, second: str) -> Non
 
     decision = engine.step(f"{quote}use docker {second}{quote}")
 
-    assert decision == {"kind": DecisionKind.NO_DIRECTIVE, "state": None, "prompt_to_user": None}
+    assert decision == {"kind": DecisionKind.NO_DIRECTIVE}
     assert engine.state == before

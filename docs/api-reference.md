@@ -126,10 +126,18 @@ state through the returned mapping.
 Each user message produces a `Decision`.
 
 ```python
-class Decision(TypedDict):
-    kind: Literal["no_directive", "update", "error"]
-    state: dict | None
-    prompt_to_user: str | None
+class NoDirectiveDecision(TypedDict):
+    kind: Literal["no_directive"]
+
+class UpdateDecision(TypedDict):
+    kind: Literal["update"]
+    state: State
+
+class ErrorDecision(TypedDict):
+    kind: Literal["error"]
+    message: str
+
+Decision = NoDirectiveDecision | UpdateDecision | ErrorDecision
 ```
 
 Decision kinds:
@@ -138,25 +146,25 @@ Decision kinds:
 | --- | --- |
 | `no_directive` | no canonical directive recognized; no authoritative state change; host decides what to do next |
 | `update` | authoritative state changed; host may apply downstream behavior using updated state |
-| `error` | show `prompt_to_user`; do not continue normal downstream processing yet |
+| `error` | show `message`; do not continue normal downstream processing yet |
 
 Helper functions:
 
 - `is_no_directive(decision)`
 - `is_update(decision)`
 - `is_error(decision)`
-- `get_error_prompt(decision)`
+- `get_error_message(decision)`
 - `get_decision_state(decision)`
 
 Typical use:
 
 ```python
-from context_compiler import get_error_prompt, is_error, is_update
+from context_compiler import get_error_message, is_error, is_update
 
 decision = engine.step(user_input)
 
 if is_error(decision):
-    show_to_user(get_error_prompt(decision))
+    show_to_user(get_error_message(decision))
 elif is_update(decision):
     apply_runtime_rules()
 ```
@@ -294,4 +302,4 @@ Public result and data object names exported at package root include:
 
 These names are part of the public package surface. For the exact portable API
 export contract used by tests and ports, see
-[tests/fixtures/conformance/api/public-api-v1.json](../tests/fixtures/conformance/api/public-api-v1.json).
+[tests/fixtures/conformance/api/public-api-v2.json](../tests/fixtures/conformance/api/public-api-v2.json).

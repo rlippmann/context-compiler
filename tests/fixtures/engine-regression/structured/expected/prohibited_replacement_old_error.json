@@ -10,8 +10,7 @@
         "version": 2
       },
       "decision": {
-        "kind": "update",
-        "prompt_to_user": null
+        "kind": "update"
       },
       "input": "prohibit docker"
     },
@@ -25,8 +24,7 @@
         "version": 2
       },
       "decision": {
-        "kind": "update",
-        "prompt_to_user": null
+        "kind": "update"
       },
       "input": "use pytest"
     },
@@ -41,7 +39,7 @@
       },
       "decision": {
         "kind": "error",
-        "prompt_to_user": "\"docker\" is currently prohibited.\nSubmit explicit directive(s) to remove it or use a different item."
+        "message": "\"docker\" is currently prohibited.\nSubmit explicit directive(s) to remove it or use a different item."
       },
       "input": "use kubectl instead of docker"
     },
@@ -55,8 +53,7 @@
         "version": 2
       },
       "decision": {
-        "kind": "no_directive",
-        "prompt_to_user": null
+        "kind": "no_directive"
       },
       "input": "yes"
     }

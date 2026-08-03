@@ -1,5 +1,5 @@
 {
-  "id": "public-api-v1",
+  "id": "public-api-v2",
   "kind": "api-contract",
   "target": "context-compiler-ports",
   "module": "context_compiler",
@@ -17,14 +17,17 @@
       "DECISION_ERROR",
       "DECISION_NO_DIRECTIVE",
       "DECISION_UPDATE",
+      "ErrorDecision",
       "Engine",
+      "NoDirectiveDecision",
       "POLICY_PROHIBIT",
       "POLICY_USE",
       "PolicyValue",
       "State",
       "StepResult",
+      "UpdateDecision",
       "create_engine",
-      "get_error_prompt",
+      "get_error_message",
       "get_decision_state",
       "get_step_decision",
       "get_step_state",
@@ -35,7 +38,7 @@
     ],
     "members": {
       "Decision": {
-        "kind": "type"
+        "kind": "type_alias"
       },
       "DecisionKind": {
         "kind": "class"
@@ -52,8 +55,14 @@
         "kind": "constant",
         "value": "update"
       },
+      "ErrorDecision": {
+        "kind": "type"
+      },
       "Engine": {
         "kind": "class"
+      },
+      "NoDirectiveDecision": {
+        "kind": "type"
       },
       "POLICY_PROHIBIT": {
         "kind": "constant",
@@ -70,6 +79,9 @@
         "kind": "type"
       },
       "StepResult": {
+        "kind": "type"
+      },
+      "UpdateDecision": {
         "kind": "type"
       },
       "create_engine": {
@@ -92,7 +104,7 @@
           }
         ]
       },
-      "get_error_prompt": {
+      "get_error_message": {
         "kind": "callable",
         "signature": {
           "params": [
@@ -108,8 +120,7 @@
             "kwargs": {
               "decision": {
                 "kind": "error",
-                "state": null,
-                "prompt_to_user": "confirm?"
+                "message": "confirm?"
               }
             },
             "return_shape": {
@@ -135,7 +146,6 @@
             "kwargs": {
               "decision": {
                 "kind": "update",
-                "prompt_to_user": null,
                 "state": {
                   "premise": null,
                   "policies": {
@@ -201,8 +211,7 @@
             "kwargs": {
               "decision": {
                 "kind": "error",
-                "state": null,
-                "prompt_to_user": "confirm?"
+                "message": "confirm?"
               }
             },
             "return_shape": {
@@ -227,9 +236,7 @@
           {
             "kwargs": {
               "decision": {
-                "kind": "no_directive",
-                "state": null,
-                "prompt_to_user": null
+                "kind": "no_directive"
               }
             },
             "return_shape": {
@@ -255,7 +262,6 @@
             "kwargs": {
               "decision": {
                 "kind": "update",
-                "prompt_to_user": null,
                 "state": {
                   "premise": null,
                   "policies": {},
@@ -323,35 +329,35 @@
     "public_members": {
       "mode": "exact",
       "members": {
-      "export_json": {
-        "kind": "method",
-        "signature": {
-          "params": []
-        }
-      },
-      "import_json": {
-        "kind": "method",
-        "signature": {
+        "export_json": {
+          "kind": "method",
+          "signature": {
+            "params": []
+          }
+        },
+        "import_json": {
+          "kind": "method",
+          "signature": {
             "params": [
               {
                 "name": "payload",
                 "kind": "POSITIONAL_OR_KEYWORD",
                 "has_default": false
-            }
-          ]
-        }
-      },
-      "policies": {
-        "kind": "property"
-      },
-      "premise": {
-        "kind": "property"
-      },
-      "state": {
-        "kind": "property"
-      },
-      "step": {
-        "kind": "method",
+              }
+            ]
+          }
+        },
+        "policies": {
+          "kind": "property"
+        },
+        "premise": {
+          "kind": "property"
+        },
+        "state": {
+          "kind": "property"
+        },
+        "step": {
+          "kind": "method",
           "signature": {
             "params": [
               {

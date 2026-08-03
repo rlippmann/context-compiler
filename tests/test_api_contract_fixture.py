@@ -12,7 +12,7 @@ from _api_contract_harness import (
 import context_compiler
 
 _CONTRACT_PATH = (
-    Path(__file__).resolve().parent / "fixtures" / "conformance" / "api" / "public-api-v1.json"
+    Path(__file__).resolve().parent / "fixtures" / "conformance" / "api" / "public-api-v2.json"
 )
 
 

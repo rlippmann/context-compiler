@@ -37,7 +37,7 @@ def _oracle_render_decision(decision: dict[str, object]) -> list[str]:
         return ["no_directive"]
 
     if kind == "error":
-        prompt_obj = decision["prompt_to_user"]
+        prompt_obj = decision["message"]
         prompt = prompt_obj if isinstance(prompt_obj, str) else ""
         prompt_lines = prompt.splitlines() if prompt else [""]
         return [f"error: {prompt_lines[0]}", *prompt_lines[1:]]
@@ -116,5 +116,5 @@ def test_repl_emits_human_readable_output_lines(lines: list[str]) -> None:
             continue
         assert not output_line.startswith("{")
         assert '"kind"' not in output_line
-        assert '"prompt_to_user"' not in output_line
+        assert '"message"' not in output_line
         assert '"state"' not in output_line

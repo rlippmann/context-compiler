@@ -15,7 +15,7 @@ surface, rather than as Python-only test inputs.
 
 ## API contract fixtures
 
-[`conformance/api/public-api-v1.json`](conformance/api/public-api-v1.json) defines the current portable core root public API contract for Python and ports.
+[`conformance/api/public-api-v2.json`](conformance/api/public-api-v2.json) defines the current portable core root public API contract for Python and ports.
 
 [`conformance/api/public-audit-v1.json`](conformance/api/public-audit-v1.json) defines the current portable audit-module public API contract for Python and ports.
 
@@ -60,6 +60,12 @@ Then asserts:
 * returned `Decision`
 * final `engine.state`
 
+The `Decision` payload in this family is a discriminated union:
+
+* `{"kind":"no_directive"}`
+* `{"kind":"update","state": ...}`
+* `{"kind":"error","message": ...}`
+
 The current runner enforces a closed fixture shape for this family.
 Unknown top-level and documented nested fields are rejected.
 
@@ -100,6 +106,9 @@ above.
 
 The current runner enforces a closed fixture shape for this family.
 Unknown top-level, action, expected, and documented result/diff fields are rejected.
+
+Embedded controller `decision` values use the same discriminated union contract
+as the core engine step fixtures above.
 
 ## Mutation-isolation fixtures
 

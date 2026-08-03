@@ -86,14 +86,7 @@ def _validate_step_fixture(fixture: dict[str, object], fixture_id: object) -> No
 
     decision = expected["decision"]
     assert isinstance(decision, dict), fixture_id
-    _assert_allowed_keys(
-        decision, {"kind", "prompt_to_user", "state"}, fixture_id, "expected.decision"
-    )
-    assert isinstance(decision["kind"], str), fixture_id
-    assert decision["prompt_to_user"] is None or isinstance(decision["prompt_to_user"], str), (
-        fixture_id
-    )
-    assert decision["state"] is None or isinstance(decision["state"], dict), fixture_id
+    _validate_public_decision(decision, fixture_id, "expected.decision")
 
 
 def _validate_state_json_fixture(fixture: dict[str, object], fixture_id: object) -> None:
@@ -138,12 +131,30 @@ def _validate_state_json_fixture(fixture: dict[str, object], fixture_id: object)
 
 def _validate_controller_result_decision(decision: object, fixture_id: object, label: str) -> None:
     assert isinstance(decision, dict), fixture_id
-    _assert_allowed_keys(decision, {"kind", "state", "prompt_to_user"}, fixture_id, label)
-    assert isinstance(decision["kind"], str), fixture_id
-    assert decision["state"] is None or isinstance(decision["state"], dict), fixture_id
-    assert decision["prompt_to_user"] is None or isinstance(decision["prompt_to_user"], str), (
-        fixture_id
+    _validate_public_decision(decision, fixture_id, label)
+
+
+def _validate_public_decision(decision: dict[str, object], fixture_id: object, label: str) -> None:
+    _assert_allowed_keys(
+        decision,
+        {"kind"} | ({"state"} & set(decision)) | ({"message"} & set(decision)),
+        fixture_id,
+        label,
     )
+    kind = decision.get("kind")
+    assert isinstance(kind, str), fixture_id
+
+    if kind == "no_directive":
+        _assert_allowed_keys(decision, {"kind"}, fixture_id, label)
+        return
+    if kind == "update":
+        _assert_allowed_keys(decision, {"kind", "state"}, fixture_id, label)
+        assert isinstance(decision["state"], dict), fixture_id
+        return
+
+    assert kind == "error", fixture_id
+    _assert_allowed_keys(decision, {"kind", "message"}, fixture_id, label)
+    assert isinstance(decision["message"], str), fixture_id
 
 
 def _validate_controller_diff(diff: object, fixture_id: object, label: str) -> None:
@@ -330,13 +341,12 @@ def test_step_fixtures() -> None:
         assert decision["kind"] == expected_decision["kind"], fixture_id
 
         if decision["kind"] == DecisionKind.ERROR:
-            assert decision["state"] == expected_decision["state"], fixture_id
-            expected_prompt = expected_decision["prompt_to_user"]
-            actual_prompt = decision["prompt_to_user"]
-            if expected_prompt is None:
-                assert isinstance(actual_prompt, str) and actual_prompt != "", fixture_id
+            expected_message = expected_decision.get("message")
+            actual_message = decision["message"]
+            if expected_message is None:
+                assert actual_message != "", fixture_id
             else:
-                assert actual_prompt == expected_prompt, fixture_id
+                assert actual_message == expected_message, fixture_id
         else:
             assert decision == expected_decision, fixture_id
 
@@ -661,7 +671,6 @@ def test_step_validator_rejects_unknown_expected_decision_field() -> None:
         "expected": {
             "decision": {
                 "kind": "update",
-                "prompt_to_user": None,
                 "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
                 "unexpected": True,
             },
@@ -815,7 +824,6 @@ def test_controller_validator_rejects_unknown_preview_result_field() -> None:
                 "decision": {
                     "kind": "update",
                     "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
-                    "prompt_to_user": None,
                 },
                 "state_before": {"premise": None, "policies": {}, "version": 2},
                 "state_after": {"premise": None, "policies": {"docker": "use"}, "version": 2},
@@ -865,7 +873,6 @@ def test_controller_validator_rejects_wrong_branch_action_fields() -> None:
                 "decision": {
                     "kind": "update",
                     "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
-                    "prompt_to_user": None,
                 },
                 "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
             },

@@ -8,8 +8,7 @@
         "version": 2
       },
       "decision": {
-        "kind": "update",
-        "prompt_to_user": null
+        "kind": "update"
       },
       "input": "set premise concise replies"
     },
@@ -21,7 +20,7 @@
       },
       "decision": {
         "kind": "error",
-        "prompt_to_user": "Premise already set.\nUse 'change premise to <value>' to modify it."
+        "message": "Premise already set.\nUse 'change premise to <value>' to modify it."
       },
       "input": "set premise formal replies"
     },
@@ -32,8 +31,7 @@
         "version": 2
       },
       "decision": {
-        "kind": "update",
-        "prompt_to_user": null
+        "kind": "update"
       },
       "input": "change premise to concise bullet points"
     },
@@ -44,8 +42,7 @@
         "version": 2
       },
       "decision": {
-        "kind": "update",
-        "prompt_to_user": null
+        "kind": "update"
       },
       "input": "clear premise"
     },
@@ -57,7 +54,7 @@
       },
       "decision": {
         "kind": "error",
-        "prompt_to_user": "No premise is set.\nUse 'set premise <value>' to define one."
+        "message": "No premise is set.\nUse 'set premise <value>' to define one."
       },
       "input": "change premise to formal tone"
     }

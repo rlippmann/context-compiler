@@ -9,9 +9,7 @@
   "input": "set premise vegetarian and use docker",
   "expected": {
     "decision": {
-      "kind": "no_directive",
-      "prompt_to_user": null,
-      "state": null
+      "kind": "no_directive"
     },
     "state": {
       "premise": null,

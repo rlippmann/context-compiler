@@ -137,7 +137,7 @@ Use Context Compiler in your host application first:
 ```python
 from context_compiler import (
     create_engine,
-    get_error_prompt,
+    get_error_message,
     is_error,
     is_update,
 )
@@ -148,7 +148,7 @@ user_input = "set premise current project uses uv"
 decision = engine.step(user_input)
 
 if is_error(decision):
-    show_to_user(get_error_prompt(decision))
+    show_to_user(get_error_message(decision))
 elif is_update(decision):
     messages = build_messages(engine.state, user_input)
     render(call_llm(messages))
@@ -247,10 +247,18 @@ uv run pytest
 Each user message produces a `Decision`.
 
 ```python
-class Decision(TypedDict):
-    kind: Literal["no_directive", "update", "error"]
-    state: dict | None
-    prompt_to_user: str | None
+class NoDirectiveDecision(TypedDict):
+    kind: Literal["no_directive"]
+
+class UpdateDecision(TypedDict):
+    kind: Literal["update"]
+    state: State
+
+class ErrorDecision(TypedDict):
+    kind: Literal["error"]
+    message: str
+
+Decision = NoDirectiveDecision | UpdateDecision | ErrorDecision
 ```
 
 Meaning:
@@ -259,10 +267,10 @@ Meaning:
 | --- | --- |
 | no_directive | no canonical directive recognized; no authoritative state change; host decides what to do next |
 | update | authoritative state mutated; host may use updated state downstream |
-| error | show `prompt_to_user` and do not continue normal downstream processing yet |
+| error | show `message` and do not continue normal downstream processing yet |
 
 For normal app code, prefer the exported decision helpers (`is_error`,
-`is_update`, `is_no_directive`, `get_error_prompt`, `get_decision_state`)
+`is_update`, `is_no_directive`, `get_error_message`, `get_decision_state`)
 instead of direct key traversal.
 
 See [docs/api-reference.md](docs/api-reference.md) for the full public API
@@ -274,7 +282,7 @@ Common API entry points:
   `engine.premise`, `engine.policies`, `engine.export_json(...)`,
   `engine.import_json(...)`
 - decision helpers: `is_error(...)`, `is_update(...)`, `is_no_directive(...)`,
-  `get_error_prompt(...)`, `get_decision_state(...)`
+  `get_error_message(...)`, `get_decision_state(...)`
 - state transport: `engine.export_json(...)`, `engine.import_json(...)`
 - controller API: `step(...)`
 - audit APIs: `preview(...)`, `state_diff(...)`

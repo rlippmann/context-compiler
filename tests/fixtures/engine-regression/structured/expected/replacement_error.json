@@ -10,8 +10,7 @@
         "version": 2
       },
       "decision": {
-        "kind": "update",
-        "prompt_to_user": null
+        "kind": "update"
       },
       "input": "use podman instead of docker"
     }
