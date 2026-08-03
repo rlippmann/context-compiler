@@ -3,6 +3,7 @@ import sys
 from typing import TextIO
 
 from . import __version__, create_engine
+from .const import DECISION_ERROR
 from .controller import (
     OUTPUT_VERSION,
     PreviewResult,
@@ -44,7 +45,7 @@ def _has_embedded_newline(raw_line: str) -> bool:
 
 
 def _multi_command_decision() -> Decision:
-    return {"kind": "error", "message": _MULTI_COMMAND_PROMPT}
+    return {"kind": DECISION_ERROR, "message": _MULTI_COMMAND_PROMPT}
 
 
 def _print_interactive_help(out_stream: TextIO) -> None:

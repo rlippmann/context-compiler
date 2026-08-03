@@ -10,6 +10,9 @@ from typing import Literal, TypedDict
 from unicodedata import normalize as unicode_normalize
 
 from .const import (
+    DECISION_ERROR,
+    DECISION_NO_DIRECTIVE,
+    DECISION_UPDATE,
     POLICY_PROHIBIT,
     POLICY_USE,
     SCHEMA_VERSION,
@@ -72,7 +75,7 @@ class Action:
     old_item: str | None = None
 
 
-_NO_DIRECTIVE: NoDirectiveDecision = {"kind": "no_directive"}
+_NO_DIRECTIVE: NoDirectiveDecision = {"kind": DECISION_NO_DIRECTIVE}
 
 
 def create_engine(state: State | None = None) -> "Engine":
@@ -363,8 +366,8 @@ def _normalize_item(value: str) -> str:
 
 
 def _error(message: str) -> ErrorDecision:
-    return {"kind": "error", "message": message}
+    return {"kind": DECISION_ERROR, "message": message}
 
 
 def _update_decision(state: State) -> UpdateDecision:
-    return {"kind": "update", "state": deepcopy(state)}
+    return {"kind": DECISION_UPDATE, "state": deepcopy(state)}
