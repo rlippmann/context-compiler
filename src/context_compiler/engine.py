@@ -33,15 +33,21 @@ class State(TypedDict):
 
 
 class NoDirectiveDecision(TypedDict):
+    """Report that input did not match any recognized canonical directive."""
+
     kind: Literal["no_directive"]
 
 
 class UpdateDecision(TypedDict):
+    """Report a successful transition and the resulting authoritative state."""
+
     kind: Literal["update"]
     state: State
 
 
 class ErrorDecision(TypedDict):
+    """Report a rejected transition together with a user-facing error message."""
+
     kind: Literal["error"]
     message: str
 
@@ -51,6 +57,8 @@ Decision = NoDirectiveDecision | UpdateDecision | ErrorDecision
 
 @dataclass(frozen=True)
 class Action:
+    """Represent one parsed engine action before state validation or mutation."""
+
     kind: Literal[
         "set_premise",
         "change_premise",
@@ -78,33 +86,59 @@ _NO_DIRECTIVE: NoDirectiveDecision = {"kind": DECISION_NO_DIRECTIVE}
 
 
 def create_engine(state: State | None = None) -> "Engine":
+    """Create an engine initialized from validated state or the empty state."""
+
     return Engine(state=state)
 
 
 class Engine:
+    """Own the authoritative state and apply one directive transition at a time."""
+
     def __init__(self, state: State | None = None) -> None:
         self._state: State
         self._replace_state(_initial_state() if state is None else _load_state_obj(state))
 
     @property
     def premise(self) -> str | None:
+        """Return the current premise from authoritative state."""
+
         return self._state[STATE_PREMISE]
 
     @property
     def policies(self) -> Mapping[str, PolicyValue]:
+        """Return a defensive copy of the current policy mapping."""
+
         return deepcopy(self._state[STATE_POLICIES])
 
     @property
     def state(self) -> State:
+        """Return a defensive copy of the full authoritative state."""
+
         return deepcopy(self._state)
 
     def export_json(self) -> str:
+        """Serialize the current authoritative state to canonical JSON text."""
+
         return json.dumps(self._state, sort_keys=True, separators=(",", ":"))
 
     def import_json(self, payload: str) -> None:
+        """Replace authoritative state from previously exported JSON text.
+
+        The payload must match the current state schema and is normalized using
+        the same validation rules applied to other engine state inputs.
+        """
+
         self._replace_state(_load_state_json(payload))
 
     def step(self, user_input: str) -> Decision:
+        """Evaluate and commit one user input against authoritative state.
+
+        Non-directive input returns ``no_directive`` without changing state.
+        Invalid directives return ``error`` without changing state. Accepted
+        directives return ``update`` and commit the resulting authoritative
+        state before the decision is returned.
+        """
+
         evaluated = self._evaluate_transition(self._state, user_input)
         self._replace_state(evaluated.next_state)
         return evaluated.decision

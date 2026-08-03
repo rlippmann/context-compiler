@@ -8,6 +8,8 @@ from types import MappingProxyType
 
 
 class DirectiveKind(StrEnum):
+    """Enumerate the supported canonical directive families."""
+
     SET_PREMISE = "set_premise"
     CHANGE_PREMISE = "change_premise"
     USE_ITEM = "use_item"
@@ -21,12 +23,16 @@ class DirectiveKind(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class ValidatedDirective:
+    """Classify text as one canonical directive kind without exposing operands."""
+
     text: str
     kind: DirectiveKind
 
 
 @dataclass(frozen=True, slots=True)
 class CanonicalDirective:
+    """Represent one parsed canonical directive and its named operands."""
+
     text: str
     kind: DirectiveKind
     operands: MappingProxyType[str, str]

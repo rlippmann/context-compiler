@@ -1,3 +1,5 @@
+"""Command-line and REPL entry points for interacting with the engine."""
+
 import json
 import sys
 from typing import TextIO
@@ -245,6 +247,14 @@ def run_repl(
     json_mode: bool = False,
     engine: Engine | None = None,
 ) -> None:
+    """Run the interactive or line-oriented REPL against one engine instance.
+
+    Interactive mode exposes command helpers such as ``state`` and ``preview``.
+    Non-interactive mode consumes one input line at a time and can optionally
+    emit NDJSON records. Preview requests are evaluated through the shared
+    controller preview path and never mutate the live engine state.
+    """
+
     active_engine = create_engine() if engine is None else engine
 
     if _is_interactive(in_stream, out_stream):
@@ -421,6 +431,8 @@ def run_repl(
 
 
 def main() -> int:  # pragma: no cover
+    """Run the command-line entry point and return the process exit status."""
+
     args = sys.argv[1:]
     if not args:
         run_repl(sys.stdin, sys.stdout)
