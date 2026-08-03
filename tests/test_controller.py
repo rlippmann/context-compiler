@@ -160,17 +160,24 @@ def test_state_diff_policy_removed_and_value_changed() -> None:
     assert diff["policies"]["added"] == {}
 
 
-def test_preview_fails_when_state_restore_fails(
+def test_preview_does_not_depend_on_persistence_round_trip(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     engine = create_engine()
 
-    def _boom(_: object) -> None:
-        raise RuntimeError("restore failed")
+    def _export_boom() -> str:
+        raise RuntimeError("preview should not export state")
 
-    monkeypatch.setattr(engine, "import_json", _boom)
-    with pytest.raises(RuntimeError, match="restore failed"):
-        preview(engine, "set premise concise replies")
+    def _import_boom(_: object) -> None:
+        raise RuntimeError("preview should not import state")
+
+    monkeypatch.setattr(engine, "export_json", _export_boom)
+    monkeypatch.setattr(engine, "import_json", _import_boom)
+
+    result = preview(engine, "set premise concise replies")
+
+    assert result["decision"]["kind"] == DECISION_UPDATE
+    assert engine.state == {"premise": None, "policies": {}, "version": 2}
 
 
 def test_controller_preview_fixtures() -> None:
