@@ -22,7 +22,6 @@ from .decision_helpers import (
 )
 from .engine import (
     Decision,
-    DecisionKind,
     Engine,
     ErrorDecision,
     NoDirectiveDecision,
@@ -36,7 +35,6 @@ __version__ = version("context-compiler")
 
 __all__ = [
     "Decision",
-    "DecisionKind",
     "DECISION_ERROR",
     "DECISION_NO_DIRECTIVE",
     "DECISION_UPDATE",

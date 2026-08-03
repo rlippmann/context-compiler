@@ -13,7 +13,6 @@
     "mode": "exact",
     "names": [
       "Decision",
-      "DecisionKind",
       "DECISION_ERROR",
       "DECISION_NO_DIRECTIVE",
       "DECISION_UPDATE",
@@ -39,9 +38,6 @@
     "members": {
       "Decision": {
         "kind": "type_alias"
-      },
-      "DecisionKind": {
-        "kind": "class"
       },
       "DECISION_ERROR": {
         "kind": "constant",

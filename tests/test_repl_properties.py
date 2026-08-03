@@ -4,7 +4,7 @@ import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from context_compiler import create_engine
+from context_compiler import DECISION_ERROR, DECISION_NO_DIRECTIVE, create_engine
 from context_compiler.repl import run_repl
 
 pytestmark = pytest.mark.contract
@@ -33,10 +33,10 @@ def _run_repl_lines(lines: list[str]) -> tuple[str, list[str]]:
 
 def _oracle_render_decision(decision: dict[str, object]) -> list[str]:
     kind = decision["kind"]
-    if kind == "no_directive":
+    if kind == DECISION_NO_DIRECTIVE:
         return ["no_directive"]
 
-    if kind == "error":
+    if kind == DECISION_ERROR:
         prompt_obj = decision["message"]
         prompt = prompt_obj if isinstance(prompt_obj, str) else ""
         prompt_lines = prompt.splitlines() if prompt else [""]

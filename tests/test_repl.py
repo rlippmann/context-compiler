@@ -8,8 +8,7 @@ from typing import TextIO
 import pytest
 
 import context_compiler.repl as repl_module
-from context_compiler import __version__, create_engine
-from context_compiler.engine import DecisionKind
+from context_compiler import DECISION_UPDATE, __version__, create_engine
 from context_compiler.repl import run_repl
 
 pytestmark = pytest.mark.contract
@@ -515,7 +514,7 @@ def test_repl_non_interactive_json_bare_input_step_result() -> None:
     assert row["command"] == "input"
     decision = row["decision"]
     assert isinstance(decision, dict)
-    assert decision["kind"] == DecisionKind.UPDATE
+    assert decision["kind"] == DECISION_UPDATE
 
 
 def test_repl_non_interactive_json_step_and_preview_results() -> None:
