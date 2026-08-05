@@ -10,7 +10,6 @@ These examples are intended to teach:
 - engine lifecycle
 - state access
 - state restoration through `export_json()` / `import_json()`
-- controller APIs
 - authority-layer usage patterns
 
 Install the core package with:
@@ -65,9 +64,3 @@ The example demonstrates authoritative state restoration with
 
 Demonstrates explicit single-policy correction without `reset policies`.  
 Shows `prohibit peanuts` -> `remove policy peanuts` -> `use peanuts`.
-
-## 08_controller_preview_diff.py
-
-Shows controller-layer dry-run behavior with `preview(engine, user_input)`.  
-Shows structural state inspection with `state_diff(state_before, state_after)`.  
-Shows `step(engine, user_input)` after preview to apply the same input.

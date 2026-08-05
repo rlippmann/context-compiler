@@ -152,6 +152,15 @@ Historical note:
 >
 > `context-compiler-directive-drafter`
 
+Retired in 0.9:
+
+- public preview / dry-run API
+- public structural diff API
+- public controller result-envelope helpers
+- REPL `preview` command
+- public surface area that primarily supported the earlier checkpoint,
+  continuation, and confirmation-oriented architecture
+
 ### Future Consideration — Engine Thread Safety
 
 Current contract:

@@ -207,75 +207,20 @@ Conceptual boundary:
 - imported policy keys are normalized during `import_json(...)`
 - if a policy key normalizes to `""`, the payload is invalid and is rejected
 
-## Controller And Audit APIs
+## Retired Controller And Audit APIs
 
-The `step(...)` convenience wrapper remains part of the root host-facing API.
+The public controller and audit surface was retired for the 0.9 line.
 
-Preview and structural diff helpers live under `context_compiler.audit`.
+Retired APIs include:
 
-### `step(engine, user_input)`
+- package-root `step(...)`
+- `context_compiler.audit`
+- `preview(...)`
+- `state_diff(...)`
+- result-envelope and accessor helpers tied to those APIs
 
-Run one turn through an engine and return a `StepResult`.
-
-`StepResult` contains:
-
-- `output_version`
-- `mode`
-- `decision`
-- `state`
-
-### `preview(engine, user_input)`
-
-Run a deterministic dry-run preview and return a `PreviewResult`.
-
-`PreviewResult` contains:
-
-- `output_version`
-- `mode`
-- `decision`
-- `state_before`
-- `state_after`
-- `diff`
-- `would_mutate`
-
-`preview(...)` restores live engine state after the dry run.
-
-### `state_diff(state_before, state_after)`
-
-Return a `StructuralDiff` describing premise and policy changes between two
-state snapshots.
-
-Typical use:
-
-```python
-from context_compiler import create_engine
-from context_compiler.audit import (
-    diff_has_changes,
-    get_preview_state_after,
-    preview,
-    state_diff,
-)
-
-engine = create_engine()
-before = engine.state
-dry_run = preview(engine, "prohibit peanuts")
-diff = state_diff(before, get_preview_state_after(dry_run))
-
-if diff_has_changes(diff):
-    show_preview(diff)
-```
-
-Audit helper functions:
-
-- `get_step_decision(step_result)`
-- `get_step_state(step_result)`
-- `get_preview_decision(preview_result)`
-- `get_preview_state_after(preview_result)`
-- `preview_would_mutate(preview_result)`
-- `diff_has_changes(diff)`
-
-For audit result-envelope details, see the fixture
-documentation in [tests/fixtures/README.md](../tests/fixtures/README.md).
+Current host integrations should call `engine.step(...)` directly and read
+live state through `engine.state`, `engine.premise`, and `engine.policies`.
 
 ## Public Constants
 
@@ -299,7 +244,6 @@ Public result and data object names exported at package root include:
 
 - `Decision`
 - `State`
-- `StepResult`
 - `Engine`
 
 These names are part of the public package surface. For the exact portable API

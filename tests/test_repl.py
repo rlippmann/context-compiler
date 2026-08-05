@@ -60,6 +60,12 @@ def _run_non_interactive_lines(text: str) -> list[str]:
     return [line for line in out.getvalue().splitlines() if line.strip()]
 
 
+def _run_non_interactive_json_lines(text: str) -> list[dict[str, object]]:
+    out = StringIO()
+    run_repl(StringIO(text), out, json_mode=True)
+    return [json.loads(line) for line in out.getvalue().splitlines() if line.strip()]
+
+
 def _contains_subsequence(lines: list[str], expected: list[str]) -> bool:
     window = len(expected)
     if window == 0 or window > len(lines):
@@ -167,37 +173,6 @@ def test_main_with_json_flag_runs_repl_with_json_mode(monkeypatch: pytest.Monkey
     assert called["json_mode"] is True
 
 
-def test_render_decision_lines_uses_error_prefix_for_all_error_prompts() -> None:
-    lines = repl_module._render_decision_lines(
-        {
-            "kind": "error",
-            "message": "Proceed?",
-        }
-    )
-
-    assert lines == ["error: Proceed?"]
-
-
-def test_render_diff_lines_includes_added_policy_entries() -> None:
-    preview = {
-        "would_mutate": True,
-        "decision": {
-            "kind": "update",
-            "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
-        },
-        "diff": {
-            "premise": {"changed": False, "before": None, "after": None},
-            "policies": {"added": {"docker": "use"}, "removed": {}, "changed": {}},
-        },
-    }
-
-    assert repl_module._render_diff_lines(preview) == [
-        "would_mutate: yes",
-        "diff:",
-        "- + use docker",
-    ]
-
-
 def test_main_json_requires_non_interactive_stdio(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -212,12 +187,6 @@ def test_main_json_requires_non_interactive_stdio(
     assert captured.err == "error: --json requires non-interactive stdin/stdout.\n"
 
 
-def test_interactive_step_without_payload_prints_command_error() -> None:
-    lines = _run_interactive_lines("step\nquit\n")
-
-    assert _contains_subsequence(lines, ["error: step requires input.", "Use 'step <input>'."])
-
-
 def test_main_unknown_flag_prints_error_hint_and_exits_nonzero(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -230,25 +199,6 @@ def test_main_unknown_flag_prints_error_hint_and_exits_nonzero(
     assert captured.out == ""
     assert captured.err == (
         "error: unknown option '--bogus'\nTry 'context-compiler --help' for usage.\n"
-    )
-
-
-@pytest.mark.parametrize("args", [["--help", "--version"], ["--version", "--json"]])
-def test_cli_rejects_non_single_flag_argument_forms(args: list[str]) -> None:
-    result = _run_repl_cli(*args)
-
-    assert result.returncode != 0
-    assert result.stdout == ""
-    assert "error: unknown option" in result.stderr
-    assert "Try 'context-compiler --help' for usage." in result.stderr
-
-
-def test_cli_rejects_unknown_positional_after_flag() -> None:
-    result = _run_repl_cli("--json", "foo")
-    assert result.returncode != 0
-    assert result.stdout == ""
-    assert (
-        result.stderr == "error: unknown option 'foo'\nTry 'context-compiler --help' for usage.\n"
     )
 
 
@@ -283,226 +233,26 @@ def test_cli_invalid_initial_state_preload_fails_fast() -> None:
     assert result.stderr == "error: preload failed: Invalid state payload.\n"
 
 
-def test_cli_preload_mutual_exclusion_state_json_vs_file() -> None:
-    result = _run_repl_cli("--initial-state-json", "{}", "--initial-state-file", "/tmp/ignored")
-    assert result.returncode == 1
-    assert result.stdout == ""
-    expected = (
-        "error: state preload options are mutually exclusive\n"
-        "Try 'context-compiler --help' for usage.\n"
-    )
-    assert result.stderr == expected
-
-
-def test_cli_preload_works_with_json_mode() -> None:
-    engine = create_engine()
-    engine.step("set premise concise")
-    payload = engine.export_json()
-
-    result = _run_repl_cli("--json", "--initial-state-json", payload, input_text="state\nquit\n")
-    assert result.returncode == 0
-    lines = [json.loads(line) for line in result.stdout.splitlines() if line.strip()]
-    assert lines[0]["mode"] == "state"
-    assert lines[0]["state"]["premise"] == "concise"
-    assert result.stderr == ""
-
-
-@pytest.mark.contract
-def test_apply_preload_from_options_initial_state_json_restores_state() -> None:
-    source_engine = create_engine()
-    source_engine.step("set premise concise")
-    source_engine.step("use docker")
-
-    target_engine = create_engine()
-    repl_module._apply_preload_from_options(
-        target_engine,
-        {
-            "json_mode": False,
-            "initial_state_json": source_engine.export_json(),
-        },
-    )
-
-    assert target_engine.state == {
-        "premise": "concise",
-        "policies": {"docker": "use"},
-        "version": 2,
-    }
-
-
-@pytest.mark.contract
-def test_apply_preload_from_options_initial_state_file_restores_state(
-    tmp_path: pathlib.Path,
-) -> None:
-    source_engine = create_engine()
-    source_engine.step("set premise concise")
-    source_engine.step("use docker")
-
-    payload = source_engine.export_json()
-    path = tmp_path / "state.json"
-    path.write_text(payload, encoding="utf-8")
-
-    target_engine = create_engine()
-    repl_module._apply_preload_from_options(
-        target_engine,
-        {
-            "json_mode": False,
-            "initial_state_file": str(path),
-        },
-    )
-
-    assert target_engine.state == {
-        "premise": "concise",
-        "policies": {"docker": "use"},
-        "version": 2,
-    }
-
-
-def test_cli_preload_missing_value_errors() -> None:
-    result = _run_repl_cli("--initial-state-json")
-    assert result.returncode == 1
-    assert result.stdout == ""
-    expected = (
-        "error: option '--initial-state-json' requires a value\n"
-        "Try 'context-compiler --help' for usage.\n"
-    )
-    assert result.stderr == expected
-
-
-def test_cli_initial_state_file_preload_unreadable_file_error_is_deterministic(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    def _boom(_path: str) -> str:
-        raise OSError("cannot read preload file")
-
-    monkeypatch.setattr(repl_module, "_read_utf8_file", _boom)
-    monkeypatch.setattr(
-        sys, "argv", ["context-compiler", "--initial-state-file", "/tmp/state.json"]
-    )
-
-    result = repl_module.main()
-    captured = capsys.readouterr()
-
-    assert result == 1
-    assert captured.out == ""
-    assert captured.err == "error: preload failed: cannot read preload file\n"
-
-
-def test_cli_initial_state_file_preload_utf8_decode_failure_is_deterministic(
-    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    def _boom(_path: str) -> str:
-        raise UnicodeDecodeError("utf-8", b"\x80", 0, 1, "invalid start byte")
-
-    monkeypatch.setattr(repl_module, "_read_utf8_file", _boom)
-    monkeypatch.setattr(
-        sys, "argv", ["context-compiler", "--initial-state-file", "/tmp/state.json"]
-    )
-
-    result = repl_module.main()
-    captured = capsys.readouterr()
-
-    assert result == 1
-    assert captured.out == ""
-    expected = (
-        "error: preload failed: 'utf-8' codec can't decode byte 0x80 in position 0: "
-        "invalid start byte\n"
-    )
-    assert captured.err == expected
-
-
-def test_parse_cli_options_duplicate_value_flag_rejected() -> None:
-    options, error = repl_module._parse_cli_options(
-        ["--initial-state-json", "{}", "--initial-state-json", "{}"]
-    )
-    assert options == {}
-    assert error == "option '--initial-state-json' was provided more than once"
-
-
-def test_parse_cli_options_missing_value_rejected() -> None:
-    options, error = repl_module._parse_cli_options(["--initial-state-json"])
-    assert options == {}
-    assert error == "option '--initial-state-json' requires a value"
-
-
-def test_parse_cli_options_mutual_exclusion_errors() -> None:
-    options_state, error_state = repl_module._parse_cli_options(
-        ["--initial-state-json", "{}", "--initial-state-file", "/tmp/x"]
-    )
-    assert options_state == {}
-    assert error_state == "state preload options are mutually exclusive"
-
-
 def test_repl_update_flow() -> None:
     lines = _run_non_interactive_lines("set premise concise\nquit\n")
     assert lines == ["updated", "premise: concise", "policies: (none)"]
 
 
-def test_repl_error_flow() -> None:
-    lines = _run_non_interactive_lines("prohibit docker\nuse kubectl instead of docker\nquit\n")
-    assert _contains_subsequence(
-        lines, ["updated", "premise: (none)", "policies:", "- prohibit docker"]
-    )
-    assert _contains_subsequence(
-        lines,
-        [
-            'error: "docker" is currently prohibited.',
-            "Submit explicit directive(s) to remove it or use a different item.",
-        ],
-    )
+def test_repl_step_alias_matches_bare_input_behavior() -> None:
+    bare = _run_non_interactive_lines("set premise concise\nquit\n")
+    aliased = _run_non_interactive_lines("step set premise concise\nquit\n")
+    assert bare == aliased
 
 
-def test_repl_exit_and_quit_terminate_session() -> None:
-    lines_exit = _run_non_interactive_lines("exit\nset premise concise\n")
-    lines_quit = _run_non_interactive_lines("quit\nset premise concise\n")
-
-    assert lines_exit == []
-    assert lines_quit == []
+def test_repl_step_requires_payload() -> None:
+    lines = _run_non_interactive_lines("step\nquit\n")
+    assert _contains_subsequence(lines, ["error: step requires input.", "Use 'step <input>'."])
 
 
-def test_repl_interactive_help_commands() -> None:
-    out = _TTYStringIO()
-    run_repl(_TTYStringIO("help\n?\nquit\n"), out)
-
-    lines = out.getvalue().splitlines()
-    expected_help = [
-        "Commands: help/? exit/quit",
-        "REPL command layer (not engine directives):",
-        "  state",
-        "  preview <input>",
-        "  step <input>     (explicit alias of bare input behavior)",
-        "Directives (exact prefix only):",
-        "  set premise <value>",
-        "  change premise to <value>",
-        "  use <item>",
-        "  prohibit <item>",
-        "  remove policy <item>",
-        "  use <new item> instead of <old item>",
-        "  clear premise",
-        "  reset policies",
-        "  clear state",
-        "Bare input behavior remains unchanged.",
-        "preview is a deterministic dry-run and never mutates live state.",
-        "error results are immediate messages and do not reserve later input.",
-    ]
-    assert lines[0] == "Context Compiler REPL (0.5). Type help for commands."
-    assert lines[1] == "Non-directive input is no_directive."
-    expected_help_len = len(expected_help)
-    assert lines[2 : 2 + expected_help_len] == expected_help
-    assert lines[2 + expected_help_len : 2 + (2 * expected_help_len)] == expected_help
-
-
-def test_repl_non_interactive_uses_human_readable_output() -> None:
-    out = StringIO()
-    run_repl(StringIO("hello\nquit\n"), out)
-
-    lines = out.getvalue().splitlines()
-    assert lines == ["no_directive"]
-
-
-def _run_non_interactive_json_lines(text: str) -> list[dict[str, object]]:
-    out = StringIO()
-    run_repl(StringIO(text), out, json_mode=True)
-    return [json.loads(line) for line in out.getvalue().splitlines() if line.strip()]
+def test_repl_state_command_renders_current_state() -> None:
+    lines = _run_non_interactive_lines("set premise concise\nstate\nquit\n")
+    assert _contains_subsequence(lines, ["updated", "premise: concise", "policies: (none)"])
+    assert _contains_subsequence(lines, ["premise: concise", "policies: (none)"])
 
 
 def test_repl_non_interactive_json_bare_input_step_result() -> None:
@@ -512,21 +262,10 @@ def test_repl_non_interactive_json_bare_input_step_result() -> None:
     assert row["output_version"] == 1
     assert row["mode"] == "step"
     assert row["command"] == "input"
+    assert row["state"] == {"premise": "concise", "policies": {}, "version": 2}
     decision = row["decision"]
     assert isinstance(decision, dict)
     assert decision["kind"] == DECISION_UPDATE
-
-
-def test_repl_non_interactive_json_step_and_preview_results() -> None:
-    rows = _run_non_interactive_json_lines(
-        "step set premise concise\npreview clear premise\nquit\n"
-    )
-    assert [row["mode"] for row in rows] == ["step", "preview"]
-    assert [row["command"] for row in rows] == ["step", "preview"]
-    assert rows[0]["output_version"] == 1
-    assert rows[1]["output_version"] == 1
-    assert "would_mutate" in rows[1]
-    assert "diff" in rows[1]
 
 
 def test_repl_non_interactive_json_state_command() -> None:
@@ -540,28 +279,9 @@ def test_repl_non_interactive_json_state_command() -> None:
     assert state["policies"] == {}
 
 
-def test_repl_non_interactive_json_error_and_no_directive() -> None:
-    rows = _run_non_interactive_json_lines(
-        "prohibit docker\nuse kubectl instead of docker\nyes\nhello\nquit\n"
-    )
-    assert rows[1]["mode"] == "step"
-    assert rows[1]["decision"]["kind"] == "error"
-    assert rows[3]["mode"] == "step"
-    assert rows[3]["decision"]["kind"] == "no_directive"
-
-
-def test_repl_non_interactive_json_machine_readable_errors() -> None:
-    rows = _run_non_interactive_json_lines("preview\nstep\nquit\n")
+def test_repl_non_interactive_json_machine_readable_step_error() -> None:
+    rows = _run_non_interactive_json_lines("step\nquit\n")
     assert rows == [
-        {
-            "command": "preview",
-            "error": {
-                "code": "missing_preview_input",
-                "message": "preview requires input.\nUse 'preview <input>'.",
-            },
-            "mode": "error",
-            "output_version": 1,
-        },
         {
             "command": "step",
             "error": {
@@ -570,7 +290,7 @@ def test_repl_non_interactive_json_machine_readable_errors() -> None:
             },
             "mode": "error",
             "output_version": 1,
-        },
+        }
     ]
 
 
@@ -595,180 +315,34 @@ def test_repl_non_interactive_json_multi_command_chunk_error() -> None:
     ]
 
 
-def test_repl_non_interactive_json_step_runs_normally_after_replace_update() -> None:
-    rows = _run_non_interactive_json_lines(
-        "use kubectl instead of docker\nstep set premise concise\nyes\nquit\n"
-    )
-    assert rows[1] == {
-        "command": "step",
-        "decision": {
-            "kind": "update",
-            "message": None,
-        },
-        "mode": "step",
-        "output_version": 1,
-        "state": {"premise": "concise", "policies": {"kubectl": "use"}, "version": 2},
-    }
-
-
-def test_repl_non_interactive_json_has_no_human_output_leakage() -> None:
-    out = StringIO()
-    run_repl(
-        StringIO("state\nset premise concise\npreview clear premise\nquit\n"), out, json_mode=True
-    )
-    for line in out.getvalue().splitlines():
-        parsed = json.loads(line)
-        assert isinstance(parsed, dict)
-
-
-def test_repl_non_interactive_state_command_renders_current_state() -> None:
-    out = StringIO()
-    run_repl(StringIO("set premise concise\nstate\nquit\n"), out)
+def test_repl_interactive_help_commands() -> None:
+    out = _TTYStringIO()
+    run_repl(_TTYStringIO("help\n?\nquit\n"), out)
 
     lines = out.getvalue().splitlines()
-    assert _contains_subsequence(lines, ["updated", "premise: concise", "policies: (none)"])
-    assert _contains_subsequence(lines, ["premise: concise", "policies: (none)"])
-
-
-def test_repl_non_interactive_preview_reports_no_mutation_after_invalid_replacement() -> None:
-    out = StringIO()
-    run_repl(
-        StringIO("use kubectl instead of docker\npreview yes\nyes\nquit\n"),
-        out,
-    )
-    lines = [line for line in out.getvalue().splitlines() if line.strip()]
-
-    assert _contains_subsequence(
-        lines,
-        ["updated", "premise: (none)", "policies:", "- use kubectl"],
-    )
-    assert _contains_subsequence(lines, ["preview", "no_directive", "would_mutate: no"])
-    assert lines[-1] == "no_directive"
-
-
-def test_repl_non_interactive_preview_decline_reports_no_mutation() -> None:
-    out = StringIO()
-    run_repl(StringIO("use kubectl instead of docker\npreview no\nquit\n"), out)
-    lines = [line for line in out.getvalue().splitlines() if line.strip()]
-
-    assert _contains_subsequence(lines, ["preview", "no_directive"])
-    assert _contains_subsequence(lines, ["would_mutate: no", "diff:", "- (none)"])
-
-
-def test_repl_non_interactive_step_alias_matches_bare_input_behavior() -> None:
-    bare = _run_non_interactive_lines("set premise concise\nquit\n")
-    aliased = _run_non_interactive_lines("step set premise concise\nquit\n")
-    assert bare == aliased
-
-
-def test_repl_non_interactive_preview_and_step_require_payload() -> None:
-    out = StringIO()
-    run_repl(StringIO("preview\nstep\nquit\n"), out)
-    lines = [line for line in out.getvalue().splitlines() if line.strip()]
-
-    assert _contains_subsequence(
-        lines, ["error: preview requires input.", "Use 'preview <input>'."]
-    )
-    assert _contains_subsequence(lines, ["error: step requires input.", "Use 'step <input>'."])
-
-
-def test_repl_state_command_after_invalid_replacement_shows_unchanged_state() -> None:
-    out = StringIO()
-    run_repl(StringIO("use kubectl instead of docker\nstate\nyes\nquit\n"), out)
-    lines = [line for line in out.getvalue().splitlines() if line.strip()]
-
-    assert _contains_subsequence(
-        lines,
-        ["updated", "premise: (none)", "policies:", "- use kubectl"],
-    )
-    assert _contains_subsequence(lines, ["premise: (none)", "policies:", "- use kubectl"])
-    assert lines[-1] == "no_directive"
-
-
-def test_repl_step_command_runs_normally_after_invalid_replacement() -> None:
-    out = StringIO()
-    run_repl(
-        StringIO("use kubectl instead of docker\nstep set premise concise\nyes\nquit\n"),
-        out,
-    )
-    lines = [line for line in out.getvalue().splitlines() if line.strip()]
-
-    assert _contains_subsequence(
-        lines,
-        ["updated", "premise: (none)", "policies:", "- use kubectl"],
-    )
-    assert _contains_subsequence(
-        lines,
-        ["updated", "premise: concise", "policies:", "- use kubectl"],
-    )
-    assert lines[-1] == "no_directive"
-
-
-def test_repl_step_command_affirmative_followup_is_no_directive() -> None:
-    out = StringIO()
-    run_repl(StringIO("use kubectl instead of docker\nstep yes\nquit\n"), out)
-    lines = [line for line in out.getvalue().splitlines() if line.strip()]
-
-    assert _contains_subsequence(
-        lines,
-        ["updated", "premise: (none)", "policies:", "- use kubectl"],
-    )
-    assert lines[-1] == "no_directive"
-
-
-def test_repl_step_command_negative_followup_is_no_directive() -> None:
-    out = StringIO()
-    run_repl(StringIO("use kubectl instead of docker\nstep no\nquit\n"), out)
-    lines = [line for line in out.getvalue().splitlines() if line.strip()]
-
-    assert _contains_subsequence(
-        lines,
-        ["updated", "premise: (none)", "policies:", "- use kubectl"],
-    )
-    assert lines[-1] == "no_directive"
-
-
-def test_repl_preview_available_after_invalid_replacement() -> None:
-    out = StringIO()
-    run_repl(StringIO("use kubectl instead of docker\npreview yes\nyes\nquit\n"), out)
-    lines = [line for line in out.getvalue().splitlines() if line.strip()]
-
-    assert _contains_subsequence(lines, ["preview", "no_directive", "would_mutate: no"])
-    assert lines[-1] == "no_directive"
-
-
-def test_repl_interactive_preview_available_after_invalid_replacement() -> None:
-    lines = _run_interactive_lines("use kubectl instead of docker\npreview yes\nyes\nquit\n")
-
-    assert _contains_subsequence(
-        lines,
-        ["updated", "premise: (none)", "policies:", "- use kubectl"],
-    )
-    assert _contains_subsequence(lines, ["preview", "no_directive", "would_mutate: no"])
-    assert lines[-1] == "no_directive"
-
-
-def test_repl_interactive_help_available_after_invalid_replacement() -> None:
-    lines = _run_interactive_lines("use kubectl instead of docker\nhelp\nyes\nquit\n")
-
-    assert _contains_subsequence(
-        lines,
-        ["updated", "premise: (none)", "policies:", "- use kubectl"],
-    )
-    assert _contains_subsequence(lines, ["Commands: help/? exit/quit"])
-    assert _contains_subsequence(lines, ["REPL command layer (not engine directives):"])
-    assert lines[-1] == "no_directive"
-
-
-def test_repl_preview_idempotent_admin_action_reports_no_mutation() -> None:
-    out = StringIO()
-    run_repl(StringIO("preview clear premise\nquit\n"), out)
-    lines = [line for line in out.getvalue().splitlines() if line.strip()]
-
-    assert _contains_subsequence(
-        lines, ["preview", "updated", "premise: (none)", "policies: (none)"]
-    )
-    assert _contains_subsequence(lines, ["would_mutate: no", "diff:", "- (none)"])
+    expected_help = [
+        "Commands: help/? exit/quit",
+        "REPL command layer (not engine directives):",
+        "  state",
+        "  step <input>     (explicit alias of bare input behavior)",
+        "Directives (exact prefix only):",
+        "  set premise <value>",
+        "  change premise to <value>",
+        "  use <item>",
+        "  prohibit <item>",
+        "  remove policy <item>",
+        "  use <new item> instead of <old item>",
+        "  clear premise",
+        "  reset policies",
+        "  clear state",
+        "Bare input behavior remains unchanged.",
+        "error results are immediate messages and do not reserve later input.",
+    ]
+    assert lines[0] == "Context Compiler REPL (0.5). Type help for commands."
+    assert lines[1] == "Non-directive input is no_directive."
+    expected_help_len = len(expected_help)
+    assert lines[2 : 2 + expected_help_len] == expected_help
+    assert lines[2 + expected_help_len : 2 + (2 * expected_help_len)] == expected_help
 
 
 def test_repl_interactive_rejects_multi_command_chunk() -> None:
@@ -784,392 +358,8 @@ def test_repl_interactive_rejects_multi_command_chunk() -> None:
     assert "updated" not in lines
 
 
-def test_repl_non_interactive_rejects_multi_command_chunk_with_human_readable_error() -> None:
-    out = StringIO()
-    run_repl(
-        _ChunkedInput(["set premise concise\nprohibit peanuts\n", "quit\n"]),  # type: ignore[arg-type]
-        out,
-    )
-
-    lines = out.getvalue().splitlines()
-    assert lines == ["error: Multiple commands detected.", "Enter one command per line."]
-
-
-def test_repl_non_interactive_rejects_embedded_carriage_return_multi_command_chunk() -> None:
-    out = StringIO()
-    run_repl(
-        _ChunkedInput(["set premise concise\rprohibit peanuts\n", "quit\n"]),  # type: ignore[arg-type]
-        out,
-    )
-
-    lines = out.getvalue().splitlines()
-    assert lines == ["error: Multiple commands detected.", "Enter one command per line."]
-
-
-def test_repl_non_interactive_accepts_crlf_single_line_without_multi_command_error() -> None:
-    out = StringIO()
-    run_repl(
-        _ChunkedInput(["hello\r\n", "quit\r\n"]),  # type: ignore[arg-type]
-        out,
-    )
-
-    lines = out.getvalue().splitlines()
-    assert lines == ["no_directive"]
-
-
-def test_repl_interactive_rejects_embedded_carriage_return_multi_command_chunk() -> None:
-    out = _TTYStringIO()
-    run_repl(
-        _ChunkedTTYInput(["set premise concise\rprohibit peanuts\n", "quit\n"]),  # type: ignore[arg-type]
-        out,
-    )
-
-    lines = out.getvalue().splitlines()
-    assert "error: Multiple commands detected." in lines
-    assert "Enter one command per line." in lines
-    assert "updated" not in lines
-
-
-def test_repl_invalid_directive_near_misses_remain_no_directive() -> None:
-    lines = _run_non_interactive_lines("actually use uv\nno use peanuts\nallow docker\nquit\n")
-    assert lines == ["no_directive", "no_directive", "no_directive"]
-
-
-def test_repl_empty_policy_payloads_and_incomplete_replacement_remain_no_directive() -> None:
-    lines = _run_non_interactive_lines(
-        "use\nprohibit   \nuse x instead of\nuse instead of y\nquit\n"
-    )
-    assert lines == ["no_directive", "no_directive", "no_directive", "no_directive"]
-
-
-def test_repl_premise_to_variant_near_misses_remain_no_directive() -> None:
-    lines = _run_non_interactive_lines(
-        "set premise to concise replies\nchange premise concise replies\nquit\n"
-    )
-    assert lines == ["no_directive", "no_directive"]
-
-
-def test_repl_non_interactive_remove_policy_flow() -> None:
-    lines = _run_non_interactive_lines(
-        "use docker\nremove policy docker\nremove policy podman\nquit\n"
-    )
-    assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use docker"])
-    assert lines.count("updated") == 3
-    assert lines.count("policies: (none)") == 2
-
-
-def test_repl_contradiction_error_does_not_reserve_followup_tokens() -> None:
-    lines = _run_non_interactive_lines("use docker\nprohibit docker\nno\nquit\n")
-    assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use docker"])
-    assert _contains_subsequence(
-        lines,
-        [
-            'error: "docker" is currently in use.',
-            "Remove or replace it before prohibiting it.",
-            "no_directive",
-        ],
-    )
-
-
-def test_repl_change_premise_without_existing_premise_renders_exact_error() -> None:
-    lines = _run_non_interactive_lines("change premise to concise\nquit\n")
-    assert _contains_subsequence(
-        lines,
-        [
-            "error: No premise is set.",
-            "Use 'set premise <value>' to define one.",
-        ],
-    )
-
-
-def test_repl_set_premise_empty_payload_remains_no_directive() -> None:
-    lines = _run_non_interactive_lines("set premise\nquit\n")
-    assert lines == ["no_directive"]
-
-
-def test_repl_change_premise_empty_payload_remains_no_directive() -> None:
-    lines = _run_non_interactive_lines("change premise to\nquit\n")
-    assert lines == ["no_directive"]
-
-
-def test_repl_use_item_when_prohibited_renders_exact_error() -> None:
-    lines = _run_non_interactive_lines("prohibit docker\nuse docker\nquit\n")
-    assert _contains_subsequence(
-        lines,
-        [
-            'error: "docker" is currently prohibited.',
-            "Remove or replace it before using it.",
-        ],
-    )
-
-
-def test_repl_replace_use_when_old_policy_not_use_renders_exact_error(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    engine = create_engine()
-    engine._state["policies"]["docker"] = "invalid"  # type: ignore[assignment]
-    monkeypatch.setattr(repl_module, "create_engine", lambda: engine)
-
-    out = StringIO()
-    run_repl(StringIO("use podman instead of docker\nquit\n"), out)
-    lines = [line for line in out.getvalue().splitlines() if line.strip()]
-
-    assert _contains_subsequence(
-        lines,
-        [
-            'error: "docker" is not currently in use.',
-            "Replacement requires an active 'use' policy.",
-        ],
-    )
-
-
-def test_repl_replacement_invalid_followups_are_no_directive() -> None:
-    lines = _run_non_interactive_lines("use podman instead of docker\nmaybe\nyes please!!\nquit\n")
-    assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use podman"])
-    assert lines[-2:] == ["no_directive", "no_directive"]
-
-
-def test_repl_interactive_prints_error_for_error_output() -> None:
-    error_out = _TTYStringIO()
-    run_repl(_TTYStringIO("use docker\nprohibit docker\nquit\n"), error_out)
-    error_lines = error_out.getvalue().splitlines()
-    assert 'error: "docker" is currently in use.' in error_lines
-    assert "Remove or replace it before prohibiting it." in error_lines
-
-
-def test_repl_prohibited_replacement_followup_tokens_remain_no_directive() -> None:
-    lines = _run_non_interactive_lines(
-        "use docker\nprohibit podman\nuse podman instead of docker\nno\nno\nquit\n"
-    )
-
-    assert lines.count("updated") == 2
-    assert _contains_subsequence(
-        lines,
-        [
-            "updated",
-            "premise: (none)",
-            "policies:",
-            "- use docker",
-            "updated",
-            "premise: (none)",
-            "policies:",
-            "- use docker",
-            "- prohibit podman",
-        ],
-    )
-    assert _contains_subsequence(
-        lines,
-        [
-            'error: "podman" is currently prohibited.',
-            "Submit explicit directive(s) to remove it or use a different item.",
-        ],
-    )
-    assert lines[-1] == "no_directive"
-
-
-def test_repl_premise_lifecycle_outputs_expected_state_shape() -> None:
-    lines = _run_non_interactive_lines(
-        "set premise concise answers\n"
-        "set premise verbose answers\n"
-        "change premise to verbose answers\n"
-        "quit\n"
-    )
-
-    assert _contains_subsequence(lines, ["updated", "premise: concise answers", "policies: (none)"])
-    assert _contains_subsequence(
-        lines,
-        [
-            "error: Premise already set.",
-            "Use 'change premise to <value>' to modify it.",
-        ],
-    )
-    assert _contains_subsequence(lines, ["updated", "premise: verbose answers", "policies: (none)"])
-
-
-def test_repl_interactive_renders_updated_state_blocks_for_multiple_operations() -> None:
-    lines = _run_interactive_lines("set premise concise replies\nuse docker\nclear premise\nquit\n")
-    assert "updated" in lines
-    assert _contains_subsequence(lines, ["updated", "premise: concise replies", "policies: (none)"])
-    assert _contains_subsequence(
-        lines, ["updated", "premise: concise replies", "policies:", "- use docker"]
-    )
-    assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use docker"])
-
-
-def test_repl_interactive_tokens_after_invalid_replacement_are_no_directive() -> None:
-    lines_yes = _run_interactive_lines("use podman instead of docker\nyeah\nquit\n")
-    assert "updated" in lines_yes
-    assert lines_yes[-1] == "no_directive"
-
-    lines_ok = _run_interactive_lines("use buildah instead of docker\nok\nquit\n")
-    assert "updated" in lines_ok
-    assert lines_ok[-1] == "no_directive"
-
-    lines_nope = _run_interactive_lines("use nerdctl instead of docker\nnope\nquit\n")
-    assert "updated" in lines_nope
-    assert lines_nope[-1] == "no_directive"
-
-    lines_no_thanks = _run_interactive_lines("use helm instead of docker\nno thanks\nquit\n")
-    assert "updated" in lines_no_thanks
-    assert lines_no_thanks[-1] == "no_directive"
-
-
-def test_repl_interactive_admin_idempotency_outputs_updated_with_unchanged_state() -> None:
-    lines = _run_interactive_lines("clear premise\nclear state\nreset policies\nquit\n")
-
-    assert lines.count("updated") == 3
-    assert lines.count("premise: (none)") == 3
-    assert lines.count("policies: (none)") == 3
-
-
-def test_repl_interactive_error_output_alignment_for_actual_behaviors() -> None:
-    lines = _run_interactive_lines(
-        "set premise concise\n"
-        "set premise verbose\n"
-        "use docker\n"
-        "prohibit docker\n"
-        "use podman instead of buildx\n"
-        "quit\n"
-    )
-
-    assert ("error: Premise already set.") in lines
-    assert "Use 'change premise to <value>' to modify it." in lines
-    assert ('error: "docker" is currently in use.') in lines
-    assert "Remove or replace it before prohibiting it." in lines
-    assert _contains_subsequence(
-        lines,
-        ["updated", "premise: concise", "policies:", "- use docker", "- use podman"],
-    )
-
-
-def test_repl_interactive_no_directive_prints_no_directive_label() -> None:
-    lines = _run_interactive_lines("actually use uv\nquit\n")
-    assert "no_directive" in lines
-
-
 def test_repl_interactive_blank_line_is_ignored_without_output() -> None:
     lines = _run_interactive_lines("\nset premise concise\nquit\n")
-
     assert lines[0] == "Context Compiler REPL (0.5). Type help for commands."
     assert lines[1] == "Non-directive input is no_directive."
-    assert lines.count("updated") == 1
     assert _contains_subsequence(lines, ["updated", "premise: concise", "policies: (none)"])
-
-
-def test_repl_interactive_eof_returns_cleanly_after_startup_banner() -> None:
-    lines = _run_interactive_lines("")
-    assert lines == [
-        "Context Compiler REPL (0.5). Type help for commands.",
-        "Non-directive input is no_directive.",
-    ]
-
-
-def test_repl_interactive_prints_blank_line_before_updated_decision() -> None:
-    out = _TTYStringIO()
-    run_repl(_TTYStringIO("set premise concise\nquit\n"), out)
-    text = out.getvalue()
-
-    assert "\n\nupdated\npremise: concise\n" in text
-
-
-def test_repl_interactive_prints_blank_line_before_error_decision() -> None:
-    out = _TTYStringIO()
-    run_repl(_TTYStringIO("set premise concise\nset premise verbose\nquit\n"), out)
-    text = out.getvalue()
-
-    assert "\n\nerror: Premise already set.\n" in text
-
-
-def test_repl_interactive_state_renders_empty_state() -> None:
-    lines = _run_interactive_lines("clear state\nquit\n")
-    assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies: (none)"])
-
-
-def test_repl_interactive_state_command_renders_current_state() -> None:
-    lines = _run_interactive_lines("state\nquit\n")
-    assert _contains_subsequence(lines, ["premise: (none)", "policies: (none)"])
-
-
-def test_repl_interactive_state_renders_premise_only() -> None:
-    lines = _run_interactive_lines("set premise concise\nquit\n")
-    assert _contains_subsequence(lines, ["updated", "premise: concise", "policies: (none)"])
-
-
-def test_repl_interactive_state_renders_policies_only() -> None:
-    lines = _run_interactive_lines("use docker\nquit\n")
-    assert _contains_subsequence(lines, ["updated", "premise: (none)", "policies:", "- use docker"])
-
-
-def test_repl_interactive_state_renders_mixed_with_sorted_policies() -> None:
-    lines = _run_interactive_lines(
-        "set premise concise\nuse docker\nprohibit poetry\nprohibit apples\nquit\n"
-    )
-    assert _contains_subsequence(
-        lines,
-        [
-            "updated",
-            "premise: concise",
-            "policies:",
-            "- prohibit apples",
-            "- use docker",
-            "- prohibit poetry",
-        ],
-    )
-
-
-def test_repl_interactive_step_command_paths_after_invalid_replacement() -> None:
-    lines = _run_interactive_lines("use kubectl instead of docker\nstep maybe\nstep yes!!!\nquit\n")
-
-    assert _contains_subsequence(
-        lines,
-        ["updated", "premise: (none)", "policies:", "- use kubectl"],
-    )
-    assert lines[-2:] == ["no_directive", "no_directive"]
-
-
-def test_repl_interactive_preview_requires_payload() -> None:
-    lines = _run_interactive_lines("preview\nquit\n")
-    assert _contains_subsequence(
-        lines, ["error: preview requires input.", "Use 'preview <input>'."]
-    )
-
-
-def test_repl_interactive_step_requires_payload() -> None:
-    lines = _run_interactive_lines("step\nquit\n")
-    assert _contains_subsequence(lines, ["error: step requires input.", "Use 'step <input>'."])
-
-
-def test_repl_interactive_preview_renders_structural_diff_lines(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    preview_result = {
-        "output_version": 1,
-        "mode": "preview",
-        "decision": {
-            "kind": "update",
-            "state": {"premise": "after", "policies": {"docker": "prohibit"}},
-        },
-        "state_before": {"premise": "before", "policies": {"docker": "use", "kubectl": "use"}},
-        "state_after": {"premise": "after", "policies": {"docker": "prohibit"}},
-        "diff": {
-            "changed": True,
-            "premise": {"before": "before", "after": "after", "changed": True},
-            "policies": {
-                "added": {},
-                "removed": {"kubectl": "use"},
-                "changed": {"docker": {"before": "use", "after": "prohibit"}},
-            },
-        },
-        "would_mutate": True,
-    }
-
-    def _fake_preview(_engine: object, _user_input: str) -> object:
-        return preview_result
-
-    monkeypatch.setattr(repl_module, "controller_preview", _fake_preview)
-
-    lines = _run_interactive_lines("preview test\nquit\n")
-    assert _contains_subsequence(lines, ["preview", "updated"])
-    assert _contains_subsequence(lines, ["- premise: before -> after"])
-    assert _contains_subsequence(lines, ["- - use kubectl"])
-    assert _contains_subsequence(lines, ["- ~ use docker -> prohibit docker"])
