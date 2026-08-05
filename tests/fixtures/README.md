@@ -87,15 +87,22 @@ structured objects or accept caller-owned structured inputs.
 
 These fixtures define declarative scenarios for:
 
-* constructor input isolation
-* remaining supported mutation-isolation boundaries
 * update `Decision` isolation
 * returned decision isolation
+* `engine.policies` caller-ownership isolation
+* `engine.premise` caller-ownership isolation
 
 The portable contract for this family is:
 
 * no public API return value may provide a mutation path into authoritative engine state
-* no caller-supplied input may remain aliased into authoritative engine state
+* live semantic reads exposed through public properties must remain caller-owned observations
+
+Legacy mutation-isolation scenarios tied to removed raw-state construction or
+raw-state snapshot APIs are not part of the current supported fixture surface.
+Authoritative-state setup and round-trip persistence behavior now belongs to the
+JSON fixture family, using `engine.import_json(...)` and `engine.export_json()`
+as the supported public boundary.
+
 The Python source-of-truth repo executes this fixture family through the
 existing conformance runner in
 [`tests/test_fixtures.py`](../test_fixtures.py).
