@@ -280,7 +280,7 @@ reference.
 
 Common API entry points:
 
-- engine lifecycle: `create_engine(...)`, `engine.step(...)`,
+- engine lifecycle: `create_engine()`, `engine.step(...)`,
   `engine.premise`, `engine.policies`, `engine.export_json(...)`,
   `engine.import_json(...)`
 - decision helpers: `is_error(...)`, `is_update(...)`, `is_no_directive(...)`,

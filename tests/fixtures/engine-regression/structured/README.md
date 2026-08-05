@@ -31,8 +31,8 @@ Each expected turn uses:
 * `decision.message`
 * `state`
 
-`decision.state` is intentionally omitted because the expected authoritative
-state snapshot is stored separately in each turn artifact.
+State is intentionally stored separately in each turn artifact rather than on
+the `Decision`.
 `decision.message` is only semantically meaningful for `error`; non-error turns
 store `null` for structural consistency.
 

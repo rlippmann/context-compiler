@@ -25,7 +25,6 @@
       "POLICY_PROHIBIT",
       "POLICY_USE",
       "PolicyValue",
-      "State",
       "create_engine",
       "get_error_message",
       "is_error",
@@ -65,19 +64,10 @@
       "PolicyValue": {
         "kind": "type_alias"
       },
-      "State": {
-        "kind": "type"
-      },
       "create_engine": {
         "kind": "callable",
         "signature": {
-          "params": [
-            {
-              "name": "state",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": true
-            }
-          ]
+          "params": []
         },
         "shape_probes": [
           {
@@ -221,9 +211,6 @@
           "kind": "property"
         },
         "premise": {
-          "kind": "property"
-        },
-        "state": {
           "kind": "property"
         },
         "step": {

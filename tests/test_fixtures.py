@@ -274,19 +274,6 @@ def test_mutation_isolation_fixtures() -> None:
             json.dumps(fixture["initial_state"], sort_keys=True, separators=(",", ":"))
         )
 
-        if fn == "create_engine":
-            source = fixture["initial_state"]
-            isolated = create_engine(state=source)
-            source["premise"] = "mutated"
-            assert isolated.state == fixture["expected"]["authoritative_state"], fixture_id
-            continue
-
-        if fn == "engine.state":
-            snapshot = engine.state
-            snapshot["premise"] = "mutated"
-            assert engine.state == fixture["expected"]["authoritative_state"], fixture_id
-            continue
-
         if fn == "engine.step":
             decision = engine.step(operation["input"])
             decision["message"] = "mutated note"

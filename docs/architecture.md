@@ -77,7 +77,7 @@ Boundary:
 
 - drafting is non-authoritative
 - drafting must not bypass `engine.step(...)`
-- drafting must not edit `engine.state`
+- drafting must not mutate compiler-owned authoritative state
 
 ## Application Layer
 

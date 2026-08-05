@@ -1,6 +1,6 @@
 """Example 6: explicit step sequencing and state restore."""
 
-from _util import print_decision_summary, print_state_summary
+from _util import print_decision_summary, print_engine_observations
 
 from context_compiler import create_engine
 
@@ -26,7 +26,11 @@ def main() -> None:
     restored.import_json(state_json)
 
     print("JSON restore keeps authority state:")
-    print_state_summary(restored.state, "restored state")
+    print_engine_observations(
+        premise=restored.premise,
+        policies=restored.policies,
+        label="restored state",
+    )
 
 
 if __name__ == "__main__":

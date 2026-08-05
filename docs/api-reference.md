@@ -28,12 +28,9 @@ Core boundary:
 
 ## Engine Lifecycle
 
-### `create_engine(state=None)`
+### `create_engine()`
 
 Create a new engine instance.
-
-- `state=None`: start from empty authoritative state
-- `state=<State>`: initialize from a validated authoritative state snapshot
 
 Typical use:
 
@@ -103,13 +100,6 @@ Boundary notes:
 Core does not lowercase operands, collapse internal operand whitespace, or
 convert operand text into engine/domain identifiers at the grammar layer.
 
-### `engine.state`
-
-Read the current authoritative in-memory state snapshot.
-
-Use this when you need the full authoritative state snapshot, such as
-serialization, persistence, or snapshot-based host logic.
-
 ### `engine.premise`
 
 Read the current authoritative premise value from a live engine.
@@ -174,7 +164,8 @@ elif is_update(decision):
 ## State Access
 
 Use `engine.premise` and `engine.policies` for live engine-owned reads.
-Use `engine.state` when you need the full authoritative snapshot.
+Use `engine.export_json()` and `engine.import_json()` for persistence and
+restoration.
 
 Typical use:
 
@@ -219,8 +210,9 @@ Retired APIs include:
 - `state_diff(...)`
 - result-envelope and accessor helpers tied to those APIs
 
-Current host integrations should call `engine.step(...)` directly and read
-live state through `engine.state`, `engine.premise`, and `engine.policies`.
+Current host integrations should call `engine.step(...)` directly, read live
+state through `engine.premise` and `engine.policies`, and persist state
+through `engine.export_json()` / `engine.import_json()`.
 
 ## Public Constants
 
@@ -243,7 +235,6 @@ literals in host code.
 Public result and data object names exported at package root include:
 
 - `Decision`
-- `State`
 - `Engine`
 
 These names are part of the public package surface. For the exact portable API

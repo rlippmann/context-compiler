@@ -36,9 +36,9 @@ to reach it.
 
 Examples:
 
-* `create_engine`
-* `engine.state`
 * `engine.step`
+* `engine.policies`
+* `engine.premise`
 For the current corpus, `operation` uses a closed per-function field set.
 Unknown operation fields are invalid.
 
