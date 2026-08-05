@@ -1,44 +1,11 @@
 from io import StringIO
 
-from context_compiler import DECISION_UPDATE
-from context_compiler.repl import (
-    _print_command_error,
-    _render_diff_lines,
-    run_repl,
-)
+from context_compiler.repl import _print_command_error, run_repl
 
 
 class _TTYStringIO(StringIO):
     def isatty(self) -> bool:
         return True
-
-
-def test_render_diff_lines_covers_premise_removed_and_changed_policy() -> None:
-    preview_result = {
-        "output_version": 1,
-        "mode": "preview",
-        "decision": {
-            "kind": DECISION_UPDATE,
-            "message": None,
-        },
-        "state_before": {"premise": "before", "policies": {"docker": "use"}},
-        "state_after": {"premise": "next", "policies": {"docker": "prohibit"}},
-        "would_mutate": True,
-        "diff": {
-            "changed": True,
-            "premise": {"before": "before", "after": "next", "changed": True},
-            "policies": {
-                "added": {},
-                "removed": {"kubectl": "use"},
-                "changed": {"docker": {"before": "use", "after": "prohibit"}},
-            },
-        },
-    }
-
-    lines = _render_diff_lines(preview_result)  # type: ignore[arg-type]
-    assert "- premise: before -> next" in lines
-    assert "- - use kubectl" in lines
-    assert "- ~ use docker -> prohibit docker" in lines
 
 
 def test_print_command_error_leading_blank_line() -> None:
@@ -47,10 +14,10 @@ def test_print_command_error_leading_blank_line() -> None:
     assert out.getvalue().splitlines() == ["", "error: boom"]
 
 
-def test_interactive_state_step_and_preview_command_error_paths() -> None:
+def test_interactive_state_and_step_command_error_paths() -> None:
     out = _TTYStringIO()
     run_repl(
-        _TTYStringIO("state\nstep\npreview\nquit\n"),
+        _TTYStringIO("state\nstep\nquit\n"),
         out,
     )
     lines = out.getvalue().splitlines()
@@ -59,5 +26,3 @@ def test_interactive_state_step_and_preview_command_error_paths() -> None:
     assert "policies: (none)" in lines
     assert "error: step requires input." in lines
     assert "Use 'step <input>'." in lines
-    assert "error: preview requires input." in lines
-    assert "Use 'preview <input>'." in lines

@@ -7,7 +7,6 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from context_compiler import DECISION_ERROR, DECISION_NO_DIRECTIVE, DECISION_UPDATE, create_engine
-from context_compiler.controller import preview, state_diff
 from context_compiler.engine import State
 from context_compiler.grammar import (
     DirectiveKind,
@@ -113,28 +112,6 @@ CANONICAL_GRAMMAR_ITEM_TEXT = NORMALIZATION_SENSITIVE_TEXT.map(_normalize_item_l
         and validate_directive(f"prohibit {value}") is not None
         and validate_directive(f"remove policy {value}") is not None
     )
-)
-
-PREVIEW_INPUTS = st.one_of(
-    st.text(max_size=40),
-    VALID_USE_ITEM_TEXT.map(lambda item: f"use {item}"),
-    VALID_PROHIBIT_ITEM_TEXT.map(lambda item: f"prohibit {item}"),
-    VALID_NONEMPTY_ITEM_TEXT.map(lambda item: f"remove policy {item}").filter(
-        lambda text: validate_directive(text) is not None
-    ),
-    VALID_PREMISE_TEXT.map(lambda value: f"set premise {value}").filter(
-        lambda text: validate_directive(text) is not None
-    ),
-    VALID_PREMISE_TEXT.map(lambda value: f"change premise to {value}").filter(
-        lambda text: validate_directive(text) is not None
-    ),
-    st.sampled_from(["clear premise", "reset policies", "clear state"]),
-    st.tuples(VALID_USE_ITEM_TEXT, VALID_NONEMPTY_ITEM_TEXT)
-    .filter(
-        lambda pair: _normalize_item_like_engine(pair[0]) != _normalize_item_like_engine(pair[1])
-    )
-    .map(lambda pair: f"use {pair[0]} instead of {pair[1]}")
-    .filter(lambda text: validate_directive(text) is not None),
 )
 
 
@@ -465,28 +442,3 @@ def test_deterministic_replacement_matches_equivalent_explicit_transition(
         followup = engine.step("yes")
         assert followup == {"kind": DECISION_NO_DIRECTIVE, "message": None}
         assert engine.state == expected_state
-
-
-@given(VALID_STATE_PAYLOADS.filter(_payload_has_stable_export_import_cycle), PREVIEW_INPUTS)
-def test_preview_matches_isolated_execution_without_mutating_live_engine(
-    payload: dict[str, object], user_input: str
-) -> None:
-    live_engine = create_engine()
-    live_engine.import_json(json.dumps(payload))
-    before = deepcopy(live_engine.state)
-
-    preview_result = preview(live_engine, user_input)
-
-    isolated_engine = create_engine()
-    isolated_engine.import_json(json.dumps(before))
-    isolated_decision = isolated_engine.step(user_input)
-    isolated_after = isolated_engine.state
-    isolated_diff = state_diff(before, isolated_after)
-
-    assert live_engine.state == before
-    assert preview_result["decision"] == isolated_decision
-    assert preview_result["state_before"] == before
-    assert preview_result["state_after"] == isolated_after
-    assert preview_result["diff"] == isolated_diff
-    assert preview_result["would_mutate"] is (before != isolated_after)
-    assert preview_result["would_mutate"] is preview_result["diff"]["changed"]

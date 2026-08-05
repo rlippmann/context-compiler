@@ -5,18 +5,10 @@ import sys
 from typing import TextIO
 
 from . import __version__, create_engine
-from .controller import (
-    OUTPUT_VERSION,
-    PreviewResult,
-    StepResult,
-    get_preview_decision,
-    get_step_decision,
-    preview_would_mutate,
-)
-from .controller import preview as controller_preview
-from .controller import step as controller_step
 from .decision_helpers import is_error, is_no_directive, is_update
 from .engine import Decision, DecisionKind, Engine, State
+
+OUTPUT_VERSION = 1
 
 _EXIT_TOKENS = {"exit", "quit"}
 _HELP_TOKENS = {"help", "?"}
@@ -53,7 +45,6 @@ def _print_interactive_help(out_stream: TextIO) -> None:
     print("Commands: help/? exit/quit", file=out_stream)
     print("REPL command layer (not engine directives):", file=out_stream)
     print("  state", file=out_stream)
-    print("  preview <input>", file=out_stream)
     print("  step <input>     (explicit alias of bare input behavior)", file=out_stream)
     print("Directives (exact prefix only):", file=out_stream)
     print("  set premise <value>", file=out_stream)
@@ -66,7 +57,6 @@ def _print_interactive_help(out_stream: TextIO) -> None:
     print("  reset policies", file=out_stream)
     print("  clear state", file=out_stream)
     print("Bare input behavior remains unchanged.", file=out_stream)
-    print("preview is a deterministic dry-run and never mutates live state.", file=out_stream)
     print("error results are immediate messages and do not reserve later input.", file=out_stream)
 
 
@@ -112,47 +102,6 @@ def _print_decision_lines(
         print(line, file=out_stream)
 
 
-def _render_diff_lines(preview_result: PreviewResult) -> list[str]:
-    diff = preview_result["diff"]
-    lines = [f"would_mutate: {'yes' if preview_would_mutate(preview_result) else 'no'}", "diff:"]
-
-    premise = diff["premise"]
-    if premise["changed"]:
-        before = "(none)" if premise["before"] is None else premise["before"]
-        after = "(none)" if premise["after"] is None else premise["after"]
-        lines.append(f"- premise: {before} -> {after}")
-
-    policies = diff["policies"]
-    for item, value in sorted(policies["added"].items()):
-        lines.append(f"- + {value} {item}")
-    for item, value in sorted(policies["removed"].items()):
-        lines.append(f"- - {value} {item}")
-    for item, change in sorted(policies["changed"].items()):
-        lines.append(f"- ~ {change['before']} {item} -> {change['after']} {item}")
-
-    if len(lines) == 2:
-        lines.append("- (none)")
-    return lines
-
-
-def _print_preview_lines(
-    preview_result: PreviewResult,
-    out_stream: TextIO,
-    *,
-    leading_blank: bool,
-    command_name: str,
-) -> None:
-    if leading_blank:
-        print("", file=out_stream)
-    print(command_name, file=out_stream)
-    for line in _render_decision_lines(
-        get_preview_decision(preview_result), state=preview_result["state_after"]
-    ):
-        print(line, file=out_stream)
-    for line in _render_diff_lines(preview_result):
-        print(line, file=out_stream)
-
-
 def _print_command_error(out_stream: TextIO, *, leading_blank: bool, message: str) -> None:
     if leading_blank:
         print("", file=out_stream)
@@ -163,14 +112,15 @@ def _write_json_line(out_stream: TextIO, payload: dict[str, object]) -> None:
     print(json.dumps(payload, separators=(",", ":"), sort_keys=True), file=out_stream)
 
 
-def _json_step_payload(result: StepResult, *, command: str) -> dict[str, object]:
-    payload: dict[str, object] = dict(result)
-    payload["command"] = command
-    return payload
-
-
-def _json_preview_payload(result: PreviewResult, *, command: str) -> dict[str, object]:
-    payload: dict[str, object] = dict(result)
+def _json_step_payload(
+    decision: Decision, *, command: str, state: State, mode: str = "step"
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "output_version": OUTPUT_VERSION,
+        "mode": mode,
+        "decision": decision,
+        "state": state,
+    }
     payload["command"] = command
     return payload
 
@@ -256,10 +206,9 @@ def run_repl(
 ) -> None:
     """Run the interactive or line-oriented REPL against one engine instance.
 
-    Interactive mode exposes command helpers such as ``state`` and ``preview``.
+    Interactive mode exposes command helpers such as ``state`` and ``step``.
     Non-interactive mode consumes one input line at a time and can optionally
-    emit NDJSON records. Preview requests are evaluated through the shared
-    controller preview path and never mutate the live engine state.
+    emit NDJSON records.
     """
 
     active_engine = create_engine() if engine is None else engine
@@ -301,46 +250,21 @@ def run_repl(
                     )
                     continue
                 if payload != "" and (user_input == "step" or user_input.startswith("step ")):
-                    result: StepResult = controller_step(active_engine, payload)
+                    decision = active_engine.step(payload)
                     _print_decision_lines(
-                        get_step_decision(result),
+                        decision,
                         out_stream,
                         leading_blank=True,
-                        state=result["state"],
+                        state=active_engine.state,
                     )
                     continue
 
-            preview_command = None
-            payload = ""
-            if user_input.startswith("preview "):
-                preview_command = "preview"
-                payload = user_input[len("preview ") :]
-            elif token == "preview":
-                preview_command = "preview"
-
-            if preview_command == "preview":
-                if payload.strip() == "":
-                    _print_command_error(
-                        out_stream,
-                        leading_blank=True,
-                        message="preview requires input.\nUse 'preview <input>'.",
-                    )
-                    continue
-                preview_result = controller_preview(active_engine, payload)
-                _print_preview_lines(
-                    preview_result,
-                    out_stream,
-                    leading_blank=True,
-                    command_name=preview_command,
-                )
-                continue
-
-            result = controller_step(active_engine, user_input)
+            decision = active_engine.step(user_input)
             _print_decision_lines(
-                get_step_decision(result),
+                decision,
                 out_stream,
                 leading_blank=True,
-                state=result["state"],
+                state=active_engine.state,
             )
         return
 
@@ -391,67 +315,33 @@ def run_repl(
                     )
                 continue
             if payload != "" and (user_input == "step" or user_input.startswith("step ")):
-                result = controller_step(active_engine, payload)
-                if json_mode:
-                    _write_json_line(out_stream, _json_step_payload(result, command="step"))
-                else:
-                    _print_decision_lines(
-                        get_step_decision(result),
-                        out_stream,
-                        leading_blank=False,
-                        state=result["state"],
-                    )
-                continue
-
-        preview_command = None
-        payload = ""
-        if user_input.startswith("preview "):
-            preview_command = "preview"
-            payload = user_input[len("preview ") :]
-        elif token == "preview":
-            preview_command = "preview"
-
-        if preview_command == "preview":
-            if payload.strip() == "":
+                decision = active_engine.step(payload)
                 if json_mode:
                     _write_json_line(
                         out_stream,
-                        _json_error_payload(
-                            command="preview",
-                            code="missing_preview_input",
-                            message="preview requires input.\nUse 'preview <input>'.",
-                        ),
+                        _json_step_payload(decision, command="step", state=active_engine.state),
                     )
                 else:
-                    _print_command_error(
+                    _print_decision_lines(
+                        decision,
                         out_stream,
                         leading_blank=False,
-                        message="preview requires input.\nUse 'preview <input>'.",
+                        state=active_engine.state,
                     )
                 continue
-            preview_result = controller_preview(active_engine, payload)
-            if json_mode:
-                _write_json_line(
-                    out_stream, _json_preview_payload(preview_result, command="preview")
-                )
-            else:
-                _print_preview_lines(
-                    preview_result,
-                    out_stream,
-                    leading_blank=False,
-                    command_name=preview_command,
-                )
-            continue
 
-        result = controller_step(active_engine, user_input)
+        decision = active_engine.step(user_input)
         if json_mode:
-            _write_json_line(out_stream, _json_step_payload(result, command="input"))
+            _write_json_line(
+                out_stream,
+                _json_step_payload(decision, command="input", state=active_engine.state),
+            )
         else:
             _print_decision_lines(
-                get_step_decision(result),
+                decision,
                 out_stream,
                 leading_blank=False,
-                state=result["state"],
+                state=active_engine.state,
             )
 
 

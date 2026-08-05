@@ -39,10 +39,6 @@ Examples:
 * `create_engine`
 * `engine.state`
 * `engine.step`
-* `controller.step`
-* `controller.preview`
-* helper accessors such as `get_step_state`
-
 For the current corpus, `operation` uses a closed per-function field set.
 Unknown operation fields are invalid.
 
@@ -55,9 +51,6 @@ Examples:
 * constructor argument object
 * returned state snapshot
 * returned `Decision`
-* returned controller result envelope
-* helper return value
-
 `handle.kind` is a closed descriptive metadata set used for fixture validation.
 It documents expected ownership roles but does not currently change execution.
 
@@ -81,12 +74,8 @@ outside the scope of this fixture family for now.
 `expected` captures only observable behavior:
 
 * `authoritative_state`: engine state expected after caller-side mutation
-* `preview_live_state_unchanged`: whether preview must still leave live engine
-  state unchanged
-* `identity_assertions`: optional identity expectations between handles and
-  nested envelope members
 * `caller_owned_observations`: optional value observations within caller-owned
-  envelopes after mutation
+  objects after mutation
 
 ## Scope boundary
 

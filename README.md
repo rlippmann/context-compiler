@@ -193,10 +193,9 @@ Preload options load authoritative state:
 - `--initial-state-json` / `--initial-state-file` load saved state
   (via exported state JSON).
 
-REPL commands (controller layer, not engine directives):
+REPL commands (not engine directives):
 
 - `state` shows current saved state.
-- `preview <input>` runs deterministic dry-run without mutating live state.
 - `step <input>` is an explicit alias of normal bare-input step behavior.
 
 Bare REPL input behavior remains unchanged.
@@ -283,20 +282,6 @@ Common API entry points:
 - decision helpers: `is_error(...)`, `is_update(...)`, `is_no_directive(...)`,
   `get_error_message(...)`
 - state transport: `engine.export_json(...)`, `engine.import_json(...)`
-- controller API: `step(...)`
-- audit APIs: `preview(...)`, `state_diff(...)`
-
-### Controller And Audit APIs (Reusable Outside REPL)
-
-- `step(engine, user_input)` returns a reusable result envelope around one
-  engine turn
-- `preview(engine, user_input)` performs a deterministic dry run and restores
-  live engine state afterward
-- `state_diff(state_before, state_after)` summarizes structural state changes
-
-For examples and helper accessors such as `get_step_decision(...)`,
-`get_preview_state_after(...)`, `preview_would_mutate(...)`, and
-`diff_has_changes(...)`, see [docs/api-reference.md](docs/api-reference.md).
 
 ---
 

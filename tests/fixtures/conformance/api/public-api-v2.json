@@ -26,15 +26,11 @@
       "POLICY_USE",
       "PolicyValue",
       "State",
-      "StepResult",
       "create_engine",
       "get_error_message",
-      "get_step_decision",
-      "get_step_state",
       "is_error",
       "is_no_directive",
-      "is_update",
-      "step"
+      "is_update"
     ],
     "members": {
       "Decision": {
@@ -70,9 +66,6 @@
         "kind": "type_alias"
       },
       "State": {
-        "kind": "type"
-      },
-      "StepResult": {
         "kind": "type"
       },
       "create_engine": {
@@ -120,30 +113,6 @@
             }
           }
         ]
-      },
-      "get_step_decision": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "step_result",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        }
-      },
-      "get_step_state": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "step_result",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        }
       },
       "is_error": {
         "kind": "callable",
@@ -219,52 +188,6 @@
             "return_shape": {
               "type": "boolean",
               "const": true
-            }
-          }
-        ]
-      },
-      "step": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "engine",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            },
-            {
-              "name": "user_input",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        },
-        "shape_probes": [
-          {
-            "kwargs": {
-              "engine": {
-                "fixture": "empty_engine"
-              },
-              "user_input": "use docker"
-            },
-            "return_shape": {
-              "type": "object",
-              "required_keys": [
-                "output_version",
-                "mode",
-                "decision",
-                "state"
-              ],
-              "properties": {
-                "output_version": {
-                  "type": "number",
-                  "const": 1
-                },
-                "mode": {
-                  "type": "string",
-                  "const": "step"
-                }
-              }
             }
           }
         ]

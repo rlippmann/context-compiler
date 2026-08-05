@@ -17,8 +17,6 @@ surface, rather than as Python-only test inputs.
 
 [`conformance/api/public-api-v2.json`](conformance/api/public-api-v2.json) defines the current portable core root public API contract for Python and ports.
 
-[`conformance/api/public-audit-v1.json`](conformance/api/public-audit-v1.json) defines the current portable audit-module public API contract for Python and ports.
-
 Ports may sync this artifact with conformance fixtures.
 
 The contract encodes:
@@ -33,18 +31,6 @@ The contract encodes:
 Ports should check equivalent public exports, members, and signatures using language-appropriate names where casing differs.
 
 Behavioral semantics remain covered by conformance and structured fixtures.
-
-The root API contract includes the public step helper accessors:
-
-* `get_step_decision`
-* `get_step_state`
-
-The audit API contract includes:
-
-* `get_preview_decision`
-* `get_preview_state_after`
-* `preview_would_mutate`
-* `diff_has_changes`
 
 ## Step fixtures
 
@@ -92,27 +78,6 @@ deterministic validation/error boundaries.
 The current runner enforces a closed fixture shape for this family.
 Unknown top-level, action, and documented expected/error fields are rejected.
 
-## Controller fixtures
-
-For [`conformance/controller/`](conformance/controller/):
-
-Portable controller contract coverage for:
-
-* `step(engine, user_input)` result envelope and state snapshot
-* `preview(engine, user_input)` result envelope, `would_mutate`, and non-mutation of live engine state
-* `state_diff(state_before, state_after)` deterministic structural diff output
-
-These fixtures keep a minimal, language-neutral contract matrix for step and
-audit APIs. They intentionally validate the raw result envelopes; helper
-accessors are covered separately by the root and audit API presence contracts
-above.
-
-The current runner enforces a closed fixture shape for this family.
-Unknown top-level, action, expected, and documented result/diff fields are rejected.
-
-Embedded controller `decision` values use the same single-shape `Decision`
-contract as the core engine step fixtures above.
-
 ## Mutation-isolation fixtures
 
 For [`conformance/mutation-isolation/`](conformance/mutation-isolation/):
@@ -125,17 +90,12 @@ These fixtures define declarative scenarios for:
 * constructor input isolation
 * `engine.state` snapshot isolation
 * update `Decision` isolation
-* controller result isolation
-* preview result isolation
-* helper accessor ownership and identity semantics
+* returned decision isolation
 
 The portable contract for this family is:
 
 * no public API return value may provide a mutation path into authoritative engine state
 * no caller-supplied input may remain aliased into authoritative engine state
-* helper accessors may return caller-owned nested members by identity when that
-  behavior is intentional and documented
-
 The Python source-of-truth repo executes this fixture family through the
 existing conformance runner in
 [`tests/test_fixtures.py`](../test_fixtures.py).
