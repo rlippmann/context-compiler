@@ -44,7 +44,7 @@ Each step fixture runs:
 Then asserts:
 
 * returned `Decision`
-* final `engine.state`
+* final authoritative state snapshot
 
 The `Decision` payload in this family uses one shared shape:
 
@@ -88,7 +88,7 @@ structured objects or accept caller-owned structured inputs.
 These fixtures define declarative scenarios for:
 
 * constructor input isolation
-* `engine.state` snapshot isolation
+* remaining supported mutation-isolation boundaries
 * update `Decision` isolation
 * returned decision isolation
 

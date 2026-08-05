@@ -18,7 +18,6 @@ from .engine import (
     DecisionKind,
     Engine,
     PolicyValue,
-    State,
     create_engine,
 )
 
@@ -34,7 +33,6 @@ __all__ = [
     "POLICY_PROHIBIT",
     "POLICY_USE",
     "PolicyValue",
-    "State",
     "create_engine",
     "get_error_message",
     "is_error",

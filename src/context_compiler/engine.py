@@ -25,7 +25,7 @@ from .grammar import DirectiveKind, decompose_directive
 PolicyValue = Literal["use", "prohibit"]
 
 
-class State(TypedDict):
+class _State(TypedDict):
     """Versioned authoritative state."""
 
     premise: str | None
@@ -72,24 +72,24 @@ class Action:
 @dataclass(frozen=True)
 class _EvaluatedTransition:
     decision: Decision
-    next_state: State
+    next_state: _State
 
 
 _NO_DIRECTIVE: Decision = {"kind": DecisionKind.NO_DIRECTIVE, "message": None}
 
 
-def create_engine(state: State | None = None) -> "Engine":
-    """Create an engine initialized from validated state or the empty state."""
+def create_engine() -> "Engine":
+    """Create an engine initialized to the empty authoritative state."""
 
-    return Engine(state=state)
+    return Engine()
 
 
 class Engine:
     """Own the authoritative state and apply one directive transition at a time."""
 
-    def __init__(self, state: State | None = None) -> None:
-        self._state: State
-        self._replace_state(_initial_state() if state is None else _load_state_obj(state))
+    def __init__(self) -> None:
+        self._state: _State
+        self._replace_state(_initial_state())
 
     @property
     def premise(self) -> str | None:
@@ -102,12 +102,6 @@ class Engine:
         """Return a defensive copy of the current policy mapping."""
 
         return deepcopy(self._state[STATE_POLICIES])
-
-    @property
-    def state(self) -> State:
-        """Return a defensive copy of the full authoritative state."""
-
-        return deepcopy(self._state)
 
     def export_json(self) -> str:
         """Serialize the current authoritative state to canonical JSON text."""
@@ -136,7 +130,7 @@ class Engine:
         self._replace_state(evaluated.next_state)
         return evaluated.decision
 
-    def _evaluate_transition(self, state: State, user_input: str) -> _EvaluatedTransition:
+    def _evaluate_transition(self, state: _State, user_input: str) -> _EvaluatedTransition:
         action = _parse_directive(user_input)
         if action is None:
             return _EvaluatedTransition(decision=_NO_DIRECTIVE.copy(), next_state=deepcopy(state))
@@ -148,10 +142,12 @@ class Engine:
         next_state = self._apply_action(action, state=state)
         return _EvaluatedTransition(decision=_update_decision(next_state), next_state=next_state)
 
-    def _replace_state(self, state: State) -> None:
+    def _replace_state(self, state: _State) -> None:
         self._state = state
 
-    def _pre_mutation_error(self, action: Action, *, state: State | None = None) -> Decision | None:
+    def _pre_mutation_error(
+        self, action: Action, *, state: _State | None = None
+    ) -> Decision | None:
         candidate_state = self._state if state is None else state
         # Single error path: all error outcomes are detected before any mutation.
         if action.kind in {"set_premise", "change_premise"}:
@@ -240,7 +236,7 @@ class Engine:
 
         return None
 
-    def _apply_action(self, action: Action, *, state: State) -> State:
+    def _apply_action(self, action: Action, *, state: _State) -> _State:
         next_state = deepcopy(state)
         kind = action.kind
 
@@ -290,7 +286,7 @@ class Engine:
 
         return _initial_state()
 
-    def _apply_replacement_explicit(self, state: State, new_item: str, old_item: str) -> None:
+    def _apply_replacement_explicit(self, state: _State, new_item: str, old_item: str) -> None:
         new_key = _normalize_item(new_item)
         old_key = _normalize_item(old_item)
 
@@ -329,7 +325,7 @@ def _parse_directive(user_input: str) -> Action | None:
     return Action(kind="clear_state")
 
 
-def _initial_state() -> State:
+def _initial_state() -> _State:
     return {
         STATE_PREMISE: None,
         STATE_POLICIES: {},
@@ -337,7 +333,7 @@ def _initial_state() -> State:
     }
 
 
-def _load_state_json(payload: str) -> State:
+def _load_state_json(payload: str) -> _State:
     try:
         raw = json.loads(payload)
     except json.JSONDecodeError as exc:
@@ -346,7 +342,7 @@ def _load_state_json(payload: str) -> State:
     return _load_state_obj(raw)
 
 
-def _load_state_obj(raw: object) -> State:
+def _load_state_obj(raw: object) -> _State:
     if not isinstance(raw, dict):
         raise ValueError("Invalid state payload.")
 
@@ -404,5 +400,5 @@ def _error(message: str) -> Decision:
     return {"kind": DecisionKind.ERROR, "message": message}
 
 
-def _update_decision(_state: State) -> Decision:
+def _update_decision(_state: _State) -> Decision:
     return {"kind": DecisionKind.UPDATE, "message": None}

@@ -76,7 +76,8 @@ def test_demo_01_calls_llm_when_second_turn_is_not_error(
 
     class _FakeEngine:
         def __init__(self) -> None:
-            self.state = {"premise": None, "policies": {}, "version": 2}
+            self.premise = None
+            self.policies: dict[str, str] = {}
             self._step_count = 0
 
         def step(self, _text: str) -> dict[str, str]:
@@ -112,7 +113,8 @@ def test_demo_01_baseline_and_compiler_use_intentionally_different_gates(
 
     class _FakeEngine:
         def __init__(self) -> None:
-            self.state = {"premise": None, "policies": {}, "version": 2}
+            self.premise = None
+            self.policies: dict[str, str] = {}
             self._step_count = 0
 
         def step(self, _text: str) -> dict[str, str]:

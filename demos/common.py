@@ -49,16 +49,9 @@ LAST_INFO_REPORT: InfoReport | None = None
 def observe_engine(engine: object) -> tuple[str | None, dict[str, PolicyValue]]:
     premise = getattr(engine, "premise", None)
     policies = getattr(engine, "policies", None)
-    if isinstance(policies, Mapping):
-        return premise, dict(policies)
-
-    state = getattr(engine, "state", None)
-    assert isinstance(state, dict)
-    state_premise = state.get("premise")
-    state_policies = state.get("policies")
-    assert state_premise is None or isinstance(state_premise, str)
-    assert isinstance(state_policies, dict)
-    return state_premise, dict(state_policies)
+    assert premise is None or isinstance(premise, str)
+    assert isinstance(policies, Mapping)
+    return premise, dict(policies)
 
 
 def state_observations(state: Mapping[str, object]) -> tuple[str | None, dict[str, PolicyValue]]:

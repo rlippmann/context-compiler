@@ -30,7 +30,8 @@ DEMO_NAME = (
 TURN_1 = "use podman instead of docker"
 TURN_2 = "maybe"
 TURN_3 = "yes"
-INITIAL_AUTHORITATIVE_STATE = create_engine().state
+INITIAL_PREMISE: str | None = None
+INITIAL_POLICIES: dict[str, str] = {}
 
 
 def _has_podman_use(policies: Mapping[str, str]) -> bool:
@@ -38,10 +39,7 @@ def _has_podman_use(policies: Mapping[str, str]) -> bool:
 
 
 def _is_initial_authoritative_state(*, premise: str | None, policies: Mapping[str, str]) -> bool:
-    return (
-        premise == INITIAL_AUTHORITATIVE_STATE["premise"]
-        and dict(policies) == INITIAL_AUTHORITATIVE_STATE["policies"]
-    )
+    return premise == INITIAL_PREMISE and dict(policies) == INITIAL_POLICIES
 
 
 def main() -> None:
