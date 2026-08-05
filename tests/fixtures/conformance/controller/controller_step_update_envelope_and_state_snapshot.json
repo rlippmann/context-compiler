@@ -16,11 +16,7 @@
       "mode": "step",
       "decision": {
         "kind": "update",
-        "state": {
-          "premise": "concise replies",
-          "policies": {},
-          "version": 2
-        }
+        "message": null
       },
       "state": {
         "premise": "concise replies",

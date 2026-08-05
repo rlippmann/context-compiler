@@ -364,7 +364,7 @@ def test_no_directive_sequence_preserves_state_and_decision_kind(inputs: list[st
 
     for text in inputs:
         decision = engine.step(f"prefix {text}")
-        assert decision == {"kind": DECISION_NO_DIRECTIVE}
+        assert decision == {"kind": DECISION_NO_DIRECTIVE, "message": None}
         assert engine.state == before
 
 
@@ -456,14 +456,14 @@ def test_deterministic_replacement_matches_equivalent_explicit_transition(
 
     assert expected_decision == {
         "kind": DECISION_UPDATE,
-        "state": expected_state,
+        "message": None,
     }
     assert decision == expected_decision
     assert engine.state == expected_state
 
     if not old_present:
         followup = engine.step("yes")
-        assert followup == {"kind": DECISION_NO_DIRECTIVE}
+        assert followup == {"kind": DECISION_NO_DIRECTIVE, "message": None}
         assert engine.state == expected_state
 
 

@@ -246,19 +246,19 @@ uv run pytest
 Each user message produces a `Decision`.
 
 ```python
-class NoDirectiveDecision(TypedDict):
-    kind: Literal["no_directive"]
+class DecisionKind(StrEnum):
+    NO_DIRECTIVE = "no_directive"
+    UPDATE = "update"
+    ERROR = "error"
 
-class UpdateDecision(TypedDict):
-    kind: Literal["update"]
-    state: State
-
-class ErrorDecision(TypedDict):
-    kind: Literal["error"]
-    message: str
-
-Decision = NoDirectiveDecision | UpdateDecision | ErrorDecision
+class Decision(TypedDict):
+    kind: DecisionKind
+    message: str | None
 ```
+
+`message` is structurally present on every `Decision`, but it is semantically
+meaningful only for `error`. For `no_directive` and `update`, `message` is
+`None`.
 
 Meaning:
 
@@ -269,7 +269,7 @@ Meaning:
 | error | show `message` and do not continue normal downstream processing yet |
 
 For normal app code, prefer the exported decision helpers (`is_error`,
-`is_update`, `is_no_directive`, `get_error_message`, `get_decision_state`)
+`is_update`, `is_no_directive`, `get_error_message`)
 instead of direct key traversal.
 
 See [docs/api-reference.md](docs/api-reference.md) for the full public API
@@ -281,7 +281,7 @@ Common API entry points:
   `engine.premise`, `engine.policies`, `engine.export_json(...)`,
   `engine.import_json(...)`
 - decision helpers: `is_error(...)`, `is_update(...)`, `is_no_directive(...)`,
-  `get_error_message(...)`, `get_decision_state(...)`
+  `get_error_message(...)`
 - state transport: `engine.export_json(...)`, `engine.import_json(...)`
 - controller API: `step(...)`
 - audit APIs: `preview(...)`, `state_diff(...)`

@@ -5,6 +5,7 @@ import re
 from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Literal, TypedDict
 from unicodedata import normalize as unicode_normalize
 
@@ -32,27 +33,19 @@ class State(TypedDict):
     version: Literal[2]
 
 
-class NoDirectiveDecision(TypedDict):
-    """Report that input did not match any recognized canonical directive."""
+class DecisionKind(StrEnum):
+    """Public decision-kind vocabulary for host-side branching."""
 
-    kind: Literal["no_directive"]
-
-
-class UpdateDecision(TypedDict):
-    """Report a successful transition and the resulting authoritative state."""
-
-    kind: Literal["update"]
-    state: State
+    NO_DIRECTIVE = DECISION_NO_DIRECTIVE
+    UPDATE = DECISION_UPDATE
+    ERROR = DECISION_ERROR
 
 
-class ErrorDecision(TypedDict):
-    """Report a rejected transition together with a user-facing error message."""
+class Decision(TypedDict):
+    """Report one deterministic engine outcome to host-side callers."""
 
-    kind: Literal["error"]
-    message: str
-
-
-Decision = NoDirectiveDecision | UpdateDecision | ErrorDecision
+    kind: DecisionKind
+    message: str | None
 
 
 @dataclass(frozen=True)
@@ -82,7 +75,7 @@ class _EvaluatedTransition:
     next_state: State
 
 
-_NO_DIRECTIVE: NoDirectiveDecision = {"kind": DECISION_NO_DIRECTIVE}
+_NO_DIRECTIVE: Decision = {"kind": DecisionKind.NO_DIRECTIVE, "message": None}
 
 
 def create_engine(state: State | None = None) -> "Engine":
@@ -405,9 +398,9 @@ def _normalize_item(value: str) -> str:
     return normalized.strip()
 
 
-def _error(message: str) -> ErrorDecision:
-    return {"kind": DECISION_ERROR, "message": message}
+def _error(message: str) -> Decision:
+    return {"kind": DecisionKind.ERROR, "message": message}
 
 
-def _update_decision(state: State) -> UpdateDecision:
-    return {"kind": DECISION_UPDATE, "state": deepcopy(state)}
+def _update_decision(_state: State) -> Decision:
+    return {"kind": DecisionKind.UPDATE, "message": None}

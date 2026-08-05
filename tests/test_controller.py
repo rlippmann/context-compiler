@@ -64,7 +64,7 @@ def test_preview_missing_source_replacement_reports_update_without_live_mutation
 
     assert result["decision"] == {
         "kind": DECISION_UPDATE,
-        "state": {"premise": None, "policies": {"kubectl": "use"}, "version": 2},
+        "message": None,
     }
     assert result["state_before"] == {"premise": None, "policies": {}, "version": 2}
     assert result["state_after"] == {
@@ -262,11 +262,11 @@ def test_preview_followup_tokens_after_replace_update_are_no_directive(
     initial = engine.step("use kubectl instead of docker")
     assert initial == {
         "kind": DECISION_UPDATE,
-        "state": {"premise": None, "policies": {"kubectl": "use"}, "version": 2},
+        "message": None,
     }
 
     preview_result = preview(engine, followup_token)
-    assert preview_result["decision"] == {"kind": DECISION_NO_DIRECTIVE}
+    assert preview_result["decision"] == {"kind": DECISION_NO_DIRECTIVE, "message": None}
     assert preview_result["state_after"] == {
         "premise": None,
         "policies": {"kubectl": "use"},
@@ -277,5 +277,5 @@ def test_preview_followup_tokens_after_replace_update_are_no_directive(
     assert engine.state == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}
 
     final = step(engine, followup_token)
-    assert final["decision"] == {"kind": DECISION_NO_DIRECTIVE}
+    assert final["decision"] == {"kind": DECISION_NO_DIRECTIVE, "message": None}
     assert final["state"] == {"premise": None, "policies": {"kubectl": "use"}, "version": 2}

@@ -10,13 +10,7 @@
   "expected": {
     "decision": {
       "kind": "update",
-      "state": {
-        "premise": null,
-        "policies": {
-          "kubectl": "use"
-        },
-        "version": 2
-      }
+      "message": null
     },
     "state": {
       "premise": null,

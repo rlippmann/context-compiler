@@ -12,7 +12,8 @@
   "input": "no thanks.",
   "expected": {
     "decision": {
-      "kind": "no_directive"
+      "kind": "no_directive",
+      "message": null
     },
     "state": {
       "premise": null,

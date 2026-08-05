@@ -13,14 +13,7 @@
   "expected": {
     "decision": {
       "kind": "update",
-      "state": {
-        "premise": null,
-        "policies": {
-          "don't": "use",
-          "dont": "prohibit"
-        },
-        "version": 2
-      }
+      "message": null
     },
     "state": {
       "premise": null,

@@ -11,7 +11,8 @@
   "input": "clear state then set premise project",
   "expected": {
     "decision": {
-      "kind": "no_directive"
+      "kind": "no_directive",
+      "message": null
     },
     "state": {
       "premise": "baseline",

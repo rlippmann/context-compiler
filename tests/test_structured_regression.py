@@ -61,17 +61,12 @@ def _validate_structured_expected_fixture(expected: dict[str, object], fixture_i
 
         decision = turn["decision"]
         assert isinstance(decision, dict), fixture_id
-        _assert_allowed_keys(
-            decision, {"kind"} | ({"message"} & set(decision)), fixture_id, "expected.turn.decision"
-        )
+        _assert_allowed_keys(decision, {"kind", "message"}, fixture_id, "expected.turn.decision")
         assert isinstance(decision["kind"], str), fixture_id
         if decision["kind"] == "error":
-            _assert_allowed_keys(
-                decision, {"kind", "message"}, fixture_id, "expected.turn.decision"
-            )
             assert isinstance(decision["message"], str), fixture_id
         else:
-            _assert_allowed_keys(decision, {"kind"}, fixture_id, "expected.turn.decision")
+            assert decision["message"] is None, fixture_id
 
 
 def _state_diff(expected: object, actual: object) -> str:

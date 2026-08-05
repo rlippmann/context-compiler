@@ -8,7 +8,8 @@
         "version": 2
       },
       "decision": {
-        "kind": "update"
+        "kind": "update",
+        "message": null
       },
       "input": "set premise concise replies"
     },
@@ -31,7 +32,8 @@
         "version": 2
       },
       "decision": {
-        "kind": "update"
+        "kind": "update",
+        "message": null
       },
       "input": "change premise to concise bullet points"
     },
@@ -42,7 +44,8 @@
         "version": 2
       },
       "decision": {
-        "kind": "update"
+        "kind": "update",
+        "message": null
       },
       "input": "clear premise"
     },

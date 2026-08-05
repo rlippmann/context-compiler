@@ -36,11 +36,11 @@ def print_state_summary(state: Any, label: str = "state") -> None:
     print(f"- prohibit policies: {_format_policy_values(state, POLICY_PROHIBIT)}")
 
 
-def print_decision_summary(decision: Any) -> None:
+def print_decision_summary(decision: Any, *, state: Any | None = None) -> None:
     if is_update(decision):
         print("result: updated")
-        state = decision["state"]
-        print_state_summary(state, "compiled state")
+        if state is not None:
+            print_state_summary(state, "compiled state")
         return
 
     if is_error(decision):

@@ -31,7 +31,9 @@ def _run_repl_lines(lines: list[str]) -> tuple[str, list[str]]:
     return raw, rendered
 
 
-def _oracle_render_decision(decision: dict[str, object]) -> list[str]:
+def _oracle_render_decision(
+    decision: dict[str, object], *, state: dict[str, object] | None
+) -> list[str]:
     kind = decision["kind"]
     if kind == DECISION_NO_DIRECTIVE:
         return ["no_directive"]
@@ -42,7 +44,8 @@ def _oracle_render_decision(decision: dict[str, object]) -> list[str]:
         prompt_lines = prompt.splitlines() if prompt else [""]
         return [f"error: {prompt_lines[0]}", *prompt_lines[1:]]
 
-    state_obj = decision["state"]
+    assert state is not None
+    state_obj = state
     assert isinstance(state_obj, dict)
     premise = state_obj.get("premise")
     premise_line = "premise: (none)" if premise is None else f"premise: {premise}"
@@ -70,7 +73,7 @@ def test_repl_matches_engine_for_non_exit_sequences(lines: list[str]) -> None:
     oracle_lines = [
         rendered_line
         for line in lines
-        for rendered_line in _oracle_render_decision(engine.step(line))
+        for rendered_line in _oracle_render_decision(engine.step(line), state=engine.state)
     ]
     assert repl_lines == oracle_lines
 
@@ -101,7 +104,7 @@ def test_repl_stops_processing_after_exit_or_quit(
     oracle_lines = [
         rendered_line
         for line in prefix
-        for rendered_line in _oracle_render_decision(engine.step(line))
+        for rendered_line in _oracle_render_decision(engine.step(line), state=engine.state)
     ]
     assert repl_lines == oracle_lines
 
