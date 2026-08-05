@@ -6,6 +6,7 @@ import pytest
 from context_compiler import DECISION_ERROR, DECISION_NO_DIRECTIVE, DECISION_UPDATE, create_engine
 from context_compiler.engine import (
     Action,
+    _load_state_obj,
     _parse_directive,
 )
 from context_compiler.grammar import (
@@ -223,6 +224,17 @@ def test_import_json_rejects_non_object_payload() -> None:
     engine = create_engine()
     with pytest.raises(ValueError, match="Invalid state payload"):
         engine.import_json('["not", "an", "object"]')
+
+
+def test_internal_state_loader_rejects_non_string_policy_keys() -> None:
+    payload = {
+        "premise": None,
+        "policies": {1: "use"},
+        "version": 2,
+    }
+
+    with pytest.raises(ValueError, match="Invalid state payload"):
+        _load_state_obj(payload)  # type: ignore[arg-type]
 
 
 @pytest.mark.parametrize(
