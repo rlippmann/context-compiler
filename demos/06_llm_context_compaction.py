@@ -1,7 +1,7 @@
 """Demo 6: host-side prompt replacement from authoritative step-derived state."""
 
 from context_compiler import DECISION_UPDATE, create_engine
-from demos.common import compact_user_turns, is_verbose, print_info_report
+from demos.common import compact_user_turns, is_verbose, print_info_report, state_observations
 
 DEMO_NAME = "06_context_compaction — superseded directives eliminated"
 FINAL_PREMISE = "chickpea curry"
@@ -148,8 +148,9 @@ def main() -> None:
     baseline_context = "\n".join(f"User: {turn}" for turn in transcript_turns)
     compiled_context = f"- premise: {compiled_premise}"
     compacted_turns, compacted_state, compacted_prompt = compact_user_turns(transcript_turns)
+    compacted_premise, _compacted_policies = state_observations(compacted_state)
     assert compacted_prompt is None
-    assert compacted_state["premise"] == FINAL_PREMISE
+    assert compacted_premise == FINAL_PREMISE
     compacted_context = "\n".join(f"User: {turn}" for turn in compacted_turns)
     baseline_prompt = _build_baseline_prompt(transcript_turns)
     compiled_prompt = _build_compiled_prompt(compiled_premise)

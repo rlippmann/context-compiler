@@ -8,12 +8,14 @@ from demos.common import (
     build_mediated_messages_from_transcript,
     build_reinjected_messages,
     compact_user_turns,
+    observe_engine,
     print_decision,
     print_host_check,
     print_messages,
     print_model_output,
     print_spec_report,
     print_user_inputs,
+    state_observations,
     yes_no,
 )
 from demos.llm_client import complete_messages
@@ -115,10 +117,12 @@ def main() -> None:
     print_user_inputs(user_inputs)
 
     first = engine.step(user_inputs[0])
-    print_decision("turn 1", first, engine.state)
+    premise, policies = observe_engine(engine)
+    print_decision("turn 1", first, premise=premise, policies=policies)
 
     second = engine.step(user_inputs[1])
-    print_decision("turn 2", second, engine.state)
+    premise, policies = observe_engine(engine)
+    print_decision("turn 2", second, premise=premise, policies=policies)
 
     baseline_messages = build_baseline_messages(
         [user_inputs[1]],
@@ -154,9 +158,11 @@ def main() -> None:
     reinjected_safe_alternative = safe_alternative_detected(reinjected_output)
     reinjected_violation = recipe_includes_prohibited_item(reinjected_output)
 
+    premise, policies = observe_engine(engine)
     mediated_messages = build_mediated_messages_from_transcript(
-        engine.state,
-        user_inputs,
+        premise=premise,
+        policies=policies,
+        user_turns=user_inputs,
         extra_system_prompt=(
             "If the user requests a prohibited item, refuse the literal request. "
             "State briefly that the request conflicts with compiled policy, then provide "
@@ -178,9 +184,11 @@ def main() -> None:
         compact_refusal = True
         compact_violation = False
     else:
+        compacted_premise, compacted_policies = state_observations(compacted_state)
         compact_messages = build_mediated_messages_from_transcript(
-            compacted_state,
-            compacted_turns,
+            premise=compacted_premise,
+            policies=compacted_policies,
+            user_turns=compacted_turns,
             extra_system_prompt=(
                 "If the user requests a prohibited item, refuse the literal request. "
                 "State briefly that the request conflicts with compiled policy, then provide "

@@ -713,7 +713,7 @@ def main() -> None:
             if error_result is not None:
                 task_result["compiler_result"] = error_result
             else:
-                compiled_state = engine.state
+                compiled_state = json.loads(engine.export_json())
                 task_prompt = (
                     task.task_prompt if task.task_prompt is not None else task.baseline_prompt
                 )

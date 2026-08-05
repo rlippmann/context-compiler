@@ -7,6 +7,7 @@ from demos.common import (
     build_reinjected_messages,
     compact_user_turns,
     extract_tag_value,
+    observe_engine,
     print_decision,
     print_host_check,
     print_messages,
@@ -14,6 +15,7 @@ from demos.common import (
     print_spec_report,
     print_tag_comparison,
     print_user_inputs,
+    state_observations,
     yes_no,
 )
 from demos.llm_client import complete_messages
@@ -25,9 +27,11 @@ def main() -> None:
     print_user_inputs(user_inputs)
 
     first = engine.step(user_inputs[0])
-    print_decision("turn 1", first, engine.state)
+    premise, policies = observe_engine(engine)
+    print_decision("turn 1", first, premise=premise, policies=policies)
     second = engine.step(user_inputs[1])
-    print_decision("turn 2", second, engine.state)
+    premise, policies = observe_engine(engine)
+    print_decision("turn 2", second, premise=premise, policies=policies)
 
     baseline_messages = build_baseline_messages(
         [
@@ -67,7 +71,12 @@ def main() -> None:
         mediated_output = f"[no call] error required: {second['message']}\nACTION:error"
         print_model_output("Compiler-mediated (full)", mediated_output)
     else:
-        mediated_messages = build_mediated_messages_from_transcript(engine.state, user_inputs)
+        premise, policies = observe_engine(engine)
+        mediated_messages = build_mediated_messages_from_transcript(
+            premise=premise,
+            policies=policies,
+            user_turns=user_inputs,
+        )
         print_messages("compiler-mediated (full)", mediated_messages)
         mediated_output = complete_messages(mediated_messages)
         print_model_output("Compiler-mediated (full)", mediated_output)
@@ -78,7 +87,12 @@ def main() -> None:
         compact_output = f"[no call] error required: {compacted_prompt}\nACTION:error"
         print_model_output("Compiler-mediated + compact", compact_output)
     else:
-        compact_messages = build_mediated_messages_from_transcript(compacted_state, compacted_turns)
+        compacted_premise, compacted_policies = state_observations(compacted_state)
+        compact_messages = build_mediated_messages_from_transcript(
+            premise=compacted_premise,
+            policies=compacted_policies,
+            user_turns=compacted_turns,
+        )
         print_messages("compiler-mediated + compact", compact_messages)
         compact_output = complete_messages(compact_messages)
         print_model_output("Compiler-mediated + compact", compact_output)

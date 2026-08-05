@@ -1,6 +1,6 @@
 """Example 1: persistent guardrails across turns."""
 
-from _util import print_decision_summary, print_state_summary
+from _util import print_decision_summary, print_engine_observations
 
 from context_compiler import Engine, create_engine
 
@@ -22,13 +22,21 @@ def main() -> None:
     print("User: prohibit peanuts")
     decision1 = engine.step("prohibit peanuts")
     print_decision_summary(decision1)
-    print_state_summary(engine.state, "state after turn 1")
+    print_engine_observations(
+        premise=engine.premise,
+        policies=engine.policies,
+        label="state after turn 1",
+    )
     print()
 
     print("User: how should I make this curry?")
     decision2 = engine.step("how should I make this curry?")
     print_decision_summary(decision2)
-    print_state_summary(engine.state, "state after turn 2")
+    print_engine_observations(
+        premise=engine.premise,
+        policies=engine.policies,
+        label="state after turn 2",
+    )
     print()
 
     print("Host prompt construction with persisted policy:")

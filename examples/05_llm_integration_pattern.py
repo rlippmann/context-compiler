@@ -1,10 +1,11 @@
 """Example 5: host integration pattern using Decision API."""
 
-from _util import print_decision_summary, print_state_summary
+from collections.abc import Mapping
+
+from _util import print_decision_summary, print_engine_observations
 
 from context_compiler import (
     Engine,
-    State,
     create_engine,
     is_error,
     is_no_directive,
@@ -12,12 +13,13 @@ from context_compiler import (
 )
 
 
-def fake_llm(state: State | None, user_input: str) -> str:
+def fake_llm(state: tuple[str | None, Mapping[str, str]] | None, user_input: str) -> str:
     print("LLM would be called with:")
     if state is None:
         print("state: (none)")
     else:
-        print_state_summary(state)
+        premise, policies = state
+        print_engine_observations(premise=premise, policies=policies)
     print("user_input:", user_input)
     return "[example LLM response]"
 
@@ -35,7 +37,7 @@ def handle_turn(engine_input: str, engine: Engine) -> None:
     elif is_update(decision):
         # Successful directives produce authoritative state that host code can pass downstream.
         print("Host action: update -> call fake_llm() with compiled state")
-        fake_llm(engine.state, engine_input)
+        fake_llm((engine.premise, engine.policies), engine_input)
     elif is_error(decision):
         print("Host action: error -> show prompt, DO NOT call LLM")
         print("error message:", decision["message"])

@@ -2,11 +2,13 @@
 
 import json
 import sys
+from collections.abc import Mapping
 from typing import TextIO
 
 from . import __version__, create_engine
+from .const import STATE_POLICIES, STATE_PREMISE, STATE_VERSION
 from .decision_helpers import is_error, is_no_directive, is_update
-from .engine import Decision, DecisionKind, Engine, State
+from .engine import Decision, DecisionKind, Engine, PolicyValue
 
 OUTPUT_VERSION = 1
 
@@ -60,11 +62,8 @@ def _print_interactive_help(out_stream: TextIO) -> None:
     print("error results are immediate messages and do not reserve later input.", file=out_stream)
 
 
-def _render_state_lines(state: State) -> list[str]:
-    premise = state["premise"]
+def _render_state_lines(*, premise: str | None, policies: Mapping[str, PolicyValue]) -> list[str]:
     premise_line = "premise: (none)" if premise is None else f"premise: {premise}"
-
-    policies = state["policies"]
     if not policies:
         return [premise_line, "policies: (none)"]
 
@@ -76,7 +75,12 @@ def _render_state_lines(state: State) -> list[str]:
     return lines
 
 
-def _render_decision_lines(decision: Decision, *, state: State | None = None) -> list[str]:
+def _render_decision_lines(
+    decision: Decision,
+    *,
+    premise: str | None = None,
+    policies: Mapping[str, PolicyValue] | None = None,
+) -> list[str]:
     if is_no_directive(decision):
         return ["no_directive"]
     if is_error(decision):
@@ -85,8 +89,8 @@ def _render_decision_lines(decision: Decision, *, state: State | None = None) ->
         return [f"error: {prompt_lines[0]}", *prompt_lines[1:]]
 
     assert is_update(decision)
-    assert state is not None
-    return ["updated", *_render_state_lines(state)]
+    assert policies is not None
+    return ["updated", *_render_state_lines(premise=premise, policies=policies)]
 
 
 def _print_decision_lines(
@@ -94,11 +98,12 @@ def _print_decision_lines(
     out_stream: TextIO,
     *,
     leading_blank: bool,
-    state: State | None = None,
+    premise: str | None = None,
+    policies: Mapping[str, PolicyValue] | None = None,
 ) -> None:
     if leading_blank:
         print("", file=out_stream)
-    for line in _render_decision_lines(decision, state=state):
+    for line in _render_decision_lines(decision, premise=premise, policies=policies):
         print(line, file=out_stream)
 
 
@@ -112,25 +117,42 @@ def _write_json_line(out_stream: TextIO, payload: dict[str, object]) -> None:
     print(json.dumps(payload, separators=(",", ":"), sort_keys=True), file=out_stream)
 
 
+def _state_payload(
+    *, premise: str | None, policies: Mapping[str, PolicyValue]
+) -> dict[str, object]:
+    return {
+        STATE_PREMISE: premise,
+        STATE_POLICIES: dict(policies),
+        STATE_VERSION: 2,
+    }
+
+
 def _json_step_payload(
-    decision: Decision, *, command: str, state: State, mode: str = "step"
+    decision: Decision,
+    *,
+    command: str,
+    premise: str | None,
+    policies: Mapping[str, PolicyValue],
+    mode: str = "step",
 ) -> dict[str, object]:
     payload: dict[str, object] = {
         "output_version": OUTPUT_VERSION,
         "mode": mode,
         "decision": decision,
-        "state": state,
+        "state": _state_payload(premise=premise, policies=policies),
     }
     payload["command"] = command
     return payload
 
 
-def _json_state_payload(state: State) -> dict[str, object]:
+def _json_state_payload(
+    *, premise: str | None, policies: Mapping[str, PolicyValue]
+) -> dict[str, object]:
     return {
         "output_version": OUTPUT_VERSION,
         "mode": "state",
         "command": "state",
-        "state": state,
+        "state": _state_payload(premise=premise, policies=policies),
     }
 
 
@@ -236,7 +258,10 @@ def run_repl(
 
             if token == "state":
                 print("", file=out_stream)
-                for line in _render_state_lines(active_engine.state):
+                for line in _render_state_lines(
+                    premise=active_engine.premise,
+                    policies=active_engine.policies,
+                ):
                     print(line, file=out_stream)
                 continue
 
@@ -255,7 +280,8 @@ def run_repl(
                         decision,
                         out_stream,
                         leading_blank=True,
-                        state=active_engine.state,
+                        premise=active_engine.premise,
+                        policies=active_engine.policies,
                     )
                     continue
 
@@ -264,7 +290,8 @@ def run_repl(
                 decision,
                 out_stream,
                 leading_blank=True,
-                state=active_engine.state,
+                premise=active_engine.premise,
+                policies=active_engine.policies,
             )
         return
 
@@ -289,9 +316,18 @@ def run_repl(
         token = user_input.strip().lower()
         if token == "state":
             if json_mode:
-                _write_json_line(out_stream, _json_state_payload(active_engine.state))
+                _write_json_line(
+                    out_stream,
+                    _json_state_payload(
+                        premise=active_engine.premise,
+                        policies=active_engine.policies,
+                    ),
+                )
             else:
-                for state_line in _render_state_lines(active_engine.state):
+                for state_line in _render_state_lines(
+                    premise=active_engine.premise,
+                    policies=active_engine.policies,
+                ):
                     print(state_line, file=out_stream)
             continue
 
@@ -319,14 +355,20 @@ def run_repl(
                 if json_mode:
                     _write_json_line(
                         out_stream,
-                        _json_step_payload(decision, command="step", state=active_engine.state),
+                        _json_step_payload(
+                            decision,
+                            command="step",
+                            premise=active_engine.premise,
+                            policies=active_engine.policies,
+                        ),
                     )
                 else:
                     _print_decision_lines(
                         decision,
                         out_stream,
                         leading_blank=False,
-                        state=active_engine.state,
+                        premise=active_engine.premise,
+                        policies=active_engine.policies,
                     )
                 continue
 
@@ -334,14 +376,20 @@ def run_repl(
         if json_mode:
             _write_json_line(
                 out_stream,
-                _json_step_payload(decision, command="input", state=active_engine.state),
+                _json_step_payload(
+                    decision,
+                    command="input",
+                    premise=active_engine.premise,
+                    policies=active_engine.policies,
+                ),
             )
         else:
             _print_decision_lines(
                 decision,
                 out_stream,
                 leading_blank=False,
-                state=active_engine.state,
+                premise=active_engine.premise,
+                policies=active_engine.policies,
             )
 
 
