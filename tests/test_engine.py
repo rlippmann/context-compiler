@@ -230,6 +230,7 @@ def test_import_json_rejects_non_string_policy_keys() -> None:
         {"A": "use", "a": "use"},
         {"a": "use"},
         {"the": "use"},
+        {"a a": "use"},
     ],
 )
 def test_import_json_rejects_policy_keys_that_normalize_to_empty(

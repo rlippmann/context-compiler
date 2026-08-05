@@ -33,6 +33,11 @@ def _normalize_item_like_engine(value: str) -> str:
     return normalized.strip()
 
 
+def _is_stable_policy_key_like_engine(value: str) -> bool:
+    normalized = _normalize_item_like_engine(value)
+    return normalized != "" and _normalize_item_like_engine(normalized) == normalized
+
+
 def _contains_canonical_start_fragment(value: str) -> bool:
     for start in range(len(value)):
         if match_canonical_directive_start(value, start) is not None:
@@ -70,7 +75,7 @@ VALID_STATE_PAYLOADS = st.builds(
         min_size=0,
         max_size=8,
     ),
-).filter(lambda payload: all(_normalize_item_like_engine(key) != "" for key in payload["policies"]))
+).filter(lambda payload: all(_is_stable_policy_key_like_engine(key) for key in payload["policies"]))
 
 
 VALID_NONEMPTY_ITEM_TEXT = NORMALIZATION_SENSITIVE_TEXT.filter(

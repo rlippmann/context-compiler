@@ -233,6 +233,76 @@ def test_cli_invalid_initial_state_preload_fails_fast() -> None:
     assert result.stderr == "error: preload failed: Invalid state payload.\n"
 
 
+def test_apply_preload_from_options_initial_state_json_restores_state() -> None:
+    source_engine = create_engine()
+    source_engine.step("set premise concise")
+    source_engine.step("use docker")
+
+    target_engine = create_engine()
+    repl_module._apply_preload_from_options(
+        target_engine,
+        {
+            "json_mode": False,
+            "initial_state_json": source_engine.export_json(),
+        },
+    )
+
+    assert target_engine.state == {
+        "premise": "concise",
+        "policies": {"docker": "use"},
+        "version": 2,
+    }
+
+
+def test_apply_preload_from_options_initial_state_file_restores_state(
+    tmp_path: pathlib.Path,
+) -> None:
+    source_engine = create_engine()
+    source_engine.step("set premise concise")
+    source_engine.step("use docker")
+
+    payload = source_engine.export_json()
+    path = tmp_path / "state.json"
+    path.write_text(payload, encoding="utf-8")
+
+    target_engine = create_engine()
+    repl_module._apply_preload_from_options(
+        target_engine,
+        {
+            "json_mode": False,
+            "initial_state_file": str(path),
+        },
+    )
+
+    assert target_engine.state == {
+        "premise": "concise",
+        "policies": {"docker": "use"},
+        "version": 2,
+    }
+
+
+def test_parse_cli_options_duplicate_value_flag_rejected() -> None:
+    options, error = repl_module._parse_cli_options(
+        ["--initial-state-json", "{}", "--initial-state-json", "{}"]
+    )
+    assert options == {}
+    assert error == "option '--initial-state-json' was provided more than once"
+
+
+def test_parse_cli_options_missing_value_rejected() -> None:
+    options, error = repl_module._parse_cli_options(["--initial-state-json"])
+    assert options == {}
+    assert error == "option '--initial-state-json' requires a value"
+
+
+def test_parse_cli_options_mutual_exclusion_errors() -> None:
+    options_state, error_state = repl_module._parse_cli_options(
+        ["--initial-state-json", "{}", "--initial-state-file", "/tmp/x"]
+    )
+    assert options_state == {}
+    assert error_state == "state preload options are mutually exclusive"
+
+
 def test_repl_update_flow() -> None:
     lines = _run_non_interactive_lines("set premise concise\nquit\n")
     assert lines == ["updated", "premise: concise", "policies: (none)"]
@@ -249,10 +319,31 @@ def test_repl_step_requires_payload() -> None:
     assert _contains_subsequence(lines, ["error: step requires input.", "Use 'step <input>'."])
 
 
+def test_repl_interactive_step_requires_payload() -> None:
+    lines = _run_interactive_lines("step\nquit\n")
+    assert _contains_subsequence(lines, ["error: step requires input.", "Use 'step <input>'."])
+
+
 def test_repl_state_command_renders_current_state() -> None:
     lines = _run_non_interactive_lines("set premise concise\nstate\nquit\n")
     assert _contains_subsequence(lines, ["updated", "premise: concise", "policies: (none)"])
     assert _contains_subsequence(lines, ["premise: concise", "policies: (none)"])
+
+
+def test_repl_state_command_renders_sorted_policies() -> None:
+    lines = _run_non_interactive_lines(
+        "set premise concise\nuse docker\nprohibit poetry\nprohibit apples\nstate\nquit\n"
+    )
+    assert _contains_subsequence(
+        lines,
+        [
+            "premise: concise",
+            "policies:",
+            "- prohibit apples",
+            "- use docker",
+            "- prohibit poetry",
+        ],
+    )
 
 
 def test_repl_non_interactive_json_bare_input_step_result() -> None:
@@ -290,6 +381,22 @@ def test_repl_non_interactive_json_machine_readable_step_error() -> None:
             },
             "mode": "error",
             "output_version": 1,
+        }
+    ]
+
+
+def test_repl_non_interactive_json_step_alias_result() -> None:
+    rows = _run_non_interactive_json_lines("step set premise concise\nquit\n")
+    assert rows == [
+        {
+            "command": "step",
+            "decision": {
+                "kind": "update",
+                "message": None,
+            },
+            "mode": "step",
+            "output_version": 1,
+            "state": {"premise": "concise", "policies": {}, "version": 2},
         }
     ]
 
@@ -356,6 +463,52 @@ def test_repl_interactive_rejects_multi_command_chunk() -> None:
     assert "error: Multiple commands detected." in lines
     assert "Enter one command per line." in lines
     assert "updated" not in lines
+
+
+def test_repl_non_interactive_rejects_embedded_carriage_return_multi_command_chunk() -> None:
+    out = StringIO()
+    run_repl(
+        _ChunkedInput(["set premise concise\rprohibit peanuts\n", "quit\n"]),  # type: ignore[arg-type]
+        out,
+    )
+
+    lines = out.getvalue().splitlines()
+    assert lines == ["error: Multiple commands detected.", "Enter one command per line."]
+
+
+def test_repl_non_interactive_accepts_crlf_single_line_without_multi_command_error() -> None:
+    out = StringIO()
+    run_repl(
+        _ChunkedInput(["hello\r\n", "quit\r\n"]),  # type: ignore[arg-type]
+        out,
+    )
+
+    lines = out.getvalue().splitlines()
+    assert lines == ["no_directive"]
+
+
+def test_repl_interactive_eof_returns_cleanly_after_startup_banner() -> None:
+    lines = _run_interactive_lines("")
+    assert lines == [
+        "Context Compiler REPL (0.5). Type help for commands.",
+        "Non-directive input is no_directive.",
+    ]
+
+
+def test_repl_interactive_state_command_renders_current_state() -> None:
+    lines = _run_interactive_lines("state\nquit\n")
+    assert _contains_subsequence(lines, ["premise: (none)", "policies: (none)"])
+
+
+def test_repl_interactive_step_alias_runs_normally() -> None:
+    lines = _run_interactive_lines("step set premise concise\nquit\n")
+    assert _contains_subsequence(lines, ["updated", "premise: concise", "policies: (none)"])
+
+
+def test_print_command_error_leading_blank_line() -> None:
+    out = StringIO()
+    repl_module._print_command_error(out, leading_blank=True, message="boom")
+    assert out.getvalue().splitlines() == ["", "error: boom"]
 
 
 def test_repl_interactive_blank_line_is_ignored_without_output() -> None:
