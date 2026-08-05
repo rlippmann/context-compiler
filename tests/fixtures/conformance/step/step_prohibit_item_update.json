@@ -10,13 +10,7 @@
   "expected": {
     "decision": {
       "kind": "update",
-      "state": {
-        "premise": null,
-        "policies": {
-          "peanuts": "prohibit"
-        },
-        "version": 2
-      }
+      "message": null
     },
     "state": {
       "premise": null,

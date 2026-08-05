@@ -66,19 +66,18 @@ The host:
 ## 4. Decision API Contract
 
 ```python
-class NoDirectiveDecision(TypedDict):
-    kind: Literal["no_directive"]
+class DecisionKind(StrEnum):
+    NO_DIRECTIVE = "no_directive"
+    UPDATE = "update"
+    ERROR = "error"
 
-class UpdateDecision(TypedDict):
-    kind: Literal["update"]
-    state: State
-
-class ErrorDecision(TypedDict):
-    kind: Literal["error"]
-    message: str
-
-Decision = NoDirectiveDecision | UpdateDecision | ErrorDecision
+class Decision(TypedDict):
+    kind: DecisionKind
+    message: str | None
 ```
+
+`message` is always structurally present, but only `error` gives it semantic
+content. `no_directive` and `update` use `message: null`.
 
 Semantics:
 

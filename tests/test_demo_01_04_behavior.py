@@ -83,7 +83,7 @@ def test_demo_01_calls_llm_when_second_turn_is_not_error(
             self._step_count += 1
             if self._step_count == 1:
                 return {"kind": DECISION_UPDATE}
-            return {"kind": DECISION_NO_DIRECTIVE}
+            return {"kind": DECISION_NO_DIRECTIVE, "message": None}
 
     def fake_complete_messages(_messages: object) -> str:
         nonlocal call_count
@@ -119,7 +119,7 @@ def test_demo_01_baseline_and_compiler_use_intentionally_different_gates(
             self._step_count += 1
             if self._step_count == 1:
                 return {"kind": DECISION_UPDATE}
-            return {"kind": DECISION_NO_DIRECTIVE}
+            return {"kind": DECISION_NO_DIRECTIVE, "message": None}
 
     monkeypatch.setattr(module, "create_engine", _FakeEngine)
     monkeypatch.setattr(

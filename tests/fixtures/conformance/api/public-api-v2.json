@@ -7,27 +7,28 @@
     "CheckpointPending",
     "CheckpointPendingReplacement",
     "PendingReplacement",
+    "ErrorDecision",
+    "NoDirectiveDecision",
+    "UpdateDecision",
+    "get_decision_state",
     "_NO_DIRECTIVE"
   ],
   "exports": {
     "mode": "exact",
     "names": [
       "Decision",
+      "DecisionKind",
       "DECISION_ERROR",
       "DECISION_NO_DIRECTIVE",
       "DECISION_UPDATE",
-      "ErrorDecision",
       "Engine",
-      "NoDirectiveDecision",
       "POLICY_PROHIBIT",
       "POLICY_USE",
       "PolicyValue",
       "State",
       "StepResult",
-      "UpdateDecision",
       "create_engine",
       "get_error_message",
-      "get_decision_state",
       "get_step_decision",
       "get_step_state",
       "is_error",
@@ -37,7 +38,10 @@
     ],
     "members": {
       "Decision": {
-        "kind": "type_alias"
+        "kind": "type"
+      },
+      "DecisionKind": {
+        "kind": "class"
       },
       "DECISION_ERROR": {
         "kind": "constant",
@@ -51,14 +55,8 @@
         "kind": "constant",
         "value": "update"
       },
-      "ErrorDecision": {
-        "kind": "type"
-      },
       "Engine": {
         "kind": "class"
-      },
-      "NoDirectiveDecision": {
-        "kind": "type"
       },
       "POLICY_PROHIBIT": {
         "kind": "constant",
@@ -75,9 +73,6 @@
         "kind": "type"
       },
       "StepResult": {
-        "kind": "type"
-      },
-      "UpdateDecision": {
         "kind": "type"
       },
       "create_engine": {
@@ -122,47 +117,6 @@
             "return_shape": {
               "type": "string",
               "const": "confirm?"
-            }
-          }
-        ]
-      },
-      "get_decision_state": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "decision",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        },
-        "shape_probes": [
-          {
-            "kwargs": {
-              "decision": {
-                "kind": "update",
-                "state": {
-                  "premise": null,
-                  "policies": {
-                    "docker": "use"
-                  },
-                  "version": 2
-                }
-              }
-            },
-            "return_shape": {
-              "type": "object",
-              "required_keys": [
-                "premise",
-                "policies",
-                "version"
-              ],
-              "properties": {
-                "policies": {
-                  "type": "object"
-                }
-              }
             }
           }
         ]
@@ -232,7 +186,8 @@
           {
             "kwargs": {
               "decision": {
-                "kind": "no_directive"
+                "kind": "no_directive",
+                "message": null
               }
             },
             "return_shape": {
@@ -258,11 +213,7 @@
             "kwargs": {
               "decision": {
                 "kind": "update",
-                "state": {
-                  "premise": null,
-                  "policies": {},
-                  "version": 2
-                }
+                "message": null
               }
             },
             "return_shape": {

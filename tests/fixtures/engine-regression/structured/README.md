@@ -28,11 +28,13 @@ Each expected turn uses:
 
 * `input`
 * `decision.kind`
-* `decision.message` for `error` turns only
+* `decision.message`
 * `state`
 
 `decision.state` is intentionally omitted because the expected authoritative
 state snapshot is stored separately in each turn artifact.
+`decision.message` is only semantically meaningful for `error`; non-error turns
+store `null` for structural consistency.
 
 ## Why Store State Every Turn
 
@@ -43,7 +45,7 @@ regressions are visible in:
 
 ## Prompt Matching
 
-`decision.message` is matched exactly, including error text.
+`decision.message` is matched exactly, including `null` for non-error turns.
 
 ## Adding a Scenario
 
@@ -56,7 +58,7 @@ regressions are visible in:
 
 These fixtures validate **deterministic engine behavior only**:
 
-* `engine.step(...)` outputs (`Decision.kind`, `message` on `error` only)
+* `engine.step(...)` outputs (`Decision.kind`, `Decision.message`)
 * post-turn authoritative state snapshot
 
 They do **not** cover:

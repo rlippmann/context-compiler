@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from context_compiler import DECISION_ERROR, DECISION_UPDATE, create_engine, get_decision_state
+from context_compiler import DECISION_ERROR, create_engine
 from context_compiler.controller import get_step_state, preview, state_diff, step
 from context_compiler.grammar import (
     DirectiveKind,
@@ -134,25 +134,18 @@ def _validate_controller_result_decision(decision: object, fixture_id: object, l
 
 
 def _validate_public_decision(decision: dict[str, object], fixture_id: object, label: str) -> None:
-    _assert_allowed_keys(
-        decision,
-        {"kind"} | ({"state"} & set(decision)) | ({"message"} & set(decision)),
-        fixture_id,
-        label,
-    )
+    _assert_allowed_keys(decision, {"kind", "message"}, fixture_id, label)
     kind = decision.get("kind")
     assert isinstance(kind, str), fixture_id
 
     if kind == "no_directive":
-        _assert_allowed_keys(decision, {"kind"}, fixture_id, label)
+        assert decision["message"] is None, fixture_id
         return
     if kind == "update":
-        _assert_allowed_keys(decision, {"kind", "state"}, fixture_id, label)
-        assert isinstance(decision["state"], dict), fixture_id
+        assert decision["message"] is None, fixture_id
         return
 
     assert kind == "error", fixture_id
-    _assert_allowed_keys(decision, {"kind", "message"}, fixture_id, label)
     assert isinstance(decision["message"], str), fixture_id
 
 
@@ -349,9 +342,6 @@ def test_step_fixtures() -> None:
         else:
             assert decision == expected_decision, fixture_id
 
-        if decision["kind"] == DECISION_UPDATE:
-            assert decision["state"] == engine.state, fixture_id
-
         assert engine.state == expected["state"], fixture_id
 
 
@@ -493,7 +483,6 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
         "engine.step",
         "controller.step",
         "controller.preview",
-        "get_decision_state",
         "get_step_state",
     }, fixture_id
     assert all(isinstance(key, str) for key in operation), fixture_id
@@ -549,7 +538,7 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
         )
         assert handles[result_handle]["kind"] == expected_result_kind, fixture_id
     else:
-        assert fn in {"get_decision_state", "get_step_state"}, fixture_id
+        assert fn == "get_step_state", fixture_id
         assert set(operation) == {"fn", "input", "result_handle", "source_handle"}, fixture_id
         assert isinstance(operation["input"], str), fixture_id
         result_handle = operation["result_handle"]
@@ -559,12 +548,7 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
         assert result_handle in handles, fixture_id
         assert source_handle in handles, fixture_id
         assert handles[result_handle]["kind"] == "caller_owned_nested_member", fixture_id
-        expected_source_kind = (
-            "independently_constructed_result"
-            if fn == "get_decision_state"
-            else "caller_owned_result_envelope"
-        )
-        assert handles[source_handle]["kind"] == expected_source_kind, fixture_id
+        assert handles[source_handle]["kind"] == "caller_owned_result_envelope", fixture_id
 
     for _handle_name, handle_spec in handles.items():
         from_handle = handle_spec.get("from_handle")
@@ -574,7 +558,7 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
         source_kind = handles[from_handle]["kind"]
         derived_kind = handle_spec["kind"]
         if derived_kind == "nested_state_member":
-            assert source_kind == "independently_constructed_result", fixture_id
+            assert source_kind == "caller_owned_result_envelope", fixture_id
             assert handle_spec["path"] == ["state"], fixture_id
         else:
             assert derived_kind == "defensive_snapshot", fixture_id
@@ -670,7 +654,7 @@ def test_step_validator_rejects_unknown_expected_decision_field() -> None:
         "expected": {
             "decision": {
                 "kind": "update",
-                "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
+                "message": None,
                 "unexpected": True,
             },
             "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
@@ -822,7 +806,7 @@ def test_controller_validator_rejects_unknown_preview_result_field() -> None:
                 "mode": "preview",
                 "decision": {
                     "kind": "update",
-                    "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
+                    "message": None,
                 },
                 "state_before": {"premise": None, "policies": {}, "version": 2},
                 "state_after": {"premise": None, "policies": {"docker": "use"}, "version": 2},
@@ -871,7 +855,7 @@ def test_controller_validator_rejects_wrong_branch_action_fields() -> None:
                 "mode": "step",
                 "decision": {
                     "kind": "update",
-                    "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
+                    "message": None,
                 },
                 "state": {"premise": None, "policies": {"docker": "use"}, "version": 2},
             },
@@ -1087,15 +1071,6 @@ def _execute_mutation_isolation_operation(
         assert isinstance(result_handle, str)
         handles[result_handle] = step_result
         produced[result_handle] = step_result
-    elif fn == "get_decision_state":
-        decision = engine.step(operation["input"])
-        source_handle = operation["source_handle"]
-        result_handle = operation["result_handle"]
-        assert isinstance(source_handle, str)
-        assert isinstance(result_handle, str)
-        handles[source_handle] = decision
-        produced[source_handle] = decision
-        handles[result_handle] = get_decision_state(decision)
     else:
         assert fn == "get_step_state"
         step_result = step(engine, operation["input"])

@@ -5,7 +5,6 @@ import sys
 from typing import TextIO
 
 from . import __version__, create_engine
-from .const import DECISION_ERROR
 from .controller import (
     OUTPUT_VERSION,
     PreviewResult,
@@ -17,7 +16,7 @@ from .controller import (
 from .controller import preview as controller_preview
 from .controller import step as controller_step
 from .decision_helpers import is_error, is_no_directive, is_update
-from .engine import Decision, Engine, State
+from .engine import Decision, DecisionKind, Engine, State
 
 _EXIT_TOKENS = {"exit", "quit"}
 _HELP_TOKENS = {"help", "?"}
@@ -47,7 +46,7 @@ def _has_embedded_newline(raw_line: str) -> bool:
 
 
 def _multi_command_decision() -> Decision:
-    return {"kind": DECISION_ERROR, "message": _MULTI_COMMAND_PROMPT}
+    return {"kind": DecisionKind.ERROR, "message": _MULTI_COMMAND_PROMPT}
 
 
 def _print_interactive_help(out_stream: TextIO) -> None:
@@ -87,7 +86,7 @@ def _render_state_lines(state: State) -> list[str]:
     return lines
 
 
-def _render_decision_lines(decision: Decision) -> list[str]:
+def _render_decision_lines(decision: Decision, *, state: State | None = None) -> list[str]:
     if is_no_directive(decision):
         return ["no_directive"]
     if is_error(decision):
@@ -96,14 +95,20 @@ def _render_decision_lines(decision: Decision) -> list[str]:
         return [f"error: {prompt_lines[0]}", *prompt_lines[1:]]
 
     assert is_update(decision)
-    state = decision["state"]
+    assert state is not None
     return ["updated", *_render_state_lines(state)]
 
 
-def _print_decision_lines(decision: Decision, out_stream: TextIO, *, leading_blank: bool) -> None:
+def _print_decision_lines(
+    decision: Decision,
+    out_stream: TextIO,
+    *,
+    leading_blank: bool,
+    state: State | None = None,
+) -> None:
     if leading_blank:
         print("", file=out_stream)
-    for line in _render_decision_lines(decision):
+    for line in _render_decision_lines(decision, state=state):
         print(line, file=out_stream)
 
 
@@ -140,7 +145,9 @@ def _print_preview_lines(
     if leading_blank:
         print("", file=out_stream)
     print(command_name, file=out_stream)
-    for line in _render_decision_lines(get_preview_decision(preview_result)):
+    for line in _render_decision_lines(
+        get_preview_decision(preview_result), state=preview_result["state_after"]
+    ):
         print(line, file=out_stream)
     for line in _render_diff_lines(preview_result):
         print(line, file=out_stream)
@@ -295,7 +302,12 @@ def run_repl(
                     continue
                 if payload != "" and (user_input == "step" or user_input.startswith("step ")):
                     result: StepResult = controller_step(active_engine, payload)
-                    _print_decision_lines(get_step_decision(result), out_stream, leading_blank=True)
+                    _print_decision_lines(
+                        get_step_decision(result),
+                        out_stream,
+                        leading_blank=True,
+                        state=result["state"],
+                    )
                     continue
 
             preview_command = None
@@ -324,7 +336,12 @@ def run_repl(
                 continue
 
             result = controller_step(active_engine, user_input)
-            _print_decision_lines(get_step_decision(result), out_stream, leading_blank=True)
+            _print_decision_lines(
+                get_step_decision(result),
+                out_stream,
+                leading_blank=True,
+                state=result["state"],
+            )
         return
 
     for line in in_stream:
@@ -379,7 +396,10 @@ def run_repl(
                     _write_json_line(out_stream, _json_step_payload(result, command="step"))
                 else:
                     _print_decision_lines(
-                        get_step_decision(result), out_stream, leading_blank=False
+                        get_step_decision(result),
+                        out_stream,
+                        leading_blank=False,
+                        state=result["state"],
                     )
                 continue
 
@@ -427,7 +447,12 @@ def run_repl(
         if json_mode:
             _write_json_line(out_stream, _json_step_payload(result, command="input"))
         else:
-            _print_decision_lines(get_step_decision(result), out_stream, leading_blank=False)
+            _print_decision_lines(
+                get_step_decision(result),
+                out_stream,
+                leading_blank=False,
+                state=result["state"],
+            )
 
 
 def main() -> int:  # pragma: no cover

@@ -18,7 +18,8 @@
       "output_version": 1,
       "mode": "preview",
       "decision": {
-        "kind": "no_directive"
+        "kind": "no_directive",
+        "message": null
       },
       "state_before": {
         "premise": null,

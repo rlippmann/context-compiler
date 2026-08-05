@@ -126,19 +126,19 @@ state through the returned mapping.
 Each user message produces a `Decision`.
 
 ```python
-class NoDirectiveDecision(TypedDict):
-    kind: Literal["no_directive"]
+class DecisionKind(StrEnum):
+    NO_DIRECTIVE = "no_directive"
+    UPDATE = "update"
+    ERROR = "error"
 
-class UpdateDecision(TypedDict):
-    kind: Literal["update"]
-    state: State
-
-class ErrorDecision(TypedDict):
-    kind: Literal["error"]
-    message: str
-
-Decision = NoDirectiveDecision | UpdateDecision | ErrorDecision
+class Decision(TypedDict):
+    kind: DecisionKind
+    message: str | None
 ```
+
+`message` is structurally present on every `Decision`, but only `error`
+decisions populate it with meaningful content. `no_directive` and `update`
+return `message=None`.
 
 Decision kinds:
 
@@ -154,7 +154,9 @@ Helper functions:
 - `is_update(decision)`
 - `is_error(decision)`
 - `get_error_message(decision)`
-- `get_decision_state(decision)`
+
+`get_error_message(decision)` encodes the semantic convention above: it returns
+the user-facing error text only for `error`, otherwise `None`.
 
 Typical use:
 

@@ -12,13 +12,7 @@
   "expected": {
     "decision": {
       "kind": "update",
-      "state": {
-        "premise": null,
-        "policies": {
-          "docker": "use"
-        },
-        "version": 2
-      }
+      "message": null
     },
     "state": {
       "premise": null,

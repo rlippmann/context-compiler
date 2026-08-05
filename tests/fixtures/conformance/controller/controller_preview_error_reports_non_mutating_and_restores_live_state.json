@@ -16,13 +16,7 @@
       "mode": "preview",
       "decision": {
         "kind": "update",
-        "state": {
-          "premise": null,
-          "policies": {
-            "kubectl": "use"
-          },
-          "version": 2
-        }
+        "message": null
       },
       "state_before": {
         "premise": null,

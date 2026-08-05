@@ -60,11 +60,14 @@ Then asserts:
 * returned `Decision`
 * final `engine.state`
 
-The `Decision` payload in this family is a discriminated union:
+The `Decision` payload in this family uses one shared shape:
 
-* `{"kind":"no_directive"}`
-* `{"kind":"update","state": ...}`
+* `{"kind":"no_directive","message":null}`
+* `{"kind":"update","message":null}`
 * `{"kind":"error","message": ...}`
+
+`message` is only semantically meaningful for `error`. Non-error outcomes keep
+the field for structural consistency and use `null`.
 
 The current runner enforces a closed fixture shape for this family.
 Unknown top-level and documented nested fields are rejected.
@@ -107,8 +110,8 @@ above.
 The current runner enforces a closed fixture shape for this family.
 Unknown top-level, action, expected, and documented result/diff fields are rejected.
 
-Embedded controller `decision` values use the same discriminated union contract
-as the core engine step fixtures above.
+Embedded controller `decision` values use the same single-shape `Decision`
+contract as the core engine step fixtures above.
 
 ## Mutation-isolation fixtures
 
@@ -121,7 +124,7 @@ These fixtures define declarative scenarios for:
 
 * constructor input isolation
 * `engine.state` snapshot isolation
-* update `Decision.state` isolation
+* update `Decision` isolation
 * controller result isolation
 * preview result isolation
 * helper accessor ownership and identity semantics

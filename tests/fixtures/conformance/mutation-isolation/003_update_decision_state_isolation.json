@@ -1,5 +1,5 @@
 {
-  "id": "mutation_isolation_update_decision_state",
+  "id": "mutation_isolation_update_decision",
   "kind": "mutation_isolation",
   "initial_state": {
     "premise": null,
@@ -14,32 +14,16 @@
   "handles": {
     "decision": {
       "kind": "independently_constructed_result"
-    },
-    "decision_state": {
-      "kind": "nested_state_member",
-      "from_handle": "decision",
-      "path": [
-        "state"
-      ]
     }
   },
   "mutations": [
     {
-      "target_handle": "decision_state",
+      "target_handle": "decision",
       "path": [
-        "premise"
+        "message"
       ],
       "op": "set",
-      "value": "mutated premise"
-    },
-    {
-      "target_handle": "decision_state",
-      "path": [
-        "policies",
-        "docker"
-      ],
-      "op": "set",
-      "value": "prohibit"
+      "value": "mutated note"
     }
   ],
   "expected": {

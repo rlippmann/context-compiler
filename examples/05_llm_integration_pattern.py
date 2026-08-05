@@ -35,7 +35,7 @@ def handle_turn(engine_input: str, engine: Engine) -> None:
     elif is_update(decision):
         # Successful directives produce authoritative state that host code can pass downstream.
         print("Host action: update -> call fake_llm() with compiled state")
-        fake_llm(decision["state"], engine_input)
+        fake_llm(engine.state, engine_input)
     elif is_error(decision):
         print("Host action: error -> show prompt, DO NOT call LLM")
         print("error message:", decision["message"])

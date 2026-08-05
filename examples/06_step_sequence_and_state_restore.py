@@ -16,7 +16,8 @@ def main() -> None:
     print("Sequence directives through engine.step():")
     for turn in turns:
         print(f"User: {turn}")
-        print_decision_summary(engine.step(turn))
+        decision = engine.step(turn)
+        print_decision_summary(decision)
     print()
 
     # Hosts can persist authoritative state directly instead of replaying prior turns.

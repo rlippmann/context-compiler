@@ -10,7 +10,8 @@
         "version": 2
       },
       "decision": {
-        "kind": "update"
+        "kind": "update",
+        "message": null
       },
       "input": "use docker"
     },
@@ -24,7 +25,8 @@
         "version": 2
       },
       "decision": {
-        "kind": "update"
+        "kind": "update",
+        "message": null
       },
       "input": "prohibit kubectl"
     },
@@ -53,7 +55,8 @@
         "version": 2
       },
       "decision": {
-        "kind": "no_directive"
+        "kind": "no_directive",
+        "message": null
       },
       "input": "no"
     }

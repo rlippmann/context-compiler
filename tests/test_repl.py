@@ -603,7 +603,7 @@ def test_repl_non_interactive_json_step_runs_normally_after_replace_update() -> 
         "command": "step",
         "decision": {
             "kind": "update",
-            "state": {"premise": "concise", "policies": {"kubectl": "use"}, "version": 2},
+            "message": None,
         },
         "mode": "step",
         "output_version": 1,
