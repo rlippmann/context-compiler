@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from _util import print_decision_summary, print_state_summary
+from _util import print_decision_summary, print_engine_observations
 
 from context_compiler import create_engine
 
@@ -27,8 +27,11 @@ def main() -> None:
     print(f"User: {user_input}")
     decision = engine.step(user_input)
     print_decision_summary(decision)
-    state = engine.state
-    print_state_summary(state, "state after turn")
+    print_engine_observations(
+        premise=engine.premise,
+        policies=engine.policies,
+        label="state after turn",
+    )
     print()
 
     print("Host-side tool denylist behavior:")

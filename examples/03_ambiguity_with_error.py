@@ -1,6 +1,6 @@
 """Example 3: contradiction error flow with host-side blocking."""
 
-from _util import print_decision_summary, print_state_summary
+from _util import print_decision_summary, print_engine_observations
 
 from context_compiler import create_engine, is_error
 
@@ -33,7 +33,11 @@ def main() -> None:
     print("User: clear state")
     decision3 = engine.step("clear state")
     print_decision_summary(decision3)
-    print_state_summary(engine.state, "state after explicit reset")
+    print_engine_observations(
+        premise=engine.premise,
+        policies=engine.policies,
+        label="state after explicit reset",
+    )
 
 
 if __name__ == "__main__":

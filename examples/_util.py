@@ -1,4 +1,5 @@
 import json
+from collections.abc import Mapping
 from typing import Any, Literal
 
 from context_compiler import (
@@ -26,6 +27,11 @@ def _format_policy_values(state: Any, value: Literal["use", "prohibit"]) -> str:
     return ", ".join(items) if items else "(none)"
 
 
+def format_policy_values(policies: Mapping[str, str], value: Literal["use", "prohibit"]) -> str:
+    items = sorted(item for item, policy_value in policies.items() if policy_value == value)
+    return ", ".join(items) if items else "(none)"
+
+
 def print_state_summary(state: Any, label: str = "state") -> None:
     premise = state["premise"]
     premise_text = premise if premise is not None else "(none)"
@@ -34,6 +40,16 @@ def print_state_summary(state: Any, label: str = "state") -> None:
     print(f"- premise: {premise_text}")
     print(f"- use policies: {_format_policy_values(state, POLICY_USE)}")
     print(f"- prohibit policies: {_format_policy_values(state, POLICY_PROHIBIT)}")
+
+
+def print_engine_observations(
+    *, premise: str | None, policies: Mapping[str, str], label: str = "state"
+) -> None:
+    premise_text = premise if premise is not None else "(none)"
+    print(f"{label}:")
+    print(f"- premise: {premise_text}")
+    print(f"- use policies: {format_policy_values(policies, POLICY_USE)}")
+    print(f"- prohibit policies: {format_policy_values(policies, POLICY_PROHIBIT)}")
 
 
 def print_decision_summary(decision: Any, *, state: Any | None = None) -> None:

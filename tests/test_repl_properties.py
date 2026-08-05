@@ -15,6 +15,10 @@ LINE_TEXT = st.text(
 )
 
 
+def _observations(engine: object) -> tuple[object, dict[str, object]]:
+    return engine.premise, dict(engine.policies)
+
+
 def _is_repl_command_line(line: str) -> bool:
     token = line.strip().lower()
     if token in {"state", "step"}:
@@ -73,7 +77,13 @@ def test_repl_matches_engine_for_non_exit_sequences(lines: list[str]) -> None:
     oracle_lines = [
         rendered_line
         for line in lines
-        for rendered_line in _oracle_render_decision(engine.step(line), state=engine.state)
+        for rendered_line in _oracle_render_decision(
+            engine.step(line),
+            state={
+                "premise": _observations(engine)[0],
+                "policies": _observations(engine)[1],
+            },
+        )
     ]
     assert repl_lines == oracle_lines
 
@@ -104,7 +114,13 @@ def test_repl_stops_processing_after_exit_or_quit(
     oracle_lines = [
         rendered_line
         for line in prefix
-        for rendered_line in _oracle_render_decision(engine.step(line), state=engine.state)
+        for rendered_line in _oracle_render_decision(
+            engine.step(line),
+            state={
+                "premise": _observations(engine)[0],
+                "policies": _observations(engine)[1],
+            },
+        )
     ]
     assert repl_lines == oracle_lines
 

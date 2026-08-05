@@ -152,6 +152,14 @@ def _apply_prelude(engine: object, prelude: object) -> None:
         engine.step(prior_input)
 
 
+def _state_observation(engine: object) -> dict[str, object]:
+    return {
+        "premise": engine.premise,
+        "policies": dict(engine.policies),
+        "version": 2,
+    }
+
+
 def test_step_fixtures() -> None:
     for path in _json_files(_STEP_FIXTURES_DIR):
         fixture = _load(path)
@@ -160,7 +168,10 @@ def test_step_fixtures() -> None:
         _assert_fixture_path_matches_id(path, fixture_id)
         _validate_step_fixture(fixture, fixture_id)
 
-        engine = create_engine(state=fixture["initial_state"])
+        engine = create_engine()
+        engine.import_json(
+            json.dumps(fixture["initial_state"], sort_keys=True, separators=(",", ":"))
+        )
         _apply_prelude(engine, fixture.get("prelude", []))
         decision = engine.step(fixture["input"])
 
@@ -178,7 +189,7 @@ def test_step_fixtures() -> None:
         else:
             assert decision == expected_decision, fixture_id
 
-        assert engine.state == expected["state"], fixture_id
+        assert _state_observation(engine) == expected["state"], fixture_id
 
 
 def test_state_json_fixtures() -> None:
@@ -188,7 +199,10 @@ def test_state_json_fixtures() -> None:
 
         _assert_fixture_path_matches_id(path, fixture_id)
         _validate_state_json_fixture(fixture, fixture_id)
-        engine = create_engine(state=fixture["initial_state"])
+        engine = create_engine()
+        engine.import_json(
+            json.dumps(fixture["initial_state"], sort_keys=True, separators=(",", ":"))
+        )
         _apply_prelude(engine, fixture.get("prelude", []))
 
         action = fixture["action"]
@@ -208,7 +222,7 @@ def test_state_json_fixtures() -> None:
                     engine.import_json(payload)
                 assert type(exc_info.value).__name__ == error["type"], fixture_id
 
-        assert engine.state == expected["state"], fixture_id
+        assert _state_observation(engine) == expected["state"], fixture_id
 
 
 def test_grammar_fixtures() -> None:
@@ -255,7 +269,10 @@ def test_mutation_isolation_fixtures() -> None:
         fixture_id = fixture["id"]
         operation = fixture["operation"]
         fn = operation["fn"]
-        engine = create_engine(state=fixture["initial_state"])
+        engine = create_engine()
+        engine.import_json(
+            json.dumps(fixture["initial_state"], sort_keys=True, separators=(",", ":"))
+        )
 
         if fn == "create_engine":
             source = fixture["initial_state"]
@@ -273,16 +290,20 @@ def test_mutation_isolation_fixtures() -> None:
         if fn == "engine.step":
             decision = engine.step(operation["input"])
             decision["message"] = "mutated note"
-            assert engine.state == fixture["expected"]["authoritative_state"], fixture_id
+            assert _state_observation(engine) == fixture["expected"]["authoritative_state"], (
+                fixture_id
+            )
             continue
 
         if fn == "engine.policies":
             policies = engine.policies
             policies["docker"] = "prohibit"
-            assert engine.state == fixture["expected"]["authoritative_state"], fixture_id
+            assert _state_observation(engine) == fixture["expected"]["authoritative_state"], (
+                fixture_id
+            )
             continue
 
         assert fn == "engine.premise", fixture_id
         premise_box = {"value": engine.premise}
         premise_box["value"] = "mutated premise"
-        assert engine.state == fixture["expected"]["authoritative_state"], fixture_id
+        assert _state_observation(engine) == fixture["expected"]["authoritative_state"], fixture_id

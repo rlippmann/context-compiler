@@ -1,20 +1,24 @@
 """Demo 7: prompt engineering and compiled state are complementary."""
 
 import re
+from collections.abc import Mapping
 
-from context_compiler import State, create_engine
+from context_compiler import create_engine
+from context_compiler.engine import PolicyValue
 from demos.common import (
     build_baseline_messages,
     build_compiled_system_prompt,
     build_reinjected_messages,
     compact_user_turns,
     extract_tag_value,
+    observe_engine,
     print_decision,
     print_host_check,
     print_messages,
     print_model_output,
     print_spec_report,
     print_user_inputs,
+    state_observations,
     yes_no,
 )
 from demos.llm_client import Message, complete_messages
@@ -74,14 +78,22 @@ def build_strong_messages(user_inputs: list[str]) -> list[Message]:
     )
 
 
-def build_compiler_messages(state: State, user_inputs: list[str]) -> list[Message]:
-    compiled_prefix = build_compiled_system_prompt(state)
+def build_compiler_messages(
+    *, premise: str | None, policies: Mapping[str, PolicyValue], user_inputs: list[str]
+) -> list[Message]:
+    compiled_prefix = build_compiled_system_prompt(premise=premise, policies=policies)
     compiler_system_prompt = f"{compiled_prefix}\n{STRONG_PROMPT_ENGINEERING_TEXT}"
     return build_baseline_messages(user_inputs, baseline_system_prompt=compiler_system_prompt)
 
 
-def build_compact_compiler_messages(state: State, compacted_inputs: list[str]) -> list[Message]:
-    return build_compiler_messages(state, compacted_inputs)
+def build_compact_compiler_messages(
+    *, premise: str | None, policies: Mapping[str, PolicyValue], compacted_inputs: list[str]
+) -> list[Message]:
+    return build_compiler_messages(
+        premise=premise,
+        policies=policies,
+        user_inputs=compacted_inputs,
+    )
 
 
 def _actual_summary(*, weak_pass: bool, strong_pass: bool, compiler_pass: bool) -> str:
@@ -108,7 +120,13 @@ def main() -> None:
 
     for index, user_input in enumerate(USER_INPUTS, start=1):
         decision = engine.step(user_input)
-        print_decision(f"turn {index}", decision, engine.state)
+        premise, policies = observe_engine(engine)
+        print_decision(
+            f"turn {index}",
+            decision,
+            premise=premise,
+            policies=policies,
+        )
 
     weak_messages = build_weak_messages(USER_INPUTS)
     print_messages("weak-baseline", weak_messages)
@@ -131,7 +149,12 @@ def main() -> None:
     reinjected_output = complete_messages(reinjected_messages)
     print_model_output("Reinjected-state", reinjected_output)
 
-    compiler_messages = build_compiler_messages(engine.state, USER_INPUTS)
+    premise, policies = observe_engine(engine)
+    compiler_messages = build_compiler_messages(
+        premise=premise,
+        policies=policies,
+        user_inputs=USER_INPUTS,
+    )
     print_messages("compiler-mediated (full)", compiler_messages)
     compiler_output = complete_messages(compiler_messages)
     print_model_output("Compiler-mediated (full)", compiler_output)
@@ -142,7 +165,12 @@ def main() -> None:
         compact_output = f"[no call] error required: {compacted_prompt}"
         print_model_output("Compiler-mediated + compact", compact_output)
     else:
-        compact_messages = build_compact_compiler_messages(compacted_state, compacted_inputs)
+        compacted_premise, compacted_policies = state_observations(compacted_state)
+        compact_messages = build_compact_compiler_messages(
+            premise=compacted_premise,
+            policies=compacted_policies,
+            compacted_inputs=compacted_inputs,
+        )
         print_messages("compiler-mediated + compact", compact_messages)
         compact_output = complete_messages(compact_messages)
         print_model_output("Compiler-mediated + compact", compact_output)
@@ -158,7 +186,7 @@ def main() -> None:
     compiler_pass = premise_matches_expected(compiler_output)
     compact_pass = compacted_prompt is None and premise_matches_expected(compact_output)
 
-    compiled_prefix = build_compiled_system_prompt(engine.state)
+    compiled_prefix = build_compiled_system_prompt(premise=premise, policies=policies)
     shared_prompt_text = compiler_messages[0]["content"].endswith(STRONG_PROMPT_ENGINEERING_TEXT)
     compiler_augmented_only = (
         compiler_messages[1:] == strong_messages[1:]

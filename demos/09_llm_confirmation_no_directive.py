@@ -1,7 +1,8 @@
 """Demo 9: confirmation-style followups remain ordinary no_directive."""
 
+from collections.abc import Mapping
+
 from context_compiler import (
-    State,
     create_engine,
     is_no_directive,
     is_update,
@@ -10,12 +11,14 @@ from demos.common import (
     build_baseline_messages,
     build_reinjected_messages,
     compact_user_turns,
+    observe_engine,
     print_decision,
     print_host_check,
     print_messages,
     print_model_output,
     print_spec_report,
     print_user_inputs,
+    state_observations,
     yes_no,
 )
 from demos.llm_client import complete_messages
@@ -30,12 +33,15 @@ TURN_3 = "yes"
 INITIAL_AUTHORITATIVE_STATE = create_engine().state
 
 
-def _has_podman_use(state: State) -> bool:
-    return state["policies"].get("podman") == "use"
+def _has_podman_use(policies: Mapping[str, str]) -> bool:
+    return policies.get("podman") == "use"
 
 
-def _is_initial_authoritative_state(state: State) -> bool:
-    return state == INITIAL_AUTHORITATIVE_STATE
+def _is_initial_authoritative_state(*, premise: str | None, policies: Mapping[str, str]) -> bool:
+    return (
+        premise == INITIAL_AUTHORITATIVE_STATE["premise"]
+        and dict(policies) == INITIAL_AUTHORITATIVE_STATE["policies"]
+    )
 
 
 def main() -> None:
@@ -44,15 +50,18 @@ def main() -> None:
     print_user_inputs(user_inputs)
 
     first = engine.step(TURN_1)
-    print_decision("turn 1", first, engine.state)
-    state_applied_after_first = _has_podman_use(engine.state)
+    premise, policies = observe_engine(engine)
+    print_decision("turn 1", first, premise=premise, policies=policies)
+    state_applied_after_first = _has_podman_use(policies)
 
     second = engine.step(TURN_2)
-    print_decision("turn 2", second, engine.state)
-    state_preserved_after_second = _has_podman_use(engine.state)
+    premise, policies = observe_engine(engine)
+    print_decision("turn 2", second, premise=premise, policies=policies)
+    state_preserved_after_second = _has_podman_use(policies)
 
     third = engine.step(TURN_3)
-    print_decision("turn 3", third, engine.state)
+    premise, policies = observe_engine(engine)
+    print_decision("turn 3", third, premise=premise, policies=policies)
 
     baseline_messages = build_baseline_messages(
         [
@@ -101,7 +110,9 @@ def main() -> None:
     deterministic_initial_update = is_update(first) and state_applied_after_first
     unrelated_followup_no_directive = is_no_directive(second) and state_preserved_after_second
     confirmation_token_not_consumed = is_no_directive(third)
-    deterministic_final_state = _has_podman_use(engine.state)
+    premise, policies = observe_engine(engine)
+    deterministic_final_state = _has_podman_use(policies)
+    _, compacted_policies = state_observations(compacted_state)
 
     baseline_has_confirmation_state_machine = False
     reinjected_has_confirmation_state_machine = False
@@ -116,7 +127,7 @@ def main() -> None:
     compact_pass = (
         compacted_prompt is None
         and compacted_turns == [TURN_2, TURN_3]
-        and _has_podman_use(compacted_state)
+        and _has_podman_use(compacted_policies)
     )
 
     print_host_check(

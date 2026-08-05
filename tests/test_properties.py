@@ -7,7 +7,6 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 
 from context_compiler import DECISION_ERROR, DECISION_NO_DIRECTIVE, DECISION_UPDATE, create_engine
-from context_compiler.engine import State
 from context_compiler.grammar import (
     DirectiveKind,
     match_canonical_directive_start,
@@ -16,11 +15,15 @@ from context_compiler.grammar import (
 )
 
 
-def _run_sequence(inputs: list[str]) -> State:
+def _observations(engine: object) -> tuple[object, dict[str, object]]:
+    return engine.premise, dict(engine.policies)
+
+
+def _run_sequence(inputs: list[str]) -> tuple[object, dict[str, object]]:
     engine = create_engine()
     for item in inputs:
         engine.step(item)
-    return engine.state
+    return _observations(engine)
 
 
 def _normalize_item_like_engine(value: str) -> str:
@@ -188,7 +191,7 @@ def _payload_has_stable_export_import_cycle(payload: dict[str, object]) -> bool:
     except ValueError:
         return False
 
-    return restored.state == engine.state
+    return _observations(restored) == _observations(engine)
 
 
 GRAMMAR_RENDER_CASES = st.one_of(
@@ -266,7 +269,7 @@ def test_idempotent_use_item_is_update_and_stable_state(item: str) -> None:
 
     assert d1["kind"] == "update"
     assert d2["kind"] == "update"
-    assert len(engine.state["policies"]) == 1
+    assert len(engine.policies) == 1
 
 
 @given(
@@ -280,7 +283,7 @@ def test_use_item_with_empty_normalized_payload_clarifies_without_mutation(
     item = f"{leading_ws}{article}{trailing_ws}"
     assert _normalize_item_like_engine(item) == ""
     engine = create_engine()
-    before = engine.state
+    before = _observations(engine)
 
     d1 = engine.step(f"use {item}")
     d2 = engine.step(f"use {item}")
@@ -288,7 +291,7 @@ def test_use_item_with_empty_normalized_payload_clarifies_without_mutation(
     expected_prompt = "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value."
     assert d1 == {"kind": DECISION_ERROR, "message": expected_prompt}
     assert d2 == {"kind": DECISION_ERROR, "message": expected_prompt}
-    assert engine.state == before
+    assert _observations(engine) == before
 
 
 @given(st.text(min_size=1, max_size=30))
@@ -302,7 +305,7 @@ def test_idempotent_prohibit_item_is_update_and_stable_state(item: str) -> None:
 
     assert d1["kind"] == DECISION_UPDATE
     assert d2["kind"] == DECISION_UPDATE
-    assert len(engine.state["policies"]) == 1
+    assert len(engine.policies) == 1
 
 
 @given(
@@ -316,7 +319,7 @@ def test_prohibit_item_with_empty_normalized_payload_clarifies_without_mutation(
     item = f"{leading_ws}{article}{trailing_ws}"
     assert _normalize_item_like_engine(item) == ""
     engine = create_engine()
-    before = engine.state
+    before = _observations(engine)
 
     d1 = engine.step(f"prohibit {item}")
     d2 = engine.step(f"prohibit {item}")
@@ -324,30 +327,30 @@ def test_prohibit_item_with_empty_normalized_payload_clarifies_without_mutation(
     expected_prompt = "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
     assert d1 == {"kind": DECISION_ERROR, "message": expected_prompt}
     assert d2 == {"kind": DECISION_ERROR, "message": expected_prompt}
-    assert engine.state == before
+    assert _observations(engine) == before
 
 
 @given(st.lists(st.text(max_size=80), min_size=0, max_size=20))
 def test_non_matching_inputs_can_remain_no_directive_only(inputs: list[str]) -> None:
     engine = create_engine()
-    before = engine.state
+    before = _observations(engine)
 
     for text in inputs:
         decision = engine.step(f"please {text}")
         assert decision["kind"] == DECISION_NO_DIRECTIVE
 
-    assert engine.state == before
+    assert _observations(engine) == before
 
 
 @given(st.lists(st.text(max_size=50), min_size=0, max_size=30))
 def test_no_directive_sequence_preserves_state_and_decision_kind(inputs: list[str]) -> None:
     engine = create_engine()
-    before = engine.state
+    before = _observations(engine)
 
     for text in inputs:
         decision = engine.step(f"prefix {text}")
         assert decision == {"kind": DECISION_NO_DIRECTIVE, "message": None}
-        assert engine.state == before
+        assert _observations(engine) == before
 
 
 @given(st.text(min_size=1, max_size=30))
@@ -357,11 +360,11 @@ def test_contradiction_use_after_prohibit_always_clarifies(item: str) -> None:
     assume(validate_directive(f"use {item}") is not None)
     engine = create_engine()
     engine.step(f"prohibit {item}")
-    before = engine.state
+    before = _observations(engine)
 
     decision = engine.step(f"use {item}")
     assert decision["kind"] == DECISION_ERROR
-    assert engine.state == before
+    assert _observations(engine) == before
 
 
 @given(st.text(min_size=1, max_size=30))
@@ -374,11 +377,11 @@ def test_contradiction_prohibit_after_use_always_clarifies(item: str) -> None:
     assume(validate_directive(f"prohibit {item}") is not None)
     engine = create_engine()
     engine.step(f"use {item}")
-    before = engine.state
+    before = _observations(engine)
 
     decision = engine.step(f"prohibit {item}")
     assert decision["kind"] == DECISION_ERROR
-    assert engine.state == before
+    assert _observations(engine) == before
 
 
 @given(VALID_STATE_PAYLOADS)
@@ -387,12 +390,12 @@ def test_export_import_round_trip_preserves_authoritative_state_for_generated_pa
 ) -> None:
     source = create_engine()
     source.import_json(json.dumps(payload))
-    canonical_state = source.state
+    canonical_state = _observations(source)
 
     target = create_engine()
     target.import_json(source.export_json())
 
-    assert target.state == canonical_state
+    assert _observations(target) == canonical_state
 
 
 @given(VALID_STATE_PAYLOADS, st.integers(min_value=1, max_value=5))
@@ -402,15 +405,15 @@ def test_repeated_export_import_cycles_remain_stable(
     engine = create_engine()
     engine.import_json(json.dumps(payload))
 
-    expected_state = engine.state
+    expected_state = _observations(engine)
     expected_json = engine.export_json()
 
     for _ in range(cycles):
         next_engine = create_engine()
         next_engine.import_json(expected_json)
-        assert next_engine.state == expected_state
+        assert _observations(next_engine) == expected_state
         assert next_engine.export_json() == expected_json
-        expected_state = next_engine.state
+        expected_state = _observations(next_engine)
         expected_json = next_engine.export_json()
 
 
@@ -428,12 +431,16 @@ def test_deterministic_replacement_matches_equivalent_explicit_transition(
     assert isinstance(old_item, str)
     assert isinstance(old_present, bool)
 
-    oracle_engine = create_engine(state=deepcopy(initial_state))
+    oracle_engine = create_engine()
+    oracle_engine.import_json(
+        json.dumps(deepcopy(initial_state), sort_keys=True, separators=(",", ":"))
+    )
     oracle_engine.step(f"remove policy {old_item}")
     expected_decision = oracle_engine.step(f"use {new_item}")
-    expected_state = oracle_engine.state
+    expected_state = _observations(oracle_engine)
 
-    engine = create_engine(state=initial_state)
+    engine = create_engine()
+    engine.import_json(json.dumps(initial_state, sort_keys=True, separators=(",", ":")))
     decision = engine.step(f"use {new_item} instead of {old_item}")
 
     assert expected_decision == {
@@ -441,9 +448,9 @@ def test_deterministic_replacement_matches_equivalent_explicit_transition(
         "message": None,
     }
     assert decision == expected_decision
-    assert engine.state == expected_state
+    assert _observations(engine) == expected_state
 
     if not old_present:
         followup = engine.step("yes")
         assert followup == {"kind": DECISION_NO_DIRECTIVE, "message": None}
-        assert engine.state == expected_state
+        assert _observations(engine) == expected_state

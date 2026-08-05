@@ -247,11 +247,8 @@ def test_apply_preload_from_options_initial_state_json_restores_state() -> None:
         },
     )
 
-    assert target_engine.state == {
-        "premise": "concise",
-        "policies": {"docker": "use"},
-        "version": 2,
-    }
+    assert target_engine.premise == "concise"
+    assert dict(target_engine.policies) == {"docker": "use"}
 
 
 def test_apply_preload_from_options_initial_state_file_restores_state(
@@ -274,11 +271,8 @@ def test_apply_preload_from_options_initial_state_file_restores_state(
         },
     )
 
-    assert target_engine.state == {
-        "premise": "concise",
-        "policies": {"docker": "use"},
-        "version": 2,
-    }
+    assert target_engine.premise == "concise"
+    assert dict(target_engine.policies) == {"docker": "use"}
 
 
 def test_parse_cli_options_duplicate_value_flag_rejected() -> None:

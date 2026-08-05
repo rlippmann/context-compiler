@@ -32,14 +32,18 @@ SEPARATOR_CHARS = " \t\n\r,.;:!?-/()[]"
 LETTER_CHARS = string.ascii_lowercase
 
 
+def _observations(engine: object) -> tuple[object, object]:
+    return engine.premise, dict(engine.policies)
+
+
 def _assert_compound_no_directive(user_input: str) -> None:
     engine = create_engine()
-    before = engine.state
+    before = _observations(engine)
 
     decision = engine.step(user_input)
 
     assert decision == {"kind": DECISION_NO_DIRECTIVE, "message": None}
-    assert engine.state == before
+    assert _observations(engine) == before
 
 
 @settings(max_examples=50)
@@ -78,13 +82,13 @@ def test_embedded_canonical_tokens_do_not_trigger_compound_detection(
     token: str, prefix: str, suffix: str
 ) -> None:
     engine = create_engine()
-    before = engine.state
+    before = _observations(engine)
 
     decision = engine.step(f"use docker {prefix}{token}{suffix}")
 
     assert decision["kind"] != DECISION_ERROR or decision["message"] != ""
     assert decision["kind"] == DECISION_UPDATE
-    assert engine.state != before
+    assert _observations(engine) != before
 
 
 @settings(max_examples=50)
@@ -100,11 +104,11 @@ def test_leading_non_directive_text_disables_compound_detection(prefix: str, sec
     assume(not any(prefix.startswith(token) for token in CANONICAL_STARTS))
 
     engine = create_engine()
-    before = engine.state
+    before = _observations(engine)
     decision = engine.step(f"{prefix} use docker {second}")
 
     assert decision == {"kind": DECISION_NO_DIRECTIVE, "message": None}
-    assert engine.state == before
+    assert _observations(engine) == before
 
 
 def _mutate_case(text: str) -> st.SearchStrategy[str]:
@@ -120,12 +124,12 @@ def test_case_mutated_second_directive_does_not_trigger_compound_detection(
     second_start: str,
 ) -> None:
     engine = create_engine()
-    before = engine.state
+    before = _observations(engine)
 
     decision = engine.step(f"use docker {second_start}")
 
     assert decision == {"kind": DECISION_NO_DIRECTIVE, "message": None}
-    assert engine.state == before
+    assert _observations(engine) == before
 
 
 @settings(max_examples=50)
@@ -152,9 +156,9 @@ def test_quotes_do_not_create_protected_region_after_first_directive(
 )
 def test_fully_quoted_input_remains_no_directive(quote: str, second: str) -> None:
     engine = create_engine()
-    before = engine.state
+    before = _observations(engine)
 
     decision = engine.step(f"{quote}use docker {second}{quote}")
 
     assert decision == {"kind": DECISION_NO_DIRECTIVE, "message": None}
-    assert engine.state == before
+    assert _observations(engine) == before

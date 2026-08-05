@@ -149,7 +149,11 @@ decision = engine.step(user_input)
 if is_error(decision):
     show_to_user(decision["message"])
 elif is_update(decision):
-    messages = build_messages(engine.state, user_input)
+    messages = build_messages(
+        premise=engine.premise,
+        policies=engine.policies,
+        user_input=user_input,
+    )
     render(call_llm(messages))
 else:
     render(call_llm(user_input))
@@ -276,7 +280,7 @@ reference.
 
 Common API entry points:
 
-- engine lifecycle: `create_engine(...)`, `engine.step(...)`, `engine.state`,
+- engine lifecycle: `create_engine(...)`, `engine.step(...)`,
   `engine.premise`, `engine.policies`, `engine.export_json(...)`,
   `engine.import_json(...)`
 - decision helpers: `is_error(...)`, `is_update(...)`, `is_no_directive(...)`,
@@ -305,8 +309,8 @@ Identical input sequences always produce identical state.
 For live engine-owned reads, use `engine.premise` and `engine.policies`.
 `engine.policies` returns a caller-owned copy.
 
-`engine.state` remains the public snapshot/serialization boundary when host code
-needs the full authoritative state object.
+Use `engine.export_json()` and `engine.import_json()` for persistence and
+restoration.
 
 ---
 

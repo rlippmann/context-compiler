@@ -1,6 +1,6 @@
 """Example 7: explicit single-policy correction without reset policies."""
 
-from _util import print_decision_summary, print_state_summary
+from _util import print_decision_summary, print_engine_observations
 
 from context_compiler import create_engine
 
@@ -23,7 +23,11 @@ def main() -> None:
     print_decision_summary(decision3)
     print()
 
-    print_state_summary(engine.state, "final state")
+    print_engine_observations(
+        premise=engine.premise,
+        policies=engine.policies,
+        label="final state",
+    )
 
 
 if __name__ == "__main__":

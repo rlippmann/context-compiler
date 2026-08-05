@@ -1,16 +1,20 @@
 """Demo 8: missing-source replacement applies deterministically from authoritative state."""
 
-from context_compiler import State, create_engine, is_update
+from collections.abc import Mapping
+
+from context_compiler import create_engine, is_update
 from demos.common import (
     build_baseline_messages,
     build_reinjected_messages,
     compact_user_turns,
+    observe_engine,
     print_decision,
     print_host_check,
     print_messages,
     print_model_output,
     print_spec_report,
     print_user_inputs,
+    state_observations,
     yes_no,
 )
 from demos.llm_client import complete_messages
@@ -19,8 +23,8 @@ DEMO_NAME = "08_replacement_precondition — missing-source replacement applies 
 USER_INPUT = "use podman instead of docker"
 
 
-def _is_initial_authoritative_state(state: State) -> bool:
-    return state == {"premise": None, "policies": {}, "version": 2}
+def _is_initial_authoritative_state(*, premise: str | None, policies: Mapping[str, str]) -> bool:
+    return premise is None and policies == {}
 
 
 def main() -> None:
@@ -29,7 +33,8 @@ def main() -> None:
     print_user_inputs(user_inputs)
 
     decision = engine.step(USER_INPUT)
-    print_decision("turn 1", decision, engine.state)
+    premise, policies = observe_engine(engine)
+    print_decision("turn 1", decision, premise=premise, policies=policies)
 
     baseline_messages = build_baseline_messages(
         [
@@ -80,8 +85,13 @@ def main() -> None:
         compact_output = "[no call] unexpected error was produced during compaction"
         print_model_output("Compiler-mediated + compact", compact_output)
 
-    state_applied = not _is_initial_authoritative_state(engine.state)
-    compact_state_applied = not _is_initial_authoritative_state(compacted_state)
+    premise, policies = observe_engine(engine)
+    compacted_premise, compacted_policies = state_observations(compacted_state)
+    state_applied = not _is_initial_authoritative_state(premise=premise, policies=policies)
+    compact_state_applied = not _is_initial_authoritative_state(
+        premise=compacted_premise,
+        policies=compacted_policies,
+    )
     compact_no_pending = compacted_prompt is None
 
     baseline_has_authoritative_precondition = False

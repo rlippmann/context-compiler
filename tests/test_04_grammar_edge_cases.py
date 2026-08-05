@@ -1,6 +1,10 @@
 from context_compiler import DECISION_NO_DIRECTIVE, DECISION_UPDATE, create_engine
 
 
+def _observations(engine: object) -> tuple[object, object]:
+    return engine.premise, dict(engine.policies)
+
+
 def test_parser_trims_leading_space_for_canonical_directive() -> None:
     engine = create_engine()
 
@@ -10,7 +14,7 @@ def test_parser_trims_leading_space_for_canonical_directive() -> None:
         "kind": DECISION_UPDATE,
         "message": None,
     }
-    assert engine.state == {"premise": "concise", "policies": {}, "version": 2}
+    assert _observations(engine) == ("concise", {})
 
 
 def test_parser_does_not_accept_conversational_aliases() -> None:
@@ -29,20 +33,20 @@ def test_parser_does_not_accept_conversational_aliases() -> None:
         decision = engine.step(text)
         assert decision["kind"] == DECISION_NO_DIRECTIVE
 
-    assert engine.state == {"premise": None, "policies": {}, "version": 2}
+    assert _observations(engine) == (None, {})
 
 
 def test_empty_policy_payloads_and_incomplete_replacement_remain_no_directive() -> None:
     engine = create_engine()
-    before = engine.state
+    before = _observations(engine)
 
     for text in ["use", "use ", "use    "]:
         assert engine.step(text) == {"kind": DECISION_NO_DIRECTIVE, "message": None}
-        assert engine.state == before
+        assert _observations(engine) == before
 
     for text in ["prohibit", "prohibit ", "prohibit    "]:
         assert engine.step(text) == {"kind": DECISION_NO_DIRECTIVE, "message": None}
-        assert engine.state == before
+        assert _observations(engine) == before
 
     for text in [
         "use x instead of",
@@ -52,10 +56,10 @@ def test_empty_policy_payloads_and_incomplete_replacement_remain_no_directive() 
         "use instead of y",
     ]:
         assert engine.step(text) == {"kind": DECISION_NO_DIRECTIVE, "message": None}
-        assert engine.state == before
+        assert _observations(engine) == before
 
     assert engine.step("remove policy\tdocker")["kind"] == DECISION_UPDATE
-    assert engine.state == before
+    assert _observations(engine) == before
 
 
 def test_lexical_normalization_and_non_directive_near_misses() -> None:
@@ -69,31 +73,31 @@ def test_lexical_normalization_and_non_directive_near_misses() -> None:
     assert engine.step("don't Use docker")["kind"] == DECISION_NO_DIRECTIVE
     assert engine.step("don't use")["kind"] == DECISION_NO_DIRECTIVE
 
-    assert engine.state == {"premise": None, "policies": {"docker": "use"}, "version": 2}
+    assert _observations(engine) == (None, {"docker": "use"})
 
 
 def test_premise_to_variant_near_misses_remain_no_directive() -> None:
     engine = create_engine()
-    before = engine.state
+    before = _observations(engine)
 
     set_variant = engine.step("set premise to concise")
     change_variant = engine.step("change premise concise")
 
     assert set_variant == {"kind": DECISION_NO_DIRECTIVE, "message": None}
     assert change_variant == {"kind": DECISION_NO_DIRECTIVE, "message": None}
-    assert before == engine.state
+    assert before == _observations(engine)
 
 
 def test_remove_policy_missing_or_whitespace_payload_remains_no_directive() -> None:
     engine = create_engine()
-    before = engine.state
+    before = _observations(engine)
 
     first = engine.step("remove policy")
     second = engine.step("remove policy   ")
 
     assert first == {"kind": DECISION_NO_DIRECTIVE, "message": None}
     assert second == {"kind": DECISION_NO_DIRECTIVE, "message": None}
-    assert engine.state == before
+    assert _observations(engine) == before
 
 
 def test_invalid_replacement_does_not_block_following_directives() -> None:
@@ -106,11 +110,7 @@ def test_invalid_replacement_does_not_block_following_directives() -> None:
         "kind": DECISION_UPDATE,
         "message": None,
     }
-    assert engine.state == {
-        "premise": "concise",
-        "policies": {"kubectl": "use"},
-        "version": 2,
-    }
+    assert _observations(engine) == ("concise", {"kubectl": "use"})
 
 
 def test_replace_update_independent_followup_is_no_directive() -> None:

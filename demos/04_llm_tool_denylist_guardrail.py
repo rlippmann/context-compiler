@@ -10,6 +10,7 @@ from demos.common import (
     compact_user_turns,
     extract_tag_value,
     is_verbose,
+    observe_engine,
     print_decision,
     print_host_check,
     print_messages,
@@ -17,6 +18,7 @@ from demos.common import (
     print_spec_report,
     print_tag_comparison,
     print_user_inputs,
+    state_observations,
 )
 from demos.llm_client import complete_messages
 
@@ -69,10 +71,12 @@ def main() -> None:
     print_user_inputs(user_inputs)
 
     first = engine.step(user_inputs[0])
-    print_decision("turn 1", first, engine.state)
+    premise, policies = observe_engine(engine)
+    print_decision("turn 1", first, premise=premise, policies=policies)
 
     second = engine.step(user_inputs[1])
-    print_decision("turn 2", second, engine.state)
+    premise, policies = observe_engine(engine)
+    print_decision("turn 2", second, premise=premise, policies=policies)
 
     baseline_messages = build_baseline_messages(
         [user_inputs[1]],
@@ -107,9 +111,11 @@ def main() -> None:
     reinjected_output = complete_messages(reinjected_messages)
     print_model_output("Reinjected-state", reinjected_output)
 
+    premise, policies = observe_engine(engine)
     mediated_messages = build_mediated_messages_from_transcript(
-        engine.state,
-        user_inputs,
+        premise=premise,
+        policies=policies,
+        user_turns=user_inputs,
         extra_system_prompt=(
             "Only choose tools that are not prohibited."
             + "\nCandidate tools: "
@@ -128,9 +134,11 @@ def main() -> None:
         print_model_output("Compiler-mediated + compact", compact_output)
         compact_tool = None
     else:
+        compacted_premise, compacted_policies = state_observations(compacted_state)
         compact_messages = build_mediated_messages_from_transcript(
-            compacted_state,
-            compacted_turns,
+            premise=compacted_premise,
+            policies=compacted_policies,
+            user_turns=compacted_turns,
             extra_system_prompt=(
                 "Only choose tools that are not prohibited."
                 + "\nCandidate tools: "

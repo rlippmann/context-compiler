@@ -2,15 +2,16 @@
 
 import os
 import re
+from collections.abc import Mapping
 from typing import Literal, NotRequired, TypedDict
 
 from context_compiler import (
     Decision,
-    State,
     create_engine,
     is_error,
     is_update,
 )
+from context_compiler.engine import PolicyValue
 from demos.llm_client import Message
 
 VERBOSE_ENV_VAR = "CONTEXT_COMPILER_DEMO_VERBOSE"
@@ -45,20 +46,43 @@ LAST_REPORT: DemoReport | None = None
 LAST_INFO_REPORT: InfoReport | None = None
 
 
-def _policy_values_text(state: State, value: Literal["use", "prohibit"]) -> str:
-    items = sorted(
-        item for item, policy_value in state["policies"].items() if policy_value == value
-    )
+def observe_engine(engine: object) -> tuple[str | None, dict[str, PolicyValue]]:
+    premise = getattr(engine, "premise", None)
+    policies = getattr(engine, "policies", None)
+    if isinstance(policies, Mapping):
+        return premise, dict(policies)
+
+    state = getattr(engine, "state", None)
+    assert isinstance(state, dict)
+    state_premise = state.get("premise")
+    state_policies = state.get("policies")
+    assert state_premise is None or isinstance(state_premise, str)
+    assert isinstance(state_policies, dict)
+    return state_premise, dict(state_policies)
+
+
+def state_observations(state: Mapping[str, object]) -> tuple[str | None, dict[str, PolicyValue]]:
+    premise = state.get("premise")
+    policies = state.get("policies")
+    assert premise is None or isinstance(premise, str)
+    assert isinstance(policies, dict)
+    return premise, dict(policies)
+
+
+def _policy_values_text(
+    policies: Mapping[str, PolicyValue], value: Literal["use", "prohibit"]
+) -> str:
+    items = sorted(item for item, policy_value in policies.items() if policy_value == value)
     return ", ".join(items) if items else "(none)"
 
 
-def _print_state_summary(state: State) -> None:
-    premise_value = state["premise"]
+def _print_state_summary(*, premise: str | None, policies: Mapping[str, PolicyValue]) -> None:
+    premise_value = premise
     premise_text = premise_value if premise_value is not None else "(none)"
     print("compiled state:")
     print(f"- premise: {premise_text}")
-    print(f"- use policies: {_policy_values_text(state, 'use')}")
-    print(f"- prohibit policies: {_policy_values_text(state, 'prohibit')}")
+    print(f"- use policies: {_policy_values_text(policies, 'use')}")
+    print(f"- prohibit policies: {_policy_values_text(policies, 'prohibit')}")
 
 
 def _print_multiline_prompt(label: str, prompt: str) -> None:
@@ -76,22 +100,28 @@ def print_user_inputs(inputs: list[str]) -> None:
     print()
 
 
-def print_decision(title: str, decision: Decision, state: State) -> None:
+def print_decision(
+    title: str,
+    decision: Decision,
+    *,
+    premise: str | None,
+    policies: Mapping[str, PolicyValue],
+) -> None:
     if not is_verbose():
         return
     print(f"Compiler decision ({title}):")
     if is_update(decision):
         print("result: updated")
-        _print_state_summary(state)
+        _print_state_summary(premise=premise, policies=policies)
     elif is_error(decision):
         print("result: error")
         message = decision["message"]
         if message:
             _print_multiline_prompt("error message", message)
-        _print_state_summary(state)
+        _print_state_summary(premise=premise, policies=policies)
     else:
         print("result: no_directive")
-        _print_state_summary(state)
+        _print_state_summary(premise=premise, policies=policies)
     print()
 
 
@@ -248,7 +278,7 @@ def print_info_report(
 
 def compact_user_turns(
     user_turns: list[str],
-) -> tuple[list[str], State, str | None]:
+) -> tuple[list[str], dict[str, object], str | None]:
     """Compact transcript using compiler boundaries and normal step sequencing.
 
     Rules:
@@ -256,7 +286,7 @@ def compact_user_turns(
     - keep no_directive lines
     - keep first error line and stop
     - return message for error, else None
-    - returned state is engine state at stop point
+    - returned state dict is built from engine observations at stop point
     """
 
     engine = create_engine()
@@ -272,16 +302,18 @@ def compact_user_turns(
             message = decision["message"]
             break
 
-    return compacted_turns, engine.state, message
+    premise, policies = observe_engine(engine)
+    return compacted_turns, {"premise": premise, "policies": policies, "version": 2}, message
 
 
 def build_mediated_messages_from_transcript(
-    state: State,
-    user_turns: list[str],
     *,
+    premise: str | None,
+    policies: Mapping[str, PolicyValue],
+    user_turns: list[str],
     extra_system_prompt: str | None = None,
 ) -> list[Message]:
-    system_prompt = build_compiled_system_prompt(state)
+    system_prompt = build_compiled_system_prompt(premise=premise, policies=policies)
     if extra_system_prompt:
         system_prompt += "\n" + extra_system_prompt
     messages: list[Message] = [{"role": "system", "content": system_prompt}]
@@ -296,14 +328,12 @@ def consume_last_info_report() -> InfoReport | None:
     return value
 
 
-def build_compiled_system_prompt(state: State) -> str:
-    premise_value = state["premise"]
-    use_items = sorted(
-        item for item, policy_value in state["policies"].items() if policy_value == "use"
-    )
-    prohibit = sorted(
-        item for item, policy_value in state["policies"].items() if policy_value == "prohibit"
-    )
+def build_compiled_system_prompt(
+    *, premise: str | None, policies: Mapping[str, PolicyValue]
+) -> str:
+    premise_value = premise
+    use_items = sorted(item for item, policy_value in policies.items() if policy_value == "use")
+    prohibit = sorted(item for item, policy_value in policies.items() if policy_value == "prohibit")
     prohibit_text = ", ".join(prohibit) if prohibit else "(none)"
     use_text = ", ".join(use_items) if use_items else "(none)"
     premise_text = premise_value if premise_value is not None else "(unset)"
@@ -372,9 +402,13 @@ def build_baseline_messages(
 
 
 def build_mediated_messages(
-    state: State, user_request: str, *, extra_system_prompt: str | None = None
+    *,
+    premise: str | None,
+    policies: Mapping[str, PolicyValue],
+    user_request: str,
+    extra_system_prompt: str | None = None,
 ) -> list[Message]:
-    system_prompt = build_compiled_system_prompt(state)
+    system_prompt = build_compiled_system_prompt(premise=premise, policies=policies)
     if extra_system_prompt:
         system_prompt += "\n" + extra_system_prompt
     return [

@@ -83,6 +83,14 @@ def _state_diff(expected: object, actual: object) -> str:
     )
 
 
+def _state_observation(engine: object) -> dict[str, object]:
+    return {
+        "premise": engine.premise,
+        "policies": dict(engine.policies),
+        "version": 2,
+    }
+
+
 @pytest.mark.contract
 def test_structured_regression_scenarios() -> None:
     for scenario_path in _json_files(_SCENARIOS_DIR):
@@ -109,7 +117,7 @@ def test_structured_regression_scenarios() -> None:
 
         for turn_index, user_input in enumerate(inputs):
             decision = engine.step(user_input)
-            state = engine.state
+            state = _state_observation(engine)
             expected_turn = expected_turns[turn_index]
 
             context = f"scenario={scenario_id} turn={turn_index} input={user_input!r}"
