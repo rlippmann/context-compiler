@@ -14,7 +14,7 @@ Contributions are typically submitted via fork and pull request:
 ## Development Setup
 
 ```bash
-uv sync --group dev
+uv sync --dev
 ```
 
 ## Running Tests

@@ -240,7 +240,7 @@ Packaging notes:
 ### Development
 
 ```bash
-uv sync --group dev
+uv sync --dev
 uv run pytest
 ```
 
