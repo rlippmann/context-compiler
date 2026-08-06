@@ -39,7 +39,7 @@ jobs:
           enable-cache: true
 
       - name: Install dev dependencies
-        run: uv sync --extra dev
+        run: uv sync --dev
 
       - name: Ruff (lint)
         run: uv run ruff check .
@@ -90,7 +90,7 @@ jobs:
           enable-cache: true
 
       - name: Install dev dependencies
-        run: uv sync --extra dev
+        run: uv sync --dev
 
       - name: Contract tests with strict REPL coverage gate (100%)
         run: uv run pytest -m contract --cov=context_compiler.repl --cov-report=term-missing --cov-fail-under=100
@@ -111,7 +111,7 @@ jobs:
           enable-cache: true
 
       - name: Install dev dependencies
-        run: uv sync --extra dev
+        run: uv sync --dev
 
       - name: Contract tests with strict engine coverage gate (100%)
         run: uv run pytest -m contract --cov=context_compiler.engine --cov-report=term-missing --cov-fail-under=100
@@ -132,7 +132,7 @@ jobs:
           enable-cache: true
 
       - name: Install dev dependencies
-        run: uv sync --extra dev
+        run: uv sync --dev
 
       - name: Contract tests with strict grammar coverage gate (100%)
         run: uv run pytest tests/test_grammar.py tests/test_grammar_api_contract_fixture.py tests/test_fixtures.py::test_grammar_fixtures --cov=context_compiler.grammar --cov-report=term-missing --cov-fail-under=100

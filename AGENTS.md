@@ -152,7 +152,7 @@ Do not rewrite captured outputs, fixture-sensitive examples, or eval evidence un
 Use the project's existing tooling:
 
 - Run commands via `uv run` when appropriate.
-- Development dependencies are installed with `uv sync --group dev`.
+- Development dependencies are installed with `uv sync --dev`.
 
 ## Structured Regression Fixtures
 - Deterministic engine behavior changes that affect `tests/fixtures/engine-regression/structured/` outputs must update the corresponding fixtures.

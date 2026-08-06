@@ -27,7 +27,7 @@ jobs:
           enable-cache: true
 
       - name: Install dev and demos dependencies
-        run: uv sync --extra dev --extra demos
+        run: uv sync --dev --extra demos
 
       - name: Run pytest stress loop
         shell: bash
