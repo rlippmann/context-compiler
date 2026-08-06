@@ -30,10 +30,8 @@ def _normalize_item_like_engine(value: str) -> str:
     normalized = unicode_normalize("NFKC", value)
     normalized = normalized.replace("’", "'").replace("`", "'")
     normalized = normalized.lower()
-    normalized = re.sub(r"\bdont\b", "don't", normalized)
     normalized = re.sub(r"\s+", " ", normalized).strip()
-    normalized = re.sub(r"^(?:a|an|the)\b\s*", "", normalized)
-    return normalized.strip()
+    return normalized
 
 
 def _is_stable_policy_key_like_engine(value: str) -> bool:
@@ -272,15 +270,8 @@ def test_idempotent_use_item_is_update_and_stable_state(item: str) -> None:
     assert len(engine.policies) == 1
 
 
-@given(
-    article=st.sampled_from(["a", "an", "the", "A", "An", "The", "THE"]),
-    leading_ws=st.text(alphabet=" \t", min_size=0, max_size=3),
-    trailing_ws=st.text(alphabet=" \t", min_size=0, max_size=3),
-)
-def test_use_item_with_empty_normalized_payload_clarifies_without_mutation(
-    article: str, leading_ws: str, trailing_ws: str
-) -> None:
-    item = f"{leading_ws}{article}{trailing_ws}"
+@given(item=st.text(alphabet=" \t", min_size=0, max_size=6))
+def test_use_item_with_whitespace_only_payload_remains_no_directive(item: str) -> None:
     assert _normalize_item_like_engine(item) == ""
     engine = create_engine()
     before = _observations(engine)
@@ -288,9 +279,8 @@ def test_use_item_with_empty_normalized_payload_clarifies_without_mutation(
     d1 = engine.step(f"use {item}")
     d2 = engine.step(f"use {item}")
 
-    expected_prompt = "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value."
-    assert d1 == {"kind": DECISION_ERROR, "message": expected_prompt}
-    assert d2 == {"kind": DECISION_ERROR, "message": expected_prompt}
+    assert d1 == {"kind": DECISION_NO_DIRECTIVE, "message": None}
+    assert d2 == {"kind": DECISION_NO_DIRECTIVE, "message": None}
     assert _observations(engine) == before
 
 
@@ -308,15 +298,8 @@ def test_idempotent_prohibit_item_is_update_and_stable_state(item: str) -> None:
     assert len(engine.policies) == 1
 
 
-@given(
-    article=st.sampled_from(["a", "an", "the", "A", "An", "The", "THE"]),
-    leading_ws=st.text(alphabet=" \t", min_size=0, max_size=3),
-    trailing_ws=st.text(alphabet=" \t", min_size=0, max_size=3),
-)
-def test_prohibit_item_with_empty_normalized_payload_clarifies_without_mutation(
-    article: str, leading_ws: str, trailing_ws: str
-) -> None:
-    item = f"{leading_ws}{article}{trailing_ws}"
+@given(item=st.text(alphabet=" \t", min_size=0, max_size=6))
+def test_prohibit_item_with_whitespace_only_payload_remains_no_directive(item: str) -> None:
     assert _normalize_item_like_engine(item) == ""
     engine = create_engine()
     before = _observations(engine)
@@ -324,9 +307,8 @@ def test_prohibit_item_with_empty_normalized_payload_clarifies_without_mutation(
     d1 = engine.step(f"prohibit {item}")
     d2 = engine.step(f"prohibit {item}")
 
-    expected_prompt = "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
-    assert d1 == {"kind": DECISION_ERROR, "message": expected_prompt}
-    assert d2 == {"kind": DECISION_ERROR, "message": expected_prompt}
+    assert d1 == {"kind": DECISION_NO_DIRECTIVE, "message": None}
+    assert d2 == {"kind": DECISION_NO_DIRECTIVE, "message": None}
     assert _observations(engine) == before
 
 

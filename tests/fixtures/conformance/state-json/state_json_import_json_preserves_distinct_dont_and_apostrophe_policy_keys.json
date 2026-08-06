@@ -1,5 +1,5 @@
 {
-  "id": "state_json_import_json_canonicalizes_policy_collision_by_normalized_key",
+  "id": "state_json_import_json_preserves_distinct_dont_and_apostrophe_policy_keys",
   "kind": "state_json",
   "initial_state": {
     "premise": null,
@@ -8,14 +8,14 @@
   },
   "action": {
     "fn": "import_json",
-    "payload": "{\"premise\":null,\"policies\":{\"  The Docker \":\"prohibit\",\"docker\":\"use\"},\"version\":2}"
+    "payload": "{\"premise\":null,\"policies\":{\"dont\":\"prohibit\",\"don't\":\"use\"},\"version\":2}"
   },
   "expected": {
     "state": {
       "premise": null,
       "policies": {
-        "docker": "use",
-        "the docker": "prohibit"
+        "don't": "use",
+        "dont": "prohibit"
       },
       "version": 2
     }

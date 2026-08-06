@@ -240,10 +240,9 @@ def test_internal_state_loader_rejects_non_string_policy_keys() -> None:
 @pytest.mark.parametrize(
     "policies",
     [
-        {"A": "use", "a": "use"},
-        {"a": "use"},
-        {"the": "use"},
-        {"a a": "use"},
+        {" ": "use"},
+        {"\t": "use"},
+        {" \t ": "use"},
     ],
 )
 def test_import_json_rejects_policy_keys_that_normalize_to_empty(
@@ -272,7 +271,7 @@ def test_import_json_rejects_empty_normalized_key_atomically() -> None:
             json.dumps(
                 {
                     "premise": None,
-                    "policies": {"Docker": "use", "a": "use"},
+                    "policies": {"Docker": "use", " ": "use"},
                     "version": 2,
                 }
             )
@@ -342,7 +341,11 @@ def test_import_json_normalizes_policy_keys() -> None:
         )
     )
 
-    _assert_observations(engine, premise=None, policies={"docker": "prohibit", "don't use": "use"})
+    _assert_observations(
+        engine,
+        premise=None,
+        policies={"dont use": "use", "the docker": "prohibit"},
+    )
 
 
 def test_import_json_sanitizes_premise_value() -> None:
@@ -375,7 +378,7 @@ def test_import_json_canonicalizes_policies_by_normalized_key() -> None:
         )
     )
 
-    assert dict(engine.policies) == {"docker": "use"}
+    assert dict(engine.policies) == {"docker": "use", "the docker": "prohibit"}
 
 
 def test_non_matching_input_is_no_directive() -> None:
@@ -573,18 +576,18 @@ def test_policy_directives_and_idempotent_update() -> None:
 
     d1 = engine.step("use   The Docker")
     assert d1["kind"] == DECISION_UPDATE
-    assert dict(engine.policies) == {"docker": "use"}
+    assert dict(engine.policies) == {"the docker": "use"}
 
     d2 = engine.step("use docker")
     assert d2["kind"] == DECISION_UPDATE
-    assert dict(engine.policies) == {"docker": "use"}
+    assert dict(engine.policies) == {"docker": "use", "the docker": "use"}
 
     d3 = engine.step("prohibit docker")
     assert d3["kind"] == "error"
     assert d3["message"] == (
         '"docker" is currently in use.\nRemove or replace it before prohibiting it.'
     )
-    assert dict(engine.policies) == {"docker": "use"}
+    assert dict(engine.policies) == {"docker": "use", "the docker": "use"}
 
     engine2 = create_engine()
     engine2.step("prohibit docker")
@@ -712,12 +715,11 @@ def test_replace_use_success() -> None:
 def test_replace_use_identity_is_noop_update() -> None:
     engine = create_engine()
     engine.step("use docker")
-    before = _observations(engine)
 
     decision = engine.step("use the docker instead of docker")
 
     assert decision["kind"] == DECISION_UPDATE
-    assert _observations(engine) == before
+    _assert_observations(engine, premise=None, policies={"the docker": "use"})
 
 
 def test_replace_use_missing_source_applies_as_use_update() -> None:
@@ -1047,6 +1049,116 @@ def test_remove_policy_uses_normalized_item_matching() -> None:
     decision = engine.step("remove policy the docker")
     assert decision["kind"] == DECISION_UPDATE
     _assert_observations(engine, premise=None, policies={})
+
+
+def test_use_and_prohibit_article_variants_remain_distinct_policies() -> None:
+    engine = create_engine()
+
+    first = engine.step("use docker")
+    second = engine.step("prohibit the docker")
+
+    assert first == {"kind": DECISION_UPDATE, "message": None}
+    assert second == {"kind": DECISION_UPDATE, "message": None}
+    _assert_observations(
+        engine,
+        premise=None,
+        policies={"docker": "use", "the docker": "prohibit"},
+    )
+
+
+def test_remove_policy_the_docker_does_not_remove_docker() -> None:
+    engine = create_engine()
+    engine.step("use docker")
+
+    decision = engine.step("remove policy the docker")
+
+    assert decision == {"kind": DECISION_UPDATE, "message": None}
+    _assert_observations(engine, premise=None, policies={"docker": "use"})
+
+
+def test_dont_and_dont_apostrophe_remain_distinct_policy_identities() -> None:
+    engine = create_engine()
+
+    first = engine.step("use don't")
+    second = engine.step("prohibit dont")
+
+    assert first == {"kind": DECISION_UPDATE, "message": None}
+    assert second == {"kind": DECISION_UPDATE, "message": None}
+    _assert_observations(
+        engine,
+        premise=None,
+        policies={"don't": "use", "dont": "prohibit"},
+    )
+
+
+def test_import_json_preserves_distinct_article_variant_policy_keys() -> None:
+    engine = create_engine()
+
+    engine.import_json(
+        json.dumps(
+            {
+                "premise": None,
+                "policies": {"docker": "use", " The Docker ": "prohibit"},
+                "version": 2,
+            }
+        )
+    )
+
+    _assert_observations(
+        engine,
+        premise=None,
+        policies={"docker": "use", "the docker": "prohibit"},
+    )
+
+
+def test_import_json_preserves_distinct_dont_and_dont_apostrophe_policy_keys() -> None:
+    engine = create_engine()
+
+    engine.import_json(
+        json.dumps(
+            {
+                "premise": None,
+                "policies": {"dont": "prohibit", "don't": "use"},
+                "version": 2,
+            }
+        )
+    )
+
+    _assert_observations(
+        engine,
+        premise=None,
+        policies={"don't": "use", "dont": "prohibit"},
+    )
+
+
+def test_export_import_round_trip_preserves_distinct_normalized_policy_keys() -> None:
+    source = create_engine()
+    source.import_json(
+        json.dumps(
+            {
+                "premise": None,
+                "policies": {
+                    "docker": "use",
+                    "the docker": "prohibit",
+                    "dont": "prohibit",
+                    "don't": "use",
+                },
+                "version": 2,
+            }
+        )
+    )
+
+    payload = source.export_json()
+
+    restored = create_engine()
+    restored.import_json(payload)
+
+    assert dict(restored.policies) == {
+        "docker": "use",
+        "don't": "use",
+        "dont": "prohibit",
+        "the docker": "prohibit",
+    }
 
 
 @pytest.mark.parametrize(

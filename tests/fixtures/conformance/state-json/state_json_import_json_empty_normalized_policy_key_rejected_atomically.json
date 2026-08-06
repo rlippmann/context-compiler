@@ -11,7 +11,7 @@
   ],
   "action": {
     "fn": "import_json",
-    "payload": "{\"premise\":null,\"policies\":{\"Docker\":\"use\",\"a\":\"use\"},\"version\":2}"
+    "payload": "{\"premise\":null,\"policies\":{\"Docker\":\"use\",\" \":\"use\"},\"version\":2}"
   },
   "expected": {
     "error": {
