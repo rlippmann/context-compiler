@@ -14,8 +14,8 @@
     "state": {
       "premise": null,
       "policies": {
-        "docker": "prohibit",
-        "don't use": "use"
+        "dont use": "use",
+        "the docker": "prohibit"
       },
       "version": 2
     }

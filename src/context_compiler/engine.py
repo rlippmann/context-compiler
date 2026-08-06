@@ -390,10 +390,8 @@ def _normalize_item(value: str) -> str:
     normalized = unicode_normalize("NFKC", value)
     normalized = normalized.replace("’", "'").replace("`", "'")
     normalized = normalized.lower()
-    normalized = re.sub(r"\bdont\b", "don't", normalized)
     normalized = re.sub(r"\s+", " ", normalized).strip()
-    normalized = re.sub(r"^(?:a|an|the)\b\s*", "", normalized)
-    return normalized.strip()
+    return normalized
 
 
 def _error(message: str) -> Decision:

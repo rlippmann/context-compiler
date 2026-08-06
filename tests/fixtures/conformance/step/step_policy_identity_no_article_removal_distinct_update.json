@@ -1,12 +1,15 @@
 {
-  "id": "step_use_item_normalization",
+  "id": "step_policy_identity_no_article_removal_distinct_update",
   "kind": "step",
   "initial_state": {
     "premise": null,
     "policies": {},
     "version": 2
   },
-  "input": "use   The Docker",
+  "prelude": [
+    "use docker"
+  ],
+  "input": "prohibit the docker",
   "expected": {
     "decision": {
       "kind": "update",
@@ -15,7 +18,8 @@
     "state": {
       "premise": null,
       "policies": {
-        "the docker": "use"
+        "docker": "use",
+        "the docker": "prohibit"
       },
       "version": 2
     }
