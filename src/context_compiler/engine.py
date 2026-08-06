@@ -369,8 +369,6 @@ def _load_state_obj(raw: object) -> _State:
         normalized_key = _normalize_item(key)
         if normalized_key == "":
             raise ValueError("Invalid state payload.")
-        if _normalize_item(normalized_key) != normalized_key:
-            raise ValueError("Invalid state payload.")
         normalized_policies[normalized_key] = value
 
     return {

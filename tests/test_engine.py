@@ -716,10 +716,20 @@ def test_replace_use_identity_is_noop_update() -> None:
     engine = create_engine()
     engine.step("use docker")
 
-    decision = engine.step("use the docker instead of docker")
+    decision = engine.step("use   Docker  instead of docker")
 
     assert decision["kind"] == DECISION_UPDATE
-    _assert_observations(engine, premise=None, policies={"the docker": "use"})
+    _assert_observations(engine, premise=None, policies={"docker": "use"})
+
+
+def test_replace_use_identity_case_variant_is_noop_update() -> None:
+    engine = create_engine()
+    engine.step("use docker")
+
+    decision = engine.step("use DOCKER instead of docker")
+
+    assert decision["kind"] == DECISION_UPDATE
+    _assert_observations(engine, premise=None, policies={"docker": "use"})
 
 
 def test_replace_use_missing_source_applies_as_use_update() -> None:
