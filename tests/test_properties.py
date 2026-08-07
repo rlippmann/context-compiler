@@ -234,7 +234,7 @@ def test_determinism_same_input_sequence_same_state(inputs: list[str]) -> None:
 
 
 @given(GRAMMAR_RENDER_CASES)
-def test_grammar_helper_render_validate_round_trip_is_stable(
+def test_grammar_helper_render_decompose_round_trip_is_stable(
     case: dict[str, DirectiveKind | dict[str, str]],
 ) -> None:
     kind = case["kind"]
@@ -249,6 +249,7 @@ def test_grammar_helper_render_validate_round_trip_is_stable(
     assert directive is not None
     assert directive.kind is kind
     assert directive.text == rendered
+    assert dict(directive.operands) == operands
     assert decompose_directive(directive.text) == directive
     assert render_directive(kind, **operands) == rendered
 
