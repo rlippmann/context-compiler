@@ -75,15 +75,16 @@ Public grammar surface:
 - `decompose_directive(text)`
 - `render_directive(kind, /, **operands)`
 
-Use this surface for exact canonical validation, canonical directive syntax
-decomposition, or canonical directive string construction only.
+Use this surface for exact canonical directive decomposition and
+classification via `decompose_directive(...)`, shallow syntax-start detection,
+or canonical directive string construction only.
 
 Boundary notes:
 
 - `match_canonical_directive_start(...)` only matches a canonical directive
-  prefix at a position; it does not validate a whole directive
+  prefix at a position; it does not decompose or accept a whole directive
 - `contains_multiple_canonical_directives(...)` detects compound
-  directive-shaped structure only; it is not full validation
+  directive-shaped structure only; it is not full decomposition
 - use `decompose_directive(text)` to determine whether text is a complete
   canonical directive
 - a non-`None` decomposition returns a `CanonicalDirective` with `kind`,
