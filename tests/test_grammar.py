@@ -10,7 +10,6 @@ from context_compiler.grammar import (
     ValidatedDirective,
     contains_multiple_canonical_directives,
     decompose_directive,
-    is_canonical_directive,
     match_canonical_directive_start,
     render_directive,
     validate_directive,
@@ -83,7 +82,6 @@ def test_validate_directive_accepts_each_canonical_family(
 ) -> None:
     validated = validate_directive(text)
     assert validated == ValidatedDirective(text=text, kind=expected_kind)
-    assert is_canonical_directive(text) is True
 
 
 @pytest.mark.parametrize(
@@ -136,7 +134,6 @@ def test_decompose_directive_accepts_each_canonical_family(
 def test_validate_directive_rejects_non_canonical_inputs(text: str) -> None:
     assert validate_directive(text) is None
     assert decompose_directive(text) is None
-    assert is_canonical_directive(text) is False
 
 
 @pytest.mark.parametrize(
@@ -290,7 +287,6 @@ def test_public_grammar_all_includes_semantic_surface() -> None:
         "ValidatedDirective",
         "contains_multiple_canonical_directives",
         "decompose_directive",
-        "is_canonical_directive",
         "match_canonical_directive_start",
         "render_directive",
         "validate_directive",

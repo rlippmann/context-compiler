@@ -9,7 +9,6 @@
       "ValidatedDirective",
       "contains_multiple_canonical_directives",
       "decompose_directive",
-      "is_canonical_directive",
       "match_canonical_directive_start",
       "render_directive",
       "validate_directive"
@@ -87,29 +86,6 @@
             },
             "return_shape": {
               "type": "null"
-            }
-          }
-        ]
-      },
-      "is_canonical_directive": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "text",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        },
-        "shape_probes": [
-          {
-            "kwargs": {
-              "text": "clear state"
-            },
-            "return_shape": {
-              "type": "boolean",
-              "const": true
             }
           }
         ]

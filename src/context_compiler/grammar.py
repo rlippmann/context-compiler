@@ -182,10 +182,11 @@ def _operand_starts_with_token(value: str, token: str) -> bool:
 def match_canonical_directive_start(text: str, start: int) -> int | None:
     """Locate a canonical directive prefix at a given character position.
 
-    This classifies whether canonical directive syntax begins at ``start`` and,
-    when it does, returns the index immediately after the directive keyword
-    prefix. It does not parse operands, validate the full directive payload, or
-    evaluate multi-directive state semantics.
+    This is a shallow syntax-start matcher: it classifies whether canonical
+    directive syntax begins at ``start`` and, when it does, returns the index
+    immediately after the directive keyword prefix. It does not parse operands,
+    validate the full directive payload, or evaluate multi-directive state
+    semantics.
     """
     if start < 0 or start >= len(text):
         return None
@@ -246,10 +247,11 @@ def _match_directive_token(
 def contains_multiple_canonical_directives(text: str) -> bool:
     """Report whether text contains more than one canonical directive start.
 
-    This detects compound directive text by looking for multiple canonical
-    directive prefixes in the same input. It does not parse directive operands,
-    repair malformed text, or determine whether a whole string should be
-    accepted as a single directive.
+    This detects compound directive structure by looking for multiple canonical
+    directive prefixes in the same input. It is not a replacement for full
+    directive validation, and it does not parse directive operands, repair
+    malformed text, or determine whether a whole string should be accepted as a
+    single directive.
     """
     first_start = match_canonical_directive_start(text, 0)
     if first_start is None:
@@ -290,8 +292,10 @@ def decompose_directive(text: str) -> CanonicalDirective | None:
 
     This determines whether ``text`` is a single canonical directive and, when
     it is, returns the directive kind plus canonical operand names with the
-    original operand text preserved. It does not repair input, infer intent, or
-    evaluate directive effects against compiler state.
+    original operand text preserved. Callers can determine whether ``text`` is
+    a complete canonical directive by checking whether this returns a non-`None`
+    result. It does not repair input, infer intent, or evaluate directive
+    effects against compiler state.
     """
     trimmed_text = _trim_ascii_whitespace(text)
     if trimmed_text == "":
@@ -398,24 +402,16 @@ def validate_directive(text: str) -> ValidatedDirective | None:
     """Classify whether text is a canonical directive.
 
     This determines whether ``text`` belongs to one canonical directive family
-    and returns only the normalized semantic kind needed for classification. It
-    does not expose operands, render directives, repair malformed text, or
-    evaluate any state transition.
+    and returns only the normalized semantic kind needed for classification.
+    Callers can determine whether ``text`` is a canonical directive by checking
+    whether this returns a non-`None` result while only receiving
+    classification information. It does not expose operands, render directives,
+    repair malformed text, or evaluate any state transition.
     """
     parsed = decompose_directive(text)
     if parsed is None:
         return None
     return ValidatedDirective(text=parsed.text, kind=parsed.kind)
-
-
-def is_canonical_directive(text: str) -> bool:
-    """Return whether text is exactly one canonical directive.
-
-    This provides boolean directive classification for callers that only need a
-    yes-or-no answer. It does not parse operands, explain rejection reasons, or
-    perform validation beyond canonical grammar recognition.
-    """
-    return validate_directive(text) is not None
 
 
 def render_directive(kind: DirectiveKind, /, **operands: str) -> str:
@@ -466,7 +462,6 @@ __all__ = [
     "ValidatedDirective",
     "contains_multiple_canonical_directives",
     "decompose_directive",
-    "is_canonical_directive",
     "match_canonical_directive_start",
     "render_directive",
     "validate_directive",
