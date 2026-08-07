@@ -87,13 +87,20 @@ Boundary notes:
 - `contains_multiple_canonical_directives(...)` detects compound
   directive-shaped structure only; it is not full validation
 - decomposition exposes canonical syntax only
+- `CanonicalDirective.text` preserves the original accepted input text, so
+  caller casing or formatting may remain visible there
+- `CanonicalDirective.text` is not canonical serialized directive text
 - callers can treat `decompose_directive(...) is not None` as the complete
   canonical-directive check when operand access is needed
 - operands are grammar-level text, not normalized semantic values
+- `ValidatedDirective.text` preserves the accepted input text used for
+  classification
 - callers can treat `validate_directive(...) is not None` as the
   canonical-directive check when only classification is needed
 - validation returns `None` for any non-canonical input
 - decomposition returns `None` for any non-canonical input
+- `render_directive(...)` produces canonical directive text from semantic kind
+  and operands
 - rendering is syntax-only and performs no state interpretation
 - `engine.step(...)` remains the authority for error, state
   transitions, and mutation behavior
@@ -108,6 +115,9 @@ Boundary notes:
 `CanonicalDirective.operands` preserves the grammar-recognized operand text.
 Core does not lowercase operands, collapse internal operand whitespace, or
 convert operand text into engine/domain identifiers at the grammar layer.
+Canonical serialized directive output comes from
+`render_directive(kind, /, **operands)`, not from `CanonicalDirective.text` or
+`ValidatedDirective.text`.
 
 ### `engine.premise`
 

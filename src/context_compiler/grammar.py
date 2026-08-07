@@ -23,7 +23,12 @@ class DirectiveKind(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class ValidatedDirective:
-    """Classify text as one canonical directive kind without exposing operands."""
+    """Classify accepted input text as one canonical directive kind.
+
+    ``text`` preserves the accepted input text used for classification rather
+    than a canonical rendered representation, so caller casing and formatting
+    may remain visible here.
+    """
 
     text: str
     kind: DirectiveKind
@@ -31,7 +36,13 @@ class ValidatedDirective:
 
 @dataclass(frozen=True, slots=True)
 class CanonicalDirective:
-    """Represent one parsed canonical directive and its named operands."""
+    """Represent one parsed canonical directive and its named operands.
+
+    ``text`` preserves the original accepted input text. It may retain caller
+    formatting or casing and is not canonical serialized directive text; use
+    :func:`render_directive` to produce canonical directive text from semantic
+    kind and operands.
+    """
 
     text: str
     kind: DirectiveKind
@@ -415,7 +426,7 @@ def validate_directive(text: str) -> ValidatedDirective | None:
 
 
 def render_directive(kind: DirectiveKind, /, **operands: str) -> str:
-    """Render canonical directive text from a semantic kind and operands.
+    """Produce canonical directive text from a semantic kind and operands.
 
     This determines the exact canonical spelling for an existing grammar
     capability and rejects operand combinations that would not round-trip as the
