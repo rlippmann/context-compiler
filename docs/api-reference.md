@@ -71,9 +71,10 @@ Public grammar surface:
 - `CanonicalDirective`
 - `DirectiveKind`
 - `ValidatedDirective`
+- `match_canonical_directive_start(text, start)`
+- `contains_multiple_canonical_directives(text)`
 - `decompose_directive(text)`
 - `validate_directive(text)`
-- `is_canonical_directive(text)`
 - `render_directive(kind, /, **operands)`
 
 Use this surface for exact canonical validation, canonical directive syntax
@@ -81,8 +82,16 @@ decomposition, or canonical directive string construction only.
 
 Boundary notes:
 
+- `match_canonical_directive_start(...)` only matches a canonical directive
+  prefix at a position; it does not validate a whole directive
+- `contains_multiple_canonical_directives(...)` detects compound
+  directive-shaped structure only; it is not full validation
 - decomposition exposes canonical syntax only
+- callers can treat `decompose_directive(...) is not None` as the complete
+  canonical-directive check when operand access is needed
 - operands are grammar-level text, not normalized semantic values
+- callers can treat `validate_directive(...) is not None` as the
+  canonical-directive check when only classification is needed
 - validation returns `None` for any non-canonical input
 - decomposition returns `None` for any non-canonical input
 - rendering is syntax-only and performs no state interpretation

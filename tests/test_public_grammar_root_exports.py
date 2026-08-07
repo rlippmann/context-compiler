@@ -7,7 +7,6 @@ def test_root_does_not_export_public_grammar_surface() -> None:
         "DirectiveKind",
         "validate_directive",
         "render_directive",
-        "is_canonical_directive",
     ):
         assert name not in context_compiler.__all__
         assert not hasattr(context_compiler, name)
@@ -19,7 +18,6 @@ def test_grammar_submodule_preserves_public_grammar_surface() -> None:
     assert grammar_module.decompose_directive is not None
     assert grammar_module.validate_directive is not None
     assert grammar_module.render_directive is not None
-    assert grammar_module.is_canonical_directive is not None
 
 
 def test_root_does_not_export_private_grammar_implementation() -> None:
