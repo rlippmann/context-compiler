@@ -22,19 +22,6 @@ class DirectiveKind(StrEnum):
 
 
 @dataclass(frozen=True, slots=True)
-class ValidatedDirective:
-    """Classify accepted input text as one canonical directive kind.
-
-    ``text`` preserves the accepted input text used for classification rather
-    than a canonical rendered representation, so caller casing and formatting
-    may remain visible here.
-    """
-
-    text: str
-    kind: DirectiveKind
-
-
-@dataclass(frozen=True, slots=True)
 class CanonicalDirective:
     """Represent one parsed canonical directive and its named operands.
 
@@ -409,22 +396,6 @@ def decompose_directive(text: str) -> CanonicalDirective | None:
     return None
 
 
-def validate_directive(text: str) -> ValidatedDirective | None:
-    """Classify whether text is a canonical directive.
-
-    This determines whether ``text`` belongs to one canonical directive family
-    and returns only the normalized semantic kind needed for classification.
-    Callers can determine whether ``text`` is a canonical directive by checking
-    whether this returns a non-`None` result while only receiving
-    classification information. It does not expose operands, render directives,
-    repair malformed text, or evaluate any state transition.
-    """
-    parsed = decompose_directive(text)
-    if parsed is None:
-        return None
-    return ValidatedDirective(text=parsed.text, kind=parsed.kind)
-
-
 def render_directive(kind: DirectiveKind, /, **operands: str) -> str:
     """Produce canonical directive text from a semantic kind and operands.
 
@@ -461,8 +432,8 @@ def render_directive(kind: DirectiveKind, /, **operands: str) -> str:
 
     operand_view = MappingProxyType(normalized_operands)
     rendered = spec.renderer(operand_view)
-    validated = validate_directive(rendered)
-    if validated is None or validated.kind is not normalized_kind:
+    decomposed = decompose_directive(rendered)
+    if decomposed is None or decomposed.kind is not normalized_kind:
         raise ValueError(f"Operands do not produce a canonical {normalized_kind.value} directive.")
     return rendered
 
@@ -470,10 +441,8 @@ def render_directive(kind: DirectiveKind, /, **operands: str) -> str:
 __all__ = [
     "CanonicalDirective",
     "DirectiveKind",
-    "ValidatedDirective",
     "contains_multiple_canonical_directives",
     "decompose_directive",
     "match_canonical_directive_start",
     "render_directive",
-    "validate_directive",
 ]

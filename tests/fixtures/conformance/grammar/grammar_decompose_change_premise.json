@@ -1,0 +1,17 @@
+{
+  "id": "grammar_decompose_change_premise",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "change premise to concise replies"
+  },
+  "expected": {
+    "directive": {
+      "text": "change premise to concise replies",
+      "kind": "change_premise",
+      "operands": {
+        "value": "concise replies"
+      }
+    }
+  }
+}

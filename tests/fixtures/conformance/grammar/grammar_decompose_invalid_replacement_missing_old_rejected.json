@@ -1,0 +1,11 @@
+{
+  "id": "grammar_decompose_invalid_replacement_missing_old_rejected",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "use podman instead of"
+  },
+  "expected": {
+    "directive": null
+  }
+}

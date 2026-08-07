@@ -64,10 +64,6 @@ def assert_shape(
         assert actual_members == sorted(expected_members.keys())
         return
 
-    if "kind" in shape and shape["kind"] == "validated_directive":
-        assert value == grammar.validate_directive(shape["text"])
-        return
-
     if "kind" in shape and shape["kind"] == "canonical_directive":
         assert value == grammar.decompose_directive(shape["text"])
         return
@@ -369,12 +365,6 @@ def _validate_shape_spec(shape: object, label: str) -> None:
         kind = shape["kind"]
         if kind == "engine_instance":
             _assert_closed_keys(shape, {"kind"}, label)
-            return
-        if kind == "validated_directive":
-            _assert_closed_keys(shape, {"kind", "text", "directive_kind"}, label)
-            _require_fields(shape, {"kind", "text", "directive_kind"}, label)
-            _assert_type(shape["text"], str, f"{label}.text")
-            _assert_type(shape["directive_kind"], str, f"{label}.directive_kind")
             return
         if kind == "canonical_directive":
             _assert_closed_keys(shape, {"kind", "text", "directive_kind", "operands"}, label)

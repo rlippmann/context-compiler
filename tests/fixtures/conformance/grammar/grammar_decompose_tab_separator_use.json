@@ -1,0 +1,17 @@
+{
+  "id": "grammar_decompose_tab_separator_use",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "use\tdocker"
+  },
+  "expected": {
+    "directive": {
+      "text": "use\tdocker",
+      "kind": "use_item",
+      "operands": {
+        "item": "docker"
+      }
+    }
+  }
+}

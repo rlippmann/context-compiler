@@ -1,0 +1,11 @@
+{
+  "id": "grammar_decompose_invalid_set_premise_to_rejected",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "set premise to concise"
+  },
+  "expected": {
+    "directive": null
+  }
+}

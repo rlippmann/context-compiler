@@ -70,11 +70,9 @@ Public grammar surface:
 
 - `CanonicalDirective`
 - `DirectiveKind`
-- `ValidatedDirective`
 - `match_canonical_directive_start(text, start)`
 - `contains_multiple_canonical_directives(text)`
 - `decompose_directive(text)`
-- `validate_directive(text)`
 - `render_directive(kind, /, **operands)`
 
 Use this surface for exact canonical validation, canonical directive syntax
@@ -86,18 +84,15 @@ Boundary notes:
   prefix at a position; it does not validate a whole directive
 - `contains_multiple_canonical_directives(...)` detects compound
   directive-shaped structure only; it is not full validation
-- decomposition exposes canonical syntax only
+- use `decompose_directive(text)` to determine whether text is a complete
+  canonical directive
+- a non-`None` decomposition returns a `CanonicalDirective` with `kind`,
+  `operands`, and preserved accepted `text`
 - `CanonicalDirective.text` preserves the original accepted input text, so
   caller casing or formatting may remain visible there
 - `CanonicalDirective.text` is not canonical serialized directive text
-- callers can treat `decompose_directive(...) is not None` as the complete
-  canonical-directive check when operand access is needed
+- `match_canonical_directive_start(...)` is only for shallow syntax detection
 - operands are grammar-level text, not normalized semantic values
-- `ValidatedDirective.text` preserves the accepted input text used for
-  classification
-- callers can treat `validate_directive(...) is not None` as the
-  canonical-directive check when only classification is needed
-- validation returns `None` for any non-canonical input
 - decomposition returns `None` for any non-canonical input
 - `render_directive(...)` produces canonical directive text from semantic kind
   and operands
@@ -116,8 +111,7 @@ Boundary notes:
 Core does not lowercase operands, collapse internal operand whitespace, or
 convert operand text into engine/domain identifiers at the grammar layer.
 Canonical serialized directive output comes from
-`render_directive(kind, /, **operands)`, not from `CanonicalDirective.text` or
-`ValidatedDirective.text`.
+`render_directive(kind, /, **operands)`, not from `CanonicalDirective.text`.
 
 ### `engine.premise`
 

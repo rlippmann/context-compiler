@@ -1,0 +1,11 @@
+{
+  "id": "grammar_decompose_invalid_missing_use_operand_rejected",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "use"
+  },
+  "expected": {
+    "directive": null
+  }
+}

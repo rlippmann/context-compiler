@@ -8,7 +8,6 @@ from context_compiler.grammar import (
     DirectiveKind,
     decompose_directive,
     render_directive,
-    validate_directive,
 )
 
 _STEP_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "conformance" / "step"
@@ -128,21 +127,17 @@ def _validate_grammar_fixture(fixture: dict[str, object], fixture_id: object) ->
     expected = fixture["expected"]
     assert isinstance(expected, dict), fixture_id
     fn = action["fn"]
-    assert fn in {"decompose_directive", "validate_directive", "render_directive"}, fixture_id
+    assert fn in {"decompose_directive", "render_directive"}, fixture_id
 
     if fn == "decompose_directive":
         _assert_allowed_keys(action, {"fn", "text"}, fixture_id, "action")
         assert isinstance(action["text"], str), fixture_id
         _assert_allowed_keys(expected, {"directive"}, fixture_id, "expected")
-    elif fn == "validate_directive":
-        _assert_allowed_keys(action, {"fn", "text"}, fixture_id, "action")
-        assert isinstance(action["text"], str), fixture_id
-        _assert_allowed_keys(expected, {"validated"}, fixture_id, "expected")
     else:
         _assert_allowed_keys(action, {"fn", "kind", "operands"}, fixture_id, "action")
         assert isinstance(action["kind"], str), fixture_id
         assert isinstance(action["operands"], dict), fixture_id
-        _assert_allowed_keys(expected, {"text", "validated_kind"}, fixture_id, "expected")
+        _assert_allowed_keys(expected, {"text", "directive_kind"}, fixture_id, "expected")
 
 
 def _apply_prelude(engine: object, prelude: object) -> None:
@@ -246,21 +241,12 @@ def test_grammar_fixtures() -> None:
                 assert directive.text == expected_directive["text"], fixture_id
                 assert directive.kind.value == expected_directive["kind"], fixture_id
                 assert dict(directive.operands) == expected_directive["operands"], fixture_id
-        elif fn == "validate_directive":
-            validated = validate_directive(action["text"])
-            expected_validated = expected["validated"]
-            if expected_validated is None:
-                assert validated is None, fixture_id
-            else:
-                assert validated is not None, fixture_id
-                assert validated.text == expected_validated["text"], fixture_id
-                assert validated.kind.value == expected_validated["kind"], fixture_id
         else:
             rendered = render_directive(DirectiveKind(action["kind"]), **action["operands"])
             assert rendered == expected["text"], fixture_id
-            validated = validate_directive(rendered)
-            assert validated is not None, fixture_id
-            assert validated.kind.value == expected["validated_kind"], fixture_id
+            directive = decompose_directive(rendered)
+            assert directive is not None, fixture_id
+            assert directive.kind.value == expected["directive_kind"], fixture_id
 
 
 def test_mutation_isolation_fixtures() -> None:

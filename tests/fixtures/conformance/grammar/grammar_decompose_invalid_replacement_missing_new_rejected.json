@@ -1,0 +1,11 @@
+{
+  "id": "grammar_decompose_invalid_replacement_missing_new_rejected",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "use instead of docker"
+  },
+  "expected": {
+    "directive": null
+  }
+}

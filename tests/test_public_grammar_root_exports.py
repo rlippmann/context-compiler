@@ -5,7 +5,6 @@ import context_compiler.grammar as grammar_module
 def test_root_does_not_export_public_grammar_surface() -> None:
     for name in (
         "DirectiveKind",
-        "validate_directive",
         "render_directive",
     ):
         assert name not in context_compiler.__all__
@@ -16,7 +15,6 @@ def test_grammar_submodule_preserves_public_grammar_surface() -> None:
     assert grammar_module.CanonicalDirective is not None
     assert grammar_module.DirectiveKind is not None
     assert grammar_module.decompose_directive is not None
-    assert grammar_module.validate_directive is not None
     assert grammar_module.render_directive is not None
 
 
