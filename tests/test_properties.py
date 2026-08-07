@@ -9,9 +9,9 @@ from hypothesis import strategies as st
 from context_compiler import DECISION_ERROR, DECISION_NO_DIRECTIVE, DECISION_UPDATE, create_engine
 from context_compiler.grammar import (
     DirectiveKind,
+    decompose_directive,
     match_canonical_directive_start,
     render_directive,
-    validate_directive,
 )
 
 
@@ -90,11 +90,11 @@ VALID_NONEMPTY_ITEM_TEXT = NORMALIZATION_SENSITIVE_TEXT.filter(
 )
 
 VALID_USE_ITEM_TEXT = VALID_NONEMPTY_ITEM_TEXT.filter(
-    lambda value: validate_directive(f"use {value}") is not None
+    lambda value: decompose_directive(f"use {value}") is not None
 )
 
 VALID_PROHIBIT_ITEM_TEXT = VALID_NONEMPTY_ITEM_TEXT.filter(
-    lambda value: validate_directive(f"prohibit {value}") is not None
+    lambda value: decompose_directive(f"prohibit {value}") is not None
 )
 
 VALID_PREMISE_TEXT = NORMALIZATION_SENSITIVE_TEXT.filter(
@@ -106,17 +106,17 @@ CANONICAL_GRAMMAR_PREMISE_TEXT = NORMALIZATION_SENSITIVE_TEXT.map(
 ).filter(
     lambda value: (
         value != ""
-        and validate_directive(f"set premise {value}") is not None
-        and validate_directive(f"change premise to {value}") is not None
+        and decompose_directive(f"set premise {value}") is not None
+        and decompose_directive(f"change premise to {value}") is not None
     )
 )
 
 CANONICAL_GRAMMAR_ITEM_TEXT = NORMALIZATION_SENSITIVE_TEXT.map(_normalize_item_like_engine).filter(
     lambda value: (
         value != ""
-        and validate_directive(f"use {value}") is not None
-        and validate_directive(f"prohibit {value}") is not None
-        and validate_directive(f"remove policy {value}") is not None
+        and decompose_directive(f"use {value}") is not None
+        and decompose_directive(f"prohibit {value}") is not None
+        and decompose_directive(f"remove policy {value}") is not None
     )
 )
 
@@ -166,7 +166,7 @@ DETERMINISTIC_REPLACEMENT_CASES = (
     .filter(
         lambda args: (
             _normalize_item_like_engine(args[2]) != _normalize_item_like_engine(args[3])
-            and validate_directive(f"use {args[2]} instead of {args[3]}") is not None
+            and decompose_directive(f"use {args[2]} instead of {args[3]}") is not None
             and not any(
                 key in {_normalize_item_like_engine(args[2]), _normalize_item_like_engine(args[3])}
                 and value == "prohibit"
@@ -244,12 +244,12 @@ def test_grammar_helper_render_validate_round_trip_is_stable(
     assert isinstance(operands, dict)
 
     rendered = render_directive(kind, **operands)
-    validated = validate_directive(rendered)
+    directive = decompose_directive(rendered)
 
-    assert validated is not None
-    assert validated.kind is kind
-    assert validated.text == rendered
-    assert validate_directive(validated.text) == validated
+    assert directive is not None
+    assert directive.kind is kind
+    assert directive.text == rendered
+    assert decompose_directive(directive.text) == directive
     assert render_directive(kind, **operands) == rendered
 
 
@@ -260,7 +260,7 @@ def test_idempotent_use_item_is_update_and_stable_state(item: str) -> None:
     assume(not item.endswith(" instead of"))
     assume(_normalize_item_like_engine(item) != "")
     assume(not _contains_canonical_start_fragment(item))
-    assume(validate_directive(f"use {item}") is not None)
+    assume(decompose_directive(f"use {item}") is not None)
     engine = create_engine()
     d1 = engine.step(f"use {item}")
     d2 = engine.step(f"use {item}")
@@ -288,7 +288,7 @@ def test_use_item_with_whitespace_only_payload_remains_no_directive(item: str) -
 def test_idempotent_prohibit_item_is_update_and_stable_state(item: str) -> None:
     assume(_normalize_item_like_engine(item) != "")
     assume(not _contains_canonical_start_fragment(item))
-    assume(validate_directive(f"prohibit {item}") is not None)
+    assume(decompose_directive(f"prohibit {item}") is not None)
     engine = create_engine()
     d1 = engine.step(f"prohibit {item}")
     d2 = engine.step(f"prohibit {item}")
@@ -338,8 +338,8 @@ def test_no_directive_sequence_preserves_state_and_decision_kind(inputs: list[st
 @given(st.text(min_size=1, max_size=30))
 def test_contradiction_use_after_prohibit_always_clarifies(item: str) -> None:
     assume(not _contains_canonical_start_fragment(item))
-    assume(validate_directive(f"prohibit {item}") is not None)
-    assume(validate_directive(f"use {item}") is not None)
+    assume(decompose_directive(f"prohibit {item}") is not None)
+    assume(decompose_directive(f"use {item}") is not None)
     engine = create_engine()
     engine.step(f"prohibit {item}")
     before = _observations(engine)
@@ -355,8 +355,8 @@ def test_contradiction_prohibit_after_use_always_clarifies(item: str) -> None:
     assume(not item.startswith("instead of "))
     assume(not item.endswith(" instead of"))
     assume(not _contains_canonical_start_fragment(item))
-    assume(validate_directive(f"use {item}") is not None)
-    assume(validate_directive(f"prohibit {item}") is not None)
+    assume(decompose_directive(f"use {item}") is not None)
+    assume(decompose_directive(f"prohibit {item}") is not None)
     engine = create_engine()
     engine.step(f"use {item}")
     before = _observations(engine)

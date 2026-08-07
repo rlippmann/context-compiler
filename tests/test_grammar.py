@@ -7,12 +7,10 @@ import context_compiler.grammar as grammar_module
 from context_compiler.grammar import (
     CanonicalDirective,
     DirectiveKind,
-    ValidatedDirective,
     contains_multiple_canonical_directives,
     decompose_directive,
     match_canonical_directive_start,
     render_directive,
-    validate_directive,
 )
 
 
@@ -42,16 +40,6 @@ def test_directive_kind_members_and_values() -> None:
     assert DirectiveKind("set_premise") is DirectiveKind.SET_PREMISE
 
 
-def test_validated_directive_is_frozen_and_slotted() -> None:
-    validated = ValidatedDirective(
-        text="set premise concise replies",
-        kind=DirectiveKind.SET_PREMISE,
-    )
-    assert validated.__slots__ == ("text", "kind")
-    with pytest.raises(FrozenInstanceError):
-        validated.text = "change premise to concise replies"  # type: ignore[misc]
-
-
 def test_canonical_directive_is_frozen_and_slotted() -> None:
     directive = CanonicalDirective(
         text="use docker",
@@ -61,27 +49,6 @@ def test_canonical_directive_is_frozen_and_slotted() -> None:
     assert directive.__slots__ == ("text", "kind", "operands")
     with pytest.raises(FrozenInstanceError):
         directive.kind = DirectiveKind.PROHIBIT_ITEM  # type: ignore[misc]
-
-
-@pytest.mark.parametrize(
-    ("text", "expected_kind"),
-    [
-        ("set premise concise replies", DirectiveKind.SET_PREMISE),
-        ("change premise to formal tone", DirectiveKind.CHANGE_PREMISE),
-        ("use docker", DirectiveKind.USE_ITEM),
-        ("prohibit peanuts", DirectiveKind.PROHIBIT_ITEM),
-        ("remove policy docker", DirectiveKind.REMOVE_POLICY),
-        ("use podman instead of docker", DirectiveKind.REPLACE_USE),
-        ("clear premise", DirectiveKind.CLEAR_PREMISE),
-        ("reset policies", DirectiveKind.RESET_POLICIES),
-        ("clear state", DirectiveKind.CLEAR_STATE),
-    ],
-)
-def test_validate_directive_accepts_each_canonical_family(
-    text: str, expected_kind: DirectiveKind
-) -> None:
-    validated = validate_directive(text)
-    assert validated == ValidatedDirective(text=text, kind=expected_kind)
 
 
 @pytest.mark.parametrize(
@@ -131,24 +98,8 @@ def test_decompose_directive_accepts_each_canonical_family(
         '"use docker and prohibit peanuts"',
     ],
 )
-def test_validate_directive_rejects_non_canonical_inputs(text: str) -> None:
-    assert validate_directive(text) is None
+def test_decompose_directive_rejects_non_canonical_inputs(text: str) -> None:
     assert decompose_directive(text) is None
-
-
-@pytest.mark.parametrize(
-    ("text", "expected_kind"),
-    [
-        (" set premise concise", DirectiveKind.SET_PREMISE),
-        ("Use docker", DirectiveKind.USE_ITEM),
-        ("use\tdocker", DirectiveKind.USE_ITEM),
-    ],
-)
-def test_validate_directive_accepts_lexically_normalized_canonical_input(
-    text: str, expected_kind: DirectiveKind
-) -> None:
-    validated = validate_directive(text)
-    assert validated == ValidatedDirective(text=text, kind=expected_kind)
 
 
 @pytest.mark.parametrize(
@@ -196,9 +147,9 @@ def test_render_directive_outputs_exact_canonical_syntax(
 ) -> None:
     rendered = render_directive(kind, **operands)
     assert rendered == expected
-    validated = validate_directive(rendered)
-    assert validated is not None
-    assert validated.kind is kind
+    directive = decompose_directive(rendered)
+    assert directive is not None
+    assert directive.kind is kind
 
 
 @pytest.mark.parametrize(
@@ -284,18 +235,16 @@ def test_public_grammar_all_includes_semantic_surface() -> None:
     assert grammar_module.__all__ == [
         "CanonicalDirective",
         "DirectiveKind",
-        "ValidatedDirective",
         "contains_multiple_canonical_directives",
         "decompose_directive",
         "match_canonical_directive_start",
         "render_directive",
-        "validate_directive",
     ]
 
 
-def test_validate_directive_rejects_near_miss_without_required_delimiter() -> None:
-    assert validate_directive("clear statex") is None
-    assert validate_directive("usex docker") is None
+def test_decompose_directive_rejects_near_miss_without_required_delimiter() -> None:
+    assert decompose_directive("clear statex") is None
+    assert decompose_directive("usex docker") is None
 
 
 def test_render_directive_rejects_non_string_operands() -> None:
@@ -342,12 +291,13 @@ def test_decompose_directive_returns_canonical_operands_for_use_item() -> None:
     assert parsed.operands == {"item": "docker"}
 
 
-def test_validate_directive_is_projection_of_decomposition() -> None:
+def test_decompose_directive_returns_text_kind_and_operands_without_projection_layer() -> None:
     decomposed = decompose_directive("use docker")
-    validated = validate_directive("use docker")
 
     assert decomposed is not None
-    assert validated == ValidatedDirective(text=decomposed.text, kind=decomposed.kind)
+    assert decomposed.text == "use docker"
+    assert decomposed.kind is DirectiveKind.USE_ITEM
+    assert decomposed.operands == {"item": "docker"}
 
 
 def test_internal_match_directive_token_rejects_truncated_and_non_whitespace_separator() -> None:
@@ -423,14 +373,14 @@ class _FakePattern:
         ("_REMOVE_POLICY_RE", "remove policy docker"),
     ],
 )
-def test_validate_directive_defensively_rejects_when_branch_regex_match_is_missing(
+def test_decompose_directive_defensively_rejects_when_branch_regex_match_is_missing(
     monkeypatch: pytest.MonkeyPatch,
     pattern_name: str,
     text: str,
 ) -> None:
     monkeypatch.setattr(grammar_module, pattern_name, _FakePattern(None))
 
-    assert validate_directive(text) is None
+    assert decompose_directive(text) is None
 
 
 @pytest.mark.parametrize(
@@ -441,7 +391,7 @@ def test_validate_directive_defensively_rejects_when_branch_regex_match_is_missi
         ("_REMOVE_POLICY_RE", "remove policy docker", {"item": " \t "}),
     ],
 )
-def test_validate_directive_defensively_rejects_whitespace_only_operands_after_match(
+def test_decompose_directive_defensively_rejects_whitespace_only_operands_after_match(
     monkeypatch: pytest.MonkeyPatch,
     pattern_name: str,
     text: str,
@@ -449,4 +399,4 @@ def test_validate_directive_defensively_rejects_whitespace_only_operands_after_m
 ) -> None:
     monkeypatch.setattr(grammar_module, pattern_name, _FakePattern(_FakeMatch(groups)))
 
-    assert validate_directive(text) is None
+    assert decompose_directive(text) is None

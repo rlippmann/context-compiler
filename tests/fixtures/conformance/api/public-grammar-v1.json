@@ -6,21 +6,16 @@
     "names": [
       "CanonicalDirective",
       "DirectiveKind",
-      "ValidatedDirective",
       "contains_multiple_canonical_directives",
       "decompose_directive",
       "match_canonical_directive_start",
-      "render_directive",
-      "validate_directive"
+      "render_directive"
     ],
     "members": {
       "CanonicalDirective": {
         "kind": "class"
       },
       "DirectiveKind": {
-        "kind": "class"
-      },
-      "ValidatedDirective": {
         "kind": "class"
       },
       "contains_multiple_canonical_directives": {
@@ -152,38 +147,6 @@
             "return_shape": {
               "type": "string",
               "const": "clear state"
-            }
-          }
-        ]
-      },
-      "validate_directive": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "text",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        },
-        "shape_probes": [
-          {
-            "kwargs": {
-              "text": "use docker"
-            },
-            "return_shape": {
-              "kind": "validated_directive",
-              "text": "use docker",
-              "directive_kind": "use_item"
-            }
-          },
-          {
-            "kwargs": {
-              "text": "please use docker"
-            },
-            "return_shape": {
-              "type": "null"
             }
           }
         ]
