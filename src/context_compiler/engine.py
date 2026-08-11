@@ -55,12 +55,6 @@ class _EvaluatedTransition(TypedDict):
 _NO_DIRECTIVE: Decision = {"kind": DecisionKind.NO_DIRECTIVE, "message": None}
 
 
-def create_engine() -> "Engine":
-    """Create an engine initialized to the empty authoritative state."""
-
-    return Engine()
-
-
 class Engine:
     """Own the authoritative state and apply one directive transition at a time."""
 

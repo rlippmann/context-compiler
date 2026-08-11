@@ -53,7 +53,7 @@ def test_api_contract_fixture_matches_python_public_surface() -> None:
             result = exported(*args, **kwargs)
             assert_shape(result, probe["return_shape"], contract)
 
-    engine = context_compiler.create_engine()
+    engine = context_compiler.Engine()
     engine_contract = contract["engine"]["public_members"]
     expected_members = engine_contract["members"]
 

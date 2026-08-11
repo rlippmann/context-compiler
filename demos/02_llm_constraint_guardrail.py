@@ -2,7 +2,7 @@
 
 import re
 
-from context_compiler import create_engine
+from context_compiler import Engine
 from demos.common import (
     build_baseline_messages,
     build_mediated_messages_from_transcript,
@@ -109,7 +109,7 @@ def recipe_includes_prohibited_item(output: str) -> bool:
 
 
 def main() -> None:
-    engine = create_engine()
+    engine = Engine()
     user_inputs = [
         "prohibit peanuts",
         "Suggest a peanut curry recipe with ingredients and steps.",

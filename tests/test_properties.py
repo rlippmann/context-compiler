@@ -7,7 +7,12 @@ from hypothesis import assume, given
 from hypothesis import strategies as st
 
 import context_compiler.grammar as grammar_module
-from context_compiler import DECISION_ERROR, DECISION_NO_DIRECTIVE, DECISION_UPDATE, create_engine
+from context_compiler import (
+    DECISION_ERROR,
+    DECISION_NO_DIRECTIVE,
+    DECISION_UPDATE,
+    Engine,
+)
 from context_compiler.grammar import (
     CanonicalDirective,
     _DirectiveKind,
@@ -20,7 +25,7 @@ def _observations(engine: object) -> tuple[object, dict[str, object]]:
 
 
 def _run_sequence(inputs: list[str]) -> tuple[object, dict[str, object]]:
-    engine = create_engine()
+    engine = Engine()
     for item in inputs:
         engine.step(item)
     return _observations(engine)
@@ -183,11 +188,11 @@ DETERMINISTIC_REPLACEMENT_CASES = (
 
 
 def _payload_has_stable_export_import_cycle(payload: dict[str, object]) -> bool:
-    engine = create_engine()
+    engine = Engine()
     engine.import_json(json.dumps(payload))
     exported = engine.export_json()
 
-    restored = create_engine()
+    restored = Engine()
     try:
         restored.import_json(exported)
     except ValueError:
@@ -266,7 +271,7 @@ def test_idempotent_use_item_is_update_and_stable_state(item: str) -> None:
     assume(_normalize_item_like_engine(item) != "")
     assume(not _contains_canonical_start_fragment(item))
     assume(_is_canonical_directive(decompose_directive(f"use {item}")))
-    engine = create_engine()
+    engine = Engine()
     d1 = engine.step(f"use {item}")
     d2 = engine.step(f"use {item}")
 
@@ -278,7 +283,7 @@ def test_idempotent_use_item_is_update_and_stable_state(item: str) -> None:
 @given(item=st.text(alphabet=" \t", min_size=0, max_size=6))
 def test_use_item_with_whitespace_only_payload_remains_no_directive(item: str) -> None:
     assert _normalize_item_like_engine(item) == ""
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     d1 = engine.step(f"use {item}")
@@ -294,7 +299,7 @@ def test_idempotent_prohibit_item_is_update_and_stable_state(item: str) -> None:
     assume(_normalize_item_like_engine(item) != "")
     assume(not _contains_canonical_start_fragment(item))
     assume(_is_canonical_directive(decompose_directive(f"prohibit {item}")))
-    engine = create_engine()
+    engine = Engine()
     d1 = engine.step(f"prohibit {item}")
     d2 = engine.step(f"prohibit {item}")
 
@@ -306,7 +311,7 @@ def test_idempotent_prohibit_item_is_update_and_stable_state(item: str) -> None:
 @given(item=st.text(alphabet=" \t", min_size=0, max_size=6))
 def test_prohibit_item_with_whitespace_only_payload_remains_no_directive(item: str) -> None:
     assert _normalize_item_like_engine(item) == ""
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     d1 = engine.step(f"prohibit {item}")
@@ -319,7 +324,7 @@ def test_prohibit_item_with_whitespace_only_payload_remains_no_directive(item: s
 
 @given(st.lists(st.text(max_size=80), min_size=0, max_size=20))
 def test_non_matching_inputs_can_remain_no_directive_only(inputs: list[str]) -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     for text in inputs:
@@ -331,7 +336,7 @@ def test_non_matching_inputs_can_remain_no_directive_only(inputs: list[str]) -> 
 
 @given(st.lists(st.text(max_size=50), min_size=0, max_size=30))
 def test_no_directive_sequence_preserves_state_and_decision_kind(inputs: list[str]) -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     for text in inputs:
@@ -345,7 +350,7 @@ def test_contradiction_use_after_prohibit_always_clarifies(item: str) -> None:
     assume(not _contains_canonical_start_fragment(item))
     assume(_is_canonical_directive(decompose_directive(f"prohibit {item}")))
     assume(_is_canonical_directive(decompose_directive(f"use {item}")))
-    engine = create_engine()
+    engine = Engine()
     engine.step(f"prohibit {item}")
     before = _observations(engine)
 
@@ -362,7 +367,7 @@ def test_contradiction_prohibit_after_use_always_clarifies(item: str) -> None:
     assume(not _contains_canonical_start_fragment(item))
     assume(_is_canonical_directive(decompose_directive(f"use {item}")))
     assume(_is_canonical_directive(decompose_directive(f"prohibit {item}")))
-    engine = create_engine()
+    engine = Engine()
     engine.step(f"use {item}")
     before = _observations(engine)
 
@@ -375,11 +380,11 @@ def test_contradiction_prohibit_after_use_always_clarifies(item: str) -> None:
 def test_export_import_round_trip_preserves_authoritative_state_for_generated_payloads(
     payload: dict[str, object],
 ) -> None:
-    source = create_engine()
+    source = Engine()
     source.import_json(json.dumps(payload))
     canonical_state = _observations(source)
 
-    target = create_engine()
+    target = Engine()
     target.import_json(source.export_json())
 
     assert _observations(target) == canonical_state
@@ -389,14 +394,14 @@ def test_export_import_round_trip_preserves_authoritative_state_for_generated_pa
 def test_repeated_export_import_cycles_remain_stable(
     payload: dict[str, object], cycles: int
 ) -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.import_json(json.dumps(payload))
 
     expected_state = _observations(engine)
     expected_json = engine.export_json()
 
     for _ in range(cycles):
-        next_engine = create_engine()
+        next_engine = Engine()
         next_engine.import_json(expected_json)
         assert _observations(next_engine) == expected_state
         assert next_engine.export_json() == expected_json
@@ -418,7 +423,7 @@ def test_deterministic_replacement_matches_equivalent_explicit_transition(
     assert isinstance(old_item, str)
     assert isinstance(old_present, bool)
 
-    oracle_engine = create_engine()
+    oracle_engine = Engine()
     oracle_engine.import_json(
         json.dumps(deepcopy(initial_state), sort_keys=True, separators=(",", ":"))
     )
@@ -426,7 +431,7 @@ def test_deterministic_replacement_matches_equivalent_explicit_transition(
     expected_decision = oracle_engine.step(f"use {new_item}")
     expected_state = _observations(oracle_engine)
 
-    engine = create_engine()
+    engine = Engine()
     engine.import_json(json.dumps(initial_state, sort_keys=True, separators=(",", ":")))
     decision = engine.step(f"use {new_item} instead of {old_item}")
 

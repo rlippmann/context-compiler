@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 
 from context_compiler import (
-    create_engine,
+    Engine,
     is_no_directive,
     is_update,
 )
@@ -43,7 +43,7 @@ def _is_initial_authoritative_state(*, premise: str | None, policies: Mapping[st
 
 
 def main() -> None:
-    engine = create_engine()
+    engine = Engine()
     user_inputs = [TURN_1, TURN_2, TURN_3]
     print_user_inputs(user_inputs)
 

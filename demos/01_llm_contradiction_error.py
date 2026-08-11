@@ -1,6 +1,9 @@
 """Demo 1: compiler blocks contradictory directives before model call."""
 
-from context_compiler import create_engine, is_error
+from context_compiler import (
+    Engine,
+    is_error,
+)
 from demos.common import (
     build_baseline_messages,
     build_mediated_messages_from_transcript,
@@ -22,7 +25,7 @@ from demos.llm_client import complete_messages
 
 
 def main() -> None:
-    engine = create_engine()
+    engine = Engine()
     user_inputs = ["prohibit peanuts", "use peanuts"]
     print_user_inputs(user_inputs)
 

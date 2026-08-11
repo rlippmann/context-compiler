@@ -8,7 +8,11 @@ from typing import TextIO
 import pytest
 
 import context_compiler.repl as repl_module
-from context_compiler import DECISION_UPDATE, __version__, create_engine
+from context_compiler import (
+    DECISION_UPDATE,
+    Engine,
+    __version__,
+)
 from context_compiler.repl import run_repl
 
 pytestmark = pytest.mark.contract
@@ -203,7 +207,7 @@ def test_main_unknown_flag_prints_error_hint_and_exits_nonzero(
 
 
 def test_cli_initial_state_json_preload_works() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("set premise concise")
     payload = engine.export_json()
 
@@ -214,7 +218,7 @@ def test_cli_initial_state_json_preload_works() -> None:
 
 
 def test_cli_initial_state_file_preload_works(tmp_path: pathlib.Path) -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use docker")
     path = tmp_path / "state.json"
     path.write_text(engine.export_json(), encoding="utf-8")
@@ -234,11 +238,11 @@ def test_cli_invalid_initial_state_preload_fails_fast() -> None:
 
 
 def test_apply_preload_from_options_initial_state_json_restores_state() -> None:
-    source_engine = create_engine()
+    source_engine = Engine()
     source_engine.step("set premise concise")
     source_engine.step("use docker")
 
-    target_engine = create_engine()
+    target_engine = Engine()
     repl_module._apply_preload_from_options(
         target_engine,
         {
@@ -254,7 +258,7 @@ def test_apply_preload_from_options_initial_state_json_restores_state() -> None:
 def test_apply_preload_from_options_initial_state_file_restores_state(
     tmp_path: pathlib.Path,
 ) -> None:
-    source_engine = create_engine()
+    source_engine = Engine()
     source_engine.step("set premise concise")
     source_engine.step("use docker")
 
@@ -262,7 +266,7 @@ def test_apply_preload_from_options_initial_state_file_restores_state(
     path = tmp_path / "state.json"
     path.write_text(payload, encoding="utf-8")
 
-    target_engine = create_engine()
+    target_engine = Engine()
     repl_module._apply_preload_from_options(
         target_engine,
         {

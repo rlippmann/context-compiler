@@ -136,12 +136,12 @@ Use Context Compiler in your host application first:
 
 ```python
 from context_compiler import (
-    create_engine,
+    Engine,
     is_error,
     is_update,
 )
 
-engine = create_engine()
+engine = Engine()
 
 user_input = "set premise current project uses uv"
 decision = engine.step(user_input)
@@ -280,7 +280,7 @@ reference.
 
 Common API entry points:
 
-- engine lifecycle: `create_engine()`, `engine.step(...)`,
+- engine lifecycle: `Engine()`, `engine.step(...)`,
   `engine.premise`, `engine.policies`, `engine.export_json(...)`,
   `engine.import_json(...)`
 - decision helpers: `is_error(...)`, `is_update(...)`, `is_no_directive(...)`,

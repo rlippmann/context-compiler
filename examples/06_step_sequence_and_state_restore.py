@@ -2,11 +2,11 @@
 
 from _util import print_decision_summary, print_engine_observations
 
-from context_compiler import create_engine
+from context_compiler import Engine
 
 
 def main() -> None:
-    engine = create_engine()
+    engine = Engine()
     turns = [
         "prohibit peanuts",
         "set premise vegetarian curry",
@@ -22,7 +22,7 @@ def main() -> None:
 
     # Hosts can persist authoritative state directly instead of replaying prior turns.
     state_json = engine.export_json()
-    restored = create_engine()
+    restored = Engine()
     restored.import_json(state_json)
 
     print("JSON restore keeps authority state:")

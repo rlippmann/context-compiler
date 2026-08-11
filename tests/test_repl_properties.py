@@ -4,7 +4,11 @@ import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
-from context_compiler import DECISION_ERROR, DECISION_NO_DIRECTIVE, create_engine
+from context_compiler import (
+    DECISION_ERROR,
+    DECISION_NO_DIRECTIVE,
+    Engine,
+)
 from context_compiler.repl import run_repl
 
 pytestmark = pytest.mark.contract
@@ -73,7 +77,7 @@ def test_repl_matches_engine_for_non_exit_sequences(lines: list[str]) -> None:
 
     _, repl_lines = _run_repl_lines(lines)
 
-    engine = create_engine()
+    engine = Engine()
     oracle_lines = [
         rendered_line
         for line in lines
@@ -110,7 +114,7 @@ def test_repl_stops_processing_after_exit_or_quit(
     lines = [*prefix, stop_token, *suffix]
     _, repl_lines = _run_repl_lines(lines)
 
-    engine = create_engine()
+    engine = Engine()
     oracle_lines = [
         rendered_line
         for line in prefix

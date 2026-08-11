@@ -2,7 +2,7 @@
 
 import re
 
-from context_compiler import create_engine
+from context_compiler import Engine
 from demos.common import (
     build_baseline_messages,
     build_mediated_messages_from_transcript,
@@ -70,7 +70,7 @@ def _plan_uses_value(output: str, value: str) -> bool:
 
 
 def main() -> None:
-    engine = create_engine()
+    engine = Engine()
     user_inputs = [
         "set premise vegetarian curry",
         "change premise to vegan curry",

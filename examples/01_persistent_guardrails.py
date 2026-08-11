@@ -2,7 +2,7 @@
 
 from _util import print_decision_summary, print_engine_observations
 
-from context_compiler import Engine, create_engine
+from context_compiler import Engine
 
 
 def build_prompt(engine: Engine, user_input: str) -> str:
@@ -17,7 +17,7 @@ def build_prompt(engine: Engine, user_input: str) -> str:
 
 
 def main() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     print("User: prohibit peanuts")
     decision1 = engine.step("prohibit peanuts")

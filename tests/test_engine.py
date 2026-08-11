@@ -4,7 +4,12 @@ from types import MappingProxyType
 
 import pytest
 
-from context_compiler import DECISION_ERROR, DECISION_NO_DIRECTIVE, DECISION_UPDATE, create_engine
+from context_compiler import (
+    DECISION_ERROR,
+    DECISION_NO_DIRECTIVE,
+    DECISION_UPDATE,
+    Engine,
+)
 from context_compiler.engine import (
     _load_state_obj,
 )
@@ -125,7 +130,7 @@ def test_apply_directive_accepts_all_canonical_directive_kinds(
     expected_decision: dict[str, str | None],
     expected_state: tuple[str | None, dict[str, str]],
 ) -> None:
-    engine = create_engine()
+    engine = Engine()
     if initial_state is not None:
         _import_state(engine, initial_state)
 
@@ -211,7 +216,7 @@ def test_apply_directive_preserves_state_for_semantic_errors(
     expected_decision: dict[str, str | None],
     expected_state: tuple[str | None, dict[str, str]],
 ) -> None:
-    engine = create_engine()
+    engine = Engine()
     if initial_state is not None:
         _import_state(engine, initial_state)
 
@@ -222,7 +227,7 @@ def test_apply_directive_preserves_state_for_semantic_errors(
 
 
 def test_apply_directive_updates_state_from_canonical_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     parsed = decompose_directive("use docker")
 
     assert isinstance(parsed, CanonicalDirective)
@@ -235,7 +240,7 @@ def test_apply_directive_updates_state_from_canonical_directive() -> None:
 def test_step_routes_canonical_directives_through_apply_directive(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    engine = create_engine()
+    engine = Engine()
     parsed = decompose_directive("use docker")
     assert isinstance(parsed, CanonicalDirective)
 
@@ -268,7 +273,7 @@ def test_decompose_directive_rejects_invalid_and_nondirective_inputs() -> None:
 
 
 def test_pre_mutation_error_empty_operand_branches_remain_stable() -> None:
-    engine = create_engine()
+    engine = Engine()
     set_premise = CanonicalDirective(
         text="set premise ",
         kind=_DirectiveKind.SET_PREMISE,
@@ -325,18 +330,18 @@ def test_pre_mutation_error_empty_operand_branches_remain_stable() -> None:
 
 
 def test_initial_state_and_engine_properties() -> None:
-    engine = create_engine()
+    engine = Engine()
     _assert_observations(engine, premise=None, policies={})
 
 
 def test_policies_property_returns_mapping_snapshot() -> None:
-    engine = create_engine()
+    engine = Engine()
     assert isinstance(engine.policies, Mapping)
     assert engine.policies == {}
 
 
 def test_premise_property_exposes_authoritative_premise_value() -> None:
-    engine = create_engine()
+    engine = Engine()
     assert engine.premise is None
 
     engine.step("set premise concise replies")
@@ -345,7 +350,7 @@ def test_premise_property_exposes_authoritative_premise_value() -> None:
 
 
 def test_policies_property_returns_defensive_copy() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use docker")
 
     policies = engine.policies
@@ -356,13 +361,13 @@ def test_policies_property_returns_defensive_copy() -> None:
 
 
 def test_export_json_returns_complete_representation_of_state() -> None:
-    engine = create_engine()
+    engine = Engine()
     payload = engine.export_json()
     assert json.loads(payload) == {"premise": None, "policies": {}, "version": 2}
 
 
 def test_export_json_is_canonical_sorted_and_compact() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use zeta")
     engine.step("use alpha")
     payload = engine.export_json()
@@ -371,7 +376,7 @@ def test_export_json_is_canonical_sorted_and_compact() -> None:
 
 
 def test_import_json_restores_state_exactly() -> None:
-    engine = create_engine()
+    engine = Engine()
     expected = {
         "premise": "Use concise output",
         "policies": {"docker": "prohibit", "pytest": "use"},
@@ -388,7 +393,7 @@ def test_import_json_restores_state_exactly() -> None:
 
 
 def test_export_import_round_trip_preserves_state() -> None:
-    source = create_engine()
+    source = Engine()
     _import_state(
         source,
         {
@@ -398,14 +403,14 @@ def test_export_import_round_trip_preserves_state() -> None:
         },
     )
 
-    target = create_engine()
+    target = Engine()
     target.import_json(source.export_json())
 
     assert _observations(target) == _observations(source)
 
 
 def test_import_json_invalid_json_and_unsupported_version_are_rejected() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     with pytest.raises(ValueError, match="Invalid JSON payload"):
         engine.import_json("{")
@@ -423,7 +428,7 @@ def test_import_json_invalid_json_and_unsupported_version_are_rejected() -> None
 
 
 def test_import_json_rejects_non_object_payload() -> None:
-    engine = create_engine()
+    engine = Engine()
     with pytest.raises(ValueError, match="Invalid state payload"):
         engine.import_json('["not", "an", "object"]')
 
@@ -450,7 +455,7 @@ def test_internal_state_loader_rejects_non_string_policy_keys() -> None:
 def test_import_json_rejects_policy_keys_that_normalize_to_empty(
     policies: dict[str, str],
 ) -> None:
-    engine = create_engine()
+    engine = Engine()
     with pytest.raises(ValueError, match="Invalid state payload"):
         engine.import_json(
             json.dumps(
@@ -464,7 +469,7 @@ def test_import_json_rejects_policy_keys_that_normalize_to_empty(
 
 
 def test_import_json_rejects_empty_normalized_key_atomically() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use kubectl")
     before = _observations(engine)
 
@@ -483,7 +488,7 @@ def test_import_json_rejects_empty_normalized_key_atomically() -> None:
 
 
 def test_import_json_accepts_valid_policy_key_and_normalizes_it() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     engine.import_json(
         json.dumps(
@@ -499,7 +504,7 @@ def test_import_json_accepts_valid_policy_key_and_normalizes_it() -> None:
 
 
 def test_replace_use_clarifies_when_old_policy_is_not_use_in_invalid_internal_state() -> None:
-    engine = create_engine()
+    engine = Engine()
     # Defensive-path coverage for impossible external state values.
     engine._state["policies"]["docker"] = "invalid"  # type: ignore[assignment]  # noqa: SLF001
 
@@ -523,13 +528,13 @@ def test_replace_use_clarifies_when_old_policy_is_not_use_in_invalid_internal_st
     ],
 )
 def test_import_json_rejects_structurally_invalid_payload(payload: dict[str, object]) -> None:
-    engine = create_engine()
+    engine = Engine()
     with pytest.raises(ValueError):
         engine.import_json(json.dumps(payload))
 
 
 def test_import_json_normalizes_policy_keys() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.import_json(
         json.dumps(
             {
@@ -551,7 +556,7 @@ def test_import_json_normalizes_policy_keys() -> None:
 
 
 def test_import_json_sanitizes_premise_value() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.import_json(
         json.dumps(
             {
@@ -566,7 +571,7 @@ def test_import_json_sanitizes_premise_value() -> None:
 
 
 def test_import_json_canonicalizes_policies_by_normalized_key() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.import_json(
         json.dumps(
             {
@@ -584,7 +589,7 @@ def test_import_json_canonicalizes_policies_by_normalized_key() -> None:
 
 
 def test_non_matching_input_is_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     for text in [
@@ -603,7 +608,7 @@ def test_non_matching_input_is_no_directive() -> None:
 
 
 def test_lexical_normalization_accepts_canonical_directives() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     assert engine.step("clear premise ")["kind"] == DECISION_UPDATE
     assert engine.step(" reset policies")["kind"] == DECISION_UPDATE
@@ -614,7 +619,7 @@ def test_lexical_normalization_accepts_canonical_directives() -> None:
 
 
 def test_clear_premise_is_idempotent_update_when_already_null() -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     decision = engine.step("clear premise")
@@ -623,7 +628,7 @@ def test_clear_premise_is_idempotent_update_when_already_null() -> None:
 
 
 def test_clear_state_is_idempotent_update_when_already_empty() -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     decision = engine.step("clear state")
@@ -632,7 +637,7 @@ def test_clear_state_is_idempotent_update_when_already_empty() -> None:
 
 
 def test_set_premise_lifecycle_rules() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     d1 = engine.step("set premise   concise   replies")
     assert d1["kind"] == DECISION_UPDATE
@@ -648,7 +653,7 @@ def test_set_premise_lifecycle_rules() -> None:
 
 
 def test_set_premise_empty_payload_remains_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
     d1 = engine.step("set premise")
     assert d1 == {"kind": DECISION_NO_DIRECTIVE, "message": None}
@@ -656,7 +661,7 @@ def test_set_premise_empty_payload_remains_no_directive() -> None:
 
 
 def test_set_premise_whitespace_payload_remains_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
     d1 = engine.step("set premise    ")
     assert d1 == {"kind": DECISION_NO_DIRECTIVE, "message": None}
@@ -664,7 +669,7 @@ def test_set_premise_whitespace_payload_remains_no_directive() -> None:
 
 
 def test_set_premise_to_variant_remains_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     decision = engine.step("set premise to concise replies")
     assert decision == {"kind": DECISION_NO_DIRECTIVE, "message": None}
@@ -672,7 +677,7 @@ def test_set_premise_to_variant_remains_no_directive() -> None:
 
 
 def test_set_premise_to_with_whitespace_payload_remains_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     decision = engine.step("set premise to   ")
 
@@ -681,7 +686,7 @@ def test_set_premise_to_with_whitespace_payload_remains_no_directive() -> None:
 
 
 def test_change_premise_requires_existing_premise() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     d1 = engine.step("change premise to concise")
     assert d1 == {
@@ -697,7 +702,7 @@ def test_change_premise_requires_existing_premise() -> None:
 
 
 def test_change_premise_to_empty_payload_remains_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("set premise baseline")
     before = _observations(engine)
 
@@ -707,7 +712,7 @@ def test_change_premise_to_empty_payload_remains_no_directive() -> None:
 
 
 def test_change_premise_to_without_space_payload_and_empty_variant_remain_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("set premise baseline")
     before = _observations(engine)
 
@@ -720,7 +725,7 @@ def test_change_premise_to_without_space_payload_and_empty_variant_remain_no_dir
 
 
 def test_change_premise_to_whitespace_payload_remains_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("set premise baseline")
     before = _observations(engine)
 
@@ -730,7 +735,7 @@ def test_change_premise_to_whitespace_payload_remains_no_directive() -> None:
 
 
 def test_change_premise_missing_to_variant_is_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     decision = engine.step("change premise concise replies")
@@ -739,7 +744,7 @@ def test_change_premise_missing_to_variant_is_no_directive() -> None:
 
 
 def test_change_premise_with_whitespace_after_prefix_remains_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     _import_state(engine, {"premise": "baseline", "policies": {}, "version": 2})
 
     decision = engine.step("change premise   ")
@@ -749,7 +754,7 @@ def test_change_premise_with_whitespace_after_prefix_remains_no_directive() -> N
 
 
 def test_canonical_premise_forms_still_update_normally() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     first = engine.step("set premise concise replies")
     second = engine.step("change premise to concise bullet points")
@@ -760,7 +765,7 @@ def test_canonical_premise_forms_still_update_normally() -> None:
 
 
 def test_clear_premise_and_clear_state() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("set premise use bullets")
     engine.step("use docker")
 
@@ -774,7 +779,7 @@ def test_clear_premise_and_clear_state() -> None:
 
 
 def test_policy_directives_and_idempotent_update() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     d1 = engine.step("use   The Docker")
     assert d1["kind"] == DECISION_UPDATE
@@ -791,7 +796,7 @@ def test_policy_directives_and_idempotent_update() -> None:
     )
     assert dict(engine.policies) == {"docker": "use", "the docker": "use"}
 
-    engine2 = create_engine()
+    engine2 = Engine()
     engine2.step("prohibit docker")
     d4 = engine2.step("prohibit docker")
     assert d4["kind"] == "update"
@@ -806,7 +811,7 @@ def test_policy_directives_and_idempotent_update() -> None:
 
 
 def test_use_empty_payload_remains_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     for text in ["use", "use ", "use    "]:
@@ -816,7 +821,7 @@ def test_use_empty_payload_remains_no_directive() -> None:
 
 
 def test_prohibit_empty_payload_remains_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     for text in ["prohibit", "prohibit ", "prohibit    "]:
@@ -826,7 +831,7 @@ def test_prohibit_empty_payload_remains_no_directive() -> None:
 
 
 def test_replace_use_incomplete_payload_remains_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     for text in [
@@ -842,7 +847,7 @@ def test_replace_use_incomplete_payload_remains_no_directive() -> None:
 
 
 def test_reset_policies_is_update_even_when_already_empty() -> None:
-    engine = create_engine()
+    engine = Engine()
     d1 = engine.step("reset policies")
     assert d1["kind"] == DECISION_UPDATE
     _assert_observations(engine, premise=None, policies={})
@@ -854,7 +859,7 @@ def test_reset_policies_is_update_even_when_already_empty() -> None:
 
 
 def test_remove_policy_removes_existing_use_policy() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use docker")
 
     decision = engine.step("remove policy docker")
@@ -864,7 +869,7 @@ def test_remove_policy_removes_existing_use_policy() -> None:
 
 
 def test_remove_policy_removes_existing_prohibit_policy() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("prohibit docker")
 
     decision = engine.step("remove policy docker")
@@ -874,7 +879,7 @@ def test_remove_policy_removes_existing_prohibit_policy() -> None:
 
 
 def test_remove_policy_missing_item_is_idempotent_update() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use docker")
     before = _observations(engine)
 
@@ -885,7 +890,7 @@ def test_remove_policy_missing_item_is_idempotent_update() -> None:
 
 
 def test_remove_policy_empty_payload_remains_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     decision = engine.step("remove policy")
@@ -895,7 +900,7 @@ def test_remove_policy_empty_payload_remains_no_directive() -> None:
 
 
 def test_remove_policy_whitespace_payload_remains_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     decision = engine.step("remove policy    ")
@@ -905,7 +910,7 @@ def test_remove_policy_whitespace_payload_remains_no_directive() -> None:
 
 
 def test_replace_use_success() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use docker")
 
     decision = engine.step("use kubectl instead of docker")
@@ -915,7 +920,7 @@ def test_replace_use_success() -> None:
 
 
 def test_replace_use_identity_is_noop_update() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use docker")
 
     decision = engine.step("use   Docker  instead of docker")
@@ -925,7 +930,7 @@ def test_replace_use_identity_is_noop_update() -> None:
 
 
 def test_replace_use_identity_case_variant_is_noop_update() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use docker")
 
     decision = engine.step("use DOCKER instead of docker")
@@ -935,7 +940,7 @@ def test_replace_use_identity_case_variant_is_noop_update() -> None:
 
 
 def test_replace_use_missing_source_applies_as_use_update() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     d1 = engine.step("use kubectl instead of docker")
     assert d1 == {
@@ -946,7 +951,7 @@ def test_replace_use_missing_source_applies_as_use_update() -> None:
 
 
 def test_replace_use_missing_source_yes_followup_is_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     first = engine.step("use kubectl instead of docker")
     assert first == {
@@ -961,7 +966,7 @@ def test_replace_use_missing_source_yes_followup_is_no_directive() -> None:
 
 
 def test_replace_use_missing_source_no_followup_has_no_mutation() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use kubectl instead of docker")
     before = _observations(engine)
 
@@ -973,7 +978,7 @@ def test_replace_use_missing_source_no_followup_has_no_mutation() -> None:
 def test_replace_use_missing_source_still_reports_target_prohibit_when_new_item_prohibited() -> (
     None
 ):
-    engine = create_engine()
+    engine = Engine()
     engine.step("prohibit kubectl")
 
     decision = engine.step("use kubectl instead of docker")
@@ -987,7 +992,7 @@ def test_replace_use_missing_source_still_reports_target_prohibit_when_new_item_
 
 
 def test_replace_use_missing_source_ignores_unrelated_existing_policies() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use python and docker")
 
     decision = engine.step("use kubectl instead of python")
@@ -996,7 +1001,7 @@ def test_replace_use_missing_source_ignores_unrelated_existing_policies() -> Non
 
 
 def test_replace_use_missing_source_ignores_other_conflicting_entries() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use python and docker")
     engine.step("prohibit python tooling")
 
@@ -1010,7 +1015,7 @@ def test_replace_use_missing_source_ignores_other_conflicting_entries() -> None:
 
 
 def test_replace_use_missing_source_with_empty_probe_uses_invalid_prompt() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use python and docker")
 
     decision = engine.step("use kubectl instead of the")
@@ -1023,7 +1028,7 @@ def test_replace_use_missing_source_with_empty_probe_uses_invalid_prompt() -> No
 
 
 def test_replace_use_ky_prohibit_returns_error_without_mutation() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("prohibit docker")
     engine.step("use pytest")
 
@@ -1040,7 +1045,7 @@ def test_replace_use_ky_prohibit_returns_error_without_mutation() -> None:
 
 
 def test_replace_use_ky_prohibit_yes_does_not_authorize_mutation() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("prohibit docker")
     engine.step("use pytest")
     first = engine.step("use kubectl instead of docker")
@@ -1053,7 +1058,7 @@ def test_replace_use_ky_prohibit_yes_does_not_authorize_mutation() -> None:
 
 
 def test_replace_use_kx_prohibit_returns_error_without_mutation() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use docker")
     engine.step("prohibit kubectl")
 
@@ -1070,7 +1075,7 @@ def test_replace_use_kx_prohibit_returns_error_without_mutation() -> None:
 
 
 def test_replace_use_priority_prefers_source_prohibit_error_when_both_prohibit() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("prohibit docker")
     engine.step("prohibit kubectl")
 
@@ -1087,7 +1092,7 @@ def test_replace_use_priority_prefers_source_prohibit_error_when_both_prohibit()
 
 
 def test_replace_use_invalid_source_state_prohibit_clarifies_without_mutation() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("prohibit docker")
     engine.step("use pytest")
     before = _observations(engine)
@@ -1104,7 +1109,7 @@ def test_replace_use_invalid_source_state_prohibit_clarifies_without_mutation() 
 
 
 def test_replace_use_kx_prohibit_no_followup_has_no_mutation() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use docker")
     engine.step("prohibit kubectl")
     first = engine.step("use kubectl instead of docker")
@@ -1117,7 +1122,7 @@ def test_replace_use_kx_prohibit_no_followup_has_no_mutation() -> None:
 
 
 def test_missing_source_replacement_does_not_block_following_directives() -> None:
-    engine = create_engine()
+    engine = Engine()
     first = engine.step("use kubectl instead of docker")
     assert first["kind"] == "update"
 
@@ -1131,7 +1136,7 @@ def test_missing_source_replacement_does_not_block_following_directives() -> Non
 
 
 def test_missing_source_replacement_does_not_suspend_admin_commands() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use kubectl instead of docker")
     before = (None, {"kubectl": "use"})
 
@@ -1147,7 +1152,7 @@ def test_missing_source_replacement_does_not_suspend_admin_commands() -> None:
 
 
 def test_missing_source_replacement_negative_followup_is_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use kubectl instead of docker")
 
     decision = engine.step("no")
@@ -1157,7 +1162,7 @@ def test_missing_source_replacement_negative_followup_is_no_directive() -> None:
 
 
 def test_missing_source_replacement_affirmative_followup_tokens_are_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use kubectl instead of docker")
 
     decision = engine.step("  YES!!!  ")
@@ -1167,7 +1172,7 @@ def test_missing_source_replacement_affirmative_followup_tokens_are_no_directive
 
 def test_missing_source_replacement_affirmative_token_variants_are_no_directive() -> None:
     for token in ["yes please", "Yep", "yeah", "ok", "  OKAY...  ", "sure!"]:
-        engine = create_engine()
+        engine = Engine()
         engine.step("use kubectl instead of docker")
         decision = engine.step(token)
         assert decision["kind"] == DECISION_NO_DIRECTIVE
@@ -1175,7 +1180,7 @@ def test_missing_source_replacement_affirmative_token_variants_are_no_directive(
 
 
 def test_missing_source_replacement_negative_tokens_are_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use kubectl instead of docker")
     before = _observations(engine)
 
@@ -1185,7 +1190,7 @@ def test_missing_source_replacement_negative_tokens_are_no_directive() -> None:
 
 
 def test_missing_source_replacement_no_thanks_is_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use kubectl instead of docker")
     before = _observations(engine)
 
@@ -1196,7 +1201,7 @@ def test_missing_source_replacement_no_thanks_is_no_directive() -> None:
 
 def test_missing_source_replacement_negative_token_variants_are_no_directive() -> None:
     for token in ["nope", "Nope??", " no ", "NO THANKS!"]:
-        engine = create_engine()
+        engine = Engine()
         engine.step("use kubectl instead of docker")
         before = _observations(engine)
         decision = engine.step(token)
@@ -1205,7 +1210,7 @@ def test_missing_source_replacement_negative_token_variants_are_no_directive() -
 
 
 def test_missing_source_replacement_unmatched_followup_is_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use kubectl instead of docker")
     before = _observations(engine)
 
@@ -1215,7 +1220,7 @@ def test_missing_source_replacement_unmatched_followup_is_no_directive() -> None
 
 
 def test_missing_source_replacement_unmatched_followups_remain_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use kubectl instead of docker")
     before = _observations(engine)
 
@@ -1225,7 +1230,7 @@ def test_missing_source_replacement_unmatched_followups_remain_no_directive() ->
 
 
 def test_prohibited_replacement_yes_cannot_override_conflicting_target_polarity() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use docker")
     engine.step("prohibit kubectl")
 
@@ -1239,7 +1244,7 @@ def test_prohibited_replacement_yes_cannot_override_conflicting_target_polarity(
 
 
 def test_import_json_does_not_change_independent_yes_no_followup_behavior() -> None:
-    engine = create_engine()
+    engine = Engine()
     first = engine.step("use kubectl instead of docker")
     assert first["kind"] == DECISION_UPDATE
 
@@ -1255,7 +1260,7 @@ def test_import_json_does_not_change_independent_yes_no_followup_behavior() -> N
 
 
 def test_remove_policy_uses_normalized_item_matching() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use The Docker")
 
     decision = engine.step("remove policy the docker")
@@ -1264,7 +1269,7 @@ def test_remove_policy_uses_normalized_item_matching() -> None:
 
 
 def test_use_and_prohibit_article_variants_remain_distinct_policies() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     first = engine.step("use docker")
     second = engine.step("prohibit the docker")
@@ -1279,7 +1284,7 @@ def test_use_and_prohibit_article_variants_remain_distinct_policies() -> None:
 
 
 def test_remove_policy_the_docker_does_not_remove_docker() -> None:
-    engine = create_engine()
+    engine = Engine()
     engine.step("use docker")
 
     decision = engine.step("remove policy the docker")
@@ -1289,7 +1294,7 @@ def test_remove_policy_the_docker_does_not_remove_docker() -> None:
 
 
 def test_dont_and_dont_apostrophe_remain_distinct_policy_identities() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     first = engine.step("use don't")
     second = engine.step("prohibit dont")
@@ -1304,7 +1309,7 @@ def test_dont_and_dont_apostrophe_remain_distinct_policy_identities() -> None:
 
 
 def test_import_json_preserves_distinct_article_variant_policy_keys() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     engine.import_json(
         json.dumps(
@@ -1324,7 +1329,7 @@ def test_import_json_preserves_distinct_article_variant_policy_keys() -> None:
 
 
 def test_import_json_preserves_distinct_dont_and_dont_apostrophe_policy_keys() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     engine.import_json(
         json.dumps(
@@ -1344,7 +1349,7 @@ def test_import_json_preserves_distinct_dont_and_dont_apostrophe_policy_keys() -
 
 
 def test_export_import_round_trip_preserves_distinct_normalized_policy_keys() -> None:
-    source = create_engine()
+    source = Engine()
     source.import_json(
         json.dumps(
             {
@@ -1362,7 +1367,7 @@ def test_export_import_round_trip_preserves_distinct_normalized_policy_keys() ->
 
     payload = source.export_json()
 
-    restored = create_engine()
+    restored = Engine()
     restored.import_json(payload)
 
     assert dict(restored.policies) == {
@@ -1427,7 +1432,7 @@ def test_export_import_round_trip_preserves_distinct_normalized_policy_keys() ->
 def test_compound_directives_remain_no_directive_without_mutation(
     user_input: str, initial_state: dict[str, object]
 ) -> None:
-    engine = create_engine()
+    engine = Engine()
     _import_state(engine, initial_state)
     before = _observations(engine)
 
@@ -1438,7 +1443,7 @@ def test_compound_directives_remain_no_directive_without_mutation(
 
 
 def test_quoted_non_directive_leading_input_remains_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     decision = engine.step('"use docker and prohibit peanuts"')
 
@@ -1485,7 +1490,7 @@ def test_directive_like_substrings_inside_larger_words_do_not_trigger_compound_r
     expected_decision_kind: str,
     expected_state: dict[str, object],
 ) -> None:
-    engine = create_engine()
+    engine = Engine()
     _import_state(engine, initial_state)
 
     decision = engine.step(user_input)
@@ -1552,7 +1557,7 @@ def test_directive_like_substrings_inside_larger_words_do_not_trigger_compound_r
 def test_valid_single_directives_still_work(
     user_input: str, initial_state: dict[str, object], expected_state: dict[str, object]
 ) -> None:
-    engine = create_engine()
+    engine = Engine()
     _import_state(engine, initial_state)
 
     decision = engine.step(user_input)
@@ -1585,7 +1590,7 @@ def test_valid_single_directives_still_work(
 def test_all_canonical_directive_starts_remain_single_directive_when_valid(
     directive_start: str,
 ) -> None:
-    engine = create_engine()
+    engine = Engine()
     _import_state(engine, {"premise": "baseline", "policies": {"podman": "use"}, "version": 2})
 
     decision = engine.step(directive_start)
@@ -1594,7 +1599,7 @@ def test_all_canonical_directive_starts_remain_single_directive_when_valid(
 
 
 def test_compound_no_directive_after_prior_missing_source_replacement_update() -> None:
-    engine = create_engine()
+    engine = Engine()
     first = engine.step("use kubectl instead of docker")
     assert first == {
         "kind": DECISION_UPDATE,

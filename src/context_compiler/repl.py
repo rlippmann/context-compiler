@@ -5,7 +5,7 @@ import sys
 from collections.abc import Mapping
 from typing import TextIO
 
-from . import __version__, create_engine
+from . import __version__
 from .const import STATE_POLICIES, STATE_PREMISE, STATE_VERSION
 from .decision_helpers import is_error, is_no_directive, is_update
 from .engine import Decision, DecisionKind, Engine, PolicyValue
@@ -233,7 +233,7 @@ def run_repl(
     emit NDJSON records.
     """
 
-    active_engine = create_engine() if engine is None else engine
+    active_engine = Engine() if engine is None else engine
 
     if _is_interactive(in_stream, out_stream):
         print("Context Compiler REPL (0.5). Type help for commands.", file=out_stream)
@@ -420,7 +420,7 @@ def main() -> int:  # pragma: no cover
         print("error: --json requires non-interactive stdin/stdout.", file=sys.stderr)
         return 1
 
-    engine = create_engine()
+    engine = Engine()
     try:
         _apply_preload_from_options(engine, options)
     except (OSError, ValueError) as exc:

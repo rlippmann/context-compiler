@@ -7,7 +7,7 @@ from typing import Literal, NotRequired, TypedDict
 
 from context_compiler import (
     Decision,
-    create_engine,
+    Engine,
     is_error,
     is_update,
 )
@@ -282,7 +282,7 @@ def compact_user_turns(
     - returned state dict is built from engine observations at stop point
     """
 
-    engine = create_engine()
+    engine = Engine()
     compacted_turns: list[str] = []
     message: str | None = None
 

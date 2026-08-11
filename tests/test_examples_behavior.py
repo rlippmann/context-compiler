@@ -87,7 +87,7 @@ def test_example_05_dispatches_no_directive_update_and_error_correctly(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     module = _load_example_module("05_llm_integration_pattern.py")
-    engine = module.create_engine()
+    engine = module.Engine()
     decision_kinds: list[str] = []
     llm_calls: list[tuple[object, str]] = []
 
@@ -125,14 +125,14 @@ def test_example_06_sequences_steps_and_restores_state_json(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     module = _load_example_module("06_step_sequence_and_state_restore.py")
-    original_create_engine = module.create_engine
+    original_engine_class = module.Engine
     step_calls: list[str] = []
     state_exports = 0
     state_imports = 0
 
-    def create_engine_wrapper() -> object:
+    def engine_class_wrapper() -> object:
         nonlocal state_exports, state_imports
-        engine = original_create_engine()
+        engine = original_engine_class()
         original_step = engine.step
         original_export = engine.export_json
         original_import = engine.import_json
@@ -156,7 +156,7 @@ def test_example_06_sequences_steps_and_restores_state_json(
         engine.import_json = import_wrapper  # type: ignore[assignment]
         return engine
 
-    monkeypatch.setattr(module, "create_engine", create_engine_wrapper)
+    monkeypatch.setattr(module, "Engine", engine_class_wrapper)
 
     module.main()
     output = capsys.readouterr().out

@@ -3,7 +3,7 @@
 import re
 from collections.abc import Mapping
 
-from context_compiler import create_engine
+from context_compiler import Engine
 from context_compiler.engine import PolicyValue
 from demos.common import (
     build_baseline_messages,
@@ -115,7 +115,7 @@ def _actual_summary(*, weak_pass: bool, strong_pass: bool, compiler_pass: bool) 
 
 
 def main() -> None:
-    engine = create_engine()
+    engine = Engine()
     print_user_inputs(USER_INPUTS)
 
     for index, user_input in enumerate(USER_INPUTS, start=1):

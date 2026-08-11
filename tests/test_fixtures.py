@@ -4,7 +4,10 @@ from pathlib import Path
 import pytest
 
 import context_compiler.grammar as grammar_module
-from context_compiler import DECISION_ERROR, create_engine
+from context_compiler import (
+    DECISION_ERROR,
+    Engine,
+)
 from context_compiler.grammar import (
     CanonicalDirective,
     decompose_directive,
@@ -163,7 +166,7 @@ def test_step_fixtures() -> None:
         _assert_fixture_path_matches_id(path, fixture_id)
         _validate_step_fixture(fixture, fixture_id)
 
-        engine = create_engine()
+        engine = Engine()
         engine.import_json(
             json.dumps(fixture["initial_state"], sort_keys=True, separators=(",", ":"))
         )
@@ -194,7 +197,7 @@ def test_state_json_fixtures() -> None:
 
         _assert_fixture_path_matches_id(path, fixture_id)
         _validate_state_json_fixture(fixture, fixture_id)
-        engine = create_engine()
+        engine = Engine()
         engine.import_json(
             json.dumps(fixture["initial_state"], sort_keys=True, separators=(",", ":"))
         )
@@ -255,7 +258,7 @@ def test_mutation_isolation_fixtures() -> None:
         fixture_id = fixture["id"]
         operation = fixture["operation"]
         fn = operation["fn"]
-        engine = create_engine()
+        engine = Engine()
         engine.import_json(
             json.dumps(fixture["initial_state"], sort_keys=True, separators=(",", ":"))
         )

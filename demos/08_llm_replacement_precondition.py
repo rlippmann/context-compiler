@@ -2,7 +2,10 @@
 
 from collections.abc import Mapping
 
-from context_compiler import create_engine, is_update
+from context_compiler import (
+    Engine,
+    is_update,
+)
 from demos.common import (
     build_baseline_messages,
     build_reinjected_messages,
@@ -28,7 +31,7 @@ def _is_initial_authoritative_state(*, premise: str | None, policies: Mapping[st
 
 
 def main() -> None:
-    engine = create_engine()
+    engine = Engine()
     user_inputs = [USER_INPUT]
     print_user_inputs(user_inputs)
 
