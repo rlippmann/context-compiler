@@ -71,7 +71,7 @@ def test_demo_08_reinjected_path_does_not_instantiate_engine(
 ) -> None:
     module = _load_demo_module("08_llm_replacement_precondition.py")
 
-    original_create_engine = module.create_engine
+    original_engine_class = module.Engine
 
     class _EngineWrapper:
         reinjected_seen = False
@@ -87,9 +87,9 @@ def test_demo_08_reinjected_path_does_not_instantiate_engine(
                 _EngineWrapper.reinjected_seen = False
             return self._inner.step(text)
 
-    engine = _EngineWrapper(original_create_engine())
+    engine = _EngineWrapper(original_engine_class())
 
-    monkeypatch.setattr(module, "create_engine", lambda: engine)
+    monkeypatch.setattr(module, "Engine", lambda: engine)
 
     original_build_reinjected_messages = module.build_reinjected_messages
 
@@ -138,25 +138,25 @@ def test_demo_09_reports_independent_followup_no_directive_boundary(
     assert "compiler: PASS" in output
 
 
-def test_demo_09_reinjected_path_does_not_call_create_engine(
+def test_demo_09_reinjected_path_does_not_call_engine_constructor(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     module = _load_demo_module("09_llm_confirmation_no_directive.py")
 
-    original_create_engine = module.create_engine
-    create_engine_calls = 0
+    original_engine_class = module.Engine
+    engine_class_calls = 0
 
-    def wrapped_create_engine() -> object:
-        nonlocal create_engine_calls
-        create_engine_calls += 1
-        return original_create_engine()
+    def wrapped_engine_class() -> object:
+        nonlocal engine_class_calls
+        engine_class_calls += 1
+        return original_engine_class()
 
-    monkeypatch.setattr(module, "create_engine", wrapped_create_engine)
+    monkeypatch.setattr(module, "Engine", wrapped_engine_class)
     monkeypatch.setattr(module, "complete_messages", _sequenced_outputs(["x", "y"]))
 
     module.main()
     report = consume_last_report()
 
-    assert create_engine_calls == 1
+    assert engine_class_calls == 1
     assert report is not None
     assert report["reinjected_state_pass"] is False

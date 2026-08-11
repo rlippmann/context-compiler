@@ -2,11 +2,11 @@
 
 from _util import print_decision_summary, print_engine_observations
 
-from context_compiler import create_engine
+from context_compiler import Engine
 
 
 def main() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     print("User: prohibit peanuts")
     decision1 = engine.step("prohibit peanuts")

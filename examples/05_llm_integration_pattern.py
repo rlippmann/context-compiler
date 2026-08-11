@@ -6,7 +6,6 @@ from _util import print_decision_summary, print_engine_observations
 
 from context_compiler import (
     Engine,
-    create_engine,
     is_error,
     is_no_directive,
     is_update,
@@ -45,7 +44,7 @@ def handle_turn(engine_input: str, engine: Engine) -> None:
 
 
 def main() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     handle_turn("hello there", engine)
     handle_turn("set premise concise replies", engine)

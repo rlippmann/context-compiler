@@ -1,4 +1,8 @@
-from context_compiler import DECISION_NO_DIRECTIVE, DECISION_UPDATE, create_engine
+from context_compiler import (
+    DECISION_NO_DIRECTIVE,
+    DECISION_UPDATE,
+    Engine,
+)
 
 
 def _observations(engine: object) -> tuple[object, object]:
@@ -6,7 +10,7 @@ def _observations(engine: object) -> tuple[object, object]:
 
 
 def test_parser_trims_leading_space_for_canonical_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     decision = engine.step(" set premise concise")
 
@@ -18,7 +22,7 @@ def test_parser_trims_leading_space_for_canonical_directive() -> None:
 
 
 def test_parser_does_not_accept_conversational_aliases() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     for text in [
         "actually use docker",
@@ -37,7 +41,7 @@ def test_parser_does_not_accept_conversational_aliases() -> None:
 
 
 def test_empty_policy_payloads_and_incomplete_replacement_remain_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     for text in ["use", "use ", "use    "]:
@@ -63,7 +67,7 @@ def test_empty_policy_payloads_and_incomplete_replacement_remain_no_directive() 
 
 
 def test_lexical_normalization_and_non_directive_near_misses() -> None:
-    engine = create_engine()
+    engine = Engine()
     assert engine.step("clear premise ")["kind"] == DECISION_UPDATE
     assert engine.step("reset policies ")["kind"] == DECISION_UPDATE
     assert engine.step("clear state ")["kind"] == DECISION_UPDATE
@@ -77,7 +81,7 @@ def test_lexical_normalization_and_non_directive_near_misses() -> None:
 
 
 def test_premise_to_variant_near_misses_remain_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     set_variant = engine.step("set premise to concise")
@@ -89,7 +93,7 @@ def test_premise_to_variant_near_misses_remain_no_directive() -> None:
 
 
 def test_remove_policy_missing_or_whitespace_payload_remains_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     first = engine.step("remove policy")
@@ -101,7 +105,7 @@ def test_remove_policy_missing_or_whitespace_payload_remains_no_directive() -> N
 
 
 def test_invalid_replacement_does_not_block_following_directives() -> None:
-    engine = create_engine()
+    engine = Engine()
     first = engine.step("use kubectl instead of docker")
     assert first["kind"] == DECISION_UPDATE
 
@@ -114,7 +118,7 @@ def test_invalid_replacement_does_not_block_following_directives() -> None:
 
 
 def test_replace_update_independent_followup_is_no_directive() -> None:
-    engine = create_engine()
+    engine = Engine()
     first = engine.step("use kubectl instead of docker")
     second = engine.step("sounds good")
 

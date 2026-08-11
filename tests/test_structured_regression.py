@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from context_compiler import create_engine
+from context_compiler import Engine
 
 _STRUCTURED_FIXTURES_DIR = (
     Path(__file__).resolve().parent / "fixtures" / "engine-regression" / "structured"
@@ -105,7 +105,7 @@ def test_structured_regression_scenarios() -> None:
         _validate_structured_expected_fixture(expected, scenario_id)
         assert expected["id"] == scenario_id, f"scenario_id_mismatch: {scenario_id}"
 
-        engine = create_engine()
+        engine = Engine()
 
         initial_state = scenario.get("initial_state")
         if initial_state is not None:

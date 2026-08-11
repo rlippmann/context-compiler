@@ -93,7 +93,7 @@ def test_demo_01_calls_llm_when_second_turn_is_not_error(
             return "ACTION:proceed"
         return "ACTION:error"
 
-    monkeypatch.setattr(module, "create_engine", _FakeEngine)
+    monkeypatch.setattr(module, "Engine", _FakeEngine)
     monkeypatch.setattr(module, "complete_messages", fake_complete_messages)
 
     module.main()
@@ -123,7 +123,7 @@ def test_demo_01_baseline_and_compiler_use_intentionally_different_gates(
                 return {"kind": DECISION_UPDATE}
             return {"kind": DECISION_NO_DIRECTIVE, "message": None}
 
-    monkeypatch.setattr(module, "create_engine", _FakeEngine)
+    monkeypatch.setattr(module, "Engine", _FakeEngine)
     monkeypatch.setattr(
         module,
         "complete_messages",

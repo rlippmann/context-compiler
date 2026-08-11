@@ -3,7 +3,12 @@ import string
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
-from context_compiler import DECISION_ERROR, DECISION_NO_DIRECTIVE, DECISION_UPDATE, create_engine
+from context_compiler import (
+    DECISION_ERROR,
+    DECISION_NO_DIRECTIVE,
+    DECISION_UPDATE,
+    Engine,
+)
 
 CANONICAL_SECOND_DIRECTIVES = [
     "set premise concise",
@@ -37,7 +42,7 @@ def _observations(engine: object) -> tuple[object, object]:
 
 
 def _assert_compound_no_directive(user_input: str) -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     decision = engine.step(user_input)
@@ -81,7 +86,7 @@ def test_compound_arbitrary_intervening_text(chunks: list[str], second: str) -> 
 def test_embedded_canonical_tokens_do_not_trigger_compound_detection(
     token: str, prefix: str, suffix: str
 ) -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     decision = engine.step(f"use docker {prefix}{token}{suffix}")
@@ -103,7 +108,7 @@ def test_embedded_canonical_tokens_do_not_trigger_compound_detection(
 def test_leading_non_directive_text_disables_compound_detection(prefix: str, second: str) -> None:
     assume(not any(prefix.startswith(token) for token in CANONICAL_STARTS))
 
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
     decision = engine.step(f"{prefix} use docker {second}")
 
@@ -123,7 +128,7 @@ def _mutate_case(text: str) -> st.SearchStrategy[str]:
 def test_case_mutated_second_directive_does_not_trigger_compound_detection(
     second_start: str,
 ) -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     decision = engine.step(f"use docker {second_start}")
@@ -155,7 +160,7 @@ def test_quotes_do_not_create_protected_region_after_first_directive(
     second=st.sampled_from(CANONICAL_SECOND_DIRECTIVES),
 )
 def test_fully_quoted_input_remains_no_directive(quote: str, second: str) -> None:
-    engine = create_engine()
+    engine = Engine()
     before = _observations(engine)
 
     decision = engine.step(f"{quote}use docker {second}{quote}")

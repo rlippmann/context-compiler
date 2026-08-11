@@ -33,7 +33,10 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
-from context_compiler import create_engine, is_error
+from context_compiler import (
+    Engine,
+    is_error,
+)
 
 RUBRIC_WEIGHTS: dict[str, int] = {
     "Correct fix locus": 2,
@@ -697,7 +700,7 @@ def main() -> None:
         }
         if task.directives is not None:
             print(f"[3/3] Compiler: {task.task_id}", file=sys.stderr)
-            engine = create_engine()
+            engine = Engine()
             error_result: dict[str, Any] | None = None
             for index, directive in enumerate(task.directives):
                 decision = engine.step(directive)

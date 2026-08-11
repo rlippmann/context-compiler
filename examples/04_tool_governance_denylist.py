@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from _util import print_decision_summary, print_engine_observations
 
-from context_compiler import create_engine
+from context_compiler import Engine
 
 
 @dataclass
@@ -21,7 +21,7 @@ def allow_tool(tool: Tool) -> None:
 
 
 def main() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     user_input = "prohibit docker"
     print(f"User: {user_input}")

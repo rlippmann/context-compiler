@@ -45,7 +45,7 @@ def resolve_probe_value(value: object) -> object:
     _assert_closed_keys(value, {"fixture"}, "probe fixture")
     fixture = value["fixture"]
     if fixture == "empty_engine":
-        return context_compiler.create_engine()
+        return context_compiler.Engine()
 
     raise AssertionError(f"Unknown probe fixture: {fixture!r}")
 

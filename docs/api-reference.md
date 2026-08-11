@@ -28,16 +28,16 @@ Core boundary:
 
 ## Engine Lifecycle
 
-### `create_engine()`
+### `Engine()`
 
 Create a new engine instance.
 
 Typical use:
 
 ```python
-from context_compiler import create_engine
+from context_compiler import Engine
 
-engine = create_engine()
+engine = Engine()
 ```
 
 ### `engine.step(user_input)`
@@ -116,10 +116,10 @@ Apply one already-canonical `CanonicalDirective` to authoritative state.
 Typical use:
 
 ```python
-from context_compiler import create_engine
+from context_compiler import Engine
 from context_compiler.grammar import CanonicalDirective, decompose_directive
 
-engine = create_engine()
+engine = Engine()
 directive = decompose_directive("use docker")
 assert isinstance(directive, CanonicalDirective)
 
@@ -187,7 +187,11 @@ the user-facing error text only for `error`, otherwise `None`.
 Typical use:
 
 ```python
-from context_compiler import is_error, is_update
+from context_compiler import (
+    is_error,
+    is_update,
+    Engine,
+)
 
 decision = engine.step(user_input)
 

@@ -2,11 +2,11 @@
 
 from _util import print_decision_summary, print_engine_observations
 
-from context_compiler import create_engine
+from context_compiler import Engine
 
 
 def main() -> None:
-    engine = create_engine()
+    engine = Engine()
 
     print("User: set premise vegetarian curry")
     decision1 = engine.step("set premise vegetarian curry")

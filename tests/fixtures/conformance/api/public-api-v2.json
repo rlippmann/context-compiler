@@ -25,7 +25,6 @@
       "POLICY_PROHIBIT",
       "POLICY_USE",
       "PolicyValue",
-      "create_engine",
       "get_error_message",
       "is_error",
       "is_no_directive",
@@ -63,20 +62,6 @@
       },
       "PolicyValue": {
         "kind": "type_alias"
-      },
-      "create_engine": {
-        "kind": "callable",
-        "signature": {
-          "params": []
-        },
-        "shape_probes": [
-          {
-            "kwargs": {},
-            "return_shape": {
-              "kind": "engine_instance"
-            }
-          }
-        ]
       },
       "get_error_message": {
         "kind": "callable",

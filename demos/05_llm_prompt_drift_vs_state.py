@@ -4,7 +4,7 @@ import argparse
 import re
 
 import demos.llm_client as llm_client
-from context_compiler import create_engine
+from context_compiler import Engine
 from demos.common import (
     build_baseline_messages,
     build_mediated_messages_from_transcript,
@@ -212,7 +212,7 @@ def premise_matches_expected(output: str, expected: str = EXPECTED_PREMISE) -> b
 
 
 def _run_demo(turns: int = _DEFAULT_TURNS) -> None:
-    engine = create_engine()
+    engine = Engine()
     user_inputs = build_user_inputs(turns)
     if turns == _DEFAULT_TURNS and user_inputs != _ORIGINAL_DEFAULT_TRANSCRIPT:
         raise RuntimeError("Demo 5 default transcript diverged from original behavior.")

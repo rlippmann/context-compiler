@@ -18,7 +18,6 @@ from .engine import (
     DecisionKind,
     Engine,
     PolicyValue,
-    create_engine,
 )
 
 __version__ = version("context-compiler")
@@ -33,7 +32,6 @@ __all__ = [
     "POLICY_PROHIBIT",
     "POLICY_USE",
     "PolicyValue",
-    "create_engine",
     "get_error_message",
     "is_error",
     "is_no_directive",
