@@ -5,15 +5,11 @@
   "exports": {
     "names": [
       "CanonicalDirective",
-      "DirectiveKind",
       "InvalidDirectiveSyntax",
       "decompose_directive"
     ],
     "members": {
       "CanonicalDirective": {
-        "kind": "class"
-      },
-      "DirectiveKind": {
         "kind": "class"
       },
       "InvalidDirectiveSyntax": {

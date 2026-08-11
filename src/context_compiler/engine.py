@@ -20,7 +20,7 @@ from .const import (
     STATE_PREMISE,
     STATE_VERSION,
 )
-from .grammar import CanonicalDirective, DirectiveKind, decompose_directive
+from .grammar import CanonicalDirective, _DirectiveKind, decompose_directive
 
 PolicyValue = Literal["use", "prohibit"]
 
@@ -49,7 +49,7 @@ class Decision(TypedDict):
 
 
 @dataclass(frozen=True)
-class Action:
+class _Action:
     """Represent one parsed engine action before state validation or mutation."""
 
     kind: Literal[
@@ -154,10 +154,10 @@ class Engine:
         self._state = state
 
     def _pre_mutation_error(
-        self, directive: Action | CanonicalDirective, *, state: _State | None = None
+        self, directive: _Action | CanonicalDirective, *, state: _State | None = None
     ) -> Decision | None:
         candidate_state = self._state if state is None else state
-        action = directive if isinstance(directive, Action) else _directive_to_action(directive)
+        action = directive if isinstance(directive, _Action) else _directive_to_action(directive)
         # Single error path: all error outcomes are detected before any mutation.
         if action.kind in {"set_premise", "change_premise"}:
             assert action.value is not None
@@ -245,8 +245,8 @@ class Engine:
 
         return None
 
-    def _apply_directive(self, directive: Action | CanonicalDirective, *, state: _State) -> _State:
-        action = directive if isinstance(directive, Action) else _directive_to_action(directive)
+    def _apply_directive(self, directive: _Action | CanonicalDirective, *, state: _State) -> _State:
+        action = directive if isinstance(directive, _Action) else _directive_to_action(directive)
         next_state = deepcopy(state)
         kind = action.kind
 
@@ -307,28 +307,28 @@ class Engine:
         state[STATE_POLICIES][new_key] = POLICY_USE
 
 
-def _directive_to_action(parsed: CanonicalDirective) -> Action:
-    if parsed.kind is DirectiveKind.SET_PREMISE:
-        return Action(kind="set_premise", value=parsed.operands["value"])
-    if parsed.kind is DirectiveKind.CHANGE_PREMISE:
-        return Action(kind="change_premise", value=parsed.operands["value"])
-    if parsed.kind is DirectiveKind.USE_ITEM:
-        return Action(kind="use_item", item=parsed.operands["item"])
-    if parsed.kind is DirectiveKind.PROHIBIT_ITEM:
-        return Action(kind="prohibit_item", item=parsed.operands["item"])
-    if parsed.kind is DirectiveKind.REMOVE_POLICY:
-        return Action(kind="remove_policy_item", item=parsed.operands["item"])
-    if parsed.kind is DirectiveKind.REPLACE_USE:
-        return Action(
+def _directive_to_action(parsed: CanonicalDirective) -> _Action:
+    if parsed.kind is _DirectiveKind.SET_PREMISE:
+        return _Action(kind="set_premise", value=parsed.operands["value"])
+    if parsed.kind is _DirectiveKind.CHANGE_PREMISE:
+        return _Action(kind="change_premise", value=parsed.operands["value"])
+    if parsed.kind is _DirectiveKind.USE_ITEM:
+        return _Action(kind="use_item", item=parsed.operands["item"])
+    if parsed.kind is _DirectiveKind.PROHIBIT_ITEM:
+        return _Action(kind="prohibit_item", item=parsed.operands["item"])
+    if parsed.kind is _DirectiveKind.REMOVE_POLICY:
+        return _Action(kind="remove_policy_item", item=parsed.operands["item"])
+    if parsed.kind is _DirectiveKind.REPLACE_USE:
+        return _Action(
             kind="replace_use",
             new_item=parsed.operands["new_item"],
             old_item=parsed.operands["old_item"],
         )
-    if parsed.kind is DirectiveKind.CLEAR_PREMISE:
-        return Action(kind="clear_premise")
-    if parsed.kind is DirectiveKind.RESET_POLICIES:
-        return Action(kind="reset_policies")
-    return Action(kind="clear_state")
+    if parsed.kind is _DirectiveKind.CLEAR_PREMISE:
+        return _Action(kind="clear_premise")
+    if parsed.kind is _DirectiveKind.RESET_POLICIES:
+        return _Action(kind="reset_policies")
+    return _Action(kind="clear_state")
 
 
 def _initial_state() -> _State:
