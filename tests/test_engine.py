@@ -10,6 +10,7 @@ from context_compiler.engine import (
     _parse_directive,
 )
 from context_compiler.grammar import (
+    CanonicalDirective,
     contains_multiple_canonical_directives,
     decompose_directive,
     match_canonical_directive_start,
@@ -59,7 +60,7 @@ def test_parse_directive_delegates_canonical_kinds_to_existing_actions() -> None
 def test_engine_parse_directive_matches_public_decomposition_boundary() -> None:
     parsed = decompose_directive("use podman instead of docker")
 
-    assert parsed is not None
+    assert isinstance(parsed, CanonicalDirective)
     assert _parse_directive(parsed.text) == Action(
         kind="replace_use",
         new_item=parsed.operands["new_item"],

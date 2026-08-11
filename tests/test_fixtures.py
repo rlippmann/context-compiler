@@ -5,6 +5,7 @@ import pytest
 
 from context_compiler import DECISION_ERROR, create_engine
 from context_compiler.grammar import (
+    CanonicalDirective,
     DirectiveKind,
     decompose_directive,
     render_directive,
@@ -235,9 +236,9 @@ def test_grammar_fixtures() -> None:
             directive = decompose_directive(action["text"])
             expected_directive = expected["directive"]
             if expected_directive is None:
-                assert directive is None, fixture_id
+                assert not isinstance(directive, CanonicalDirective), fixture_id
             else:
-                assert directive is not None, fixture_id
+                assert isinstance(directive, CanonicalDirective), fixture_id
                 assert directive.text == expected_directive["text"], fixture_id
                 assert directive.kind.value == expected_directive["kind"], fixture_id
                 assert dict(directive.operands) == expected_directive["operands"], fixture_id
@@ -245,7 +246,7 @@ def test_grammar_fixtures() -> None:
             rendered = render_directive(DirectiveKind(action["kind"]), **action["operands"])
             assert rendered == expected["text"], fixture_id
             directive = decompose_directive(rendered)
-            assert directive is not None, fixture_id
+            assert isinstance(directive, CanonicalDirective), fixture_id
             assert directive.kind.value == expected["directive_kind"], fixture_id
 
 

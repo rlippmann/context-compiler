@@ -37,6 +37,14 @@ class CanonicalDirective:
 
 
 @dataclass(frozen=True, slots=True)
+class _InvalidDirectiveSyntax:
+    """Represent directive-shaped input that fails canonical syntax parsing."""
+
+
+_INVALID_DIRECTIVE = _InvalidDirectiveSyntax()
+
+
+@dataclass(frozen=True, slots=True)
 class _DirectiveSpec:
     kind: DirectiveKind
     operand_names: tuple[str, ...]
@@ -70,6 +78,17 @@ _CANONICAL_DIRECTIVE_STARTS: tuple[tuple[str, bool], ...] = (
     ("clear premise", False),
     ("clear state", False),
     (_PROHIBIT_PREFIX.removesuffix(" "), True),
+    ("use", True),
+)
+
+_DIRECTIVE_FAMILY_STARTS: tuple[tuple[str, bool], ...] = (
+    ("change premise", True),
+    ("set premise", True),
+    ("remove policy", True),
+    ("reset policies", False),
+    ("clear premise", False),
+    ("clear state", False),
+    ("prohibit", True),
     ("use", True),
 )
 
@@ -263,6 +282,16 @@ def contains_multiple_canonical_directives(text: str) -> bool:
     return False
 
 
+def _starts_with_directive_family(text: str) -> bool:
+    for token, require_space_or_end in _DIRECTIVE_FAMILY_STARTS:
+        if (
+            _match_directive_token(text, 0, token, require_space_or_end=require_space_or_end)
+            is not None
+        ):
+            return True
+    return False
+
+
 def _parse_replace_use(trimmed_text: str) -> CanonicalDirective | None:
     match = _REPLACE_RE.fullmatch(trimmed_text)
     if match is None:
@@ -285,7 +314,7 @@ def _parse_replace_use(trimmed_text: str) -> CanonicalDirective | None:
     )
 
 
-def decompose_directive(text: str) -> CanonicalDirective | None:
+def decompose_directive(text: str) -> CanonicalDirective | _InvalidDirectiveSyntax | None:
     """Parse one canonical directive into its semantic kind and operands.
 
     This determines whether ``text`` is a single canonical directive and, when
@@ -298,8 +327,12 @@ def decompose_directive(text: str) -> CanonicalDirective | None:
     trimmed_text = _trim_ascii_whitespace(text)
     if trimmed_text == "":
         return None
-    if contains_multiple_canonical_directives(trimmed_text):
+    if not _starts_with_directive_family(trimmed_text):
         return None
+    if contains_multiple_canonical_directives(trimmed_text):
+        return _INVALID_DIRECTIVE
+
+    invalid_result = _INVALID_DIRECTIVE
 
     normalized = _normalized_for_matching(trimmed_text)
 
@@ -321,10 +354,10 @@ def decompose_directive(text: str) -> CanonicalDirective | None:
     if normalized.startswith("set premise "):
         match = _SET_PREMISE_RE.fullmatch(trimmed_text)
         if match is None:
-            return None
+            return invalid_result
         value = match.group("value")
         if not _operand_has_content(value) or _operand_starts_with_token(value, "to"):
-            return None
+            return invalid_result
         return CanonicalDirective(
             text=text,
             kind=DirectiveKind.SET_PREMISE,
@@ -334,10 +367,10 @@ def decompose_directive(text: str) -> CanonicalDirective | None:
     if normalized.startswith("change premise to "):
         match = _CHANGE_PREMISE_RE.fullmatch(trimmed_text)
         if match is None:
-            return None
+            return invalid_result
         value = match.group("value")
         if not _operand_has_content(value):
-            return None
+            return invalid_result
         return CanonicalDirective(
             text=text,
             kind=DirectiveKind.CHANGE_PREMISE,
@@ -351,7 +384,7 @@ def decompose_directive(text: str) -> CanonicalDirective | None:
     if normalized.startswith("use "):
         match = _USE_RE.fullmatch(trimmed_text)
         if match is None:
-            return None
+            return invalid_result
         item = match.group("item")
         normalized_item = _normalized_for_matching(item)
         if (
@@ -360,7 +393,7 @@ def decompose_directive(text: str) -> CanonicalDirective | None:
             or normalized_item.endswith(" instead of")
             or _INSTEAD_OF_DELIMITER in normalized_item
         ):
-            return None
+            return invalid_result
         return CanonicalDirective(
             text=text,
             kind=DirectiveKind.USE_ITEM,
@@ -370,10 +403,10 @@ def decompose_directive(text: str) -> CanonicalDirective | None:
     if normalized.startswith("prohibit "):
         match = _PROHIBIT_RE.fullmatch(trimmed_text)
         if match is None:
-            return None
+            return invalid_result
         item = match.group("item")
         if not _operand_has_content(item):
-            return None
+            return invalid_result
         return CanonicalDirective(
             text=text,
             kind=DirectiveKind.PROHIBIT_ITEM,
@@ -383,17 +416,17 @@ def decompose_directive(text: str) -> CanonicalDirective | None:
     if normalized.startswith("remove policy "):
         match = _REMOVE_POLICY_RE.fullmatch(trimmed_text)
         if match is None:
-            return None
+            return invalid_result
         item = match.group("item")
         if not _operand_has_content(item):
-            return None
+            return invalid_result
         return CanonicalDirective(
             text=text,
             kind=DirectiveKind.REMOVE_POLICY,
             operands=MappingProxyType({"item": item}),
         )
 
-    return None
+    return invalid_result
 
 
 def render_directive(kind: DirectiveKind, /, **operands: str) -> str:
@@ -433,7 +466,7 @@ def render_directive(kind: DirectiveKind, /, **operands: str) -> str:
     operand_view = MappingProxyType(normalized_operands)
     rendered = spec.renderer(operand_view)
     decomposed = decompose_directive(rendered)
-    if decomposed is None or decomposed.kind is not normalized_kind:
+    if not isinstance(decomposed, CanonicalDirective) or decomposed.kind is not normalized_kind:
         raise ValueError(f"Operands do not produce a canonical {normalized_kind.value} directive.")
     return rendered
 
