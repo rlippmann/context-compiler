@@ -6,13 +6,13 @@ import pytest
 
 from context_compiler import DECISION_ERROR, DECISION_NO_DIRECTIVE, DECISION_UPDATE, create_engine
 from context_compiler.engine import (
-    Action,
+    _Action,
     _directive_to_action,
     _load_state_obj,
 )
 from context_compiler.grammar import (
     CanonicalDirective,
-    DirectiveKind,
+    _DirectiveKind,
     decompose_directive,
 )
 
@@ -40,40 +40,40 @@ def _import_state(engine: object, payload: dict[str, object]) -> None:
 def test_directive_to_action_delegates_canonical_kinds_to_existing_actions() -> None:
     parsed = decompose_directive("set premise concise replies")
     assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == Action(kind="set_premise", value="concise replies")
+    assert _directive_to_action(parsed) == _Action(kind="set_premise", value="concise replies")
     parsed = decompose_directive("change premise to concise replies")
     assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == Action(kind="change_premise", value="concise replies")
+    assert _directive_to_action(parsed) == _Action(kind="change_premise", value="concise replies")
     parsed = decompose_directive("use docker")
     assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == Action(kind="use_item", item="docker")
+    assert _directive_to_action(parsed) == _Action(kind="use_item", item="docker")
     parsed = decompose_directive("prohibit peanuts")
     assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == Action(kind="prohibit_item", item="peanuts")
+    assert _directive_to_action(parsed) == _Action(kind="prohibit_item", item="peanuts")
     parsed = decompose_directive("remove policy docker")
     assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == Action(kind="remove_policy_item", item="docker")
+    assert _directive_to_action(parsed) == _Action(kind="remove_policy_item", item="docker")
     parsed = decompose_directive("use podman instead of docker")
     assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == Action(
+    assert _directive_to_action(parsed) == _Action(
         kind="replace_use", new_item="podman", old_item="docker"
     )
     parsed = decompose_directive("clear premise")
     assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == Action(kind="clear_premise")
+    assert _directive_to_action(parsed) == _Action(kind="clear_premise")
     parsed = decompose_directive("reset policies")
     assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == Action(kind="reset_policies")
+    assert _directive_to_action(parsed) == _Action(kind="reset_policies")
     parsed = decompose_directive("clear state")
     assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == Action(kind="clear_state")
+    assert _directive_to_action(parsed) == _Action(kind="clear_state")
 
 
 def test_engine_directive_to_action_matches_public_decomposition_boundary() -> None:
     parsed = decompose_directive("use podman instead of docker")
 
     assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == Action(
+    assert _directive_to_action(parsed) == _Action(
         kind="replace_use",
         new_item=parsed.operands["new_item"],
         old_item=parsed.operands["old_item"],
@@ -83,11 +83,11 @@ def test_engine_directive_to_action_matches_public_decomposition_boundary() -> N
 def test_directive_to_action_uses_canonical_operands_from_decompose_directive() -> None:
     parsed = CanonicalDirective(
         text="use docker",
-        kind=DirectiveKind.USE_ITEM,
+        kind=_DirectiveKind.USE_ITEM,
         operands=MappingProxyType({"item": "docker"}),
     )
 
-    assert _directive_to_action(parsed) == Action(kind="use_item", item="docker")
+    assert _directive_to_action(parsed) == _Action(kind="use_item", item="docker")
 
 
 def test_apply_directive_updates_state_from_canonical_directive() -> None:
@@ -139,30 +139,30 @@ def test_decompose_directive_rejects_invalid_and_nondirective_inputs() -> None:
 def test_pre_mutation_error_empty_operand_branches_remain_stable() -> None:
     engine = create_engine()
 
-    assert engine._pre_mutation_error(Action(kind="set_premise", value="")) == {
+    assert engine._pre_mutation_error(_Action(kind="set_premise", value="")) == {
         "kind": "error",
         "message": (
             "Premise value cannot be empty.\nUse 'set premise <value>' with a non-empty value."
         ),
     }
-    assert engine._pre_mutation_error(Action(kind="change_premise", value="")) == {
+    assert engine._pre_mutation_error(_Action(kind="change_premise", value="")) == {
         "kind": "error",
         "message": (
             "Premise value cannot be empty.\n"
             "Use 'change premise to <value>' with a non-empty value."
         ),
     }
-    assert engine._pre_mutation_error(Action(kind="remove_policy_item", item="")) == {
+    assert engine._pre_mutation_error(_Action(kind="remove_policy_item", item="")) == {
         "kind": "error",
         "message": (
             "Policy item cannot be empty.\nUse 'remove policy <item>' with a non-empty value."
         ),
     }
-    assert engine._pre_mutation_error(Action(kind="use_item", item="")) == {
+    assert engine._pre_mutation_error(_Action(kind="use_item", item="")) == {
         "kind": "error",
         "message": "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value.",
     }
-    assert engine._pre_mutation_error(Action(kind="prohibit_item", item="")) == {
+    assert engine._pre_mutation_error(_Action(kind="prohibit_item", item="")) == {
         "kind": "error",
         "message": ("Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."),
     }

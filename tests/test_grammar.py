@@ -6,14 +6,14 @@ import pytest
 import context_compiler.grammar as grammar_module
 from context_compiler.grammar import (
     CanonicalDirective,
-    DirectiveKind,
     InvalidDirectiveSyntax,
+    _DirectiveKind,
     decompose_directive,
 )
 
 
 def test_directive_kind_members_and_values() -> None:
-    assert [member.name for member in DirectiveKind] == [
+    assert [member.name for member in _DirectiveKind] == [
         "SET_PREMISE",
         "CHANGE_PREMISE",
         "USE_ITEM",
@@ -24,7 +24,7 @@ def test_directive_kind_members_and_values() -> None:
         "RESET_POLICIES",
         "CLEAR_STATE",
     ]
-    assert [member.value for member in DirectiveKind] == [
+    assert [member.value for member in _DirectiveKind] == [
         "set_premise",
         "change_premise",
         "use_item",
@@ -35,40 +35,40 @@ def test_directive_kind_members_and_values() -> None:
         "reset_policies",
         "clear_state",
     ]
-    assert DirectiveKind("set_premise") is DirectiveKind.SET_PREMISE
+    assert _DirectiveKind("set_premise") is _DirectiveKind.SET_PREMISE
 
 
 def test_canonical_directive_is_frozen_and_slotted() -> None:
     directive = CanonicalDirective(
         text="use docker",
-        kind=DirectiveKind.USE_ITEM,
+        kind=_DirectiveKind.USE_ITEM,
         operands=MappingProxyType({"item": "docker"}),
     )
     assert directive.__slots__ == ("text", "kind", "operands")
     with pytest.raises(FrozenInstanceError):
-        directive.kind = DirectiveKind.PROHIBIT_ITEM  # type: ignore[misc]
+        directive.kind = _DirectiveKind.PROHIBIT_ITEM  # type: ignore[misc]
 
 
 @pytest.mark.parametrize(
     ("text", "expected_kind", "expected_operands"),
     [
-        ("set premise concise replies", DirectiveKind.SET_PREMISE, {"value": "concise replies"}),
-        ("change premise to formal tone", DirectiveKind.CHANGE_PREMISE, {"value": "formal tone"}),
-        ("use docker", DirectiveKind.USE_ITEM, {"item": "docker"}),
-        ("prohibit peanuts", DirectiveKind.PROHIBIT_ITEM, {"item": "peanuts"}),
-        ("remove policy docker", DirectiveKind.REMOVE_POLICY, {"item": "docker"}),
+        ("set premise concise replies", _DirectiveKind.SET_PREMISE, {"value": "concise replies"}),
+        ("change premise to formal tone", _DirectiveKind.CHANGE_PREMISE, {"value": "formal tone"}),
+        ("use docker", _DirectiveKind.USE_ITEM, {"item": "docker"}),
+        ("prohibit peanuts", _DirectiveKind.PROHIBIT_ITEM, {"item": "peanuts"}),
+        ("remove policy docker", _DirectiveKind.REMOVE_POLICY, {"item": "docker"}),
         (
             "use podman instead of docker",
-            DirectiveKind.REPLACE_USE,
+            _DirectiveKind.REPLACE_USE,
             {"new_item": "podman", "old_item": "docker"},
         ),
-        ("clear premise", DirectiveKind.CLEAR_PREMISE, {}),
-        ("reset policies", DirectiveKind.RESET_POLICIES, {}),
-        ("clear state", DirectiveKind.CLEAR_STATE, {}),
+        ("clear premise", _DirectiveKind.CLEAR_PREMISE, {}),
+        ("reset policies", _DirectiveKind.RESET_POLICIES, {}),
+        ("clear state", _DirectiveKind.CLEAR_STATE, {}),
     ],
 )
 def test_decompose_directive_accepts_each_canonical_family(
-    text: str, expected_kind: DirectiveKind, expected_operands: dict[str, str]
+    text: str, expected_kind: _DirectiveKind, expected_operands: dict[str, str]
 ) -> None:
     decomposed = decompose_directive(text)
     assert decomposed == CanonicalDirective(
@@ -130,27 +130,27 @@ def test_decompose_directive_preserves_current_operand_casing_and_whitespace(
 @pytest.mark.parametrize(
     ("kind", "operands", "expected"),
     [
-        (DirectiveKind.SET_PREMISE, {"value": "concise replies"}, "set premise concise replies"),
+        (_DirectiveKind.SET_PREMISE, {"value": "concise replies"}, "set premise concise replies"),
         (
-            DirectiveKind.CHANGE_PREMISE,
+            _DirectiveKind.CHANGE_PREMISE,
             {"value": "formal tone"},
             "change premise to formal tone",
         ),
-        (DirectiveKind.USE_ITEM, {"item": "docker"}, "use docker"),
-        (DirectiveKind.PROHIBIT_ITEM, {"item": "peanuts"}, "prohibit peanuts"),
-        (DirectiveKind.REMOVE_POLICY, {"item": "docker"}, "remove policy docker"),
+        (_DirectiveKind.USE_ITEM, {"item": "docker"}, "use docker"),
+        (_DirectiveKind.PROHIBIT_ITEM, {"item": "peanuts"}, "prohibit peanuts"),
+        (_DirectiveKind.REMOVE_POLICY, {"item": "docker"}, "remove policy docker"),
         (
-            DirectiveKind.REPLACE_USE,
+            _DirectiveKind.REPLACE_USE,
             {"new_item": "podman", "old_item": "docker"},
             "use podman instead of docker",
         ),
-        (DirectiveKind.CLEAR_PREMISE, {}, "clear premise"),
-        (DirectiveKind.RESET_POLICIES, {}, "reset policies"),
-        (DirectiveKind.CLEAR_STATE, {}, "clear state"),
+        (_DirectiveKind.CLEAR_PREMISE, {}, "clear premise"),
+        (_DirectiveKind.RESET_POLICIES, {}, "reset policies"),
+        (_DirectiveKind.CLEAR_STATE, {}, "clear state"),
     ],
 )
 def test_render_directive_outputs_exact_canonical_syntax(
-    kind: DirectiveKind, operands: dict[str, str], expected: str
+    kind: _DirectiveKind, operands: dict[str, str], expected: str
 ) -> None:
     rendered = grammar_module._render_directive(kind, **operands)
     assert rendered == expected
@@ -162,45 +162,45 @@ def test_render_directive_outputs_exact_canonical_syntax(
 @pytest.mark.parametrize(
     ("kind", "operands", "message"),
     [
-        (DirectiveKind.SET_PREMISE, {}, "Missing required operands"),
-        (DirectiveKind.REPLACE_USE, {"new_item": "podman"}, "Missing required operands"),
+        (_DirectiveKind.SET_PREMISE, {}, "Missing required operands"),
+        (_DirectiveKind.REPLACE_USE, {"new_item": "podman"}, "Missing required operands"),
         (
-            DirectiveKind.CLEAR_STATE,
+            _DirectiveKind.CLEAR_STATE,
             {"item": "docker"},
             "Unexpected operands",
         ),
         (
-            DirectiveKind.USE_ITEM,
+            _DirectiveKind.USE_ITEM,
             {"value": "docker"},
             "Missing required operands",
         ),
         (
-            DirectiveKind.USE_ITEM,
+            _DirectiveKind.USE_ITEM,
             {"item": "docker", "old_item": "podman"},
             "Unexpected operands",
         ),
         (
-            DirectiveKind.SET_PREMISE,
+            _DirectiveKind.SET_PREMISE,
             {"value": ""},
             "cannot be empty",
         ),
         (
-            DirectiveKind.SET_PREMISE,
+            _DirectiveKind.SET_PREMISE,
             {"value": "   "},
             "cannot be empty",
         ),
         (
-            DirectiveKind.USE_ITEM,
+            _DirectiveKind.USE_ITEM,
             {"item": "docker and prohibit peanuts"},
             "canonical use_item directive",
         ),
         (
-            DirectiveKind.SET_PREMISE,
+            _DirectiveKind.SET_PREMISE,
             {"value": "use docker and prohibit peanuts"},
             "canonical set_premise directive",
         ),
         (
-            DirectiveKind.USE_ITEM,
+            _DirectiveKind.USE_ITEM,
             {"item": "docker instead of podman"},
             "canonical use_item directive",
         ),
@@ -212,7 +212,7 @@ def test_render_directive_outputs_exact_canonical_syntax(
     ],
 )
 def test_render_directive_rejects_invalid_operand_combinations(
-    kind: DirectiveKind | str, operands: dict[str, str], message: str
+    kind: _DirectiveKind | str, operands: dict[str, str], message: str
 ) -> None:
     with pytest.raises(ValueError, match=message):
         grammar_module._render_directive(kind, **operands)
@@ -227,16 +227,15 @@ def test_internal_grammar_specs_use_immutable_mapping() -> None:
     specs = grammar_module._DIRECTIVE_SPECS
     assert isinstance(specs, MappingProxyType)
     with pytest.raises(TypeError):
-        specs[DirectiveKind.SET_PREMISE] = object()  # type: ignore[index]
-    spec = specs[DirectiveKind.SET_PREMISE]
+        specs[_DirectiveKind.SET_PREMISE] = object()  # type: ignore[index]
+    spec = specs[_DirectiveKind.SET_PREMISE]
     with pytest.raises(FrozenInstanceError):
-        spec.kind = DirectiveKind.CHANGE_PREMISE  # type: ignore[misc]
+        spec.kind = _DirectiveKind.CHANGE_PREMISE  # type: ignore[misc]
 
 
 def test_public_grammar_all_includes_semantic_surface() -> None:
     assert grammar_module.__all__ == [
         "CanonicalDirective",
-        "DirectiveKind",
         "InvalidDirectiveSyntax",
         "decompose_directive",
     ]
@@ -249,7 +248,7 @@ def test_decompose_directive_rejects_near_miss_without_required_delimiter() -> N
 
 def test_render_directive_rejects_non_string_operands() -> None:
     with pytest.raises(ValueError, match="must be a string"):
-        grammar_module._render_directive(DirectiveKind.SET_PREMISE, value=123)  # type: ignore[arg-type]
+        grammar_module._render_directive(_DirectiveKind.SET_PREMISE, value=123)  # type: ignore[arg-type]
 
 
 def test_render_directive_uses_decompose_directive_as_authoritative_round_trip(
@@ -260,12 +259,12 @@ def test_render_directive_uses_decompose_directive_as_authoritative_round_trip(
         "decompose_directive",
         lambda _: CanonicalDirective(
             text="use docker",
-            kind=DirectiveKind.USE_ITEM,
+            kind=_DirectiveKind.USE_ITEM,
             operands=MappingProxyType({"item": "docker"}),
         ),
     )
 
-    assert grammar_module._render_directive(DirectiveKind.USE_ITEM, item="docker") == "use docker"
+    assert grammar_module._render_directive(_DirectiveKind.USE_ITEM, item="docker") == "use docker"
 
 
 def test_render_directive_rejects_when_decompose_directive_disagrees_with_rendered_kind(
@@ -276,13 +275,13 @@ def test_render_directive_rejects_when_decompose_directive_disagrees_with_render
         "decompose_directive",
         lambda _: CanonicalDirective(
             text="use docker",
-            kind=DirectiveKind.PROHIBIT_ITEM,
+            kind=_DirectiveKind.PROHIBIT_ITEM,
             operands=MappingProxyType({"item": "docker"}),
         ),
     )
 
     with pytest.raises(ValueError, match="canonical use_item directive"):
-        grammar_module._render_directive(DirectiveKind.USE_ITEM, item="docker")
+        grammar_module._render_directive(_DirectiveKind.USE_ITEM, item="docker")
 
 
 def test_render_directive_rejects_when_decompose_directive_returns_noncanonical_result(
@@ -291,7 +290,7 @@ def test_render_directive_rejects_when_decompose_directive_returns_noncanonical_
     monkeypatch.setattr(grammar_module, "decompose_directive", lambda _: InvalidDirectiveSyntax())
 
     with pytest.raises(ValueError, match="canonical use_item directive"):
-        grammar_module._render_directive(DirectiveKind.USE_ITEM, item="docker")
+        grammar_module._render_directive(_DirectiveKind.USE_ITEM, item="docker")
 
 
 def test_decompose_directive_returns_canonical_operands_for_use_item() -> None:
@@ -299,7 +298,7 @@ def test_decompose_directive_returns_canonical_operands_for_use_item() -> None:
 
     assert parsed is not None
     assert parsed.text == "use docker"
-    assert parsed.kind is DirectiveKind.USE_ITEM
+    assert parsed.kind is _DirectiveKind.USE_ITEM
     assert parsed.operands == {"item": "docker"}
 
 
@@ -308,7 +307,7 @@ def test_decompose_directive_returns_text_kind_and_operands_without_projection_l
 
     assert decomposed is not None
     assert decomposed.text == "use docker"
-    assert decomposed.kind is DirectiveKind.USE_ITEM
+    assert decomposed.kind is _DirectiveKind.USE_ITEM
     assert decomposed.operands == {"item": "docker"}
 
 

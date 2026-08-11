@@ -69,7 +69,6 @@ submodule.
 Public grammar surface:
 
 - `CanonicalDirective`
-- `DirectiveKind`
 - `InvalidDirectiveSyntax`
 - `decompose_directive(text)`
 
