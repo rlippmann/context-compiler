@@ -195,6 +195,18 @@
             "params": []
           }
         },
+        "apply_directive": {
+          "kind": "method",
+          "signature": {
+            "params": [
+              {
+                "name": "directive",
+                "kind": "POSITIONAL_OR_KEYWORD",
+                "has_default": false
+              }
+            ]
+          }
+        },
         "import_json": {
           "kind": "method",
           "signature": {

@@ -127,29 +127,37 @@ class Engine:
         state before the decision is returned.
         """
 
-        evaluated = self._evaluate_transition(self._state, user_input)
+        directive = decompose_directive(user_input)
+        if not isinstance(directive, CanonicalDirective):
+            return _NO_DIRECTIVE.copy()
+
+        return self.apply_directive(directive)
+
+    def apply_directive(self, directive: CanonicalDirective) -> Decision:
+        """Evaluate and commit one canonical directive against authoritative state."""
+
+        evaluated = self._evaluate_directive_transition(self._state, directive)
         self._replace_state(evaluated.next_state)
         return evaluated.decision
 
-    def _evaluate_transition(self, state: _State, user_input: str) -> _EvaluatedTransition:
-        action = _parse_directive(user_input)
-        if action is None:
-            return _EvaluatedTransition(decision=_NO_DIRECTIVE.copy(), next_state=deepcopy(state))
-
-        error_decision = self._pre_mutation_error(action, state=state)
+    def _evaluate_directive_transition(
+        self, state: _State, directive: CanonicalDirective
+    ) -> _EvaluatedTransition:
+        error_decision = self._pre_mutation_error(directive, state=state)
         if error_decision is not None:
             return _EvaluatedTransition(decision=error_decision, next_state=deepcopy(state))
 
-        next_state = self._apply_action(action, state=state)
+        next_state = self._apply_directive(directive, state=state)
         return _EvaluatedTransition(decision=_update_decision(next_state), next_state=next_state)
 
     def _replace_state(self, state: _State) -> None:
         self._state = state
 
     def _pre_mutation_error(
-        self, action: Action, *, state: _State | None = None
+        self, directive: Action | CanonicalDirective, *, state: _State | None = None
     ) -> Decision | None:
         candidate_state = self._state if state is None else state
+        action = directive if isinstance(directive, Action) else _directive_to_action(directive)
         # Single error path: all error outcomes are detected before any mutation.
         if action.kind in {"set_premise", "change_premise"}:
             assert action.value is not None
@@ -237,7 +245,8 @@ class Engine:
 
         return None
 
-    def _apply_action(self, action: Action, *, state: _State) -> _State:
+    def _apply_directive(self, directive: Action | CanonicalDirective, *, state: _State) -> _State:
+        action = directive if isinstance(directive, Action) else _directive_to_action(directive)
         next_state = deepcopy(state)
         kind = action.kind
 
@@ -303,6 +312,10 @@ def _parse_directive(user_input: str) -> Action | None:
     if not isinstance(parsed, CanonicalDirective):
         return None
 
+    return _directive_to_action(parsed)
+
+
+def _directive_to_action(parsed: CanonicalDirective) -> Action:
     if parsed.kind is DirectiveKind.SET_PREMISE:
         return Action(kind="set_premise", value=parsed.operands["value"])
     if parsed.kind is DirectiveKind.CHANGE_PREMISE:
