@@ -9,7 +9,6 @@ from context_compiler.engine import (
     Action,
     _directive_to_action,
     _load_state_obj,
-    _parse_directive,
 )
 from context_compiler.grammar import (
     CanonicalDirective,
@@ -38,27 +37,39 @@ def _import_state(engine: object, payload: dict[str, object]) -> None:
     engine.import_json(json.dumps(payload, sort_keys=True, separators=(",", ":")))
 
 
-def test_parse_directive_delegates_canonical_kinds_to_existing_actions() -> None:
-    assert _parse_directive("set premise concise replies") == Action(
-        kind="set_premise", value="concise replies"
-    )
-    assert _parse_directive("change premise to concise replies") == Action(
-        kind="change_premise", value="concise replies"
-    )
-    assert _parse_directive("use docker") == Action(kind="use_item", item="docker")
-    assert _parse_directive("prohibit peanuts") == Action(kind="prohibit_item", item="peanuts")
-    assert _parse_directive("remove policy docker") == Action(
-        kind="remove_policy_item", item="docker"
-    )
-    assert _parse_directive("use podman instead of docker") == Action(
+def test_directive_to_action_delegates_canonical_kinds_to_existing_actions() -> None:
+    parsed = decompose_directive("set premise concise replies")
+    assert isinstance(parsed, CanonicalDirective)
+    assert _directive_to_action(parsed) == Action(kind="set_premise", value="concise replies")
+    parsed = decompose_directive("change premise to concise replies")
+    assert isinstance(parsed, CanonicalDirective)
+    assert _directive_to_action(parsed) == Action(kind="change_premise", value="concise replies")
+    parsed = decompose_directive("use docker")
+    assert isinstance(parsed, CanonicalDirective)
+    assert _directive_to_action(parsed) == Action(kind="use_item", item="docker")
+    parsed = decompose_directive("prohibit peanuts")
+    assert isinstance(parsed, CanonicalDirective)
+    assert _directive_to_action(parsed) == Action(kind="prohibit_item", item="peanuts")
+    parsed = decompose_directive("remove policy docker")
+    assert isinstance(parsed, CanonicalDirective)
+    assert _directive_to_action(parsed) == Action(kind="remove_policy_item", item="docker")
+    parsed = decompose_directive("use podman instead of docker")
+    assert isinstance(parsed, CanonicalDirective)
+    assert _directive_to_action(parsed) == Action(
         kind="replace_use", new_item="podman", old_item="docker"
     )
-    assert _parse_directive("clear premise") == Action(kind="clear_premise")
-    assert _parse_directive("reset policies") == Action(kind="reset_policies")
-    assert _parse_directive("clear state") == Action(kind="clear_state")
+    parsed = decompose_directive("clear premise")
+    assert isinstance(parsed, CanonicalDirective)
+    assert _directive_to_action(parsed) == Action(kind="clear_premise")
+    parsed = decompose_directive("reset policies")
+    assert isinstance(parsed, CanonicalDirective)
+    assert _directive_to_action(parsed) == Action(kind="reset_policies")
+    parsed = decompose_directive("clear state")
+    assert isinstance(parsed, CanonicalDirective)
+    assert _directive_to_action(parsed) == Action(kind="clear_state")
 
 
-def test_engine_parse_directive_matches_public_decomposition_boundary() -> None:
+def test_engine_directive_to_action_matches_public_decomposition_boundary() -> None:
     parsed = decompose_directive("use podman instead of docker")
 
     assert isinstance(parsed, CanonicalDirective)
@@ -67,21 +78,16 @@ def test_engine_parse_directive_matches_public_decomposition_boundary() -> None:
         new_item=parsed.operands["new_item"],
         old_item=parsed.operands["old_item"],
     )
-    assert _parse_directive(parsed.text) == _directive_to_action(parsed)
 
 
-def test_parse_directive_uses_decompose_directive_as_authoritative_boundary(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_directive_to_action_uses_canonical_operands_from_decompose_directive() -> None:
     parsed = CanonicalDirective(
         text="use docker",
         kind=DirectiveKind.USE_ITEM,
         operands=MappingProxyType({"item": "docker"}),
     )
 
-    monkeypatch.setattr("context_compiler.engine.decompose_directive", lambda _: parsed)
-
-    assert _parse_directive("ignored input") == Action(kind="use_item", item="docker")
+    assert _directive_to_action(parsed) == Action(kind="use_item", item="docker")
 
 
 def test_apply_directive_updates_state_from_canonical_directive() -> None:
@@ -117,23 +123,17 @@ def test_step_routes_canonical_directives_through_apply_directive(
     assert seen == [parsed]
 
 
-def test_parse_directive_ignores_noncanonical_decompose_results_at_engine_boundary(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr("context_compiler.engine.decompose_directive", lambda _: object())
-
-    assert _parse_directive("ignored input") is None
-
-
-def test_parse_directive_returns_none_for_invalid_syntax_and_no_directive_inputs() -> None:
-    assert _parse_directive("set premise") is None
-    assert _parse_directive("change premise to") is None
-    assert _parse_directive("use") is None
-    assert _parse_directive("prohibit") is None
-    assert _parse_directive("remove policy") is None
-    assert _parse_directive("use instead of docker") is None
-    assert _parse_directive("use docker and prohibit peanuts") is None
-    assert _parse_directive("hello there") is None
+def test_decompose_directive_rejects_invalid_and_nondirective_inputs() -> None:
+    assert not isinstance(decompose_directive("set premise"), CanonicalDirective)
+    assert not isinstance(decompose_directive("change premise to"), CanonicalDirective)
+    assert not isinstance(decompose_directive("use"), CanonicalDirective)
+    assert not isinstance(decompose_directive("prohibit"), CanonicalDirective)
+    assert not isinstance(decompose_directive("remove policy"), CanonicalDirective)
+    assert not isinstance(decompose_directive("use instead of docker"), CanonicalDirective)
+    assert not isinstance(
+        decompose_directive("use docker and prohibit peanuts"), CanonicalDirective
+    )
+    assert not isinstance(decompose_directive("hello there"), CanonicalDirective)
 
 
 def test_pre_mutation_error_empty_operand_branches_remain_stable() -> None:
