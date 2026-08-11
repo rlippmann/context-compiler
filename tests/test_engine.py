@@ -35,6 +35,192 @@ def _import_state(engine: object, payload: dict[str, object]) -> None:
     engine.import_json(json.dumps(payload, sort_keys=True, separators=(",", ":")))
 
 
+def _canonical_directive(
+    text: str,
+    kind: _DirectiveKind,
+    **operands: str,
+) -> CanonicalDirective:
+    return CanonicalDirective(text=text, kind=kind, operands=MappingProxyType(operands))
+
+
+@pytest.mark.parametrize(
+    ("directive", "initial_state", "expected_decision", "expected_state"),
+    [
+        (
+            _canonical_directive(
+                "set premise concise replies",
+                _DirectiveKind.SET_PREMISE,
+                value="concise replies",
+            ),
+            None,
+            {"kind": DECISION_UPDATE, "message": None},
+            (("concise replies"), {}),
+        ),
+        (
+            _canonical_directive(
+                "change premise to concise replies",
+                _DirectiveKind.CHANGE_PREMISE,
+                value="concise replies",
+            ),
+            {"premise": "verbose replies", "policies": {}, "version": 2},
+            {"kind": DECISION_UPDATE, "message": None},
+            (("concise replies"), {}),
+        ),
+        (
+            _canonical_directive("use docker", _DirectiveKind.USE_ITEM, item="docker"),
+            None,
+            {"kind": DECISION_UPDATE, "message": None},
+            (None, {"docker": "use"}),
+        ),
+        (
+            _canonical_directive("prohibit peanuts", _DirectiveKind.PROHIBIT_ITEM, item="peanuts"),
+            None,
+            {"kind": DECISION_UPDATE, "message": None},
+            (None, {"peanuts": "prohibit"}),
+        ),
+        (
+            _canonical_directive(
+                "remove policy docker",
+                _DirectiveKind.REMOVE_POLICY,
+                item="docker",
+            ),
+            {"premise": None, "policies": {"docker": "use"}, "version": 2},
+            {"kind": DECISION_UPDATE, "message": None},
+            (None, {}),
+        ),
+        (
+            _canonical_directive(
+                "use podman instead of docker",
+                _DirectiveKind.REPLACE_USE,
+                new_item="podman",
+                old_item="docker",
+            ),
+            {"premise": None, "policies": {"docker": "use"}, "version": 2},
+            {"kind": DECISION_UPDATE, "message": None},
+            (None, {"podman": "use"}),
+        ),
+        (
+            _canonical_directive("clear premise", _DirectiveKind.CLEAR_PREMISE),
+            {"premise": "concise replies", "policies": {"docker": "use"}, "version": 2},
+            {"kind": DECISION_UPDATE, "message": None},
+            (None, {"docker": "use"}),
+        ),
+        (
+            _canonical_directive("reset policies", _DirectiveKind.RESET_POLICIES),
+            {"premise": "concise replies", "policies": {"docker": "use"}, "version": 2},
+            {"kind": DECISION_UPDATE, "message": None},
+            ("concise replies", {}),
+        ),
+        (
+            _canonical_directive("clear state", _DirectiveKind.CLEAR_STATE),
+            {"premise": "concise replies", "policies": {"docker": "use"}, "version": 2},
+            {"kind": DECISION_UPDATE, "message": None},
+            (None, {}),
+        ),
+    ],
+)
+def test_apply_directive_accepts_all_canonical_directive_kinds(
+    directive: CanonicalDirective,
+    initial_state: dict[str, object] | None,
+    expected_decision: dict[str, str | None],
+    expected_state: tuple[str | None, dict[str, str]],
+) -> None:
+    engine = create_engine()
+    if initial_state is not None:
+        _import_state(engine, initial_state)
+
+    decision = engine.apply_directive(directive)
+
+    assert decision == expected_decision
+    _assert_observations(engine, premise=expected_state[0], policies=expected_state[1])
+
+
+@pytest.mark.parametrize(
+    ("directive", "initial_state", "expected_decision", "expected_state"),
+    [
+        (
+            _canonical_directive(
+                "set premise concise replies",
+                _DirectiveKind.SET_PREMISE,
+                value="concise replies",
+            ),
+            {"premise": "existing premise", "policies": {}, "version": 2},
+            {
+                "kind": DECISION_ERROR,
+                "message": "Premise already set.\nUse 'change premise to <value>' to modify it.",
+            },
+            ("existing premise", {}),
+        ),
+        (
+            _canonical_directive(
+                "change premise to concise replies",
+                _DirectiveKind.CHANGE_PREMISE,
+                value="concise replies",
+            ),
+            None,
+            {
+                "kind": DECISION_ERROR,
+                "message": "No premise is set.\nUse 'set premise <value>' to define one.",
+            },
+            (None, {}),
+        ),
+        (
+            _canonical_directive("use docker", _DirectiveKind.USE_ITEM, item="docker"),
+            {"premise": None, "policies": {"docker": "prohibit"}, "version": 2},
+            {
+                "kind": DECISION_ERROR,
+                "message": (
+                    '"docker" is currently prohibited.\nRemove or replace it before using it.'
+                ),
+            },
+            (None, {"docker": "prohibit"}),
+        ),
+        (
+            _canonical_directive("prohibit docker", _DirectiveKind.PROHIBIT_ITEM, item="docker"),
+            {"premise": None, "policies": {"docker": "use"}, "version": 2},
+            {
+                "kind": DECISION_ERROR,
+                "message": (
+                    '"docker" is currently in use.\nRemove or replace it before prohibiting it.'
+                ),
+            },
+            (None, {"docker": "use"}),
+        ),
+        (
+            _canonical_directive(
+                "use docker instead of kubectl",
+                _DirectiveKind.REPLACE_USE,
+                new_item="docker",
+                old_item="kubectl",
+            ),
+            {"premise": None, "policies": {"docker": "prohibit"}, "version": 2},
+            {
+                "kind": DECISION_ERROR,
+                "message": (
+                    '"docker" is currently prohibited.\n'
+                    "Submit explicit directive(s) to remove it or use a different item."
+                ),
+            },
+            (None, {"docker": "prohibit"}),
+        ),
+    ],
+)
+def test_apply_directive_preserves_state_for_semantic_errors(
+    directive: CanonicalDirective,
+    initial_state: dict[str, object] | None,
+    expected_decision: dict[str, str | None],
+    expected_state: tuple[str | None, dict[str, str]],
+) -> None:
+    engine = create_engine()
+    if initial_state is not None:
+        _import_state(engine, initial_state)
+
+    decision = engine.apply_directive(directive)
+
+    assert decision == expected_decision
+    _assert_observations(engine, premise=expected_state[0], policies=expected_state[1])
+
+
 def test_apply_directive_updates_state_from_canonical_directive() -> None:
     engine = create_engine()
     parsed = decompose_directive("use docker")
