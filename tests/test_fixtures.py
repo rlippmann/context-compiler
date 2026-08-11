@@ -3,12 +3,12 @@ from pathlib import Path
 
 import pytest
 
+import context_compiler.grammar as grammar_module
 from context_compiler import DECISION_ERROR, create_engine
 from context_compiler.grammar import (
     CanonicalDirective,
     DirectiveKind,
     decompose_directive,
-    render_directive,
 )
 
 _STEP_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "conformance" / "step"
@@ -243,7 +243,9 @@ def test_grammar_fixtures() -> None:
                 assert directive.kind.value == expected_directive["kind"], fixture_id
                 assert dict(directive.operands) == expected_directive["operands"], fixture_id
         else:
-            rendered = render_directive(DirectiveKind(action["kind"]), **action["operands"])
+            rendered = grammar_module._render_directive(
+                DirectiveKind(action["kind"]), **action["operands"]
+            )
             assert rendered == expected["text"], fixture_id
             directive = decompose_directive(rendered)
             assert isinstance(directive, CanonicalDirective), fixture_id
