@@ -4,7 +4,6 @@ import json
 import re
 from collections.abc import Mapping
 from copy import deepcopy
-from dataclasses import dataclass
 from enum import StrEnum
 from typing import Literal, TypedDict
 from unicodedata import normalize as unicode_normalize
@@ -48,29 +47,7 @@ class Decision(TypedDict):
     message: str | None
 
 
-@dataclass(frozen=True)
-class _Action:
-    """Represent one parsed engine action before state validation or mutation."""
-
-    kind: Literal[
-        "set_premise",
-        "change_premise",
-        "use_item",
-        "prohibit_item",
-        "remove_policy_item",
-        "replace_use",
-        "clear_premise",
-        "reset_policies",
-        "clear_state",
-    ]
-    value: str | None = None
-    item: str | None = None
-    new_item: str | None = None
-    old_item: str | None = None
-
-
-@dataclass(frozen=True)
-class _EvaluatedTransition:
+class _EvaluatedTransition(TypedDict):
     decision: Decision
     next_state: _State
 
@@ -137,32 +114,31 @@ class Engine:
         """Evaluate and commit one canonical directive against authoritative state."""
 
         evaluated = self._evaluate_directive_transition(self._state, directive)
-        self._replace_state(evaluated.next_state)
-        return evaluated.decision
+        self._replace_state(evaluated["next_state"])
+        return evaluated["decision"]
 
     def _evaluate_directive_transition(
         self, state: _State, directive: CanonicalDirective
     ) -> _EvaluatedTransition:
         error_decision = self._pre_mutation_error(directive, state=state)
         if error_decision is not None:
-            return _EvaluatedTransition(decision=error_decision, next_state=deepcopy(state))
+            return {"decision": error_decision, "next_state": deepcopy(state)}
 
         next_state = self._apply_directive(directive, state=state)
-        return _EvaluatedTransition(decision=_update_decision(next_state), next_state=next_state)
+        return {"decision": _update_decision(next_state), "next_state": next_state}
 
     def _replace_state(self, state: _State) -> None:
         self._state = state
 
     def _pre_mutation_error(
-        self, directive: _Action | CanonicalDirective, *, state: _State | None = None
+        self, directive: CanonicalDirective, *, state: _State | None = None
     ) -> Decision | None:
         candidate_state = self._state if state is None else state
-        action = directive if isinstance(directive, _Action) else _directive_to_action(directive)
         # Single error path: all error outcomes are detected before any mutation.
-        if action.kind in {"set_premise", "change_premise"}:
-            assert action.value is not None
-            if _sanitize_premise_value(action.value) == "":
-                if action.kind == "set_premise":
+        if directive.kind in {_DirectiveKind.SET_PREMISE, _DirectiveKind.CHANGE_PREMISE}:
+            value = directive.operands["value"]
+            if _sanitize_premise_value(value) == "":
+                if directive.kind is _DirectiveKind.SET_PREMISE:
                     return _error(
                         "Premise value cannot be empty.\n"
                         "Use 'set premise <value>' with a non-empty value."
@@ -172,56 +148,60 @@ class Engine:
                     "Use 'change premise to <value>' with a non-empty value."
                 )
 
-        if action.kind == "remove_policy_item":
-            assert action.item is not None
-            if _normalize_item(action.item) == "":
-                return _error(
-                    "Policy item cannot be empty.\n"
-                    "Use 'remove policy <item>' with a non-empty value."
-                )
+        if (
+            directive.kind is _DirectiveKind.REMOVE_POLICY
+            and _normalize_item(directive.operands["item"]) == ""
+        ):
+            return _error(
+                "Policy item cannot be empty.\nUse 'remove policy <item>' with a non-empty value."
+            )
 
-        if action.kind == "use_item":
-            assert action.item is not None
-            if _normalize_item(action.item) == "":
-                return _error(
-                    "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value."
-                )
+        if (
+            directive.kind is _DirectiveKind.USE_ITEM
+            and _normalize_item(directive.operands["item"]) == ""
+        ):
+            return _error("Policy item cannot be empty.\nUse 'use <item>' with a non-empty value.")
 
-        if action.kind == "prohibit_item":
-            assert action.item is not None
-            if _normalize_item(action.item) == "":
-                return _error(
-                    "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
-                )
+        if (
+            directive.kind is _DirectiveKind.PROHIBIT_ITEM
+            and _normalize_item(directive.operands["item"]) == ""
+        ):
+            return _error(
+                "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
+            )
 
-        if action.kind == "set_premise" and candidate_state[STATE_PREMISE] is not None:
+        if (
+            directive.kind is _DirectiveKind.SET_PREMISE
+            and candidate_state[STATE_PREMISE] is not None
+        ):
             return _error("Premise already set.\nUse 'change premise to <value>' to modify it.")
 
-        if action.kind == "change_premise" and candidate_state[STATE_PREMISE] is None:
+        if (
+            directive.kind is _DirectiveKind.CHANGE_PREMISE
+            and candidate_state[STATE_PREMISE] is None
+        ):
             return _error("No premise is set.\nUse 'set premise <value>' to define one.")
 
-        if action.kind == "use_item":
-            assert action.item is not None
-            item_key = _normalize_item(action.item)
+        if directive.kind is _DirectiveKind.USE_ITEM:
+            item_key = _normalize_item(directive.operands["item"])
             if candidate_state[STATE_POLICIES].get(item_key) == POLICY_PROHIBIT:
                 return _error(
                     f'"{item_key}" is currently prohibited.\nRemove or replace it before using it.'
                 )
 
-        if action.kind == "prohibit_item":
-            assert action.item is not None
-            item_key = _normalize_item(action.item)
+        if directive.kind is _DirectiveKind.PROHIBIT_ITEM:
+            item_key = _normalize_item(directive.operands["item"])
             if candidate_state[STATE_POLICIES].get(item_key) == POLICY_USE:
                 return _error(
                     f'"{item_key}" is currently in use.\n'
                     "Remove or replace it before prohibiting it."
                 )
 
-        if action.kind == "replace_use":
-            assert action.new_item is not None
-            assert action.old_item is not None
-            new_key = _normalize_item(action.new_item)
-            old_key = _normalize_item(action.old_item)
+        if directive.kind is _DirectiveKind.REPLACE_USE:
+            new_item = directive.operands["new_item"]
+            old_item = directive.operands["old_item"]
+            new_key = _normalize_item(new_item)
+            old_key = _normalize_item(old_item)
             if new_key == old_key:
                 return None
 
@@ -229,68 +209,63 @@ class Engine:
             new_state = candidate_state[STATE_POLICIES].get(new_key)
             if old_state == POLICY_PROHIBIT:
                 return _error(
-                    f'"{action.old_item}" is currently prohibited.\n'
+                    f'"{old_item}" is currently prohibited.\n'
                     "Submit explicit directive(s) to remove it or use a different item."
                 )
             if new_state == POLICY_PROHIBIT:
                 return _error(
-                    f'"{action.new_item}" is currently prohibited.\n'
+                    f'"{new_item}" is currently prohibited.\n'
                     "Submit explicit directive(s) to remove it or use a different item."
                 )
             if old_state not in {None, POLICY_USE}:
                 return _error(
-                    f'"{action.old_item}" is not currently in use.\n'
+                    f'"{old_item}" is not currently in use.\n'
                     "Replacement requires an active 'use' policy."
                 )
 
         return None
 
-    def _apply_directive(self, directive: _Action | CanonicalDirective, *, state: _State) -> _State:
-        action = directive if isinstance(directive, _Action) else _directive_to_action(directive)
+    def _apply_directive(self, directive: CanonicalDirective, *, state: _State) -> _State:
         next_state = deepcopy(state)
-        kind = action.kind
 
-        if kind == "set_premise":
-            assert action.value is not None
-            next_state[STATE_PREMISE] = _sanitize_premise_value(action.value)
+        if directive.kind is _DirectiveKind.SET_PREMISE:
+            next_state[STATE_PREMISE] = _sanitize_premise_value(directive.operands["value"])
             return next_state
 
-        if kind == "change_premise":
-            assert action.value is not None
-            next_state[STATE_PREMISE] = _sanitize_premise_value(action.value)
+        if directive.kind is _DirectiveKind.CHANGE_PREMISE:
+            next_state[STATE_PREMISE] = _sanitize_premise_value(directive.operands["value"])
             return next_state
 
-        if kind == "use_item":
-            assert action.item is not None
-            item_key = _normalize_item(action.item)
+        if directive.kind is _DirectiveKind.USE_ITEM:
+            item_key = _normalize_item(directive.operands["item"])
             # Idempotent directives are updates even if state does not change.
             next_state[STATE_POLICIES][item_key] = POLICY_USE
             return next_state
 
-        if kind == "prohibit_item":
-            assert action.item is not None
-            item_key = _normalize_item(action.item)
+        if directive.kind is _DirectiveKind.PROHIBIT_ITEM:
+            item_key = _normalize_item(directive.operands["item"])
             # Idempotent directives are updates even if state does not change.
             next_state[STATE_POLICIES][item_key] = POLICY_PROHIBIT
             return next_state
 
-        if kind == "replace_use":
-            assert action.new_item is not None
-            assert action.old_item is not None
-            self._apply_replacement_explicit(next_state, action.new_item, action.old_item)
+        if directive.kind is _DirectiveKind.REPLACE_USE:
+            self._apply_replacement_explicit(
+                next_state,
+                directive.operands["new_item"],
+                directive.operands["old_item"],
+            )
             return next_state
 
-        if kind == "remove_policy_item":
-            assert action.item is not None
-            item_key = _normalize_item(action.item)
+        if directive.kind is _DirectiveKind.REMOVE_POLICY:
+            item_key = _normalize_item(directive.operands["item"])
             next_state[STATE_POLICIES].pop(item_key, None)
             return next_state
 
-        if kind == "clear_premise":
+        if directive.kind is _DirectiveKind.CLEAR_PREMISE:
             next_state[STATE_PREMISE] = None
             return next_state
 
-        if kind == "reset_policies":
+        if directive.kind is _DirectiveKind.RESET_POLICIES:
             next_state[STATE_POLICIES] = {}
             return next_state
 
@@ -305,30 +280,6 @@ class Engine:
 
         state[STATE_POLICIES].pop(old_key, None)
         state[STATE_POLICIES][new_key] = POLICY_USE
-
-
-def _directive_to_action(parsed: CanonicalDirective) -> _Action:
-    if parsed.kind is _DirectiveKind.SET_PREMISE:
-        return _Action(kind="set_premise", value=parsed.operands["value"])
-    if parsed.kind is _DirectiveKind.CHANGE_PREMISE:
-        return _Action(kind="change_premise", value=parsed.operands["value"])
-    if parsed.kind is _DirectiveKind.USE_ITEM:
-        return _Action(kind="use_item", item=parsed.operands["item"])
-    if parsed.kind is _DirectiveKind.PROHIBIT_ITEM:
-        return _Action(kind="prohibit_item", item=parsed.operands["item"])
-    if parsed.kind is _DirectiveKind.REMOVE_POLICY:
-        return _Action(kind="remove_policy_item", item=parsed.operands["item"])
-    if parsed.kind is _DirectiveKind.REPLACE_USE:
-        return _Action(
-            kind="replace_use",
-            new_item=parsed.operands["new_item"],
-            old_item=parsed.operands["old_item"],
-        )
-    if parsed.kind is _DirectiveKind.CLEAR_PREMISE:
-        return _Action(kind="clear_premise")
-    if parsed.kind is _DirectiveKind.RESET_POLICIES:
-        return _Action(kind="reset_policies")
-    return _Action(kind="clear_state")
 
 
 def _initial_state() -> _State:
