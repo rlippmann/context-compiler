@@ -193,15 +193,8 @@ def _operand_starts_with_token(value: str, token: str) -> bool:
     return normalized == token or normalized.startswith(f"{token} ")
 
 
-def match_canonical_directive_start(text: str, start: int) -> int | None:
-    """Locate a canonical directive prefix at a given character position.
-
-    This is a shallow syntax-start matcher: it classifies whether canonical
-    directive syntax begins at ``start`` and, when it does, returns the index
-    immediately after the directive keyword prefix. It does not parse operands,
-    validate the full directive payload, or evaluate multi-directive state
-    semantics.
-    """
+def _match_canonical_directive_start(text: str, start: int) -> int | None:
+    """Locate a canonical directive prefix at a given character position."""
     if start < 0 or start >= len(text):
         return None
 
@@ -258,21 +251,14 @@ def _match_directive_token(
     return index
 
 
-def contains_multiple_canonical_directives(text: str) -> bool:
-    """Report whether text contains more than one canonical directive start.
-
-    This detects compound directive structure by looking for multiple canonical
-    directive prefixes in the same input. It is not a replacement for full
-    directive validation, and it does not parse directive operands, repair
-    malformed text, or determine whether a whole string should be accepted as a
-    single directive.
-    """
-    first_start = match_canonical_directive_start(text, 0)
+def _contains_multiple_canonical_directives(text: str) -> bool:
+    """Report whether text contains more than one canonical directive start."""
+    first_start = _match_canonical_directive_start(text, 0)
     if first_start is None:
         return False
 
     for index in range(first_start, len(text)):
-        next_start = match_canonical_directive_start(text, index)
+        next_start = _match_canonical_directive_start(text, index)
         if next_start is not None:
             return True
 
@@ -326,7 +312,7 @@ def decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSynta
         return None
     if not _starts_with_directive_family(trimmed_text):
         return None
-    if contains_multiple_canonical_directives(trimmed_text):
+    if _contains_multiple_canonical_directives(trimmed_text):
         return InvalidDirectiveSyntax()
 
     invalid_result = InvalidDirectiveSyntax()
@@ -472,8 +458,6 @@ __all__ = [
     "CanonicalDirective",
     "DirectiveKind",
     "InvalidDirectiveSyntax",
-    "contains_multiple_canonical_directives",
     "decompose_directive",
-    "match_canonical_directive_start",
     "render_directive",
 ]

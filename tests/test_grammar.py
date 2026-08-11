@@ -8,9 +8,7 @@ from context_compiler.grammar import (
     CanonicalDirective,
     DirectiveKind,
     InvalidDirectiveSyntax,
-    contains_multiple_canonical_directives,
     decompose_directive,
-    match_canonical_directive_start,
     render_directive,
 )
 
@@ -236,19 +234,12 @@ def test_internal_grammar_specs_use_immutable_mapping() -> None:
         spec.kind = DirectiveKind.CHANGE_PREMISE  # type: ignore[misc]
 
 
-def test_internal_canonical_start_match_rejects_out_of_range_positions() -> None:
-    assert match_canonical_directive_start("use docker", -1) is None
-    assert match_canonical_directive_start("use docker", len("use docker")) is None
-
-
 def test_public_grammar_all_includes_semantic_surface() -> None:
     assert grammar_module.__all__ == [
         "CanonicalDirective",
         "DirectiveKind",
         "InvalidDirectiveSyntax",
-        "contains_multiple_canonical_directives",
         "decompose_directive",
-        "match_canonical_directive_start",
         "render_directive",
     ]
 
@@ -305,36 +296,6 @@ def test_render_directive_rejects_when_decompose_directive_returns_noncanonical_
         render_directive(DirectiveKind.USE_ITEM, item="docker")
 
 
-@pytest.mark.parametrize(
-    ("text", "start", "expected"),
-    [
-        ("use docker", 0, len("use")),
-        ("please use docker", 7, len("please use")),
-        ("clear premise!", 0, len("clear premise")),
-        ("abuse docker", 1, None),
-    ],
-)
-def test_match_canonical_directive_start_finds_public_directive_prefixes(
-    text: str, start: int, expected: int | None
-) -> None:
-    assert match_canonical_directive_start(text, start) == expected
-
-
-@pytest.mark.parametrize(
-    ("text", "expected"),
-    [
-        ("use docker and prohibit peanuts", True),
-        ("hello there", False),
-        ("use docker", False),
-        ('"use docker and prohibit peanuts"', False),
-    ],
-)
-def test_contains_multiple_canonical_directives_reports_public_compound_detection(
-    text: str, expected: bool
-) -> None:
-    assert contains_multiple_canonical_directives(text) is expected
-
-
 def test_decompose_directive_returns_canonical_operands_for_use_item() -> None:
     parsed = decompose_directive("use docker")
 
@@ -372,6 +333,41 @@ def test_internal_match_directive_token_rejects_truncated_and_non_whitespace_sep
         )
         is None
     )
+
+
+def test_internal_canonical_start_match_rejects_out_of_range_positions() -> None:
+    assert grammar_module._match_canonical_directive_start("use docker", -1) is None
+    assert grammar_module._match_canonical_directive_start("use docker", len("use docker")) is None
+
+
+@pytest.mark.parametrize(
+    ("text", "start", "expected"),
+    [
+        ("use docker", 0, len("use")),
+        ("please use docker", 7, len("please use")),
+        ("clear premise!", 0, len("clear premise")),
+        ("abuse docker", 1, None),
+    ],
+)
+def test_internal_match_canonical_directive_start_finds_public_prefix_shapes(
+    text: str, start: int, expected: int | None
+) -> None:
+    assert grammar_module._match_canonical_directive_start(text, start) == expected
+
+
+@pytest.mark.parametrize(
+    ("text", "expected"),
+    [
+        ("use docker and prohibit peanuts", True),
+        ("hello there", False),
+        ("use docker", False),
+        ('"use docker and prohibit peanuts"', False),
+    ],
+)
+def test_internal_contains_multiple_canonical_directives_reports_compound_detection(
+    text: str, expected: bool
+) -> None:
+    assert grammar_module._contains_multiple_canonical_directives(text) is expected
 
 
 def test_parse_replace_use_rejects_blank_new_item() -> None:
