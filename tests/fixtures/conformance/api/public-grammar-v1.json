@@ -6,6 +6,7 @@
     "names": [
       "CanonicalDirective",
       "DirectiveKind",
+      "InvalidDirectiveSyntax",
       "contains_multiple_canonical_directives",
       "decompose_directive",
       "match_canonical_directive_start",
@@ -16,6 +17,9 @@
         "kind": "class"
       },
       "DirectiveKind": {
+        "kind": "class"
+      },
+      "InvalidDirectiveSyntax": {
         "kind": "class"
       },
       "contains_multiple_canonical_directives": {
