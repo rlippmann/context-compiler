@@ -6,8 +6,6 @@ import pytest
 
 from context_compiler import DECISION_ERROR, DECISION_NO_DIRECTIVE, DECISION_UPDATE, create_engine
 from context_compiler.engine import (
-    _Action,
-    _directive_to_action,
     _load_state_obj,
 )
 from context_compiler.grammar import (
@@ -35,59 +33,6 @@ def _assert_observations(
 
 def _import_state(engine: object, payload: dict[str, object]) -> None:
     engine.import_json(json.dumps(payload, sort_keys=True, separators=(",", ":")))
-
-
-def test_directive_to_action_delegates_canonical_kinds_to_existing_actions() -> None:
-    parsed = decompose_directive("set premise concise replies")
-    assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == _Action(kind="set_premise", value="concise replies")
-    parsed = decompose_directive("change premise to concise replies")
-    assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == _Action(kind="change_premise", value="concise replies")
-    parsed = decompose_directive("use docker")
-    assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == _Action(kind="use_item", item="docker")
-    parsed = decompose_directive("prohibit peanuts")
-    assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == _Action(kind="prohibit_item", item="peanuts")
-    parsed = decompose_directive("remove policy docker")
-    assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == _Action(kind="remove_policy_item", item="docker")
-    parsed = decompose_directive("use podman instead of docker")
-    assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == _Action(
-        kind="replace_use", new_item="podman", old_item="docker"
-    )
-    parsed = decompose_directive("clear premise")
-    assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == _Action(kind="clear_premise")
-    parsed = decompose_directive("reset policies")
-    assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == _Action(kind="reset_policies")
-    parsed = decompose_directive("clear state")
-    assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == _Action(kind="clear_state")
-
-
-def test_engine_directive_to_action_matches_public_decomposition_boundary() -> None:
-    parsed = decompose_directive("use podman instead of docker")
-
-    assert isinstance(parsed, CanonicalDirective)
-    assert _directive_to_action(parsed) == _Action(
-        kind="replace_use",
-        new_item=parsed.operands["new_item"],
-        old_item=parsed.operands["old_item"],
-    )
-
-
-def test_directive_to_action_uses_canonical_operands_from_decompose_directive() -> None:
-    parsed = CanonicalDirective(
-        text="use docker",
-        kind=_DirectiveKind.USE_ITEM,
-        operands=MappingProxyType({"item": "docker"}),
-    )
-
-    assert _directive_to_action(parsed) == _Action(kind="use_item", item="docker")
 
 
 def test_apply_directive_updates_state_from_canonical_directive() -> None:
@@ -138,31 +83,56 @@ def test_decompose_directive_rejects_invalid_and_nondirective_inputs() -> None:
 
 def test_pre_mutation_error_empty_operand_branches_remain_stable() -> None:
     engine = create_engine()
+    set_premise = CanonicalDirective(
+        text="set premise ",
+        kind=_DirectiveKind.SET_PREMISE,
+        operands=MappingProxyType({"value": ""}),
+    )
+    change_premise = CanonicalDirective(
+        text="change premise to ",
+        kind=_DirectiveKind.CHANGE_PREMISE,
+        operands=MappingProxyType({"value": ""}),
+    )
+    remove_policy = CanonicalDirective(
+        text="remove policy ",
+        kind=_DirectiveKind.REMOVE_POLICY,
+        operands=MappingProxyType({"item": ""}),
+    )
+    use_item = CanonicalDirective(
+        text="use ",
+        kind=_DirectiveKind.USE_ITEM,
+        operands=MappingProxyType({"item": ""}),
+    )
+    prohibit_item = CanonicalDirective(
+        text="prohibit ",
+        kind=_DirectiveKind.PROHIBIT_ITEM,
+        operands=MappingProxyType({"item": ""}),
+    )
 
-    assert engine._pre_mutation_error(_Action(kind="set_premise", value="")) == {
+    assert engine._pre_mutation_error(set_premise) == {  # noqa: SLF001
         "kind": "error",
         "message": (
             "Premise value cannot be empty.\nUse 'set premise <value>' with a non-empty value."
         ),
     }
-    assert engine._pre_mutation_error(_Action(kind="change_premise", value="")) == {
+    assert engine._pre_mutation_error(change_premise) == {  # noqa: SLF001
         "kind": "error",
         "message": (
             "Premise value cannot be empty.\n"
             "Use 'change premise to <value>' with a non-empty value."
         ),
     }
-    assert engine._pre_mutation_error(_Action(kind="remove_policy_item", item="")) == {
+    assert engine._pre_mutation_error(remove_policy) == {  # noqa: SLF001
         "kind": "error",
         "message": (
             "Policy item cannot be empty.\nUse 'remove policy <item>' with a non-empty value."
         ),
     }
-    assert engine._pre_mutation_error(_Action(kind="use_item", item="")) == {
+    assert engine._pre_mutation_error(use_item) == {  # noqa: SLF001
         "kind": "error",
         "message": "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value.",
     }
-    assert engine._pre_mutation_error(_Action(kind="prohibit_item", item="")) == {
+    assert engine._pre_mutation_error(prohibit_item) == {  # noqa: SLF001
         "kind": "error",
         "message": ("Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."),
     }
@@ -345,7 +315,7 @@ def test_import_json_accepts_valid_policy_key_and_normalizes_it() -> None:
 def test_replace_use_clarifies_when_old_policy_is_not_use_in_invalid_internal_state() -> None:
     engine = create_engine()
     # Defensive-path coverage for impossible external state values.
-    engine._state["policies"]["docker"] = "invalid"  # type: ignore[assignment]
+    engine._state["policies"]["docker"] = "invalid"  # type: ignore[assignment]  # noqa: SLF001
 
     decision = engine.step("use kubectl instead of docker")
 

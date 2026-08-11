@@ -53,6 +53,11 @@ decision = engine.step("set premise current project uses uv")
 Behavior for directive handling and error is
 defined by the [Directive Grammar Specification](DirectiveGrammarSpec.md).
 
+`engine.step(...)` is the text-input boundary. It parses one user turn with
+`decompose_directive(...)`, returns `no_directive` when the input is not a
+canonical directive, and otherwise delegates the accepted canonical directive
+to `engine.apply_directive(...)`.
+
 Important grammar contract:
 
 - one input may contain at most one canonical directive
@@ -103,6 +108,33 @@ Core does not lowercase operands, collapse internal operand whitespace, or
 convert operand text into engine/domain identifiers at the grammar layer.
 `CanonicalDirective.text` should not be treated as canonical serialized
 directive output.
+
+### `engine.apply_directive(directive)`
+
+Apply one already-canonical `CanonicalDirective` to authoritative state.
+
+Typical use:
+
+```python
+from context_compiler import create_engine
+from context_compiler.grammar import CanonicalDirective, decompose_directive
+
+engine = create_engine()
+directive = decompose_directive("use docker")
+assert isinstance(directive, CanonicalDirective)
+
+decision = engine.apply_directive(directive)
+```
+
+Boundary notes:
+
+- `apply_directive(...)` does not parse free-form user text
+- callers should pass only `CanonicalDirective` values produced or validated by
+  the grammar boundary
+- semantic validation and authoritative mutation rules are the same whether the
+  canonical directive arrives through `step(...)` or `apply_directive(...)`
+- `error` remains reserved for canonical directives that fail semantic
+  evaluation
 
 ### `engine.premise`
 
