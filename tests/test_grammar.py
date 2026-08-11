@@ -85,6 +85,17 @@ def test_decompose_directive_accepts_each_canonical_family(
     [
         "",
         "hello there",
+        "please use docker",
+        '"use docker and prohibit peanuts"',
+    ],
+)
+def test_decompose_directive_returns_none_when_no_directive_is_present(text: str) -> None:
+    assert decompose_directive(text) is None
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
         "use",
         "prohibit",
         "remove policy",
@@ -94,12 +105,10 @@ def test_decompose_directive_accepts_each_canonical_family(
         "change premise concise",
         "use docker and prohibit peanuts",
         "clear state then set premise project",
-        "please use docker",
-        '"use docker and prohibit peanuts"',
     ],
 )
-def test_decompose_directive_rejects_non_canonical_inputs(text: str) -> None:
-    assert decompose_directive(text) is None
+def test_decompose_directive_marks_invalid_directive_syntax(text: str) -> None:
+    assert decompose_directive(text) is grammar_module._INVALID_DIRECTIVE
 
 
 @pytest.mark.parametrize(
@@ -380,7 +389,7 @@ def test_decompose_directive_defensively_rejects_when_branch_regex_match_is_miss
 ) -> None:
     monkeypatch.setattr(grammar_module, pattern_name, _FakePattern(None))
 
-    assert decompose_directive(text) is None
+    assert decompose_directive(text) is grammar_module._INVALID_DIRECTIVE
 
 
 @pytest.mark.parametrize(
@@ -399,4 +408,4 @@ def test_decompose_directive_defensively_rejects_whitespace_only_operands_after_
 ) -> None:
     monkeypatch.setattr(grammar_module, pattern_name, _FakePattern(_FakeMatch(groups)))
 
-    assert decompose_directive(text) is None
+    assert decompose_directive(text) is grammar_module._INVALID_DIRECTIVE

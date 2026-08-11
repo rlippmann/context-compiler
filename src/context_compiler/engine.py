@@ -20,7 +20,7 @@ from .const import (
     STATE_PREMISE,
     STATE_VERSION,
 )
-from .grammar import DirectiveKind, decompose_directive
+from .grammar import CanonicalDirective, DirectiveKind, decompose_directive
 
 PolicyValue = Literal["use", "prohibit"]
 
@@ -120,8 +120,9 @@ class Engine:
     def step(self, user_input: str) -> Decision:
         """Evaluate and commit one user input against authoritative state.
 
-        Non-directive input returns ``no_directive`` without changing state.
-        Invalid directives return ``error`` without changing state. Accepted
+        Non-canonical input does not produce a state transition and returns
+        ``no_directive``. At the current engine boundary, invalid directive
+        classification is handled the same way as no-directive input. Accepted
         directives return ``update`` and commit the resulting authoritative
         state before the decision is returned.
         """
@@ -299,7 +300,7 @@ class Engine:
 
 def _parse_directive(user_input: str) -> Action | None:
     parsed = decompose_directive(user_input)
-    if parsed is None:
+    if not isinstance(parsed, CanonicalDirective):
         return None
 
     if parsed.kind is DirectiveKind.SET_PREMISE:
