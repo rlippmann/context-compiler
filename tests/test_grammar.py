@@ -261,6 +261,50 @@ def test_render_directive_rejects_non_string_operands() -> None:
         render_directive(DirectiveKind.SET_PREMISE, value=123)  # type: ignore[arg-type]
 
 
+def test_render_directive_uses_decompose_directive_as_authoritative_round_trip(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        grammar_module,
+        "decompose_directive",
+        lambda _: CanonicalDirective(
+            text="use docker",
+            kind=DirectiveKind.USE_ITEM,
+            operands=MappingProxyType({"item": "docker"}),
+        ),
+    )
+
+    assert render_directive(DirectiveKind.USE_ITEM, item="docker") == "use docker"
+
+
+def test_render_directive_rejects_when_decompose_directive_disagrees_with_rendered_kind(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        grammar_module,
+        "decompose_directive",
+        lambda _: CanonicalDirective(
+            text="use docker",
+            kind=DirectiveKind.PROHIBIT_ITEM,
+            operands=MappingProxyType({"item": "docker"}),
+        ),
+    )
+
+    with pytest.raises(ValueError, match="canonical use_item directive"):
+        render_directive(DirectiveKind.USE_ITEM, item="docker")
+
+
+def test_render_directive_rejects_when_decompose_directive_returns_noncanonical_result(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        grammar_module, "decompose_directive", lambda _: grammar_module._INVALID_DIRECTIVE
+    )
+
+    with pytest.raises(ValueError, match="canonical use_item directive"):
+        render_directive(DirectiveKind.USE_ITEM, item="docker")
+
+
 @pytest.mark.parametrize(
     ("text", "start", "expected"),
     [

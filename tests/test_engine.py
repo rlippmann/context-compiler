@@ -1,5 +1,6 @@
 import json
 from collections.abc import Mapping
+from types import MappingProxyType
 
 import pytest
 
@@ -11,6 +12,7 @@ from context_compiler.engine import (
 )
 from context_compiler.grammar import (
     CanonicalDirective,
+    DirectiveKind,
     contains_multiple_canonical_directives,
     decompose_directive,
     match_canonical_directive_start,
@@ -66,6 +68,28 @@ def test_engine_parse_directive_matches_public_decomposition_boundary() -> None:
         new_item=parsed.operands["new_item"],
         old_item=parsed.operands["old_item"],
     )
+
+
+def test_parse_directive_uses_decompose_directive_as_authoritative_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    parsed = CanonicalDirective(
+        text="use docker",
+        kind=DirectiveKind.USE_ITEM,
+        operands=MappingProxyType({"item": "docker"}),
+    )
+
+    monkeypatch.setattr("context_compiler.engine.decompose_directive", lambda _: parsed)
+
+    assert _parse_directive("ignored input") == Action(kind="use_item", item="docker")
+
+
+def test_parse_directive_ignores_noncanonical_decompose_results_at_engine_boundary(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("context_compiler.engine.decompose_directive", lambda _: object())
+
+    assert _parse_directive("ignored input") is None
 
 
 def test_parse_directive_returns_none_for_invalid_syntax_and_no_directive_inputs() -> None:
