@@ -52,6 +52,10 @@ _CHANGE_PREMISE_PREFIX = "change premise to "
 _USE_PREFIX = "use "
 _PROHIBIT_PREFIX = "prohibit "
 _REMOVE_POLICY_PREFIX = "remove policy "
+_CLEAR_PREMISE_TEXT = "clear premise"
+_RESET_POLICIES_TEXT = "reset policies"
+_CLEAR_STATE_TEXT = "clear state"
+_CHANGE_PREMISE_FAMILY = "change premise"
 _INSTEAD_OF_DELIMITER = " instead of "
 _ASCII_WHITESPACE = " \t\n\r\x0b\x0c"
 _HORIZONTAL_WHITESPACE = " \t"
@@ -65,26 +69,37 @@ _REPLACE_RE = re.compile(
     r"(?i)^use[ \t]+(?P<new_item>.*?)[ \t]+instead[ \t]+of[ \t]+(?P<old_item>.+)$"
 )
 
-_CANONICAL_DIRECTIVE_STARTS: tuple[tuple[str, bool], ...] = (
+_PREFIX_DIRECTIVE_STARTS: tuple[tuple[str, bool], ...] = (
     (_CHANGE_PREMISE_PREFIX.removesuffix(" "), True),
     (_SET_PREMISE_PREFIX.removesuffix(" "), True),
     (_REMOVE_POLICY_PREFIX.removesuffix(" "), True),
-    ("reset policies", False),
-    ("clear premise", False),
-    ("clear state", False),
     (_PROHIBIT_PREFIX.removesuffix(" "), True),
-    ("use", True),
+    (_USE_PREFIX.removesuffix(" "), True),
+)
+
+_EXACT_DIRECTIVE_STARTS: tuple[tuple[str, bool], ...] = (
+    (_RESET_POLICIES_TEXT, False),
+    (_CLEAR_PREMISE_TEXT, False),
+    (_CLEAR_STATE_TEXT, False),
+)
+
+_CANONICAL_DIRECTIVE_STARTS: tuple[tuple[str, bool], ...] = (
+    _PREFIX_DIRECTIVE_STARTS[0],
+    _PREFIX_DIRECTIVE_STARTS[1],
+    _PREFIX_DIRECTIVE_STARTS[2],
+    _EXACT_DIRECTIVE_STARTS[0],
+    _EXACT_DIRECTIVE_STARTS[1],
+    _EXACT_DIRECTIVE_STARTS[2],
+    _PREFIX_DIRECTIVE_STARTS[3],
+    _PREFIX_DIRECTIVE_STARTS[4],
 )
 
 _DIRECTIVE_FAMILY_STARTS: tuple[tuple[str, bool], ...] = (
-    ("change premise", True),
-    ("set premise", True),
-    ("remove policy", True),
-    ("reset policies", False),
-    ("clear premise", False),
-    ("clear state", False),
-    ("prohibit", True),
-    ("use", True),
+    (_CHANGE_PREMISE_FAMILY, True),
+    _PREFIX_DIRECTIVE_STARTS[1],
+    _PREFIX_DIRECTIVE_STARTS[2],
+    *_EXACT_DIRECTIVE_STARTS,
+    *_PREFIX_DIRECTIVE_STARTS[3:],
 )
 
 
@@ -150,20 +165,20 @@ _DIRECTIVE_SPECS = MappingProxyType(
         DirectiveKind.CLEAR_PREMISE: _DirectiveSpec(
             kind=DirectiveKind.CLEAR_PREMISE,
             operand_names=(),
-            exact_text="clear premise",
-            renderer=_render_exact("clear premise"),
+            exact_text=_CLEAR_PREMISE_TEXT,
+            renderer=_render_exact(_CLEAR_PREMISE_TEXT),
         ),
         DirectiveKind.RESET_POLICIES: _DirectiveSpec(
             kind=DirectiveKind.RESET_POLICIES,
             operand_names=(),
-            exact_text="reset policies",
-            renderer=_render_exact("reset policies"),
+            exact_text=_RESET_POLICIES_TEXT,
+            renderer=_render_exact(_RESET_POLICIES_TEXT),
         ),
         DirectiveKind.CLEAR_STATE: _DirectiveSpec(
             kind=DirectiveKind.CLEAR_STATE,
             operand_names=(),
-            exact_text="clear state",
-            renderer=_render_exact("clear state"),
+            exact_text=_CLEAR_STATE_TEXT,
+            renderer=_render_exact(_CLEAR_STATE_TEXT),
         ),
     }
 )
@@ -317,17 +332,17 @@ def decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSynta
 
     normalized = _normalized_for_matching(trimmed_text)
 
-    if normalized == "clear premise":
+    if normalized == _CLEAR_PREMISE_TEXT:
         return CanonicalDirective(
             text=text, kind=DirectiveKind.CLEAR_PREMISE, operands=MappingProxyType({})
         )
-    if normalized == "reset policies":
+    if normalized == _RESET_POLICIES_TEXT:
         return CanonicalDirective(
             text=text,
             kind=DirectiveKind.RESET_POLICIES,
             operands=MappingProxyType({}),
         )
-    if normalized == "clear state":
+    if normalized == _CLEAR_STATE_TEXT:
         return CanonicalDirective(
             text=text, kind=DirectiveKind.CLEAR_STATE, operands=MappingProxyType({})
         )
