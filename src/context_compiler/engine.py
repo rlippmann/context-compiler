@@ -307,14 +307,6 @@ class Engine:
         state[STATE_POLICIES][new_key] = POLICY_USE
 
 
-def _parse_directive(user_input: str) -> Action | None:
-    parsed = decompose_directive(user_input)
-    if not isinstance(parsed, CanonicalDirective):
-        return None
-
-    return _directive_to_action(parsed)
-
-
 def _directive_to_action(parsed: CanonicalDirective) -> Action:
     if parsed.kind is DirectiveKind.SET_PREMISE:
         return Action(kind="set_premise", value=parsed.operands["value"])
