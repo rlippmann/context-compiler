@@ -7,6 +7,7 @@ import pytest
 from context_compiler import DECISION_ERROR, DECISION_NO_DIRECTIVE, DECISION_UPDATE, create_engine
 from context_compiler.engine import (
     Action,
+    _directive_to_action,
     _load_state_obj,
     _parse_directive,
 )
@@ -61,11 +62,12 @@ def test_engine_parse_directive_matches_public_decomposition_boundary() -> None:
     parsed = decompose_directive("use podman instead of docker")
 
     assert isinstance(parsed, CanonicalDirective)
-    assert _parse_directive(parsed.text) == Action(
+    assert _directive_to_action(parsed) == Action(
         kind="replace_use",
         new_item=parsed.operands["new_item"],
         old_item=parsed.operands["old_item"],
     )
+    assert _parse_directive(parsed.text) == _directive_to_action(parsed)
 
 
 def test_parse_directive_uses_decompose_directive_as_authoritative_boundary(
@@ -80,6 +82,39 @@ def test_parse_directive_uses_decompose_directive_as_authoritative_boundary(
     monkeypatch.setattr("context_compiler.engine.decompose_directive", lambda _: parsed)
 
     assert _parse_directive("ignored input") == Action(kind="use_item", item="docker")
+
+
+def test_apply_directive_updates_state_from_canonical_directive() -> None:
+    engine = create_engine()
+    parsed = decompose_directive("use docker")
+
+    assert isinstance(parsed, CanonicalDirective)
+    decision = engine.apply_directive(parsed)
+
+    assert decision == {"kind": DECISION_UPDATE, "message": None}
+    _assert_observations(engine, premise=None, policies={"docker": "use"})
+
+
+def test_step_routes_canonical_directives_through_apply_directive(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    engine = create_engine()
+    parsed = decompose_directive("use docker")
+    assert isinstance(parsed, CanonicalDirective)
+
+    seen: list[CanonicalDirective] = []
+    original = engine.apply_directive
+
+    def recording_apply_directive(directive: CanonicalDirective) -> dict[str, str | None]:
+        seen.append(directive)
+        return original(directive)
+
+    monkeypatch.setattr(engine, "apply_directive", recording_apply_directive)
+
+    decision = engine.step("use docker")
+
+    assert decision == {"kind": DECISION_UPDATE, "message": None}
+    assert seen == [parsed]
 
 
 def test_parse_directive_ignores_noncanonical_decompose_results_at_engine_boundary(
