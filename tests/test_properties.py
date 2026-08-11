@@ -6,12 +6,12 @@ from unicodedata import normalize as unicode_normalize
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
+import context_compiler.grammar as grammar_module
 from context_compiler import DECISION_ERROR, DECISION_NO_DIRECTIVE, DECISION_UPDATE, create_engine
 from context_compiler.grammar import (
     CanonicalDirective,
     DirectiveKind,
     decompose_directive,
-    match_canonical_directive_start,
     render_directive,
 )
 
@@ -42,7 +42,7 @@ def _is_stable_policy_key_like_engine(value: str) -> bool:
 
 def _contains_canonical_start_fragment(value: str) -> bool:
     for start in range(len(value)):
-        if match_canonical_directive_start(value, start) is not None:
+        if grammar_module._match_canonical_directive_start(value, start) is not None:
             return True
     return False
 

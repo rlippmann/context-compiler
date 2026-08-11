@@ -13,9 +13,7 @@ from context_compiler.engine import (
 from context_compiler.grammar import (
     CanonicalDirective,
     DirectiveKind,
-    contains_multiple_canonical_directives,
     decompose_directive,
-    match_canonical_directive_start,
 )
 
 pytestmark = pytest.mark.contract
@@ -133,18 +131,6 @@ def test_pre_mutation_error_empty_operand_branches_remain_stable() -> None:
         "kind": "error",
         "message": ("Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."),
     }
-
-
-def test_grammar_owned_compound_detection_helpers_remain_unchanged() -> None:
-    assert contains_multiple_canonical_directives("use docker and prohibit peanuts") is True
-    assert contains_multiple_canonical_directives("hello there") is False
-    assert contains_multiple_canonical_directives("use docker") is False
-    assert match_canonical_directive_start("use docker", -1) is None
-    assert match_canonical_directive_start("use docker", len("use docker")) is None
-    assert match_canonical_directive_start("abuse docker", 1) is None
-    assert match_canonical_directive_start("use", 0) == len("use")
-    assert match_canonical_directive_start("use docker", 0) == len("use")
-    assert match_canonical_directive_start("clear premise!", 0) == len("clear premise")
 
 
 def test_initial_state_and_engine_properties() -> None:
