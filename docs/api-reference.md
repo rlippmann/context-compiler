@@ -70,6 +70,7 @@ Public grammar surface:
 
 - `CanonicalDirective`
 - `DirectiveKind`
+- `InvalidDirectiveSyntax`
 - `match_canonical_directive_start(text, start)`
 - `contains_multiple_canonical_directives(text)`
 - `decompose_directive(text)`
@@ -87,14 +88,16 @@ Boundary notes:
   directive-shaped structure only; it is not full decomposition
 - use `decompose_directive(text)` to determine whether text is a complete
   canonical directive
-- a non-`None` decomposition returns a `CanonicalDirective` with `kind`,
-  `operands`, and preserved accepted `text`
+- `decompose_directive(...)` returns `CanonicalDirective` for accepted
+  canonical directives
+- `decompose_directive(...)` returns `InvalidDirectiveSyntax` for
+  directive-shaped input that is not valid canonical syntax
+- `decompose_directive(...)` returns `None` when no directive is present
 - `CanonicalDirective.text` preserves the original accepted input text, so
   caller casing or formatting may remain visible there
 - `CanonicalDirective.text` is not canonical serialized directive text
 - `match_canonical_directive_start(...)` is only for shallow syntax detection
 - operands are grammar-level text, not normalized semantic values
-- decomposition returns `None` for any non-canonical input
 - `render_directive(...)` produces canonical directive text from semantic kind
   and operands
 - rendering is syntax-only and performs no state interpretation

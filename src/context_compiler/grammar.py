@@ -37,11 +37,8 @@ class CanonicalDirective:
 
 
 @dataclass(frozen=True, slots=True)
-class _InvalidDirectiveSyntax:
+class InvalidDirectiveSyntax:
     """Represent directive-shaped input that fails canonical syntax parsing."""
-
-
-_INVALID_DIRECTIVE = _InvalidDirectiveSyntax()
 
 
 @dataclass(frozen=True, slots=True)
@@ -314,15 +311,15 @@ def _parse_replace_use(trimmed_text: str) -> CanonicalDirective | None:
     )
 
 
-def decompose_directive(text: str) -> CanonicalDirective | _InvalidDirectiveSyntax | None:
+def decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSyntax | None:
     """Parse one canonical directive into its semantic kind and operands.
 
     This determines whether ``text`` is a single canonical directive and, when
     it is, returns the directive kind plus canonical operand names with the
-    original operand text preserved. Callers can determine whether ``text`` is
-    a complete canonical directive by checking whether this returns a non-`None`
-    result. It does not repair input, infer intent, or evaluate directive
-    effects against compiler state.
+    original operand text preserved. It returns ``None`` when no canonical
+    directive is present and returns ``InvalidDirectiveSyntax`` when the text is
+    directive-shaped but not valid canonical syntax. It does not repair input,
+    infer intent, or evaluate directive effects against compiler state.
     """
     trimmed_text = _trim_ascii_whitespace(text)
     if trimmed_text == "":
@@ -330,9 +327,9 @@ def decompose_directive(text: str) -> CanonicalDirective | _InvalidDirectiveSynt
     if not _starts_with_directive_family(trimmed_text):
         return None
     if contains_multiple_canonical_directives(trimmed_text):
-        return _INVALID_DIRECTIVE
+        return InvalidDirectiveSyntax()
 
-    invalid_result = _INVALID_DIRECTIVE
+    invalid_result = InvalidDirectiveSyntax()
 
     normalized = _normalized_for_matching(trimmed_text)
 
@@ -474,6 +471,7 @@ def render_directive(kind: DirectiveKind, /, **operands: str) -> str:
 __all__ = [
     "CanonicalDirective",
     "DirectiveKind",
+    "InvalidDirectiveSyntax",
     "contains_multiple_canonical_directives",
     "decompose_directive",
     "match_canonical_directive_start",

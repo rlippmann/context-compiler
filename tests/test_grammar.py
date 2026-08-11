@@ -7,6 +7,7 @@ import context_compiler.grammar as grammar_module
 from context_compiler.grammar import (
     CanonicalDirective,
     DirectiveKind,
+    InvalidDirectiveSyntax,
     contains_multiple_canonical_directives,
     decompose_directive,
     match_canonical_directive_start,
@@ -108,7 +109,7 @@ def test_decompose_directive_returns_none_when_no_directive_is_present(text: str
     ],
 )
 def test_decompose_directive_marks_invalid_directive_syntax(text: str) -> None:
-    assert decompose_directive(text) is grammar_module._INVALID_DIRECTIVE
+    assert isinstance(decompose_directive(text), InvalidDirectiveSyntax)
 
 
 @pytest.mark.parametrize(
@@ -244,6 +245,7 @@ def test_public_grammar_all_includes_semantic_surface() -> None:
     assert grammar_module.__all__ == [
         "CanonicalDirective",
         "DirectiveKind",
+        "InvalidDirectiveSyntax",
         "contains_multiple_canonical_directives",
         "decompose_directive",
         "match_canonical_directive_start",
@@ -297,9 +299,7 @@ def test_render_directive_rejects_when_decompose_directive_disagrees_with_render
 def test_render_directive_rejects_when_decompose_directive_returns_noncanonical_result(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(
-        grammar_module, "decompose_directive", lambda _: grammar_module._INVALID_DIRECTIVE
-    )
+    monkeypatch.setattr(grammar_module, "decompose_directive", lambda _: InvalidDirectiveSyntax())
 
     with pytest.raises(ValueError, match="canonical use_item directive"):
         render_directive(DirectiveKind.USE_ITEM, item="docker")
@@ -433,7 +433,7 @@ def test_decompose_directive_defensively_rejects_when_branch_regex_match_is_miss
 ) -> None:
     monkeypatch.setattr(grammar_module, pattern_name, _FakePattern(None))
 
-    assert decompose_directive(text) is grammar_module._INVALID_DIRECTIVE
+    assert isinstance(decompose_directive(text), InvalidDirectiveSyntax)
 
 
 @pytest.mark.parametrize(
@@ -452,4 +452,4 @@ def test_decompose_directive_defensively_rejects_whitespace_only_operands_after_
 ) -> None:
     monkeypatch.setattr(grammar_module, pattern_name, _FakePattern(_FakeMatch(groups)))
 
-    assert decompose_directive(text) is grammar_module._INVALID_DIRECTIVE
+    assert isinstance(decompose_directive(text), InvalidDirectiveSyntax)
