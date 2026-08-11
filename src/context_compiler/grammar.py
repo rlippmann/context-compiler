@@ -26,9 +26,7 @@ class CanonicalDirective:
     """Represent one parsed canonical directive and its named operands.
 
     ``text`` preserves the original accepted input text. It may retain caller
-    formatting or casing and is not canonical serialized directive text; use
-    :func:`render_directive` to produce canonical directive text from semantic
-    kind and operands.
+    formatting or casing and is not canonical serialized directive text.
     """
 
     text: str
@@ -412,14 +410,8 @@ def decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSynta
     return invalid_result
 
 
-def render_directive(kind: DirectiveKind, /, **operands: str) -> str:
-    """Produce canonical directive text from a semantic kind and operands.
-
-    This determines the exact canonical spelling for an existing grammar
-    capability and rejects operand combinations that would not round-trip as the
-    requested directive kind. It does not infer missing operands, parse user
-    input, or extend the grammar with new behaviors.
-    """
+def _render_directive(kind: DirectiveKind, /, **operands: str) -> str:
+    """Produce canonical directive text from a semantic kind and operands."""
     try:
         normalized_kind = kind if isinstance(kind, DirectiveKind) else DirectiveKind(kind)
         spec = _DIRECTIVE_SPECS[normalized_kind]
@@ -459,5 +451,4 @@ __all__ = [
     "DirectiveKind",
     "InvalidDirectiveSyntax",
     "decompose_directive",
-    "render_directive",
 ]

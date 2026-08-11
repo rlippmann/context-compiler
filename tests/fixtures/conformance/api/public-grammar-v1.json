@@ -7,8 +7,7 @@
       "CanonicalDirective",
       "DirectiveKind",
       "InvalidDirectiveSyntax",
-      "decompose_directive",
-      "render_directive"
+      "decompose_directive"
     ],
     "members": {
       "CanonicalDirective": {
@@ -51,34 +50,6 @@
             },
             "return_shape": {
               "type": "null"
-            }
-          }
-        ]
-      },
-      "render_directive": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "kind",
-              "kind": "POSITIONAL_ONLY",
-              "has_default": false
-            },
-            {
-              "name": "operands",
-              "kind": "VAR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        },
-        "shape_probes": [
-          {
-            "args": [
-              "clear_state"
-            ],
-            "return_shape": {
-              "type": "string",
-              "const": "clear state"
             }
           }
         ]

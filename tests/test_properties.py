@@ -12,7 +12,6 @@ from context_compiler.grammar import (
     CanonicalDirective,
     DirectiveKind,
     decompose_directive,
-    render_directive,
 )
 
 
@@ -248,7 +247,7 @@ def test_grammar_helper_render_decompose_round_trip_is_stable(
     assert isinstance(kind, DirectiveKind)
     assert isinstance(operands, dict)
 
-    rendered = render_directive(kind, **operands)
+    rendered = grammar_module._render_directive(kind, **operands)
     directive = decompose_directive(rendered)
 
     assert isinstance(directive, CanonicalDirective)
@@ -256,7 +255,7 @@ def test_grammar_helper_render_decompose_round_trip_is_stable(
     assert directive.text == rendered
     assert dict(directive.operands) == operands
     assert decompose_directive(directive.text) == directive
-    assert render_directive(kind, **operands) == rendered
+    assert grammar_module._render_directive(kind, **operands) == rendered
 
 
 @given(st.text(min_size=1, max_size=30))

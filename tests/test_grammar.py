@@ -9,7 +9,6 @@ from context_compiler.grammar import (
     DirectiveKind,
     InvalidDirectiveSyntax,
     decompose_directive,
-    render_directive,
 )
 
 
@@ -153,7 +152,7 @@ def test_decompose_directive_preserves_current_operand_casing_and_whitespace(
 def test_render_directive_outputs_exact_canonical_syntax(
     kind: DirectiveKind, operands: dict[str, str], expected: str
 ) -> None:
-    rendered = render_directive(kind, **operands)
+    rendered = grammar_module._render_directive(kind, **operands)
     assert rendered == expected
     directive = decompose_directive(rendered)
     assert directive is not None
@@ -216,7 +215,7 @@ def test_render_directive_rejects_invalid_operand_combinations(
     kind: DirectiveKind | str, operands: dict[str, str], message: str
 ) -> None:
     with pytest.raises(ValueError, match=message):
-        render_directive(kind, **operands)
+        grammar_module._render_directive(kind, **operands)
 
 
 def test_no_exported_mutable_grammar_registry() -> None:
@@ -240,7 +239,6 @@ def test_public_grammar_all_includes_semantic_surface() -> None:
         "DirectiveKind",
         "InvalidDirectiveSyntax",
         "decompose_directive",
-        "render_directive",
     ]
 
 
@@ -251,7 +249,7 @@ def test_decompose_directive_rejects_near_miss_without_required_delimiter() -> N
 
 def test_render_directive_rejects_non_string_operands() -> None:
     with pytest.raises(ValueError, match="must be a string"):
-        render_directive(DirectiveKind.SET_PREMISE, value=123)  # type: ignore[arg-type]
+        grammar_module._render_directive(DirectiveKind.SET_PREMISE, value=123)  # type: ignore[arg-type]
 
 
 def test_render_directive_uses_decompose_directive_as_authoritative_round_trip(
@@ -267,7 +265,7 @@ def test_render_directive_uses_decompose_directive_as_authoritative_round_trip(
         ),
     )
 
-    assert render_directive(DirectiveKind.USE_ITEM, item="docker") == "use docker"
+    assert grammar_module._render_directive(DirectiveKind.USE_ITEM, item="docker") == "use docker"
 
 
 def test_render_directive_rejects_when_decompose_directive_disagrees_with_rendered_kind(
@@ -284,7 +282,7 @@ def test_render_directive_rejects_when_decompose_directive_disagrees_with_render
     )
 
     with pytest.raises(ValueError, match="canonical use_item directive"):
-        render_directive(DirectiveKind.USE_ITEM, item="docker")
+        grammar_module._render_directive(DirectiveKind.USE_ITEM, item="docker")
 
 
 def test_render_directive_rejects_when_decompose_directive_returns_noncanonical_result(
@@ -293,7 +291,7 @@ def test_render_directive_rejects_when_decompose_directive_returns_noncanonical_
     monkeypatch.setattr(grammar_module, "decompose_directive", lambda _: InvalidDirectiveSyntax())
 
     with pytest.raises(ValueError, match="canonical use_item directive"):
-        render_directive(DirectiveKind.USE_ITEM, item="docker")
+        grammar_module._render_directive(DirectiveKind.USE_ITEM, item="docker")
 
 
 def test_decompose_directive_returns_canonical_operands_for_use_item() -> None:

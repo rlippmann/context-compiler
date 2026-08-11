@@ -72,11 +72,9 @@ Public grammar surface:
 - `DirectiveKind`
 - `InvalidDirectiveSyntax`
 - `decompose_directive(text)`
-- `render_directive(kind, /, **operands)`
 
 Use this surface for exact canonical directive decomposition and
-classification via `decompose_directive(...)` or canonical directive string
-construction only.
+classification via `decompose_directive(...)` only.
 
 Boundary notes:
 
@@ -91,9 +89,6 @@ Boundary notes:
   caller casing or formatting may remain visible there
 - `CanonicalDirective.text` is not canonical serialized directive text
 - operands are grammar-level text, not normalized semantic values
-- `render_directive(...)` produces canonical directive text from semantic kind
-  and operands
-- rendering is syntax-only and performs no state interpretation
 - `engine.step(...)` remains the authority for error, state
   transitions, and mutation behavior
 - `engine.step(...)` is not a general natural-language repair surface; host
@@ -107,8 +102,8 @@ Boundary notes:
 `CanonicalDirective.operands` preserves the grammar-recognized operand text.
 Core does not lowercase operands, collapse internal operand whitespace, or
 convert operand text into engine/domain identifiers at the grammar layer.
-Canonical serialized directive output comes from
-`render_directive(kind, /, **operands)`, not from `CanonicalDirective.text`.
+`CanonicalDirective.text` should not be treated as canonical serialized
+directive output.
 
 ### `engine.premise`
 
