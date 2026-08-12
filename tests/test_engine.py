@@ -272,63 +272,6 @@ def test_decompose_directive_rejects_invalid_and_nondirective_inputs() -> None:
     assert not isinstance(decompose_directive("hello there"), CanonicalDirective)
 
 
-def test_pre_mutation_error_empty_operand_branches_remain_stable() -> None:
-    engine = Engine()
-    set_premise = CanonicalDirective(
-        text="set premise ",
-        kind=DirectiveKind.SET_PREMISE,
-        operands=MappingProxyType({"value": ""}),
-    )
-    change_premise = CanonicalDirective(
-        text="change premise to ",
-        kind=DirectiveKind.CHANGE_PREMISE,
-        operands=MappingProxyType({"value": ""}),
-    )
-    remove_policy = CanonicalDirective(
-        text="remove policy ",
-        kind=DirectiveKind.REMOVE_POLICY,
-        operands=MappingProxyType({"item": ""}),
-    )
-    use_item = CanonicalDirective(
-        text="use ",
-        kind=DirectiveKind.USE_ITEM,
-        operands=MappingProxyType({"item": ""}),
-    )
-    prohibit_item = CanonicalDirective(
-        text="prohibit ",
-        kind=DirectiveKind.PROHIBIT_ITEM,
-        operands=MappingProxyType({"item": ""}),
-    )
-
-    assert engine._pre_mutation_error(set_premise) == {  # noqa: SLF001
-        "kind": "error",
-        "message": (
-            "Premise value cannot be empty.\nUse 'set premise <value>' with a non-empty value."
-        ),
-    }
-    assert engine._pre_mutation_error(change_premise) == {  # noqa: SLF001
-        "kind": "error",
-        "message": (
-            "Premise value cannot be empty.\n"
-            "Use 'change premise to <value>' with a non-empty value."
-        ),
-    }
-    assert engine._pre_mutation_error(remove_policy) == {  # noqa: SLF001
-        "kind": "error",
-        "message": (
-            "Policy item cannot be empty.\nUse 'remove policy <item>' with a non-empty value."
-        ),
-    }
-    assert engine._pre_mutation_error(use_item) == {  # noqa: SLF001
-        "kind": "error",
-        "message": "Policy item cannot be empty.\nUse 'use <item>' with a non-empty value.",
-    }
-    assert engine._pre_mutation_error(prohibit_item) == {  # noqa: SLF001
-        "kind": "error",
-        "message": ("Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."),
-    }
-
-
 def test_initial_state_and_engine_properties() -> None:
     engine = Engine()
     _assert_observations(engine, premise=None, policies={})

@@ -129,41 +129,6 @@ class Engine:
     ) -> Decision | None:
         candidate_state = self._state if state is None else state
         # Single error path: all error outcomes are detected before any mutation.
-        if directive.kind in {DirectiveKind.SET_PREMISE, DirectiveKind.CHANGE_PREMISE}:
-            value = directive.operands["value"]
-            if _sanitize_premise_value(value) == "":
-                if directive.kind is DirectiveKind.SET_PREMISE:
-                    return _error(
-                        "Premise value cannot be empty.\n"
-                        "Use 'set premise <value>' with a non-empty value."
-                    )
-                return _error(
-                    "Premise value cannot be empty.\n"
-                    "Use 'change premise to <value>' with a non-empty value."
-                )
-
-        if (
-            directive.kind is DirectiveKind.REMOVE_POLICY
-            and _normalize_item(directive.operands["item"]) == ""
-        ):
-            return _error(
-                "Policy item cannot be empty.\nUse 'remove policy <item>' with a non-empty value."
-            )
-
-        if (
-            directive.kind is DirectiveKind.USE_ITEM
-            and _normalize_item(directive.operands["item"]) == ""
-        ):
-            return _error("Policy item cannot be empty.\nUse 'use <item>' with a non-empty value.")
-
-        if (
-            directive.kind is DirectiveKind.PROHIBIT_ITEM
-            and _normalize_item(directive.operands["item"]) == ""
-        ):
-            return _error(
-                "Policy item cannot be empty.\nUse 'prohibit <item>' with a non-empty value."
-            )
-
         if (
             directive.kind is DirectiveKind.SET_PREMISE
             and candidate_state[STATE_PREMISE] is not None
