@@ -70,11 +70,11 @@ def assert_shape(
 
     if "kind" in shape and shape["kind"] == "invalid_directive_syntax":
         assert value == grammar.InvalidDirectiveSyntax(
-            failure=grammar._DirectiveSyntaxFailure(shape["failure"]),
+            failure=grammar.DirectiveSyntaxFailure(shape["failure"]),
             directive_kind=(
                 None
                 if shape.get("directive_kind") is None
-                else grammar._DirectiveKind(shape["directive_kind"])
+                else grammar.DirectiveKind(shape["directive_kind"])
             ),
             missing_operand=shape.get("missing_operand"),
         )

@@ -15,7 +15,7 @@ from context_compiler.engine import (
 )
 from context_compiler.grammar import (
     CanonicalDirective,
-    _DirectiveKind,
+    DirectiveKind,
     decompose_directive,
 )
 
@@ -42,7 +42,7 @@ def _import_state(engine: object, payload: dict[str, object]) -> None:
 
 def _canonical_directive(
     text: str,
-    kind: _DirectiveKind,
+    kind: DirectiveKind,
     **operands: str,
 ) -> CanonicalDirective:
     return CanonicalDirective(text=text, kind=kind, operands=MappingProxyType(operands))
@@ -54,7 +54,7 @@ def _canonical_directive(
         (
             _canonical_directive(
                 "set premise concise replies",
-                _DirectiveKind.SET_PREMISE,
+                DirectiveKind.SET_PREMISE,
                 value="concise replies",
             ),
             None,
@@ -64,7 +64,7 @@ def _canonical_directive(
         (
             _canonical_directive(
                 "change premise to concise replies",
-                _DirectiveKind.CHANGE_PREMISE,
+                DirectiveKind.CHANGE_PREMISE,
                 value="concise replies",
             ),
             {"premise": "verbose replies", "policies": {}, "version": 2},
@@ -72,13 +72,13 @@ def _canonical_directive(
             (("concise replies"), {}),
         ),
         (
-            _canonical_directive("use docker", _DirectiveKind.USE_ITEM, item="docker"),
+            _canonical_directive("use docker", DirectiveKind.USE_ITEM, item="docker"),
             None,
             {"kind": DECISION_UPDATE, "message": None},
             (None, {"docker": "use"}),
         ),
         (
-            _canonical_directive("prohibit peanuts", _DirectiveKind.PROHIBIT_ITEM, item="peanuts"),
+            _canonical_directive("prohibit peanuts", DirectiveKind.PROHIBIT_ITEM, item="peanuts"),
             None,
             {"kind": DECISION_UPDATE, "message": None},
             (None, {"peanuts": "prohibit"}),
@@ -86,7 +86,7 @@ def _canonical_directive(
         (
             _canonical_directive(
                 "remove policy docker",
-                _DirectiveKind.REMOVE_POLICY,
+                DirectiveKind.REMOVE_POLICY,
                 item="docker",
             ),
             {"premise": None, "policies": {"docker": "use"}, "version": 2},
@@ -96,7 +96,7 @@ def _canonical_directive(
         (
             _canonical_directive(
                 "use podman instead of docker",
-                _DirectiveKind.REPLACE_USE,
+                DirectiveKind.REPLACE_USE,
                 new_item="podman",
                 old_item="docker",
             ),
@@ -105,19 +105,19 @@ def _canonical_directive(
             (None, {"podman": "use"}),
         ),
         (
-            _canonical_directive("clear premise", _DirectiveKind.CLEAR_PREMISE),
+            _canonical_directive("clear premise", DirectiveKind.CLEAR_PREMISE),
             {"premise": "concise replies", "policies": {"docker": "use"}, "version": 2},
             {"kind": DECISION_UPDATE, "message": None},
             (None, {"docker": "use"}),
         ),
         (
-            _canonical_directive("reset policies", _DirectiveKind.RESET_POLICIES),
+            _canonical_directive("reset policies", DirectiveKind.RESET_POLICIES),
             {"premise": "concise replies", "policies": {"docker": "use"}, "version": 2},
             {"kind": DECISION_UPDATE, "message": None},
             ("concise replies", {}),
         ),
         (
-            _canonical_directive("clear state", _DirectiveKind.CLEAR_STATE),
+            _canonical_directive("clear state", DirectiveKind.CLEAR_STATE),
             {"premise": "concise replies", "policies": {"docker": "use"}, "version": 2},
             {"kind": DECISION_UPDATE, "message": None},
             (None, {}),
@@ -146,7 +146,7 @@ def test_apply_directive_accepts_all_canonical_directive_kinds(
         (
             _canonical_directive(
                 "set premise concise replies",
-                _DirectiveKind.SET_PREMISE,
+                DirectiveKind.SET_PREMISE,
                 value="concise replies",
             ),
             {"premise": "existing premise", "policies": {}, "version": 2},
@@ -159,7 +159,7 @@ def test_apply_directive_accepts_all_canonical_directive_kinds(
         (
             _canonical_directive(
                 "change premise to concise replies",
-                _DirectiveKind.CHANGE_PREMISE,
+                DirectiveKind.CHANGE_PREMISE,
                 value="concise replies",
             ),
             None,
@@ -170,7 +170,7 @@ def test_apply_directive_accepts_all_canonical_directive_kinds(
             (None, {}),
         ),
         (
-            _canonical_directive("use docker", _DirectiveKind.USE_ITEM, item="docker"),
+            _canonical_directive("use docker", DirectiveKind.USE_ITEM, item="docker"),
             {"premise": None, "policies": {"docker": "prohibit"}, "version": 2},
             {
                 "kind": DECISION_ERROR,
@@ -181,7 +181,7 @@ def test_apply_directive_accepts_all_canonical_directive_kinds(
             (None, {"docker": "prohibit"}),
         ),
         (
-            _canonical_directive("prohibit docker", _DirectiveKind.PROHIBIT_ITEM, item="docker"),
+            _canonical_directive("prohibit docker", DirectiveKind.PROHIBIT_ITEM, item="docker"),
             {"premise": None, "policies": {"docker": "use"}, "version": 2},
             {
                 "kind": DECISION_ERROR,
@@ -194,7 +194,7 @@ def test_apply_directive_accepts_all_canonical_directive_kinds(
         (
             _canonical_directive(
                 "use docker instead of kubectl",
-                _DirectiveKind.REPLACE_USE,
+                DirectiveKind.REPLACE_USE,
                 new_item="docker",
                 old_item="kubectl",
             ),
@@ -276,27 +276,27 @@ def test_pre_mutation_error_empty_operand_branches_remain_stable() -> None:
     engine = Engine()
     set_premise = CanonicalDirective(
         text="set premise ",
-        kind=_DirectiveKind.SET_PREMISE,
+        kind=DirectiveKind.SET_PREMISE,
         operands=MappingProxyType({"value": ""}),
     )
     change_premise = CanonicalDirective(
         text="change premise to ",
-        kind=_DirectiveKind.CHANGE_PREMISE,
+        kind=DirectiveKind.CHANGE_PREMISE,
         operands=MappingProxyType({"value": ""}),
     )
     remove_policy = CanonicalDirective(
         text="remove policy ",
-        kind=_DirectiveKind.REMOVE_POLICY,
+        kind=DirectiveKind.REMOVE_POLICY,
         operands=MappingProxyType({"item": ""}),
     )
     use_item = CanonicalDirective(
         text="use ",
-        kind=_DirectiveKind.USE_ITEM,
+        kind=DirectiveKind.USE_ITEM,
         operands=MappingProxyType({"item": ""}),
     )
     prohibit_item = CanonicalDirective(
         text="prohibit ",
-        kind=_DirectiveKind.PROHIBIT_ITEM,
+        kind=DirectiveKind.PROHIBIT_ITEM,
         operands=MappingProxyType({"item": ""}),
     )
 

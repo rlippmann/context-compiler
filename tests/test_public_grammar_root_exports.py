@@ -5,6 +5,7 @@ import context_compiler.grammar as grammar_module
 def test_root_does_not_export_public_grammar_surface() -> None:
     for name in (
         "DirectiveKind",
+        "DirectiveSyntaxFailure",
         "CanonicalDirective",
         "InvalidDirectiveSyntax",
         "decompose_directive",
@@ -14,10 +15,11 @@ def test_root_does_not_export_public_grammar_surface() -> None:
 
 
 def test_grammar_submodule_preserves_public_grammar_surface() -> None:
+    assert grammar_module.DirectiveKind is not None
+    assert grammar_module.DirectiveSyntaxFailure is not None
     assert grammar_module.CanonicalDirective is not None
     assert grammar_module.InvalidDirectiveSyntax is not None
     assert grammar_module.decompose_directive is not None
-    assert not hasattr(grammar_module, "DirectiveKind")
     assert not hasattr(grammar_module, "render_directive")
     assert not hasattr(grammar_module, "contains_multiple_canonical_directives")
     assert not hasattr(grammar_module, "match_canonical_directive_start")

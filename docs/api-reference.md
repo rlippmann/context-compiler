@@ -73,6 +73,8 @@ submodule.
 
 Public grammar surface:
 
+- `DirectiveKind`
+- `DirectiveSyntaxFailure`
 - `CanonicalDirective`
 - `InvalidDirectiveSyntax`
 - `decompose_directive(text)`
@@ -89,6 +91,9 @@ Boundary notes:
 - `decompose_directive(...)` returns `InvalidDirectiveSyntax` for
   directive-shaped input that is not valid canonical syntax
 - `decompose_directive(...)` returns `None` when no directive is present
+- `CanonicalDirective.kind` uses `DirectiveKind`
+- `InvalidDirectiveSyntax.failure` uses `DirectiveSyntaxFailure`
+- `InvalidDirectiveSyntax.directive_kind`, when present, uses `DirectiveKind`
 - `CanonicalDirective.text` preserves the original accepted input text, so
   caller casing or formatting may remain visible there
 - `CanonicalDirective.text` is not canonical serialized directive text
