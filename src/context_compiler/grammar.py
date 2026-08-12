@@ -21,6 +21,14 @@ class _DirectiveKind(StrEnum):
     CLEAR_STATE = "clear_state"
 
 
+class _DirectiveSyntaxFailure(StrEnum):
+    """Enumerate minimal grammar failure categories for directive-shaped input."""
+
+    COMPOUND_DIRECTIVE = "compound_directive"
+    MISSING_REQUIRED_OPERAND = "missing_required_operand"
+    MALFORMED_DIRECTIVE = "malformed_directive"
+
+
 @dataclass(frozen=True, slots=True)
 class CanonicalDirective:
     """Represent one parsed canonical directive and its named operands.
@@ -37,6 +45,10 @@ class CanonicalDirective:
 @dataclass(frozen=True, slots=True)
 class InvalidDirectiveSyntax:
     """Represent directive-shaped input that fails canonical syntax parsing."""
+
+    failure: _DirectiveSyntaxFailure = _DirectiveSyntaxFailure.MALFORMED_DIRECTIVE
+    directive_kind: _DirectiveKind | None = None
+    missing_operand: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -310,6 +322,19 @@ def _parse_replace_use(trimmed_text: str) -> CanonicalDirective | None:
     )
 
 
+def _invalid_directive_syntax(
+    failure: _DirectiveSyntaxFailure,
+    *,
+    directive_kind: _DirectiveKind | None = None,
+    missing_operand: str | None = None,
+) -> InvalidDirectiveSyntax:
+    return InvalidDirectiveSyntax(
+        failure=failure,
+        directive_kind=directive_kind,
+        missing_operand=missing_operand,
+    )
+
+
 def decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSyntax | None:
     """Parse one canonical directive into its semantic kind and operands.
 
@@ -326,9 +351,7 @@ def decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSynta
     if not _starts_with_directive_family(trimmed_text):
         return None
     if _contains_multiple_canonical_directives(trimmed_text):
-        return InvalidDirectiveSyntax()
-
-    invalid_result = InvalidDirectiveSyntax()
+        return _invalid_directive_syntax(_DirectiveSyntaxFailure.COMPOUND_DIRECTIVE)
 
     normalized = _normalized_for_matching(trimmed_text)
 
@@ -347,26 +370,54 @@ def decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSynta
             text=text, kind=_DirectiveKind.CLEAR_STATE, operands=MappingProxyType({})
         )
 
+    if normalized == "set premise":
+        return _invalid_directive_syntax(
+            _DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+            directive_kind=_DirectiveKind.SET_PREMISE,
+            missing_operand="value",
+        )
+
     if normalized.startswith("set premise "):
         match = _SET_PREMISE_RE.fullmatch(trimmed_text)
         if match is None:
-            return invalid_result
+            return _invalid_directive_syntax(
+                _DirectiveSyntaxFailure.MALFORMED_DIRECTIVE,
+                directive_kind=_DirectiveKind.SET_PREMISE,
+            )
         value = match.group("value")
         if not _operand_has_content(value) or _operand_starts_with_token(value, "to"):
-            return invalid_result
+            return _invalid_directive_syntax(
+                _DirectiveSyntaxFailure.MALFORMED_DIRECTIVE,
+                directive_kind=_DirectiveKind.SET_PREMISE,
+            )
         return CanonicalDirective(
             text=text,
             kind=_DirectiveKind.SET_PREMISE,
             operands=MappingProxyType({"value": value}),
         )
 
+    if normalized == "change premise to":
+        return _invalid_directive_syntax(
+            _DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+            directive_kind=_DirectiveKind.CHANGE_PREMISE,
+            missing_operand="value",
+        )
+
     if normalized.startswith("change premise to "):
         match = _CHANGE_PREMISE_RE.fullmatch(trimmed_text)
         if match is None:
-            return invalid_result
+            return _invalid_directive_syntax(
+                _DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+                directive_kind=_DirectiveKind.CHANGE_PREMISE,
+                missing_operand="value",
+            )
         value = match.group("value")
         if not _operand_has_content(value):
-            return invalid_result
+            return _invalid_directive_syntax(
+                _DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+                directive_kind=_DirectiveKind.CHANGE_PREMISE,
+                missing_operand="value",
+            )
         return CanonicalDirective(
             text=text,
             kind=_DirectiveKind.CHANGE_PREMISE,
@@ -377,52 +428,109 @@ def decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSynta
     if replacement is not None:
         return replacement
 
+    if normalized == "use":
+        return _invalid_directive_syntax(
+            _DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+            directive_kind=_DirectiveKind.USE_ITEM,
+            missing_operand="item",
+        )
+
     if normalized.startswith("use "):
         match = _USE_RE.fullmatch(trimmed_text)
         if match is None:
-            return invalid_result
+            return _invalid_directive_syntax(
+                _DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+                directive_kind=_DirectiveKind.USE_ITEM,
+                missing_operand="item",
+            )
         item = match.group("item")
         normalized_item = _normalized_for_matching(item)
-        if (
-            not _operand_has_content(item)
-            or normalized_item.startswith("instead of ")
-            or normalized_item.endswith(" instead of")
-            or _INSTEAD_OF_DELIMITER in normalized_item
-        ):
-            return invalid_result
+        if not _operand_has_content(item):
+            return _invalid_directive_syntax(
+                _DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+                directive_kind=_DirectiveKind.USE_ITEM,
+                missing_operand="item",
+            )
+        if normalized_item == "instead of" or normalized_item.startswith("instead of "):
+            return _invalid_directive_syntax(
+                _DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+                directive_kind=_DirectiveKind.REPLACE_USE,
+                missing_operand="new_item",
+            )
+        if normalized_item.endswith(" instead of"):
+            return _invalid_directive_syntax(
+                _DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+                directive_kind=_DirectiveKind.REPLACE_USE,
+                missing_operand="old_item",
+            )
+        if _INSTEAD_OF_DELIMITER in normalized_item:
+            return _invalid_directive_syntax(
+                _DirectiveSyntaxFailure.MALFORMED_DIRECTIVE,
+                directive_kind=_DirectiveKind.USE_ITEM,
+            )
         return CanonicalDirective(
             text=text,
             kind=_DirectiveKind.USE_ITEM,
             operands=MappingProxyType({"item": item}),
         )
 
+    if normalized == "prohibit":
+        return _invalid_directive_syntax(
+            _DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+            directive_kind=_DirectiveKind.PROHIBIT_ITEM,
+            missing_operand="item",
+        )
+
     if normalized.startswith("prohibit "):
         match = _PROHIBIT_RE.fullmatch(trimmed_text)
         if match is None:
-            return invalid_result
+            return _invalid_directive_syntax(
+                _DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+                directive_kind=_DirectiveKind.PROHIBIT_ITEM,
+                missing_operand="item",
+            )
         item = match.group("item")
         if not _operand_has_content(item):
-            return invalid_result
+            return _invalid_directive_syntax(
+                _DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+                directive_kind=_DirectiveKind.PROHIBIT_ITEM,
+                missing_operand="item",
+            )
         return CanonicalDirective(
             text=text,
             kind=_DirectiveKind.PROHIBIT_ITEM,
             operands=MappingProxyType({"item": item}),
         )
 
+    if normalized == "remove policy":
+        return _invalid_directive_syntax(
+            _DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+            directive_kind=_DirectiveKind.REMOVE_POLICY,
+            missing_operand="item",
+        )
+
     if normalized.startswith("remove policy "):
         match = _REMOVE_POLICY_RE.fullmatch(trimmed_text)
         if match is None:
-            return invalid_result
+            return _invalid_directive_syntax(
+                _DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+                directive_kind=_DirectiveKind.REMOVE_POLICY,
+                missing_operand="item",
+            )
         item = match.group("item")
         if not _operand_has_content(item):
-            return invalid_result
+            return _invalid_directive_syntax(
+                _DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+                directive_kind=_DirectiveKind.REMOVE_POLICY,
+                missing_operand="item",
+            )
         return CanonicalDirective(
             text=text,
             kind=_DirectiveKind.REMOVE_POLICY,
             operands=MappingProxyType({"item": item}),
         )
 
-    return invalid_result
+    return _invalid_directive_syntax(_DirectiveSyntaxFailure.MALFORMED_DIRECTIVE)
 
 
 def _render_directive(kind: _DirectiveKind | str, /, **operands: str) -> str:

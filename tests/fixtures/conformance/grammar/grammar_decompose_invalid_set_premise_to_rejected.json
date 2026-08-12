@@ -6,6 +6,10 @@
     "text": "set premise to concise"
   },
   "expected": {
-    "directive": null
+    "directive": {
+      "kind": "invalid_directive_syntax",
+      "failure": "malformed_directive",
+      "directive_kind": "set_premise"
+    }
   }
 }

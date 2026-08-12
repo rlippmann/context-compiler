@@ -238,7 +238,17 @@ def test_grammar_fixtures() -> None:
             directive = decompose_directive(action["text"])
             expected_directive = expected["directive"]
             if expected_directive is None:
-                assert not isinstance(directive, CanonicalDirective), fixture_id
+                assert directive is None, fixture_id
+            elif expected_directive.get("kind") == "invalid_directive_syntax":
+                assert isinstance(directive, grammar_module.InvalidDirectiveSyntax), fixture_id
+                assert directive.failure.value == expected_directive["failure"], fixture_id
+                expected_kind = expected_directive.get("directive_kind")
+                assert (
+                    None if directive.directive_kind is None else directive.directive_kind.value
+                ) == expected_kind, fixture_id
+                assert directive.missing_operand == expected_directive.get("missing_operand"), (
+                    fixture_id
+                )
             else:
                 assert isinstance(directive, CanonicalDirective), fixture_id
                 assert directive.text == expected_directive["text"], fixture_id

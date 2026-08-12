@@ -6,6 +6,11 @@
     "text": "use"
   },
   "expected": {
-    "directive": null
+    "directive": {
+      "kind": "invalid_directive_syntax",
+      "failure": "missing_required_operand",
+      "directive_kind": "use_item",
+      "missing_operand": "item"
+    }
   }
 }

@@ -6,6 +6,9 @@
     "text": "use docker and prohibit peanuts"
   },
   "expected": {
-    "directive": null
+    "directive": {
+      "kind": "invalid_directive_syntax",
+      "failure": "compound_directive"
+    }
   }
 }

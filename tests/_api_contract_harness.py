@@ -68,6 +68,18 @@ def assert_shape(
         assert value == grammar.decompose_directive(shape["text"])
         return
 
+    if "kind" in shape and shape["kind"] == "invalid_directive_syntax":
+        assert value == grammar.InvalidDirectiveSyntax(
+            failure=grammar._DirectiveSyntaxFailure(shape["failure"]),
+            directive_kind=(
+                None
+                if shape.get("directive_kind") is None
+                else grammar._DirectiveKind(shape["directive_kind"])
+            ),
+            missing_operand=shape.get("missing_operand"),
+        )
+        return
+
     expected_types = shape["type"]
     if isinstance(expected_types, str):
         expected_types = [expected_types]
@@ -374,6 +386,19 @@ def _validate_shape_spec(shape: object, label: str) -> None:
             _assert_string_keyed_dict(shape["operands"], f"{label}.operands")
             for operand_name, operand_value in shape["operands"].items():
                 _assert_type(operand_value, str, f"{label}.operands[{operand_name!r}]")
+            return
+        if kind == "invalid_directive_syntax":
+            _assert_closed_keys(
+                shape,
+                {"kind", "failure", "directive_kind", "missing_operand"},
+                label,
+            )
+            _require_fields(shape, {"kind", "failure"}, label)
+            _assert_type(shape["failure"], str, f"{label}.failure")
+            if "directive_kind" in shape and shape["directive_kind"] is not None:
+                _assert_type(shape["directive_kind"], str, f"{label}.directive_kind")
+            if "missing_operand" in shape and shape["missing_operand"] is not None:
+                _assert_type(shape["missing_operand"], str, f"{label}.missing_operand")
             return
         raise AssertionError(f"{label}.kind has unsupported shape kind {kind!r}")
 
