@@ -15,7 +15,7 @@ from context_compiler import (
 )
 from context_compiler.grammar import (
     CanonicalDirective,
-    _DirectiveKind,
+    DirectiveKind,
     decompose_directive,
 )
 
@@ -203,19 +203,19 @@ def _payload_has_stable_export_import_cycle(payload: dict[str, object]) -> bool:
 
 GRAMMAR_RENDER_CASES = st.one_of(
     CANONICAL_GRAMMAR_PREMISE_TEXT.map(
-        lambda value: {"kind": _DirectiveKind.SET_PREMISE, "operands": {"value": value}}
+        lambda value: {"kind": DirectiveKind.SET_PREMISE, "operands": {"value": value}}
     ),
     CANONICAL_GRAMMAR_PREMISE_TEXT.map(
-        lambda value: {"kind": _DirectiveKind.CHANGE_PREMISE, "operands": {"value": value}}
+        lambda value: {"kind": DirectiveKind.CHANGE_PREMISE, "operands": {"value": value}}
     ),
     CANONICAL_GRAMMAR_ITEM_TEXT.map(
-        lambda item: {"kind": _DirectiveKind.USE_ITEM, "operands": {"item": item}}
+        lambda item: {"kind": DirectiveKind.USE_ITEM, "operands": {"item": item}}
     ),
     CANONICAL_GRAMMAR_ITEM_TEXT.map(
-        lambda item: {"kind": _DirectiveKind.PROHIBIT_ITEM, "operands": {"item": item}}
+        lambda item: {"kind": DirectiveKind.PROHIBIT_ITEM, "operands": {"item": item}}
     ),
     CANONICAL_GRAMMAR_ITEM_TEXT.map(
-        lambda item: {"kind": _DirectiveKind.REMOVE_POLICY, "operands": {"item": item}}
+        lambda item: {"kind": DirectiveKind.REMOVE_POLICY, "operands": {"item": item}}
     ),
     st.tuples(CANONICAL_GRAMMAR_ITEM_TEXT, CANONICAL_GRAMMAR_ITEM_TEXT)
     .filter(
@@ -223,15 +223,15 @@ GRAMMAR_RENDER_CASES = st.one_of(
     )
     .map(
         lambda pair: {
-            "kind": _DirectiveKind.REPLACE_USE,
+            "kind": DirectiveKind.REPLACE_USE,
             "operands": {"new_item": pair[0], "old_item": pair[1]},
         }
     ),
     st.sampled_from(
         [
-            {"kind": _DirectiveKind.CLEAR_PREMISE, "operands": {}},
-            {"kind": _DirectiveKind.RESET_POLICIES, "operands": {}},
-            {"kind": _DirectiveKind.CLEAR_STATE, "operands": {}},
+            {"kind": DirectiveKind.CLEAR_PREMISE, "operands": {}},
+            {"kind": DirectiveKind.RESET_POLICIES, "operands": {}},
+            {"kind": DirectiveKind.CLEAR_STATE, "operands": {}},
         ]
     ),
 )
@@ -244,12 +244,12 @@ def test_determinism_same_input_sequence_same_state(inputs: list[str]) -> None:
 
 @given(GRAMMAR_RENDER_CASES)
 def test_grammar_helper_render_decompose_round_trip_is_stable(
-    case: dict[str, _DirectiveKind | dict[str, str]],
+    case: dict[str, DirectiveKind | dict[str, str]],
 ) -> None:
     kind = case["kind"]
     operands = case["operands"]
 
-    assert isinstance(kind, _DirectiveKind)
+    assert isinstance(kind, DirectiveKind)
     assert isinstance(operands, dict)
 
     rendered = grammar_module._render_directive(kind, **operands)

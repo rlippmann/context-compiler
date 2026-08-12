@@ -4,11 +4,19 @@
   "module": "context_compiler.grammar",
   "exports": {
     "names": [
+      "DirectiveKind",
+      "DirectiveSyntaxFailure",
       "CanonicalDirective",
       "InvalidDirectiveSyntax",
       "decompose_directive"
     ],
     "members": {
+      "DirectiveKind": {
+        "kind": "class"
+      },
+      "DirectiveSyntaxFailure": {
+        "kind": "class"
+      },
       "CanonicalDirective": {
         "kind": "class"
       },
