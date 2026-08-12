@@ -113,6 +113,22 @@ def test_decompose_directive_returns_none_when_no_directive_is_present(text: str
     ("text", "expected"),
     [
         (
+            "set premise",
+            InvalidDirectiveSyntax(
+                failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+                directive_kind=DirectiveKind.SET_PREMISE,
+                missing_operand="value",
+            ),
+        ),
+        (
+            "change premise to",
+            InvalidDirectiveSyntax(
+                failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+                directive_kind=DirectiveKind.CHANGE_PREMISE,
+                missing_operand="value",
+            ),
+        ),
+        (
             "use",
             InvalidDirectiveSyntax(
                 failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
@@ -466,6 +482,15 @@ def test_parse_replace_use_rejects_embedded_delimiter_in_old_item() -> None:
     )
 
 
+def test_decompose_directive_marks_use_with_embedded_replacement_delimiter_as_malformed() -> None:
+    assert decompose_directive("use podman instead of docker instead of nerdctl") == (
+        InvalidDirectiveSyntax(
+            failure=DirectiveSyntaxFailure.MALFORMED_DIRECTIVE,
+            directive_kind=DirectiveKind.USE_ITEM,
+        )
+    )
+
+
 def test_parse_replace_use_rejects_non_canonical_normalized_delimiter_count(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -521,6 +546,7 @@ def test_decompose_directive_defensively_rejects_when_branch_regex_match_is_miss
 @pytest.mark.parametrize(
     ("pattern_name", "text", "groups"),
     [
+        ("_USE_RE", "use docker", {"item": " \t "}),
         ("_CHANGE_PREMISE_RE", "change premise to concise", {"value": " \t "}),
         ("_PROHIBIT_RE", "prohibit docker", {"item": " \t "}),
         ("_REMOVE_POLICY_RE", "remove policy docker", {"item": " \t "}),
