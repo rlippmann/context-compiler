@@ -94,6 +94,8 @@ Boundary notes:
 - `CanonicalDirective.kind` uses `DirectiveKind`
 - `InvalidDirectiveSyntax.failure` uses `DirectiveSyntaxFailure`
 - `InvalidDirectiveSyntax.directive_kind`, when present, uses `DirectiveKind`
+- `InvalidDirectiveSyntax.missing_operand`, when present, names the missing
+  grammar operand without introducing user-facing message text
 - `CanonicalDirective.text` preserves the original accepted input text, so
   caller casing or formatting may remain visible there
 - `CanonicalDirective.text` is not canonical serialized directive text
