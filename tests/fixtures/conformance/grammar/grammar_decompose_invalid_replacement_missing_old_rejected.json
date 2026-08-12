@@ -6,6 +6,11 @@
     "text": "use podman instead of"
   },
   "expected": {
-    "directive": null
+    "directive": {
+      "kind": "invalid_directive_syntax",
+      "failure": "missing_required_operand",
+      "directive_kind": "replace_use",
+      "missing_operand": "old_item"
+    }
   }
 }

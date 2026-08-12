@@ -47,6 +47,17 @@
             "return_shape": {
               "type": "null"
             }
+          },
+          {
+            "kwargs": {
+              "text": "use docker and prohibit peanuts"
+            },
+            "return_shape": {
+              "kind": "invalid_directive_syntax",
+              "failure": "compound_directive",
+              "directive_kind": null,
+              "missing_operand": null
+            }
           }
         ]
       }

@@ -8,6 +8,7 @@ from context_compiler.grammar import (
     CanonicalDirective,
     InvalidDirectiveSyntax,
     _DirectiveKind,
+    _DirectiveSyntaxFailure,
     decompose_directive,
 )
 
@@ -92,21 +93,79 @@ def test_decompose_directive_returns_none_when_no_directive_is_present(text: str
 
 
 @pytest.mark.parametrize(
-    "text",
+    ("text", "expected"),
     [
-        "use",
-        "prohibit",
-        "remove policy",
-        "use x instead of",
-        "use instead of y",
-        "set premise to concise",
-        "change premise concise",
-        "use docker and prohibit peanuts",
-        "clear state then set premise project",
+        (
+            "use",
+            InvalidDirectiveSyntax(
+                failure=_DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+                directive_kind=_DirectiveKind.USE_ITEM,
+                missing_operand="item",
+            ),
+        ),
+        (
+            "prohibit",
+            InvalidDirectiveSyntax(
+                failure=_DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+                directive_kind=_DirectiveKind.PROHIBIT_ITEM,
+                missing_operand="item",
+            ),
+        ),
+        (
+            "remove policy",
+            InvalidDirectiveSyntax(
+                failure=_DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+                directive_kind=_DirectiveKind.REMOVE_POLICY,
+                missing_operand="item",
+            ),
+        ),
+        (
+            "use x instead of",
+            InvalidDirectiveSyntax(
+                failure=_DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+                directive_kind=_DirectiveKind.REPLACE_USE,
+                missing_operand="old_item",
+            ),
+        ),
+        (
+            "use instead of y",
+            InvalidDirectiveSyntax(
+                failure=_DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+                directive_kind=_DirectiveKind.REPLACE_USE,
+                missing_operand="new_item",
+            ),
+        ),
+        (
+            "set premise to concise",
+            InvalidDirectiveSyntax(
+                failure=_DirectiveSyntaxFailure.MALFORMED_DIRECTIVE,
+                directive_kind=_DirectiveKind.SET_PREMISE,
+            ),
+        ),
+        (
+            "change premise concise",
+            InvalidDirectiveSyntax(
+                failure=_DirectiveSyntaxFailure.MALFORMED_DIRECTIVE,
+            ),
+        ),
+        (
+            "use docker and prohibit peanuts",
+            InvalidDirectiveSyntax(
+                failure=_DirectiveSyntaxFailure.COMPOUND_DIRECTIVE,
+            ),
+        ),
+        (
+            "clear state then set premise project",
+            InvalidDirectiveSyntax(
+                failure=_DirectiveSyntaxFailure.COMPOUND_DIRECTIVE,
+            ),
+        ),
     ],
 )
-def test_decompose_directive_marks_invalid_directive_syntax(text: str) -> None:
-    assert isinstance(decompose_directive(text), InvalidDirectiveSyntax)
+def test_decompose_directive_marks_invalid_directive_syntax(
+    text: str, expected: InvalidDirectiveSyntax
+) -> None:
+    assert decompose_directive(text) == expected
 
 
 @pytest.mark.parametrize(
@@ -291,6 +350,17 @@ def test_render_directive_rejects_when_decompose_directive_returns_noncanonical_
 
     with pytest.raises(ValueError, match="canonical use_item directive"):
         grammar_module._render_directive(_DirectiveKind.USE_ITEM, item="docker")
+
+
+def test_invalid_directive_syntax_is_frozen_and_slotted() -> None:
+    invalid = InvalidDirectiveSyntax(
+        failure=_DirectiveSyntaxFailure.MALFORMED_DIRECTIVE,
+        directive_kind=_DirectiveKind.SET_PREMISE,
+    )
+
+    assert invalid.__slots__ == ("failure", "directive_kind", "missing_operand")
+    with pytest.raises(FrozenInstanceError):
+        invalid.failure = _DirectiveSyntaxFailure.COMPOUND_DIRECTIVE  # type: ignore[misc]
 
 
 def test_decompose_directive_returns_canonical_operands_for_use_item() -> None:
