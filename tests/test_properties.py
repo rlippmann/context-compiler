@@ -229,6 +229,11 @@ ERROR_CASES = st.one_of(
     .filter(
         lambda pair: _normalize_item_like_engine(pair[0]) != _normalize_item_like_engine(pair[1])
     )
+    .filter(
+        lambda pair: _is_canonical_directive(
+            decompose_directive(f"use {pair[0]} instead of {pair[1]}")
+        )
+    )
     .map(
         lambda pair: (
             {"premise": None, "policies": {}, "version": 2},
@@ -291,6 +296,37 @@ POLICY_MACHINE_OPERATIONS = st.one_of(
     st.tuples(CANONICAL_GRAMMAR_ITEM_TEXT, CANONICAL_GRAMMAR_ITEM_TEXT).map(
         lambda pair: ("replace", pair[0], pair[1])
     ),
+)
+
+PREMISE_MACHINE_OPERATIONS = st.one_of(
+    CANONICAL_GRAMMAR_PREMISE_TEXT.map(lambda value: ("set", value)),
+    CANONICAL_GRAMMAR_PREMISE_TEXT.map(lambda value: ("change", value)),
+    st.sampled_from([("clear_premise",), ("clear_state",)]),
+)
+
+CANONICAL_DIRECTIVE_TEXT_CASES = st.one_of(
+    CANONICAL_GRAMMAR_PREMISE_TEXT.map(lambda value: f"set premise {value}"),
+    CANONICAL_GRAMMAR_PREMISE_TEXT.map(lambda value: f"change premise to {value}"),
+    CANONICAL_GRAMMAR_ITEM_TEXT.map(lambda item: f"use {item}"),
+    CANONICAL_GRAMMAR_ITEM_TEXT.map(lambda item: f"prohibit {item}"),
+    CANONICAL_GRAMMAR_ITEM_TEXT.map(lambda item: f"remove policy {item}"),
+    st.tuples(CANONICAL_GRAMMAR_ITEM_TEXT, CANONICAL_GRAMMAR_ITEM_TEXT)
+    .filter(
+        lambda pair: _normalize_item_like_engine(pair[0]) != _normalize_item_like_engine(pair[1])
+    )
+    .map(lambda pair: f"use {pair[0]} instead of {pair[1]}"),
+    st.sampled_from(["clear premise", "reset policies", "clear state"]),
+)
+
+NONEMPTY_NORMALIZED_KEY_TEXT = NORMALIZATION_SENSITIVE_TEXT.filter(
+    lambda value: _normalize_item_like_engine(value) != ""
+)
+
+INVALID_EMPTY_NORMALIZED_KEY_TEXT = st.text(alphabet=" \t", min_size=1, max_size=6)
+
+EQUIVALENT_NORMALIZED_KEY_PAIRS = st.builds(
+    lambda item: (item, "  " + item.upper().replace("'", "’") + "  "),
+    CANONICAL_GRAMMAR_ITEM_TEXT,
 )
 
 
@@ -361,6 +397,28 @@ REPLACEMENT_NEAR_MISS_CASES = st.one_of(
 @given(st.lists(st.text(max_size=40), min_size=0, max_size=20))
 def test_determinism_same_input_sequence_same_state(inputs: list[str]) -> None:
     assert _run_sequence(inputs) == _run_sequence(inputs)
+
+
+@given(VALID_STATE_PAYLOADS, CANONICAL_DIRECTIVE_TEXT_CASES)
+def test_step_and_apply_directive_are_equivalent_for_canonical_inputs(
+    initial_state: dict[str, object],
+    text: str,
+) -> None:
+    directive = decompose_directive(text)
+    assert isinstance(directive, CanonicalDirective)
+
+    step_engine = Engine()
+    step_engine.import_json(json.dumps(initial_state, sort_keys=True, separators=(",", ":")))
+    step_decision = step_engine.step(text)
+    step_state = _observations(step_engine)
+
+    apply_engine = Engine()
+    apply_engine.import_json(json.dumps(initial_state, sort_keys=True, separators=(",", ":")))
+    apply_decision = apply_engine.apply_directive(directive)
+    apply_state = _observations(apply_engine)
+
+    assert step_decision == apply_decision
+    assert step_state == apply_state
 
 
 @given(GRAMMAR_RENDER_CASES)
@@ -659,8 +717,11 @@ def test_apply_directive_replacement_error_cases_preserve_state(
 def test_apply_directive_replacement_with_normalized_equivalent_keys_is_noop_update(
     item: str,
 ) -> None:
-    normalized = _normalize_item_like_engine(item)
-    assume(normalized != "")
+    original_normalized = _normalize_item_like_engine(item)
+    upper_normalized = _normalize_item_like_engine(item.upper())
+    assume(original_normalized != "")
+    assume(original_normalized == upper_normalized)
+    normalized = original_normalized
     engine = Engine()
     engine.import_json(
         json.dumps(
@@ -763,6 +824,107 @@ def test_apply_directive_policy_lifecycle_matches_simple_state_model(
             assert all(value in {"use", "prohibit"} for value in model.values())
 
 
+@given(st.lists(PREMISE_MACHINE_OPERATIONS, min_size=1, max_size=25))
+def test_apply_directive_premise_lifecycle_matches_simple_model(
+    operations: list[tuple[str, ...]],
+) -> None:
+    engine = Engine()
+    model_premise: str | None = None
+
+    for operation in operations:
+        before_premise, before_policies = _observations(engine)
+        before_model_premise = model_premise
+
+        if operation[0] == "set":
+            value = operation[1]
+            directive = _canonical_directive_from_text(f"set premise {value}")
+            expected_error = model_premise is not None
+            if not expected_error:
+                model_premise = _sanitize_premise_like_engine(value)
+        elif operation[0] == "change":
+            value = operation[1]
+            directive = _canonical_directive_from_text(f"change premise to {value}")
+            expected_error = model_premise is None
+            if not expected_error:
+                model_premise = _sanitize_premise_like_engine(value)
+        elif operation[0] == "clear_premise":
+            directive = _canonical_directive_from_text("clear premise")
+            expected_error = False
+            model_premise = None
+        else:
+            assert operation[0] == "clear_state"
+            directive = _canonical_directive_from_text("clear state")
+            expected_error = False
+            model_premise = None
+
+        decision = engine.apply_directive(directive)
+        after_premise, after_policies = _observations(engine)
+
+        if expected_error:
+            assert decision["kind"] == DECISION_ERROR
+            assert after_premise == before_premise
+            assert after_policies == before_policies
+            assert model_premise == before_model_premise
+        else:
+            assert decision == {"kind": DECISION_UPDATE, "message": None}
+            assert after_premise == model_premise
+            if operation[0] == "clear_state":
+                assert after_policies == {}
+            else:
+                assert after_policies == before_policies
+
+
+@given(EQUIVALENT_NORMALIZED_KEY_PAIRS)
+def test_import_json_normalization_converges_equivalent_policy_keys(
+    pair: tuple[str, str],
+) -> None:
+    raw_a, raw_b = pair
+
+    payload = {
+        "premise": None,
+        "policies": {raw_a: "use", raw_b: "prohibit"},
+        "version": 2,
+    }
+    engine = Engine()
+    engine.import_json(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+
+    normalized_key = _normalize_item_like_engine(raw_b)
+    expected_value = {
+        _normalize_item_like_engine(raw_key): value
+        for raw_key, value in sorted(payload["policies"].items())
+    }[normalized_key]
+    assert _observations(engine) == (None, {normalized_key: expected_value})
+
+
+@given(INVALID_EMPTY_NORMALIZED_KEY_TEXT)
+def test_import_json_rejects_policy_keys_that_normalize_to_empty(key: str) -> None:
+    engine = Engine()
+    before = _observations(engine)
+    payload = {"premise": None, "policies": {key: "use"}, "version": 2}
+
+    try:
+        engine.import_json(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+    except ValueError as exc:
+        assert str(exc) == "Invalid state payload."
+    else:
+        raise AssertionError("Expected ValueError for empty normalized policy key")
+
+    assert _observations(engine) == before
+
+
+@given(VALID_STATE_PAYLOADS)
+def test_import_json_preserves_authoritative_invariants_for_generated_payloads(
+    payload: dict[str, object],
+) -> None:
+    engine = Engine()
+    engine.import_json(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+    premise, policies = _observations(engine)
+
+    assert premise is None or premise == _sanitize_premise_like_engine(premise)
+    assert all(key == _normalize_item_like_engine(key) for key in policies)
+    assert all(value in {"use", "prohibit"} for value in policies.values())
+
+
 @given(REPLACEMENT_NEAR_MISS_CASES)
 def test_replacement_near_misses_never_parse_as_canonical_or_mutate_state(text: str) -> None:
     engine = Engine()
@@ -787,8 +949,7 @@ def test_incomplete_replacement_forms_report_replace_use_family(
     text, missing_operand = case
     parsed = decompose_directive(text)
 
-    assert parsed == InvalidDirectiveSyntax(
-        failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
-        directive_kind=DirectiveKind.REPLACE_USE,
-        missing_operand=missing_operand,
-    )
+    assert isinstance(parsed, InvalidDirectiveSyntax)
+    assert parsed.failure is DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND
+    assert parsed.missing_operand == missing_operand
+    assert parsed.directive_kind in {DirectiveKind.REPLACE_USE, DirectiveKind.USE_ITEM}
