@@ -16,7 +16,10 @@ from context_compiler import (
 from context_compiler.grammar import (
     CanonicalDirective,
     DirectiveKind,
+    DirectiveSyntaxFailure,
+    InvalidDirectiveSyntax,
     decompose_directive,
+    get_directive_metadata,
 )
 
 
@@ -59,6 +62,12 @@ def _sanitize_premise_like_engine(value: str) -> str:
     sanitized = unicode_normalize("NFKC", value)
     sanitized = sanitized.replace("’", "'").replace("`", "'")
     return re.sub(r"\s+", " ", sanitized).strip()
+
+
+def _canonical_directive_from_text(text: str) -> CanonicalDirective:
+    directive = decompose_directive(text)
+    assert isinstance(directive, CanonicalDirective)
+    return directive
 
 
 NORMALIZATION_SENSITIVE_TEXT = st.text(
@@ -183,7 +192,105 @@ DETERMINISTIC_REPLACEMENT_CASES = (
             )
         )
     )
+    .filter(lambda args: args[4])
     .map(lambda args: _build_deterministic_replacement_case(*args))
+)
+
+ERROR_CASES = st.one_of(
+    CANONICAL_GRAMMAR_PREMISE_TEXT.map(
+        lambda value: (
+            {"premise": "existing", "policies": {}, "version": 2},
+            _canonical_directive_from_text(f"set premise {value}"),
+        )
+    ),
+    CANONICAL_GRAMMAR_PREMISE_TEXT.map(
+        lambda value: (
+            {"premise": None, "policies": {}, "version": 2},
+            _canonical_directive_from_text(f"change premise to {value}"),
+        )
+    ),
+    CANONICAL_GRAMMAR_ITEM_TEXT.map(
+        lambda item: (
+            {
+                "premise": None,
+                "policies": {_normalize_item_like_engine(item): "prohibit"},
+                "version": 2,
+            },
+            _canonical_directive_from_text(f"use {item}"),
+        )
+    ),
+    CANONICAL_GRAMMAR_ITEM_TEXT.map(
+        lambda item: (
+            {"premise": None, "policies": {_normalize_item_like_engine(item): "use"}, "version": 2},
+            _canonical_directive_from_text(f"prohibit {item}"),
+        )
+    ),
+    st.tuples(VALID_USE_ITEM_TEXT, VALID_NONEMPTY_ITEM_TEXT)
+    .filter(
+        lambda pair: _normalize_item_like_engine(pair[0]) != _normalize_item_like_engine(pair[1])
+    )
+    .map(
+        lambda pair: (
+            {"premise": None, "policies": {}, "version": 2},
+            _canonical_directive_from_text(f"use {pair[0]} instead of {pair[1]}"),
+        )
+    ),
+)
+
+REPLACEMENT_ERROR_CASES = st.one_of(
+    st.tuples(CANONICAL_GRAMMAR_ITEM_TEXT, CANONICAL_GRAMMAR_ITEM_TEXT)
+    .filter(
+        lambda pair: _normalize_item_like_engine(pair[0]) != _normalize_item_like_engine(pair[1])
+    )
+    .map(
+        lambda pair: (
+            {
+                "premise": None,
+                "policies": {_normalize_item_like_engine(pair[1]): "prohibit"},
+                "version": 2,
+            },
+            pair[0],
+            pair[1],
+            "source_prohibited",
+        )
+    ),
+    st.tuples(CANONICAL_GRAMMAR_ITEM_TEXT, CANONICAL_GRAMMAR_ITEM_TEXT)
+    .filter(
+        lambda pair: _normalize_item_like_engine(pair[0]) != _normalize_item_like_engine(pair[1])
+    )
+    .map(
+        lambda pair: (
+            {
+                "premise": None,
+                "policies": {_normalize_item_like_engine(pair[0]): "prohibit"},
+                "version": 2,
+            },
+            pair[0],
+            pair[1],
+            "target_prohibited",
+        )
+    ),
+    st.tuples(VALID_USE_ITEM_TEXT, VALID_NONEMPTY_ITEM_TEXT)
+    .filter(
+        lambda pair: _normalize_item_like_engine(pair[0]) != _normalize_item_like_engine(pair[1])
+    )
+    .map(
+        lambda pair: (
+            {"premise": None, "policies": {}, "version": 2},
+            pair[0],
+            pair[1],
+            "source_absent",
+        )
+    ),
+)
+
+POLICY_MACHINE_OPERATIONS = st.one_of(
+    CANONICAL_GRAMMAR_ITEM_TEXT.map(lambda item: ("use", item)),
+    CANONICAL_GRAMMAR_ITEM_TEXT.map(lambda item: ("prohibit", item)),
+    CANONICAL_GRAMMAR_ITEM_TEXT.map(lambda item: ("remove", item)),
+    st.tuples(CANONICAL_GRAMMAR_ITEM_TEXT, CANONICAL_GRAMMAR_ITEM_TEXT).map(
+        lambda pair: ("replace", pair[0], pair[1])
+    ),
 )
 
 
@@ -236,6 +343,20 @@ GRAMMAR_RENDER_CASES = st.one_of(
     ),
 )
 
+REPLACEMENT_NEAR_MISS_CASES = st.one_of(
+    VALID_NONEMPTY_ITEM_TEXT.map(lambda old_item: f"use instead of {old_item}"),
+    VALID_USE_ITEM_TEXT.map(lambda new_item: f"use {new_item} instead of"),
+    st.tuples(VALID_USE_ITEM_TEXT, VALID_NONEMPTY_ITEM_TEXT, VALID_NONEMPTY_ITEM_TEXT)
+    .filter(
+        lambda parts: (
+            _normalize_item_like_engine(parts[0]) != _normalize_item_like_engine(parts[1])
+            and _normalize_item_like_engine(parts[0]) != _normalize_item_like_engine(parts[2])
+            and _normalize_item_like_engine(parts[1]) != _normalize_item_like_engine(parts[2])
+        )
+    )
+    .map(lambda parts: f"use {parts[0]} instead of {parts[1]} instead of {parts[2]}"),
+)
+
 
 @given(st.lists(st.text(max_size=40), min_size=0, max_size=20))
 def test_determinism_same_input_sequence_same_state(inputs: list[str]) -> None:
@@ -261,6 +382,66 @@ def test_grammar_helper_render_decompose_round_trip_is_stable(
     assert dict(directive.operands) == operands
     assert decompose_directive(directive.text) == directive
     assert grammar_module._render_directive(kind, **operands) == rendered
+
+
+@given(st.sampled_from(get_directive_metadata()))
+def test_public_directive_metadata_matches_internal_rendering_contract(
+    metadata: grammar_module.DirectiveMetadata,
+) -> None:
+    spec = grammar_module._DIRECTIVE_SPECS[metadata.kind]
+
+    assert metadata.canonical_start == spec.canonical_start
+    assert metadata.operand_names == spec.operand_names
+
+    if metadata.kind is DirectiveKind.SET_PREMISE:
+        rendered = grammar_module._render_directive(metadata.kind, value="concise replies")
+    elif metadata.kind is DirectiveKind.CHANGE_PREMISE:
+        rendered = grammar_module._render_directive(metadata.kind, value="formal tone")
+    elif metadata.kind is DirectiveKind.USE_ITEM:
+        rendered = grammar_module._render_directive(metadata.kind, item="docker")
+    elif metadata.kind is DirectiveKind.PROHIBIT_ITEM:
+        rendered = grammar_module._render_directive(metadata.kind, item="peanuts")
+    elif metadata.kind is DirectiveKind.REMOVE_POLICY:
+        rendered = grammar_module._render_directive(metadata.kind, item="docker")
+    elif metadata.kind is DirectiveKind.REPLACE_USE:
+        rendered = grammar_module._render_directive(
+            metadata.kind,
+            new_item="podman",
+            old_item="docker",
+        )
+    elif (
+        metadata.kind is DirectiveKind.CLEAR_PREMISE
+        or metadata.kind is DirectiveKind.RESET_POLICIES
+    ):
+        rendered = grammar_module._render_directive(metadata.kind)
+    else:
+        assert metadata.kind is DirectiveKind.CLEAR_STATE
+        rendered = grammar_module._render_directive(metadata.kind)
+
+    directive = decompose_directive(rendered)
+    assert isinstance(directive, CanonicalDirective)
+    assert directive.kind is metadata.kind
+    assert tuple(directive.operands) == metadata.operand_names
+    assert _normalize_item_like_engine(rendered.split()[0]) == _normalize_item_like_engine(
+        metadata.canonical_start.split()[0]
+    )
+
+
+def test_public_directive_metadata_only_collides_on_canonical_start_for_use_families() -> None:
+    starts_by_kind = {
+        metadata.kind: metadata.canonical_start for metadata in get_directive_metadata()
+    }
+
+    assert starts_by_kind[DirectiveKind.USE_ITEM] == starts_by_kind[DirectiveKind.REPLACE_USE]
+
+    inverse: dict[str, set[DirectiveKind]] = {}
+    for kind, start in starts_by_kind.items():
+        inverse.setdefault(start, set()).add(kind)
+
+    assert inverse["use"] == {DirectiveKind.USE_ITEM, DirectiveKind.REPLACE_USE}
+    for start, kinds in inverse.items():
+        if start != "use":
+            assert len(kinds) == 1, start
 
 
 @given(st.text(min_size=1, max_size=30))
@@ -416,12 +597,10 @@ def test_deterministic_replacement_matches_equivalent_explicit_transition(
     initial_state = case["initial_state"]
     new_item = case["new_item"]
     old_item = case["old_item"]
-    old_present = case["old_present"]
 
     assert isinstance(initial_state, dict)
     assert isinstance(new_item, str)
     assert isinstance(old_item, str)
-    assert isinstance(old_present, bool)
 
     oracle_engine = Engine()
     oracle_engine.import_json(
@@ -442,7 +621,174 @@ def test_deterministic_replacement_matches_equivalent_explicit_transition(
     assert decision == expected_decision
     assert _observations(engine) == expected_state
 
-    if not old_present:
-        followup = engine.step("yes")
-        assert followup == {"kind": DECISION_NO_DIRECTIVE, "message": None}
-        assert _observations(engine) == expected_state
+
+@given(ERROR_CASES)
+def test_apply_directive_semantic_errors_never_partially_mutate_state(
+    case: tuple[dict[str, object], CanonicalDirective],
+) -> None:
+    initial_state, directive = case
+    engine = Engine()
+    engine.import_json(json.dumps(initial_state, sort_keys=True, separators=(",", ":")))
+    before = _observations(engine)
+
+    decision = engine.apply_directive(directive)
+
+    assert decision == {"kind": DECISION_ERROR, "message": decision["message"]}
+    assert decision["message"] is not None
+    assert _observations(engine) == before
+
+
+@given(REPLACEMENT_ERROR_CASES)
+def test_apply_directive_replacement_error_cases_preserve_state(
+    case: tuple[dict[str, object], str, str, str],
+) -> None:
+    initial_state, new_item, old_item, _reason = case
+    engine = Engine()
+    engine.import_json(json.dumps(initial_state, sort_keys=True, separators=(",", ":")))
+    directive = _canonical_directive_from_text(f"use {new_item} instead of {old_item}")
+    before = _observations(engine)
+
+    decision = engine.apply_directive(directive)
+
+    assert decision["kind"] == DECISION_ERROR
+    assert decision["message"] is not None
+    assert _observations(engine) == before
+
+
+@given(CANONICAL_GRAMMAR_ITEM_TEXT)
+def test_apply_directive_replacement_with_normalized_equivalent_keys_is_noop_update(
+    item: str,
+) -> None:
+    normalized = _normalize_item_like_engine(item)
+    assume(normalized != "")
+    engine = Engine()
+    engine.import_json(
+        json.dumps(
+            {"premise": None, "policies": {normalized: "use"}, "version": 2},
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+    )
+    before = _observations(engine)
+    directive = _canonical_directive_from_text(f"use {item.upper()} instead of {item}")
+
+    decision = engine.apply_directive(directive)
+
+    assert decision == {"kind": DECISION_UPDATE, "message": None}
+    assert _observations(engine) == before
+
+
+@given(DETERMINISTIC_REPLACEMENT_CASES)
+def test_apply_directive_valid_replacement_performs_expected_transition(
+    case: dict[str, object],
+) -> None:
+    initial_state = case["initial_state"]
+    new_item = case["new_item"]
+    old_item = case["old_item"]
+
+    assert isinstance(initial_state, dict)
+    assert isinstance(new_item, str)
+    assert isinstance(old_item, str)
+
+    engine = Engine()
+    engine.import_json(json.dumps(initial_state, sort_keys=True, separators=(",", ":")))
+    directive = _canonical_directive_from_text(f"use {new_item} instead of {old_item}")
+    before_premise, before_policies = _observations(engine)
+
+    decision = engine.apply_directive(directive)
+
+    expected_policies = dict(before_policies)
+    expected_policies.pop(_normalize_item_like_engine(old_item), None)
+    expected_policies[_normalize_item_like_engine(new_item)] = "use"
+
+    assert decision == {"kind": DECISION_UPDATE, "message": None}
+    assert _observations(engine) == (before_premise, expected_policies)
+
+
+@given(st.lists(POLICY_MACHINE_OPERATIONS, min_size=1, max_size=25))
+def test_apply_directive_policy_lifecycle_matches_simple_state_model(
+    operations: list[tuple[str, ...]],
+) -> None:
+    engine = Engine()
+    model: dict[str, str] = {}
+
+    for operation in operations:
+        before = _observations(engine)
+        before_model = dict(model)
+
+        if operation[0] == "use":
+            item = operation[1]
+            directive = _canonical_directive_from_text(f"use {item}")
+            key = _normalize_item_like_engine(item)
+            expected_error = model.get(key) == "prohibit"
+            if not expected_error:
+                model[key] = "use"
+        elif operation[0] == "prohibit":
+            item = operation[1]
+            directive = _canonical_directive_from_text(f"prohibit {item}")
+            key = _normalize_item_like_engine(item)
+            expected_error = model.get(key) == "use"
+            if not expected_error:
+                model[key] = "prohibit"
+        elif operation[0] == "remove":
+            item = operation[1]
+            directive = _canonical_directive_from_text(f"remove policy {item}")
+            key = _normalize_item_like_engine(item)
+            expected_error = False
+            model.pop(key, None)
+        else:
+            assert operation[0] == "replace"
+            new_item = operation[1]
+            old_item = operation[2]
+            directive = _canonical_directive_from_text(f"use {new_item} instead of {old_item}")
+            new_key = _normalize_item_like_engine(new_item)
+            old_key = _normalize_item_like_engine(old_item)
+            if new_key == old_key:
+                expected_error = False
+            else:
+                expected_error = model.get(old_key) != "use" or model.get(new_key) == "prohibit"
+                if not expected_error:
+                    model.pop(old_key, None)
+                    model[new_key] = "use"
+
+        decision = engine.apply_directive(directive)
+
+        if expected_error:
+            assert decision["kind"] == DECISION_ERROR
+            assert _observations(engine) == before
+            assert model == before_model
+        else:
+            assert decision == {"kind": DECISION_UPDATE, "message": None}
+            assert dict(engine.policies) == model
+            assert all(value in {"use", "prohibit"} for value in model.values())
+
+
+@given(REPLACEMENT_NEAR_MISS_CASES)
+def test_replacement_near_misses_never_parse_as_canonical_or_mutate_state(text: str) -> None:
+    engine = Engine()
+    before = _observations(engine)
+    parsed = decompose_directive(text)
+    decision = engine.step(text)
+
+    assert not (isinstance(parsed, CanonicalDirective) and parsed.kind is DirectiveKind.REPLACE_USE)
+    assert decision == {"kind": DECISION_NO_DIRECTIVE, "message": None}
+    assert _observations(engine) == before
+
+
+@given(
+    st.one_of(
+        VALID_NONEMPTY_ITEM_TEXT.map(lambda old_item: (f"use instead of {old_item}", "new_item")),
+        VALID_USE_ITEM_TEXT.map(lambda new_item: (f"use {new_item} instead of", "old_item")),
+    )
+)
+def test_incomplete_replacement_forms_report_replace_use_family(
+    case: tuple[str, str],
+) -> None:
+    text, missing_operand = case
+    parsed = decompose_directive(text)
+
+    assert parsed == InvalidDirectiveSyntax(
+        failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+        directive_kind=DirectiveKind.REPLACE_USE,
+        missing_operand=missing_operand,
+    )

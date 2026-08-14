@@ -17,9 +17,7 @@
     },
     "state": {
       "premise": null,
-      "policies": {
-        "kubectl": "use"
-      },
+      "policies": {},
       "version": 2
     }
   }

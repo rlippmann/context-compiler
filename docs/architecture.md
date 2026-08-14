@@ -37,17 +37,15 @@ Boundary:
   canonical operations already established by core
 - pending continuation is runtime state, not grammar
 - malformed or non-canonical input must never create pending continuation
-- a missing source item in `use <new> instead of <old>` is evaluated as a
-  deterministic state transition question, not as a justification for pending
-  continuation
+- a missing source item in `use <new> instead of <old>` is a semantic
+  replacement error, not a justification for pending continuation
 
 Current repository note:
 
 - the intended contract allows semantic pending continuation for supported
   deterministic blocked transitions
-- that continuation boundary is independent from the historical replacement
-  case where the requested old item is absent from state
-- the current runtime implementation does not yet fully restore that contract
+- that continuation boundary remains independent from replacement errors where
+  the requested old item is absent from state
   and should be treated as lagging the updated specification until runtime work
   lands
 
