@@ -115,14 +115,14 @@
         "shape_probes": [
           {
             "kwargs": {
-              "text": "use docker"
+              "text": "Use Docker"
             },
             "return_shape": {
               "kind": "canonical_directive",
-              "text": "use docker",
+              "text": "use Docker",
               "directive_kind": "use_item",
               "operands": {
-                "item": "docker"
+                "item": "Docker"
               }
             }
           },

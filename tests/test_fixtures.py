@@ -254,12 +254,17 @@ def test_grammar_fixtures() -> None:
                 assert directive.text == expected_directive["text"], fixture_id
                 assert directive.kind.value == expected_directive["kind"], fixture_id
                 assert dict(directive.operands) == expected_directive["operands"], fixture_id
+                assert directive.text == grammar_module._render_directive(
+                    directive.kind,
+                    **dict(directive.operands),
+                ), fixture_id
         else:
             rendered = grammar_module._render_directive(action["kind"], **action["operands"])
             assert rendered == expected["text"], fixture_id
             directive = decompose_directive(rendered)
             assert isinstance(directive, CanonicalDirective), fixture_id
             assert directive.kind.value == expected["directive_kind"], fixture_id
+            assert directive.text == rendered, fixture_id
 
 
 def test_mutation_isolation_fixtures() -> None:

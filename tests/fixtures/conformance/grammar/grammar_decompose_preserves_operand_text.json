@@ -7,7 +7,7 @@
   },
   "expected": {
     "directive": {
-      "text": "Use    Docker Engine",
+      "text": "use Docker Engine",
       "kind": "use_item",
       "operands": {
         "item": "Docker Engine"

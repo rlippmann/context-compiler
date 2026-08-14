@@ -247,6 +247,11 @@ REPLACEMENT_ERROR_CASES = st.one_of(
     .filter(
         lambda pair: _normalize_item_like_engine(pair[0]) != _normalize_item_like_engine(pair[1])
     )
+    .filter(
+        lambda pair: _is_canonical_directive(
+            decompose_directive(f"use {pair[0]} instead of {pair[1]}")
+        )
+    )
     .map(
         lambda pair: (
             {
@@ -263,6 +268,11 @@ REPLACEMENT_ERROR_CASES = st.one_of(
     .filter(
         lambda pair: _normalize_item_like_engine(pair[0]) != _normalize_item_like_engine(pair[1])
     )
+    .filter(
+        lambda pair: _is_canonical_directive(
+            decompose_directive(f"use {pair[0]} instead of {pair[1]}")
+        )
+    )
     .map(
         lambda pair: (
             {
@@ -278,6 +288,11 @@ REPLACEMENT_ERROR_CASES = st.one_of(
     st.tuples(VALID_USE_ITEM_TEXT, VALID_NONEMPTY_ITEM_TEXT)
     .filter(
         lambda pair: _normalize_item_like_engine(pair[0]) != _normalize_item_like_engine(pair[1])
+    )
+    .filter(
+        lambda pair: _is_canonical_directive(
+            decompose_directive(f"use {pair[0]} instead of {pair[1]}")
+        )
     )
     .map(
         lambda pair: (
@@ -327,7 +342,12 @@ INVALID_EMPTY_NORMALIZED_KEY_TEXT = st.text(alphabet=" \t", min_size=1, max_size
 EQUIVALENT_NORMALIZED_KEY_PAIRS = st.builds(
     lambda item: (item, "  " + item.upper().replace("'", "’") + "  "),
     CANONICAL_GRAMMAR_ITEM_TEXT,
-)
+).filter(lambda pair: _normalize_item_like_engine(pair[0]) == _normalize_item_like_engine(pair[1]))
+
+DISTINCT_NORMALIZED_KEY_PAIRS = st.tuples(
+    NONEMPTY_NORMALIZED_KEY_TEXT,
+    NONEMPTY_NORMALIZED_KEY_TEXT,
+).filter(lambda pair: _normalize_item_like_engine(pair[0]) != _normalize_item_like_engine(pair[1]))
 
 
 def _payload_has_stable_export_import_cycle(payload: dict[str, object]) -> bool:
@@ -894,6 +914,27 @@ def test_import_json_normalization_converges_equivalent_policy_keys(
         for raw_key, value in sorted(payload["policies"].items())
     }[normalized_key]
     assert _observations(engine) == (None, {normalized_key: expected_value})
+
+
+@given(DISTINCT_NORMALIZED_KEY_PAIRS)
+def test_import_json_preserves_distinct_normalized_policy_keys(
+    pair: tuple[str, str],
+) -> None:
+    raw_a, raw_b = pair
+
+    payload = {
+        "premise": None,
+        "policies": {raw_a: "use", raw_b: "prohibit"},
+        "version": 2,
+    }
+    engine = Engine()
+    engine.import_json(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+
+    normalized_policies = {
+        _normalize_item_like_engine(raw_a): "use",
+        _normalize_item_like_engine(raw_b): "prohibit",
+    }
+    assert _observations(engine) == (None, normalized_policies)
 
 
 @given(INVALID_EMPTY_NORMALIZED_KEY_TEXT)
