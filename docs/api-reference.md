@@ -75,8 +75,10 @@ Public grammar surface:
 
 - `DirectiveKind`
 - `DirectiveSyntaxFailure`
+- `DirectiveMetadata`
 - `CanonicalDirective`
 - `InvalidDirectiveSyntax`
+- `get_directive_metadata()`
 - `decompose_directive(text)`
 
 Use this surface for exact canonical directive decomposition and
@@ -84,6 +86,12 @@ classification via `decompose_directive(...)` only.
 
 Boundary notes:
 
+- `get_directive_metadata()` returns immutable directive metadata derived from
+  the internal grammar specs
+- each `DirectiveMetadata` exposes only `kind`, `canonical_start`, and
+  `operand_names`
+- directive metadata is descriptive only; it does not parse text or recognize
+  malformed input
 - use `decompose_directive(text)` to determine whether text is a complete
   canonical directive
 - `decompose_directive(...)` returns `CanonicalDirective` for accepted
@@ -115,6 +123,15 @@ Core does not lowercase operands, collapse internal operand whitespace, or
 convert operand text into engine/domain identifiers at the grammar layer.
 `CanonicalDirective.text` should not be treated as canonical serialized
 directive output.
+
+Typical metadata use:
+
+```python
+from context_compiler.grammar import get_directive_metadata
+
+for metadata in get_directive_metadata():
+    print(metadata.kind, metadata.canonical_start, metadata.operand_names)
+```
 
 ### `engine.apply_directive(directive)`
 

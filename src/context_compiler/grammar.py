@@ -54,16 +54,31 @@ class InvalidDirectiveSyntax:
 @dataclass(frozen=True, slots=True)
 class _DirectiveSpec:
     kind: DirectiveKind
+    canonical_start: str
     operand_names: tuple[str, ...]
     exact_text: str | None
     renderer: Callable[[MappingProxyType[str, str]], str]
 
 
-_SET_PREMISE_PREFIX = "set premise "
-_CHANGE_PREMISE_PREFIX = "change premise to "
-_USE_PREFIX = "use "
-_PROHIBIT_PREFIX = "prohibit "
-_REMOVE_POLICY_PREFIX = "remove policy "
+@dataclass(frozen=True, slots=True)
+class DirectiveMetadata:
+    """Describe one canonical directive family without exposing parser internals."""
+
+    kind: DirectiveKind
+    canonical_start: str
+    operand_names: tuple[str, ...]
+
+
+_SET_PREMISE_START = "set premise"
+_CHANGE_PREMISE_START = "change premise to"
+_USE_START = "use"
+_PROHIBIT_START = "prohibit"
+_REMOVE_POLICY_START = "remove policy"
+_SET_PREMISE_PREFIX = f"{_SET_PREMISE_START} "
+_CHANGE_PREMISE_PREFIX = f"{_CHANGE_PREMISE_START} "
+_USE_PREFIX = f"{_USE_START} "
+_PROHIBIT_PREFIX = f"{_PROHIBIT_START} "
+_REMOVE_POLICY_PREFIX = f"{_REMOVE_POLICY_START} "
 _CLEAR_PREMISE_TEXT = "clear premise"
 _RESET_POLICIES_TEXT = "reset policies"
 _CLEAR_STATE_TEXT = "clear state"
@@ -79,39 +94,6 @@ _PROHIBIT_RE = re.compile(r"(?i)^prohibit[ \t]+(?P<item>.+)$")
 _REMOVE_POLICY_RE = re.compile(r"(?i)^remove[ \t]+policy[ \t]+(?P<item>.+)$")
 _REPLACE_RE = re.compile(
     r"(?i)^use[ \t]+(?P<new_item>.*?)[ \t]+instead[ \t]+of[ \t]+(?P<old_item>.+)$"
-)
-
-_PREFIX_DIRECTIVE_STARTS: tuple[tuple[str, bool], ...] = (
-    (_CHANGE_PREMISE_PREFIX.removesuffix(" "), True),
-    (_SET_PREMISE_PREFIX.removesuffix(" "), True),
-    (_REMOVE_POLICY_PREFIX.removesuffix(" "), True),
-    (_PROHIBIT_PREFIX.removesuffix(" "), True),
-    (_USE_PREFIX.removesuffix(" "), True),
-)
-
-_EXACT_DIRECTIVE_STARTS: tuple[tuple[str, bool], ...] = (
-    (_RESET_POLICIES_TEXT, False),
-    (_CLEAR_PREMISE_TEXT, False),
-    (_CLEAR_STATE_TEXT, False),
-)
-
-_CANONICAL_DIRECTIVE_STARTS: tuple[tuple[str, bool], ...] = (
-    _PREFIX_DIRECTIVE_STARTS[0],
-    _PREFIX_DIRECTIVE_STARTS[1],
-    _PREFIX_DIRECTIVE_STARTS[2],
-    _EXACT_DIRECTIVE_STARTS[0],
-    _EXACT_DIRECTIVE_STARTS[1],
-    _EXACT_DIRECTIVE_STARTS[2],
-    _PREFIX_DIRECTIVE_STARTS[3],
-    _PREFIX_DIRECTIVE_STARTS[4],
-)
-
-_DIRECTIVE_FAMILY_STARTS: tuple[tuple[str, bool], ...] = (
-    (_CHANGE_PREMISE_FAMILY, True),
-    _PREFIX_DIRECTIVE_STARTS[1],
-    _PREFIX_DIRECTIVE_STARTS[2],
-    *_EXACT_DIRECTIVE_STARTS,
-    *_PREFIX_DIRECTIVE_STARTS[3:],
 )
 
 
@@ -140,59 +122,126 @@ _DIRECTIVE_SPECS = MappingProxyType(
     {
         DirectiveKind.SET_PREMISE: _DirectiveSpec(
             kind=DirectiveKind.SET_PREMISE,
+            canonical_start=_SET_PREMISE_START,
             operand_names=("value",),
             exact_text=None,
             renderer=_render_with_prefix(_SET_PREMISE_PREFIX, "value"),
         ),
         DirectiveKind.CHANGE_PREMISE: _DirectiveSpec(
             kind=DirectiveKind.CHANGE_PREMISE,
+            canonical_start=_CHANGE_PREMISE_START,
             operand_names=("value",),
             exact_text=None,
             renderer=_render_with_prefix(_CHANGE_PREMISE_PREFIX, "value"),
         ),
         DirectiveKind.USE_ITEM: _DirectiveSpec(
             kind=DirectiveKind.USE_ITEM,
+            canonical_start=_USE_START,
             operand_names=("item",),
             exact_text=None,
             renderer=_render_with_prefix(_USE_PREFIX, "item"),
         ),
         DirectiveKind.PROHIBIT_ITEM: _DirectiveSpec(
             kind=DirectiveKind.PROHIBIT_ITEM,
+            canonical_start=_PROHIBIT_START,
             operand_names=("item",),
             exact_text=None,
             renderer=_render_with_prefix(_PROHIBIT_PREFIX, "item"),
         ),
         DirectiveKind.REMOVE_POLICY: _DirectiveSpec(
             kind=DirectiveKind.REMOVE_POLICY,
+            canonical_start=_REMOVE_POLICY_START,
             operand_names=("item",),
             exact_text=None,
             renderer=_render_with_prefix(_REMOVE_POLICY_PREFIX, "item"),
         ),
         DirectiveKind.REPLACE_USE: _DirectiveSpec(
             kind=DirectiveKind.REPLACE_USE,
+            canonical_start=_USE_START,
             operand_names=("new_item", "old_item"),
             exact_text=None,
             renderer=_render_replace_use,
         ),
         DirectiveKind.CLEAR_PREMISE: _DirectiveSpec(
             kind=DirectiveKind.CLEAR_PREMISE,
+            canonical_start=_CLEAR_PREMISE_TEXT,
             operand_names=(),
             exact_text=_CLEAR_PREMISE_TEXT,
             renderer=_render_exact(_CLEAR_PREMISE_TEXT),
         ),
         DirectiveKind.RESET_POLICIES: _DirectiveSpec(
             kind=DirectiveKind.RESET_POLICIES,
+            canonical_start=_RESET_POLICIES_TEXT,
             operand_names=(),
             exact_text=_RESET_POLICIES_TEXT,
             renderer=_render_exact(_RESET_POLICIES_TEXT),
         ),
         DirectiveKind.CLEAR_STATE: _DirectiveSpec(
             kind=DirectiveKind.CLEAR_STATE,
+            canonical_start=_CLEAR_STATE_TEXT,
             operand_names=(),
             exact_text=_CLEAR_STATE_TEXT,
             renderer=_render_exact(_CLEAR_STATE_TEXT),
         ),
     }
+)
+
+
+def _starts_with_descriptor(spec: _DirectiveSpec) -> tuple[str, bool]:
+    return (spec.canonical_start, bool(spec.operand_names))
+
+
+def _unique_start_descriptors(specs: tuple[_DirectiveSpec, ...]) -> tuple[tuple[str, bool], ...]:
+    descriptors: list[tuple[str, bool]] = []
+    seen: set[tuple[str, bool]] = set()
+    for spec in specs:
+        descriptor = _starts_with_descriptor(spec)
+        if descriptor not in seen:
+            seen.add(descriptor)
+            descriptors.append(descriptor)
+    return tuple(descriptors)
+
+
+_CANONICAL_START_ORDER = (
+    DirectiveKind.CHANGE_PREMISE,
+    DirectiveKind.SET_PREMISE,
+    DirectiveKind.REMOVE_POLICY,
+    DirectiveKind.RESET_POLICIES,
+    DirectiveKind.CLEAR_PREMISE,
+    DirectiveKind.CLEAR_STATE,
+    DirectiveKind.PROHIBIT_ITEM,
+    DirectiveKind.USE_ITEM,
+)
+
+_CANONICAL_DIRECTIVE_STARTS = _unique_start_descriptors(
+    tuple(_DIRECTIVE_SPECS[kind] for kind in _CANONICAL_START_ORDER)
+)
+
+_DIRECTIVE_FAMILY_STARTS = (
+    (_CHANGE_PREMISE_FAMILY, True),
+    *_unique_start_descriptors(
+        tuple(
+            _DIRECTIVE_SPECS[kind]
+            for kind in (
+                DirectiveKind.SET_PREMISE,
+                DirectiveKind.REMOVE_POLICY,
+                DirectiveKind.RESET_POLICIES,
+                DirectiveKind.CLEAR_PREMISE,
+                DirectiveKind.CLEAR_STATE,
+                DirectiveKind.PROHIBIT_ITEM,
+                DirectiveKind.USE_ITEM,
+            )
+        )
+    ),
+)
+
+_PUBLIC_DIRECTIVE_METADATA = tuple(
+    DirectiveMetadata(
+        kind=spec.kind,
+        canonical_start=spec.canonical_start,
+        operand_names=spec.operand_names,
+    )
+    for spec in _DIRECTIVE_SPECS.values()
 )
 
 
@@ -533,6 +582,12 @@ def decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSynta
     return _invalid_directive_syntax(DirectiveSyntaxFailure.MALFORMED_DIRECTIVE)
 
 
+def get_directive_metadata() -> tuple[DirectiveMetadata, ...]:
+    """Return immutable public directive metadata derived from internal specs."""
+
+    return _PUBLIC_DIRECTIVE_METADATA
+
+
 def _render_directive(kind: DirectiveKind | str, /, **operands: str) -> str:
     """Produce canonical directive text from a semantic kind and operands."""
     try:
@@ -572,7 +627,9 @@ def _render_directive(kind: DirectiveKind | str, /, **operands: str) -> str:
 __all__ = [
     "DirectiveKind",
     "DirectiveSyntaxFailure",
+    "DirectiveMetadata",
     "CanonicalDirective",
     "InvalidDirectiveSyntax",
+    "get_directive_metadata",
     "decompose_directive",
 ]
