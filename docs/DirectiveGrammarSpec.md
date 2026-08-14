@@ -564,14 +564,12 @@ Let `kx` be the policy identity key for `REPLACE_NEW` under Section 10.1 and
 The replacement-specific `error` cases are state-dependent and belong to
 semantic evaluation, not parsing.
 
-Normative classification for the historical missing-source case:
+Normative classification for the missing-source case:
 
-- if `ky` is absent and applying `use <new>` is otherwise semantically valid,
-  `use <new> instead of <old>` is not a error case;
-- core applies the deterministic resulting transition of asserting
-  `REPLACE_NEW` as `use`;
-- the user's incorrect assumption about the current presence of `<old>` does
-  not by itself create semantic ambiguity or pending continuation;
+- if `ky` is absent, `use <new> instead of <old>` is an `error` case;
+- replacement requires an active existing `use` policy for `REPLACE_OLD`;
+- core must not degrade the canonical replacement directive into plain
+  `use <new>`;
 - malformed replacement syntax remains invalid grammar, and other semantic
   conflicts for a canonical replacement may still return `error`.
 
@@ -633,11 +631,10 @@ This specification preserves the grammar hardening established after `0.8.x`:
 
 Within semantic evaluation, pending continuation is intended only for
 deterministic blocked transitions that do not expand authority beyond the
-parsed canonical operation. In particular, the historical missing-source
-replacement case (`use <new> instead of <old>` when `<old>` is absent) is not
-a pending or error case under this specification; it deterministically
-applies the resulting `use <new>` transition when otherwise semantically
-valid.
+parsed canonical operation. In particular, the missing-source replacement
+case (`use <new> instead of <old>` when `<old>` is absent) is an `error`
+case under this specification and must not be reinterpreted as plain
+`use <new>`.
 
 ## 11. Storage Normalization
 
@@ -719,7 +716,7 @@ source material for later conformance fixtures.
 | `prohibit peanuts` | canonical directive | prohibit item | may apply, no-op, or error |
 | `remove policy docker` | canonical directive | remove policy | may apply or no-op |
 | `use podman instead of docker` | canonical directive | replace use | may apply, no-op, or error |
-| `use podman instead of docker` when `docker` is absent and `use podman` is otherwise valid | canonical directive | replace use | applies deterministically as the resulting `use podman` transition; not a pending/error case |
+| `use podman instead of docker` when `docker` is absent | canonical directive | replace use | semantic error; replacement requires an active source `use` policy |
 | `clear premise` | canonical directive | clear premise | may apply or no-op |
 | `reset policies` | canonical directive | reset policies | may apply or no-op |
 | `clear state` | canonical directive | clear state | may apply or no-op |

@@ -392,10 +392,9 @@ Replacement:
 User: use podman instead of docker
 ```
 
-If `docker` is absent from saved state, that does not make the directive
-pending. The user's intended resulting state is still unambiguous, so the
-replacement follows the deterministic `use podman` transition when otherwise
-semantically valid.
+If `docker` is absent from saved state, that is a semantic `error`.
+Canonical replacement requires an active existing source `use` policy and
+does not degrade to plain `use podman`.
 
 Removal and reset:
 
@@ -413,8 +412,8 @@ evaluation against authoritative state.
 Pending continuation is a separate runtime layer. It may exist only after a
 canonical directive reaches a supported semantic `error` case. It never
 repairs malformed syntax or reinterprets non-canonical input as a directive.
-An absent source item in a canonical replacement directive is not, by itself,
-such a `error` case.
+An absent source item in a canonical replacement directive is itself a
+semantic `error` case and does not authorize degradation to plain `use`.
 
 Examples:
 

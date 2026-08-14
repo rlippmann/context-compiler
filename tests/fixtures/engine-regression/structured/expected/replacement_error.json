@@ -3,15 +3,13 @@
   "turns": [
     {
       "state": {
-        "policies": {
-          "podman": "use"
-        },
+        "policies": {},
         "premise": null,
         "version": 2
       },
       "decision": {
-        "kind": "update",
-        "message": null
+        "kind": "error",
+        "message": "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
       },
       "input": "use podman instead of docker"
     }

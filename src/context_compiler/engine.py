@@ -176,7 +176,7 @@ class Engine:
                     f'"{new_item}" is currently prohibited.\n'
                     "Submit explicit directive(s) to remove it or use a different item."
                 )
-            if old_state not in {None, POLICY_USE}:
+            if old_state != POLICY_USE:
                 return _error(
                     f'"{old_item}" is not currently in use.\n'
                     "Replacement requires an active 'use' policy."

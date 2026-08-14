@@ -114,9 +114,8 @@ Boundary notes:
   code should send canonical directives when it wants deterministic mutation
 - failed replacement requests are not reinterpreted by core into different
   directives
-- `use <new> instead of <old>` with an absent `<old>` is not a pending or
-  error-only runtime category; it follows the deterministic semantic
-  rules defined in the specification
+- `use <new> instead of <old>` with an absent `<old>` is a semantic `error`;
+  core does not degrade it into plain `use <new>`
 
 `CanonicalDirective.operands` preserves the grammar-recognized operand text.
 Core does not lowercase operands, collapse internal operand whitespace, or

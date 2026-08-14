@@ -1,4 +1,5 @@
 from context_compiler import (
+    DECISION_ERROR,
     DECISION_NO_DIRECTIVE,
     DECISION_UPDATE,
     Engine,
@@ -107,14 +108,14 @@ def test_remove_policy_missing_or_whitespace_payload_remains_no_directive() -> N
 def test_invalid_replacement_does_not_block_following_directives() -> None:
     engine = Engine()
     first = engine.step("use kubectl instead of docker")
-    assert first["kind"] == DECISION_UPDATE
+    assert first["kind"] == DECISION_ERROR
 
     second = engine.step("set premise concise")
     assert second == {
         "kind": DECISION_UPDATE,
         "message": None,
     }
-    assert _observations(engine) == ("concise", {"kubectl": "use"})
+    assert _observations(engine) == ("concise", {})
 
 
 def test_replace_update_independent_followup_is_no_directive() -> None:
@@ -122,5 +123,5 @@ def test_replace_update_independent_followup_is_no_directive() -> None:
     first = engine.step("use kubectl instead of docker")
     second = engine.step("sounds good")
 
-    assert first["kind"] == DECISION_UPDATE
+    assert first["kind"] == DECISION_ERROR
     assert second == {"kind": DECISION_NO_DIRECTIVE, "message": None}
