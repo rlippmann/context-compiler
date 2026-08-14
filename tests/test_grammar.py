@@ -499,6 +499,14 @@ def test_render_directive_rejects_non_string_operands() -> None:
         grammar_module._render_directive(DirectiveKind.SET_PREMISE, value=123)  # type: ignore[arg-type]
 
 
+def test_serialize_canonical_directive_rejects_unsupported_kind() -> None:
+    with pytest.raises(ValueError, match="Unsupported directive kind"):
+        grammar_module._serialize_canonical_directive(
+            "not_a_directive_kind",  # type: ignore[arg-type]
+            MappingProxyType({}),
+        )
+
+
 def test_render_directive_uses_decompose_directive_as_authoritative_round_trip(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
