@@ -104,9 +104,8 @@ Boundary notes:
 - `InvalidDirectiveSyntax.directive_kind`, when present, uses `DirectiveKind`
 - `InvalidDirectiveSyntax.missing_operand`, when present, names the missing
   grammar operand without introducing user-facing message text
-- `CanonicalDirective.text` preserves the original accepted input text, so
-  caller casing or formatting may remain visible there
-- `CanonicalDirective.text` is not canonical serialized directive text
+- `CanonicalDirective.text` is the canonical serialized directive text derived
+  from `kind` and `operands`
 - operands are grammar-level text, not normalized semantic values
 - `engine.step(...)` remains the authority for error, state
   transitions, and mutation behavior
@@ -120,8 +119,8 @@ Boundary notes:
 `CanonicalDirective.operands` preserves the grammar-recognized operand text.
 Core does not lowercase operands, collapse internal operand whitespace, or
 convert operand text into engine/domain identifiers at the grammar layer.
-`CanonicalDirective.text` should not be treated as canonical serialized
-directive output.
+`CanonicalDirective.text` is the canonical serialized directive output for that
+semantic directive.
 
 Typical metadata use:
 

@@ -45,7 +45,7 @@ def _canonical_directive(
     kind: DirectiveKind,
     **operands: str,
 ) -> CanonicalDirective:
-    return CanonicalDirective(text=text, kind=kind, operands=MappingProxyType(operands))
+    return CanonicalDirective(kind=kind, operands=MappingProxyType(operands))
 
 
 @pytest.mark.parametrize(

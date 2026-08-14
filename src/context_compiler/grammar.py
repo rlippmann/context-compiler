@@ -33,13 +33,17 @@ class DirectiveSyntaxFailure(StrEnum):
 class CanonicalDirective:
     """Represent one parsed canonical directive and its named operands.
 
-    ``text`` preserves the original accepted input text. It may retain caller
-    formatting or casing and is not canonical serialized directive text.
+    ``text`` is the canonical serialized directive text derived from ``kind``
+    and ``operands``.
     """
 
-    text: str
     kind: DirectiveKind
     operands: MappingProxyType[str, str]
+
+    @property
+    def text(self) -> str:
+        """Return the canonical serialized directive text."""
+        return _serialize_canonical_directive(self.kind, self.operands)
 
 
 @dataclass(frozen=True, slots=True)
@@ -365,7 +369,6 @@ def _parse_replace_use(trimmed_text: str) -> CanonicalDirective | None:
     if normalized_payload.count(_INSTEAD_OF_DELIMITER) != 1:
         return None
     return CanonicalDirective(
-        text=trimmed_text,
         kind=DirectiveKind.REPLACE_USE,
         operands=MappingProxyType({"new_item": new_item, "old_item": old_item}),
     )
@@ -405,19 +408,14 @@ def decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSynta
     normalized = _normalized_for_matching(trimmed_text)
 
     if normalized == _CLEAR_PREMISE_TEXT:
-        return CanonicalDirective(
-            text=text, kind=DirectiveKind.CLEAR_PREMISE, operands=MappingProxyType({})
-        )
+        return CanonicalDirective(kind=DirectiveKind.CLEAR_PREMISE, operands=MappingProxyType({}))
     if normalized == _RESET_POLICIES_TEXT:
         return CanonicalDirective(
-            text=text,
             kind=DirectiveKind.RESET_POLICIES,
             operands=MappingProxyType({}),
         )
     if normalized == _CLEAR_STATE_TEXT:
-        return CanonicalDirective(
-            text=text, kind=DirectiveKind.CLEAR_STATE, operands=MappingProxyType({})
-        )
+        return CanonicalDirective(kind=DirectiveKind.CLEAR_STATE, operands=MappingProxyType({}))
 
     if normalized == "set premise":
         return _invalid_directive_syntax(
@@ -440,7 +438,6 @@ def decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSynta
                 directive_kind=DirectiveKind.SET_PREMISE,
             )
         return CanonicalDirective(
-            text=text,
             kind=DirectiveKind.SET_PREMISE,
             operands=MappingProxyType({"value": value}),
         )
@@ -468,7 +465,6 @@ def decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSynta
                 missing_operand="value",
             )
         return CanonicalDirective(
-            text=text,
             kind=DirectiveKind.CHANGE_PREMISE,
             operands=MappingProxyType({"value": value}),
         )
@@ -518,7 +514,6 @@ def decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSynta
                 directive_kind=DirectiveKind.USE_ITEM,
             )
         return CanonicalDirective(
-            text=text,
             kind=DirectiveKind.USE_ITEM,
             operands=MappingProxyType({"item": item}),
         )
@@ -546,7 +541,6 @@ def decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSynta
                 missing_operand="item",
             )
         return CanonicalDirective(
-            text=text,
             kind=DirectiveKind.PROHIBIT_ITEM,
             operands=MappingProxyType({"item": item}),
         )
@@ -574,7 +568,6 @@ def decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSynta
                 missing_operand="item",
             )
         return CanonicalDirective(
-            text=text,
             kind=DirectiveKind.REMOVE_POLICY,
             operands=MappingProxyType({"item": item}),
         )
@@ -586,6 +579,19 @@ def get_directive_metadata() -> tuple[DirectiveMetadata, ...]:
     """Return immutable public directive metadata derived from internal specs."""
 
     return _PUBLIC_DIRECTIVE_METADATA
+
+
+def _serialize_canonical_directive(
+    kind: DirectiveKind | str, operands: MappingProxyType[str, str]
+) -> str:
+    """Serialize a validated semantic directive without reparsing it."""
+    try:
+        normalized_kind = kind if isinstance(kind, DirectiveKind) else DirectiveKind(kind)
+        spec = _DIRECTIVE_SPECS[normalized_kind]
+    except (KeyError, ValueError) as exc:
+        raise ValueError(f"Unsupported directive kind: {kind!r}") from exc
+
+    return spec.renderer(operands)
 
 
 def _render_directive(kind: DirectiveKind | str, /, **operands: str) -> str:
@@ -617,7 +623,7 @@ def _render_directive(kind: DirectiveKind | str, /, **operands: str) -> str:
         normalized_operands[name] = raw_value
 
     operand_view = MappingProxyType(normalized_operands)
-    rendered = spec.renderer(operand_view)
+    rendered = _serialize_canonical_directive(normalized_kind, operand_view)
     decomposed = decompose_directive(rendered)
     if not isinstance(decomposed, CanonicalDirective) or decomposed.kind is not normalized_kind:
         raise ValueError(f"Operands do not produce a canonical {normalized_kind.value} directive.")

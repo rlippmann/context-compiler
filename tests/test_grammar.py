@@ -60,11 +60,11 @@ def test_directive_syntax_failure_members_and_values() -> None:
 
 def test_canonical_directive_is_frozen_and_slotted() -> None:
     directive = CanonicalDirective(
-        text="use docker",
         kind=DirectiveKind.USE_ITEM,
         operands=MappingProxyType({"item": "docker"}),
     )
-    assert directive.__slots__ == ("text", "kind", "operands")
+    assert directive.__slots__ == ("kind", "operands")
+    assert directive.text == "use docker"
     with pytest.raises(FrozenInstanceError):
         directive.kind = DirectiveKind.PROHIBIT_ITEM  # type: ignore[misc]
 
@@ -104,7 +104,6 @@ def test_decompose_directive_accepts_each_canonical_family(
 ) -> None:
     decomposed = decompose_directive(text)
     assert decomposed == CanonicalDirective(
-        text=text,
         kind=expected_kind,
         operands=MappingProxyType(expected_operands),
     )
@@ -231,6 +230,69 @@ def test_decompose_directive_preserves_current_operand_casing_and_whitespace(
     decomposed = decompose_directive(text)
     assert decomposed is not None
     assert dict(decomposed.operands) == expected_operands
+
+
+@pytest.mark.parametrize(
+    ("inputs", "expected_text"),
+    [
+        (["use docker", "Use docker", " use\tdocker "], "use docker"),
+        (
+            [
+                "change premise to formal tone",
+                "Change premise to formal tone",
+                " change\tpremise\tto\tformal tone ",
+            ],
+            "change premise to formal tone",
+        ),
+        (
+            [
+                "use podman instead of docker",
+                "Use podman instead of docker",
+                " use\tpodman\tinstead\tof\tdocker ",
+            ],
+            "use podman instead of docker",
+        ),
+    ],
+)
+def test_equivalent_accepted_inputs_share_canonical_text(
+    inputs: list[str], expected_text: str
+) -> None:
+    for text in inputs:
+        directive = decompose_directive(text)
+        assert isinstance(directive, CanonicalDirective)
+        assert directive.text == expected_text
+
+
+@pytest.mark.parametrize(
+    ("directive", "expected_text"),
+    [
+        (
+            CanonicalDirective(
+                kind=DirectiveKind.USE_ITEM,
+                operands=MappingProxyType({"item": "docker"}),
+            ),
+            "use docker",
+        ),
+        (
+            CanonicalDirective(
+                kind=DirectiveKind.CHANGE_PREMISE,
+                operands=MappingProxyType({"value": "formal tone"}),
+            ),
+            "change premise to formal tone",
+        ),
+        (
+            CanonicalDirective(
+                kind=DirectiveKind.REPLACE_USE,
+                operands=MappingProxyType({"new_item": "podman", "old_item": "docker"}),
+            ),
+            "use podman instead of docker",
+        ),
+    ],
+)
+def test_canonical_directive_text_is_derived_from_kind_and_operands(
+    directive: CanonicalDirective, expected_text: str
+) -> None:
+    assert directive.text == expected_text
 
 
 @pytest.mark.parametrize(
@@ -444,7 +506,6 @@ def test_render_directive_uses_decompose_directive_as_authoritative_round_trip(
         grammar_module,
         "decompose_directive",
         lambda _: CanonicalDirective(
-            text="use docker",
             kind=DirectiveKind.USE_ITEM,
             operands=MappingProxyType({"item": "docker"}),
         ),
@@ -460,7 +521,6 @@ def test_render_directive_rejects_when_decompose_directive_disagrees_with_render
         grammar_module,
         "decompose_directive",
         lambda _: CanonicalDirective(
-            text="use docker",
             kind=DirectiveKind.PROHIBIT_ITEM,
             operands=MappingProxyType({"item": "docker"}),
         ),
@@ -491,7 +551,7 @@ def test_invalid_directive_syntax_is_frozen_and_slotted() -> None:
 
 
 def test_decompose_directive_returns_canonical_operands_for_use_item() -> None:
-    parsed = decompose_directive("use docker")
+    parsed = decompose_directive("Use docker")
 
     assert parsed is not None
     assert parsed.text == "use docker"
@@ -500,7 +560,7 @@ def test_decompose_directive_returns_canonical_operands_for_use_item() -> None:
 
 
 def test_decompose_directive_returns_text_kind_and_operands_without_projection_layer() -> None:
-    decomposed = decompose_directive("use docker")
+    decomposed = decompose_directive(" use\tdocker ")
 
     assert decomposed is not None
     assert decomposed.text == "use docker"
