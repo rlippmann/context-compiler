@@ -19,7 +19,7 @@ from .const import (
     STATE_PREMISE,
     STATE_VERSION,
 )
-from .grammar import CanonicalDirective, DirectiveKind, decompose_directive
+from .grammar import CanonicalDirective, DirectiveKind, _render_directive, decompose_directive
 
 PolicyValue = Literal["use", "prohibit"]
 
@@ -53,6 +53,7 @@ class _EvaluatedTransition(TypedDict):
 
 
 _NO_DIRECTIVE: Decision = {"kind": DecisionKind.NO_DIRECTIVE, "message": None}
+_MALFORMED_CANONICAL_DIRECTIVE_MESSAGE = "Malformed canonical directive."
 
 
 class Engine:
@@ -106,6 +107,9 @@ class Engine:
 
     def apply_directive(self, directive: CanonicalDirective) -> Decision:
         """Evaluate and commit one canonical directive against authoritative state."""
+        validation_error = _validate_canonical_directive_shape(directive)
+        if validation_error is not None:
+            return validation_error
 
         evaluated = self._evaluate_directive_transition(self._state, directive)
         self._replace_state(evaluated["next_state"])
@@ -247,6 +251,15 @@ def _initial_state() -> _State:
         STATE_POLICIES: {},
         STATE_VERSION: SCHEMA_VERSION,
     }
+
+
+def _validate_canonical_directive_shape(directive: CanonicalDirective) -> Decision | None:
+    try:
+        _render_directive(directive.kind, **dict(directive.operands))
+    except ValueError:
+        return _error(_MALFORMED_CANONICAL_DIRECTIVE_MESSAGE)
+
+    return None
 
 
 def _load_state_json(payload: str) -> _State:
