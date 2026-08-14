@@ -80,6 +80,17 @@ def assert_shape(
         )
         return
 
+    if "kind" in shape and shape["kind"] == "directive_metadata_collection":
+        assert value == tuple(
+            grammar.DirectiveMetadata(
+                kind=grammar.DirectiveKind(item["directive_kind"]),
+                canonical_start=item["canonical_start"],
+                operand_names=tuple(item["operand_names"]),
+            )
+            for item in shape["items"]
+        )
+        return
+
     expected_types = shape["type"]
     if isinstance(expected_types, str):
         expected_types = [expected_types]
@@ -399,6 +410,35 @@ def _validate_shape_spec(shape: object, label: str) -> None:
                 _assert_type(shape["directive_kind"], str, f"{label}.directive_kind")
             if "missing_operand" in shape and shape["missing_operand"] is not None:
                 _assert_type(shape["missing_operand"], str, f"{label}.missing_operand")
+            return
+        if kind == "directive_metadata_collection":
+            _assert_closed_keys(shape, {"kind", "items"}, label)
+            _require_fields(shape, {"kind", "items"}, label)
+            items = shape["items"]
+            _assert_type(items, list, f"{label}.items")
+            for index, item in enumerate(items):
+                item_label = f"{label}.items[{index}]"
+                _assert_type(item, dict, item_label)
+                _assert_closed_keys(
+                    item,
+                    {"directive_kind", "canonical_start", "operand_names"},
+                    item_label,
+                )
+                _require_fields(
+                    item,
+                    {"directive_kind", "canonical_start", "operand_names"},
+                    item_label,
+                )
+                _assert_type(item["directive_kind"], str, f"{item_label}.directive_kind")
+                _assert_type(item["canonical_start"], str, f"{item_label}.canonical_start")
+                operand_names = item["operand_names"]
+                _assert_type(operand_names, list, f"{item_label}.operand_names")
+                for operand_index, operand_name in enumerate(operand_names):
+                    _assert_type(
+                        operand_name,
+                        str,
+                        f"{item_label}.operand_names[{operand_index}]",
+                    )
             return
         raise AssertionError(f"{label}.kind has unsupported shape kind {kind!r}")
 

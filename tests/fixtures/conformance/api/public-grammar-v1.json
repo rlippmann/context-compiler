@@ -6,8 +6,10 @@
     "names": [
       "DirectiveKind",
       "DirectiveSyntaxFailure",
+      "DirectiveMetadata",
       "CanonicalDirective",
       "InvalidDirectiveSyntax",
+      "get_directive_metadata",
       "decompose_directive"
     ],
     "members": {
@@ -17,11 +19,87 @@
       "DirectiveSyntaxFailure": {
         "kind": "class"
       },
+      "DirectiveMetadata": {
+        "kind": "class"
+      },
       "CanonicalDirective": {
         "kind": "class"
       },
       "InvalidDirectiveSyntax": {
         "kind": "class"
+      },
+      "get_directive_metadata": {
+        "kind": "callable",
+        "signature": {
+          "params": []
+        },
+        "shape_probes": [
+          {
+            "return_shape": {
+              "kind": "directive_metadata_collection",
+              "items": [
+                {
+                  "directive_kind": "set_premise",
+                  "canonical_start": "set premise",
+                  "operand_names": [
+                    "value"
+                  ]
+                },
+                {
+                  "directive_kind": "change_premise",
+                  "canonical_start": "change premise to",
+                  "operand_names": [
+                    "value"
+                  ]
+                },
+                {
+                  "directive_kind": "use_item",
+                  "canonical_start": "use",
+                  "operand_names": [
+                    "item"
+                  ]
+                },
+                {
+                  "directive_kind": "prohibit_item",
+                  "canonical_start": "prohibit",
+                  "operand_names": [
+                    "item"
+                  ]
+                },
+                {
+                  "directive_kind": "remove_policy",
+                  "canonical_start": "remove policy",
+                  "operand_names": [
+                    "item"
+                  ]
+                },
+                {
+                  "directive_kind": "replace_use",
+                  "canonical_start": "use",
+                  "operand_names": [
+                    "new_item",
+                    "old_item"
+                  ]
+                },
+                {
+                  "directive_kind": "clear_premise",
+                  "canonical_start": "clear premise",
+                  "operand_names": []
+                },
+                {
+                  "directive_kind": "reset_policies",
+                  "canonical_start": "reset policies",
+                  "operand_names": []
+                },
+                {
+                  "directive_kind": "clear_state",
+                  "canonical_start": "clear state",
+                  "operand_names": []
+                }
+              ]
+            }
+          }
+        ]
       },
       "decompose_directive": {
         "kind": "callable",

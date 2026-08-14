@@ -7,9 +7,11 @@ import context_compiler.grammar as grammar_module
 from context_compiler.grammar import (
     CanonicalDirective,
     DirectiveKind,
+    DirectiveMetadata,
     DirectiveSyntaxFailure,
     InvalidDirectiveSyntax,
     decompose_directive,
+    get_directive_metadata,
 )
 
 
@@ -65,6 +67,18 @@ def test_canonical_directive_is_frozen_and_slotted() -> None:
     assert directive.__slots__ == ("text", "kind", "operands")
     with pytest.raises(FrozenInstanceError):
         directive.kind = DirectiveKind.PROHIBIT_ITEM  # type: ignore[misc]
+
+
+def test_directive_metadata_is_frozen_and_slotted() -> None:
+    metadata = DirectiveMetadata(
+        kind=DirectiveKind.USE_ITEM,
+        canonical_start="use",
+        operand_names=("item",),
+    )
+
+    assert metadata.__slots__ == ("kind", "canonical_start", "operand_names")
+    with pytest.raises(FrozenInstanceError):
+        metadata.kind = DirectiveKind.PROHIBIT_ITEM  # type: ignore[misc]
 
 
 @pytest.mark.parametrize(
@@ -323,16 +337,94 @@ def test_internal_grammar_specs_use_immutable_mapping() -> None:
     spec = specs[DirectiveKind.SET_PREMISE]
     with pytest.raises(FrozenInstanceError):
         spec.kind = DirectiveKind.CHANGE_PREMISE  # type: ignore[misc]
+    with pytest.raises(FrozenInstanceError):
+        spec.canonical_start = "different"  # type: ignore[misc]
 
 
 def test_public_grammar_all_includes_semantic_surface() -> None:
     assert grammar_module.__all__ == [
         "DirectiveKind",
         "DirectiveSyntaxFailure",
+        "DirectiveMetadata",
         "CanonicalDirective",
         "InvalidDirectiveSyntax",
+        "get_directive_metadata",
         "decompose_directive",
     ]
+
+
+def test_get_directive_metadata_returns_immutable_view_derived_from_specs() -> None:
+    metadata = get_directive_metadata()
+
+    assert metadata == tuple(
+        DirectiveMetadata(
+            kind=spec.kind,
+            canonical_start=spec.canonical_start,
+            operand_names=spec.operand_names,
+        )
+        for spec in grammar_module._DIRECTIVE_SPECS.values()
+    )
+    assert metadata[0] is grammar_module._PUBLIC_DIRECTIVE_METADATA[0]
+    with pytest.raises(AttributeError):
+        metadata.append(  # type: ignore[attr-defined]
+            DirectiveMetadata(
+                kind=DirectiveKind.CLEAR_STATE,
+                canonical_start="clear state",
+                operand_names=(),
+            )
+        )
+    with pytest.raises(FrozenInstanceError):
+        metadata[0].operand_names = ()  # type: ignore[misc]
+
+
+def test_get_directive_metadata_reports_expected_public_fields() -> None:
+    assert get_directive_metadata() == (
+        DirectiveMetadata(
+            kind=DirectiveKind.SET_PREMISE,
+            canonical_start="set premise",
+            operand_names=("value",),
+        ),
+        DirectiveMetadata(
+            kind=DirectiveKind.CHANGE_PREMISE,
+            canonical_start="change premise to",
+            operand_names=("value",),
+        ),
+        DirectiveMetadata(
+            kind=DirectiveKind.USE_ITEM,
+            canonical_start="use",
+            operand_names=("item",),
+        ),
+        DirectiveMetadata(
+            kind=DirectiveKind.PROHIBIT_ITEM,
+            canonical_start="prohibit",
+            operand_names=("item",),
+        ),
+        DirectiveMetadata(
+            kind=DirectiveKind.REMOVE_POLICY,
+            canonical_start="remove policy",
+            operand_names=("item",),
+        ),
+        DirectiveMetadata(
+            kind=DirectiveKind.REPLACE_USE,
+            canonical_start="use",
+            operand_names=("new_item", "old_item"),
+        ),
+        DirectiveMetadata(
+            kind=DirectiveKind.CLEAR_PREMISE,
+            canonical_start="clear premise",
+            operand_names=(),
+        ),
+        DirectiveMetadata(
+            kind=DirectiveKind.RESET_POLICIES,
+            canonical_start="reset policies",
+            operand_names=(),
+        ),
+        DirectiveMetadata(
+            kind=DirectiveKind.CLEAR_STATE,
+            canonical_start="clear state",
+            operand_names=(),
+        ),
+    )
 
 
 def test_decompose_directive_rejects_near_miss_without_required_delimiter() -> None:
