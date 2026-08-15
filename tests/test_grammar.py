@@ -202,15 +202,31 @@ def test_decompose_directive_returns_none_when_no_directive_is_present(text: str
             ),
         ),
         (
+            "use docker\nprohibit peanuts",
+            InvalidDirectiveSyntax(
+                failure=DirectiveSyntaxFailure.COMPOUND_DIRECTIVE,
+            ),
+        ),
+        (
             "clear state then set premise project",
             InvalidDirectiveSyntax(
                 failure=DirectiveSyntaxFailure.COMPOUND_DIRECTIVE,
             ),
         ),
+        (
+            "set premise project\nuse docker",
+            InvalidDirectiveSyntax(
+                failure=DirectiveSyntaxFailure.COMPOUND_DIRECTIVE,
+            ),
+        ),
+        (
+            "use\ninstead of docker",
+            None,
+        ),
     ],
 )
 def test_decompose_directive_marks_invalid_directive_syntax(
-    text: str, expected: InvalidDirectiveSyntax
+    text: str, expected: InvalidDirectiveSyntax | None
 ) -> None:
     assert decompose_directive(text) == expected
 
@@ -374,6 +390,11 @@ def test_render_directive_outputs_exact_canonical_syntax(
             "canonical use_item directive",
         ),
         (
+            DirectiveKind.USE_ITEM,
+            {"item": "instead of docker"},
+            "canonical use_item directive",
+        ),
+        (
             "not_a_directive_kind",  # type: ignore[arg-type]
             {"item": "docker"},
             "Unsupported directive kind",
@@ -531,6 +552,11 @@ def test_serialize_canonical_directive_rejects_unsupported_kind() -> None:
         (
             DirectiveKind.USE_ITEM,
             {"item": "docker instead of podman"},
+            "canonical use_item directive",
+        ),
+        (
+            DirectiveKind.USE_ITEM,
+            {"item": "instead of docker"},
             "canonical use_item directive",
         ),
         ("not_a_directive_kind", {"item": "docker"}, "Unsupported directive kind"),

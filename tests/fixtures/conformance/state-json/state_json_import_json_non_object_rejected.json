@@ -6,6 +6,10 @@
     "policies": {},
     "version": 2
   },
+  "prelude": [
+    "set premise baseline",
+    "use kubectl"
+  ],
   "action": {
     "fn": "import_json",
     "payload": "[\"not\",\"an\",\"object\"]"
@@ -16,8 +20,10 @@
       "message_contains": "Invalid state payload"
     },
     "state": {
-      "premise": null,
-      "policies": {},
+      "premise": "baseline",
+      "policies": {
+        "kubectl": "use"
+      },
       "version": 2
     }
   }

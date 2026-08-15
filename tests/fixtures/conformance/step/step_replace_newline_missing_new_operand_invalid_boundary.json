@@ -1,0 +1,21 @@
+{
+  "id": "step_replace_newline_missing_new_operand_invalid_boundary",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "input": "use\ninstead of docker",
+  "expected": {
+    "decision": {
+      "kind": "no_directive",
+      "message": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    }
+  }
+}

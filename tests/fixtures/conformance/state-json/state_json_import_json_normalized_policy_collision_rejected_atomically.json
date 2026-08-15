@@ -1,5 +1,5 @@
 {
-  "id": "state_json_import_json_invalid_premise_type_rejected",
+  "id": "state_json_import_json_normalized_policy_collision_rejected_atomically",
   "kind": "state_json",
   "initial_state": {
     "premise": null,
@@ -7,12 +7,11 @@
     "version": 2
   },
   "prelude": [
-    "set premise baseline",
     "use kubectl"
   ],
   "action": {
     "fn": "import_json",
-    "payload": "{\"premise\":[],\"policies\":{},\"version\":2}"
+    "payload": "{\"premise\":null,\"policies\":{\"Docker\":\"use\",\" docker \":\"prohibit\"},\"version\":2}"
   },
   "expected": {
     "error": {
@@ -20,7 +19,7 @@
       "message_contains": "Invalid state payload"
     },
     "state": {
-      "premise": "baseline",
+      "premise": null,
       "policies": {
         "kubectl": "use"
       },

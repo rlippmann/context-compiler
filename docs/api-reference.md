@@ -259,6 +259,10 @@ Conceptual boundary:
   rather than a documented persistence feature
 - imported policy keys are normalized during `import_json(...)`
 - if a policy key normalizes to `""`, the payload is invalid and is rejected
+- if two imported policy keys normalize to the same canonical key, the payload
+  is invalid and is rejected atomically
+- if an imported premise sanitizes to `""`, the payload is invalid and is
+  rejected atomically
 
 ## Retired Controller And Audit APIs
 

@@ -1,0 +1,11 @@
+{
+  "id": "grammar_decompose_newline_replacement_prefix_no_directive",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "use\ninstead of docker"
+  },
+  "expected": {
+    "directive": null
+  }
+}

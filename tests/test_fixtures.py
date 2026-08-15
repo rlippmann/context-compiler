@@ -171,7 +171,15 @@ def _validate_grammar_fixture(fixture: dict[str, object], fixture_id: object) ->
         _assert_allowed_keys(action, {"fn", "kind", "operands"}, fixture_id, "action")
         assert isinstance(action["kind"], str), fixture_id
         assert isinstance(action["operands"], dict), fixture_id
-        _assert_allowed_keys(expected, {"text", "directive_kind"}, fixture_id, "expected")
+        if "error" in expected:
+            _assert_allowed_keys(expected, {"error"}, fixture_id, "expected")
+            error = expected["error"]
+            assert isinstance(error, dict), fixture_id
+            _assert_allowed_keys(error, {"type", "message_contains"}, fixture_id, "expected.error")
+            assert isinstance(error["type"], str), fixture_id
+            assert isinstance(error["message_contains"], str), fixture_id
+        else:
+            _assert_allowed_keys(expected, {"text", "directive_kind"}, fixture_id, "expected")
 
 
 def _apply_prelude(engine: object, prelude: object) -> None:
@@ -326,12 +334,18 @@ def test_grammar_fixtures() -> None:
                     **dict(directive.operands),
                 ), fixture_id
         else:
-            rendered = grammar_module._render_directive(action["kind"], **action["operands"])
-            assert rendered == expected["text"], fixture_id
-            directive = decompose_directive(rendered)
-            assert isinstance(directive, CanonicalDirective), fixture_id
-            assert directive.kind.value == expected["directive_kind"], fixture_id
-            assert directive.text == rendered, fixture_id
+            error = expected.get("error")
+            if error is not None:
+                with pytest.raises(Exception, match=error["message_contains"]) as exc_info:
+                    grammar_module._render_directive(action["kind"], **action["operands"])
+                assert type(exc_info.value).__name__ == error["type"], fixture_id
+            else:
+                rendered = grammar_module._render_directive(action["kind"], **action["operands"])
+                assert rendered == expected["text"], fixture_id
+                directive = decompose_directive(rendered)
+                assert isinstance(directive, CanonicalDirective), fixture_id
+                assert directive.kind.value == expected["directive_kind"], fixture_id
+                assert directive.text == rendered, fixture_id
 
 
 def test_mutation_isolation_fixtures() -> None:

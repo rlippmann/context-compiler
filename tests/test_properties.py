@@ -3,6 +3,7 @@ import re
 from copy import deepcopy
 from unicodedata import normalize as unicode_normalize
 
+import pytest
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
@@ -82,19 +83,35 @@ NORMALIZATION_SENSITIVE_TEXT = st.text(
 
 POLICY_VALUE = st.sampled_from(["use", "prohibit"])
 
-VALID_STATE_PAYLOADS = st.builds(
-    lambda premise, pairs: {
-        "premise": premise,
-        "policies": dict(pairs),
-        "version": 2,
-    },
-    premise=st.one_of(st.none(), NORMALIZATION_SENSITIVE_TEXT),
-    pairs=st.lists(
-        st.tuples(NORMALIZATION_SENSITIVE_TEXT, POLICY_VALUE),
-        min_size=0,
-        max_size=8,
-    ),
-).filter(lambda payload: all(_is_stable_policy_key_like_engine(key) for key in payload["policies"]))
+VALID_STATE_PAYLOADS = (
+    st.builds(
+        lambda premise, pairs: {
+            "premise": premise,
+            "policies": dict(pairs),
+            "version": 2,
+        },
+        premise=st.one_of(
+            st.none(),
+            NORMALIZATION_SENSITIVE_TEXT.filter(
+                lambda value: _sanitize_premise_like_engine(value) != ""
+            ),
+        ),
+        pairs=st.lists(
+            st.tuples(NORMALIZATION_SENSITIVE_TEXT, POLICY_VALUE),
+            min_size=0,
+            max_size=8,
+        ),
+    )
+    .filter(
+        lambda payload: all(_is_stable_policy_key_like_engine(key) for key in payload["policies"])
+    )
+    .filter(
+        lambda payload: (
+            len({_normalize_item_like_engine(key) for key in payload["policies"]})
+            == len(payload["policies"])
+        )
+    )
+)
 
 
 VALID_NONEMPTY_ITEM_TEXT = NORMALIZATION_SENSITIVE_TEXT.filter(
@@ -733,15 +750,12 @@ def test_apply_directive_replacement_error_cases_preserve_state(
     assert _observations(engine) == before
 
 
-@given(CANONICAL_GRAMMAR_ITEM_TEXT)
+@given(EQUIVALENT_NORMALIZED_KEY_PAIRS)
 def test_apply_directive_replacement_with_normalized_equivalent_keys_is_noop_update(
-    item: str,
+    pair: tuple[str, str],
 ) -> None:
-    original_normalized = _normalize_item_like_engine(item)
-    upper_normalized = _normalize_item_like_engine(item.upper())
-    assume(original_normalized != "")
-    assume(original_normalized == upper_normalized)
-    normalized = original_normalized
+    raw_a, raw_b = pair
+    normalized = _normalize_item_like_engine(raw_a)
     engine = Engine()
     engine.import_json(
         json.dumps(
@@ -751,7 +765,7 @@ def test_apply_directive_replacement_with_normalized_equivalent_keys_is_noop_upd
         )
     )
     before = _observations(engine)
-    directive = _canonical_directive_from_text(f"use {item.upper()} instead of {item}")
+    directive = _canonical_directive_from_text(f"use {raw_b} instead of {raw_a}")
 
     decision = engine.apply_directive(directive)
 
@@ -895,7 +909,7 @@ def test_apply_directive_premise_lifecycle_matches_simple_model(
 
 
 @given(EQUIVALENT_NORMALIZED_KEY_PAIRS)
-def test_import_json_normalization_converges_equivalent_policy_keys(
+def test_import_json_rejects_equivalent_normalized_policy_key_collisions(
     pair: tuple[str, str],
 ) -> None:
     raw_a, raw_b = pair
@@ -906,14 +920,16 @@ def test_import_json_normalization_converges_equivalent_policy_keys(
         "version": 2,
     }
     engine = Engine()
-    engine.import_json(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+    before = _observations(engine)
 
-    normalized_key = _normalize_item_like_engine(raw_b)
-    expected_value = {
-        _normalize_item_like_engine(raw_key): value
-        for raw_key, value in sorted(payload["policies"].items())
-    }[normalized_key]
-    assert _observations(engine) == (None, {normalized_key: expected_value})
+    try:
+        engine.import_json(json.dumps(payload, sort_keys=True, separators=(",", ":")))
+    except ValueError as exc:
+        assert str(exc) == "Invalid state payload."
+    else:
+        raise AssertionError("Expected ValueError for normalized policy collision")
+
+    assert _observations(engine) == before
 
 
 @given(DISTINCT_NORMALIZED_KEY_PAIRS)
@@ -964,6 +980,17 @@ def test_import_json_preserves_authoritative_invariants_for_generated_payloads(
     assert premise is None or premise == _sanitize_premise_like_engine(premise)
     assert all(key == _normalize_item_like_engine(key) for key in policies)
     assert all(value in {"use", "prohibit"} for value in policies.values())
+
+
+@given(CANONICAL_GRAMMAR_ITEM_TEXT)
+def test_canonical_directive_constructor_rejects_use_item_replacement_prefix(
+    old_item: str,
+) -> None:
+    with pytest.raises(ValueError, match="canonical use_item directive"):
+        CanonicalDirective(
+            kind=DirectiveKind.USE_ITEM,
+            operands={"item": f"instead of {old_item}"},
+        )
 
 
 @given(REPLACEMENT_NEAR_MISS_CASES)
