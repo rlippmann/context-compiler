@@ -276,7 +276,12 @@ def _load_state_obj(raw: object) -> _State:
     if not isinstance(policies, dict):
         raise ValueError("Invalid state payload.")
 
+    sanitized_premise = None if premise is None else _sanitize_premise_value(premise)
+    if premise is not None and sanitized_premise == "":
+        raise ValueError("Invalid state payload.")
+
     normalized_policies: dict[str, PolicyValue] = {}
+    seen_policy_sources: dict[str, str] = {}
     for key, value in policies.items():
         if not isinstance(key, str):
             raise ValueError("Invalid state payload.")
@@ -285,10 +290,14 @@ def _load_state_obj(raw: object) -> _State:
         normalized_key = _normalize_item(key)
         if normalized_key == "":
             raise ValueError("Invalid state payload.")
+        prior_source = seen_policy_sources.get(normalized_key)
+        if prior_source is not None and prior_source != key:
+            raise ValueError("Invalid state payload.")
+        seen_policy_sources[normalized_key] = key
         normalized_policies[normalized_key] = value
 
     return {
-        STATE_PREMISE: None if premise is None else _sanitize_premise_value(premise),
+        STATE_PREMISE: sanitized_premise,
         STATE_POLICIES: dict(sorted(normalized_policies.items())),
         STATE_VERSION: SCHEMA_VERSION,
     }

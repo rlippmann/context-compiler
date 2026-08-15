@@ -663,6 +663,11 @@ The `yes` entries above are representation canonicalization. They do not
 authorize natural-language interpretation of different wordings as the same
 policy item.
 
+For imported persisted state, if two distinct input policy keys normalize to
+the same canonical policy identity key, the payload is invalid and must be
+rejected atomically. Core must not resolve such collisions by selecting one
+input value and silently discarding the other.
+
 If a future version intentionally introduces broader policy-identity semantics,
 that behavior must be specified explicitly.
 
@@ -682,6 +687,13 @@ representation-level sanitation only:
 1. Unicode normalization
 2. apostrophe normalization
 3. whitespace collapse
+
+After this sanitation:
+
+- an empty resulting premise value is invalid for persisted state and must be
+  rejected atomically rather than stored as `""`
+- premise sanitation is representation-level only; it does not create a
+  premise-identity system analogous to policy identity
 
 No stemming, synonym mapping, ontology, or semantic rewriting is allowed.
 

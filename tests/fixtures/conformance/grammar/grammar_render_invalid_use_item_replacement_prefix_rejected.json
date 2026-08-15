@@ -1,0 +1,17 @@
+{
+  "id": "grammar_render_invalid_use_item_replacement_prefix_rejected",
+  "kind": "grammar",
+  "action": {
+    "fn": "render_directive",
+    "kind": "use_item",
+    "operands": {
+      "item": "instead of docker"
+    }
+  },
+  "expected": {
+    "error": {
+      "type": "ValueError",
+      "message_contains": "canonical use_item directive"
+    }
+  }
+}

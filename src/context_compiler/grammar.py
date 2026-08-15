@@ -440,6 +440,8 @@ def _validate_operand_constraints(kind: DirectiveKind, operands: Mapping[str, st
     if kind is DirectiveKind.USE_ITEM:
         item = operands["item"]
         normalized_item = _normalized_for_matching(item)
+        if normalized_item == "instead of" or normalized_item.startswith("instead of "):
+            raise ValueError(f"Operands do not produce a canonical {kind.value} directive.")
         if _INSTEAD_OF_DELIMITER in normalized_item:
             raise ValueError(f"Operands do not produce a canonical {kind.value} directive.")
         return

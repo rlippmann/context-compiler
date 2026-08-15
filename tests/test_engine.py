@@ -421,6 +421,25 @@ def test_import_json_rejects_empty_normalized_key_atomically() -> None:
     assert _observations(engine) == before
 
 
+def test_import_json_rejects_premise_that_sanitizes_to_empty_atomically() -> None:
+    engine = Engine()
+    engine.step("use kubectl")
+    before = _observations(engine)
+
+    with pytest.raises(ValueError, match="Invalid state payload"):
+        engine.import_json(
+            json.dumps(
+                {
+                    "premise": " \t ",
+                    "policies": {},
+                    "version": 2,
+                }
+            )
+        )
+
+    assert _observations(engine) == before
+
+
 def test_import_json_accepts_valid_policy_key_and_normalizes_it() -> None:
     engine = Engine()
 
@@ -504,22 +523,55 @@ def test_import_json_sanitizes_premise_value() -> None:
     assert engine.premise == "Use concise' output"
 
 
-def test_import_json_canonicalizes_policies_by_normalized_key() -> None:
+def test_import_json_rejects_normalized_policy_key_collisions_atomically() -> None:
     engine = Engine()
-    engine.import_json(
+    engine.step("use pytest")
+    before = _observations(engine)
+
+    with pytest.raises(ValueError, match="Invalid state payload"):
+        engine.import_json(
+            json.dumps(
+                {
+                    "premise": None,
+                    "policies": {
+                        "Docker": "use",
+                        "  docker  ": "prohibit",
+                    },
+                    "version": 2,
+                }
+            )
+        )
+
+    assert _observations(engine) == before
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        "{",
+        json.dumps({"premise": None, "policies": {}, "version": 1}),
+        '["not", "an", "object"]',
+        json.dumps({"premise": None, "version": 2}),
+        json.dumps({"premise": " \t ", "policies": {}, "version": 2}),
         json.dumps(
             {
                 "premise": None,
-                "policies": {
-                    "  The Docker ": "prohibit",
-                    "docker": "use",
-                },
+                "policies": {"Docker": "use", " docker ": "prohibit"},
                 "version": 2,
             }
-        )
-    )
+        ),
+    ],
+)
+def test_import_json_rejection_paths_are_atomic(payload: str) -> None:
+    engine = Engine()
+    engine.step("set premise baseline")
+    engine.step("use kubectl")
+    before = _observations(engine)
 
-    assert dict(engine.policies) == {"docker": "use", "the docker": "prohibit"}
+    with pytest.raises(ValueError):
+        engine.import_json(payload)
+
+    assert _observations(engine) == before
 
 
 def test_non_matching_input_is_no_directive() -> None:
@@ -871,6 +923,26 @@ def test_replace_use_identity_case_variant_is_noop_update() -> None:
 
     assert decision["kind"] == DECISION_UPDATE
     _assert_observations(engine, premise=None, policies={"docker": "use"})
+
+
+def test_replace_use_identity_whitespace_variant_is_noop_update() -> None:
+    engine = Engine()
+    engine.step("use docker desktop")
+
+    decision = engine.step("use  docker   desktop  instead of docker desktop")
+
+    assert decision["kind"] == DECISION_UPDATE
+    _assert_observations(engine, premise=None, policies={"docker desktop": "use"})
+
+
+def test_replace_use_identity_apostrophe_variant_is_noop_update() -> None:
+    engine = Engine()
+    engine.step("use don't")
+
+    decision = engine.step("use don’t instead of don't")
+
+    assert decision["kind"] == DECISION_UPDATE
+    _assert_observations(engine, premise=None, policies={"don't": "use"})
 
 
 def test_replace_use_missing_source_returns_error_without_mutation() -> None:
@@ -1331,6 +1403,7 @@ def test_export_import_round_trip_preserves_distinct_normalized_policy_keys() ->
     ("user_input", "initial_state"),
     [
         ("use docker and prohibit peanuts", {"premise": None, "policies": {}, "version": 2}),
+        ("use docker\nprohibit peanuts", {"premise": None, "policies": {}, "version": 2}),
         ("use docker or prohibit peanuts", {"premise": None, "policies": {}, "version": 2}),
         ("use docker xor prohibit peanuts", {"premise": None, "policies": {}, "version": 2}),
         ("use docker but prohibit peanuts", {"premise": None, "policies": {}, "version": 2}),
@@ -1365,6 +1438,10 @@ def test_export_import_round_trip_preserves_distinct_normalized_policy_keys() ->
             {"premise": "baseline", "policies": {"docker": "use"}, "version": 2},
         ),
         (
+            "set premise new project\nuse docker",
+            {"premise": None, "policies": {}, "version": 2},
+        ),
+        (
             'use "docker and prohibit peanuts"',
             {"premise": None, "policies": {}, "version": 2},
         ),
@@ -1374,6 +1451,10 @@ def test_export_import_round_trip_preserves_distinct_normalized_policy_keys() ->
         ),
         (
             "use docker instead of prohibit peanuts",
+            {"premise": None, "policies": {}, "version": 2},
+        ),
+        (
+            "use\ninstead of docker",
             {"premise": None, "policies": {}, "version": 2},
         ),
     ],

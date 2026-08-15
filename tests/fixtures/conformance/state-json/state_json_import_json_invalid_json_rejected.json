@@ -6,6 +6,9 @@
     "policies": {},
     "version": 2
   },
+  "prelude": [
+    "use kubectl"
+  ],
   "action": {
     "fn": "import_json",
     "payload": "{"
@@ -17,7 +20,9 @@
     },
     "state": {
       "premise": null,
-      "policies": {},
+      "policies": {
+        "kubectl": "use"
+      },
       "version": 2
     }
   }
