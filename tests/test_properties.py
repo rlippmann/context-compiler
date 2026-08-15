@@ -992,5 +992,9 @@ def test_incomplete_replacement_forms_report_replace_use_family(
 
     assert isinstance(parsed, InvalidDirectiveSyntax)
     assert parsed.failure is DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND
-    assert parsed.missing_operand == missing_operand
     assert parsed.directive_kind in {DirectiveKind.REPLACE_USE, DirectiveKind.USE_ITEM}
+    if parsed.directive_kind is DirectiveKind.USE_ITEM:
+        assert missing_operand == "new_item"
+        assert parsed.missing_operand == "item"
+    else:
+        assert parsed.missing_operand == missing_operand

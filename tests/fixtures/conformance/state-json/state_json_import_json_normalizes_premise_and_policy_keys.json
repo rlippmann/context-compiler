@@ -1,0 +1,22 @@
+{
+  "id": "state_json_import_json_normalizes_premise_and_policy_keys",
+  "kind": "state_json",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "action": {
+    "fn": "import_json",
+    "payload": "{\"premise\":\"  concise\\treplies  \",\"policies\":{\" The Docker \":\"use\"},\"version\":2}"
+  },
+  "expected": {
+    "state": {
+      "premise": "concise replies",
+      "policies": {
+        "the docker": "use"
+      },
+      "version": 2
+    }
+  }
+}

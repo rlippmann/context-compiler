@@ -1,0 +1,24 @@
+{
+  "id": "apply_directive_set_premise_update",
+  "kind": "apply_directive",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "action": {
+    "fn": "apply_directive",
+    "text": "set premise concise replies"
+  },
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "message": null
+    },
+    "state": {
+      "premise": "concise replies",
+      "policies": {},
+      "version": 2
+    }
+  }
+}

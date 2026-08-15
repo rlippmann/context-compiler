@@ -1,0 +1,28 @@
+{
+  "id": "apply_directive_prohibit_item_idempotent_update",
+  "kind": "apply_directive",
+  "initial_state": {
+    "premise": null,
+    "policies": {
+      "docker": "prohibit"
+    },
+    "version": 2
+  },
+  "action": {
+    "fn": "apply_directive",
+    "text": "prohibit docker"
+  },
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "message": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker": "prohibit"
+      },
+      "version": 2
+    }
+  }
+}

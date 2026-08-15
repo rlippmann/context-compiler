@@ -1,0 +1,28 @@
+{
+  "id": "apply_directive_use_item_conflict_error_preserves_state",
+  "kind": "apply_directive",
+  "initial_state": {
+    "premise": null,
+    "policies": {
+      "docker": "prohibit"
+    },
+    "version": 2
+  },
+  "action": {
+    "fn": "apply_directive",
+    "text": "use docker"
+  },
+  "expected": {
+    "decision": {
+      "kind": "error",
+      "message": "\"docker\" is currently prohibited.\nRemove or replace it before using it."
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker": "prohibit"
+      },
+      "version": 2
+    }
+  }
+}

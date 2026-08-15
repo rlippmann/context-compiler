@@ -67,6 +67,30 @@ Shared `step` fixtures intentionally cover representative parser and no_directiv
 boundaries. They do not attempt to freeze every ambiguous natural-language edge
 case as part of the cross-language contract.
 
+## Apply-directive fixtures
+
+For [`conformance/apply-directive/`](conformance/apply-directive/):
+
+Portable canonical-directive behavior coverage for `engine.apply_directive(...)`.
+
+Each fixture runs:
+
+1. `initial_state`
+2. optional `prelude` through `engine.step(...)`
+3. one canonical directive through `engine.apply_directive(...)`
+
+Then asserts:
+
+* returned `Decision`
+* final authoritative state snapshot
+
+These fixtures cover representative semantic transitions that are part of the
+portable engine contract, including replacement semantics, premise lifecycle,
+policy lifecycle, contradiction errors, and idempotent updates.
+
+The current runner enforces a closed fixture shape for this family.
+Unknown top-level, action, and documented nested fields are rejected.
+
 ## State JSON fixtures
 
 For [`conformance/state-json/`](conformance/state-json/):
