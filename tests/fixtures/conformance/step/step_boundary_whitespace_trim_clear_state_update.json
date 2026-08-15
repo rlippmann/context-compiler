@@ -1,0 +1,23 @@
+{
+  "id": "step_boundary_whitespace_trim_clear_state_update",
+  "kind": "step",
+  "initial_state": {
+    "premise": "concise replies",
+    "policies": {
+      "docker": "use"
+    },
+    "version": 2
+  },
+  "input": " clear state ",
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "message": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    }
+  }
+}

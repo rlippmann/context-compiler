@@ -1,0 +1,15 @@
+{
+  "id": "grammar_decompose_boundary_whitespace_trim_reset_policies",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": " reset policies "
+  },
+  "expected": {
+    "directive": {
+      "kind": "reset_policies",
+      "text": "reset policies",
+      "operands": {}
+    }
+  }
+}

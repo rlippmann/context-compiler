@@ -1,0 +1,24 @@
+{
+  "id": "step_boundary_whitespace_trim_reset_policies_update",
+  "kind": "step",
+  "initial_state": {
+    "premise": "concise replies",
+    "policies": {
+      "docker": "use",
+      "kubectl": "prohibit"
+    },
+    "version": 2
+  },
+  "input": " reset policies ",
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "message": null
+    },
+    "state": {
+      "premise": "concise replies",
+      "policies": {},
+      "version": 2
+    }
+  }
+}
