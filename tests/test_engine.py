@@ -15,6 +15,8 @@ from context_compiler.engine import (
 from context_compiler.grammar import (
     CanonicalDirective,
     DirectiveKind,
+    DirectiveSyntaxFailure,
+    InvalidDirectiveSyntax,
     decompose_directive,
 )
 
@@ -250,17 +252,41 @@ def test_step_routes_canonical_directives_through_apply_directive(
     assert seen == [parsed]
 
 
-def test_decompose_directive_rejects_invalid_and_nondirective_inputs() -> None:
-    assert not isinstance(decompose_directive("set premise"), CanonicalDirective)
-    assert not isinstance(decompose_directive("change premise to"), CanonicalDirective)
-    assert not isinstance(decompose_directive("use"), CanonicalDirective)
-    assert not isinstance(decompose_directive("prohibit"), CanonicalDirective)
-    assert not isinstance(decompose_directive("remove policy"), CanonicalDirective)
-    assert not isinstance(decompose_directive("use instead of docker"), CanonicalDirective)
-    assert not isinstance(
-        decompose_directive("use docker and prohibit peanuts"), CanonicalDirective
+def test_decompose_directive_distinguishes_invalid_directive_syntax_from_no_directive() -> None:
+    assert decompose_directive("set premise") == InvalidDirectiveSyntax(
+        failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+        directive_kind=DirectiveKind.SET_PREMISE,
+        missing_operand="value",
     )
-    assert not isinstance(decompose_directive("hello there"), CanonicalDirective)
+    assert decompose_directive("change premise to") == InvalidDirectiveSyntax(
+        failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+        directive_kind=DirectiveKind.CHANGE_PREMISE,
+        missing_operand="value",
+    )
+    assert decompose_directive("use") == InvalidDirectiveSyntax(
+        failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+        directive_kind=DirectiveKind.USE_ITEM,
+        missing_operand="item",
+    )
+    assert decompose_directive("prohibit") == InvalidDirectiveSyntax(
+        failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+        directive_kind=DirectiveKind.PROHIBIT_ITEM,
+        missing_operand="item",
+    )
+    assert decompose_directive("remove policy") == InvalidDirectiveSyntax(
+        failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+        directive_kind=DirectiveKind.REMOVE_POLICY,
+        missing_operand="item",
+    )
+    assert decompose_directive("use instead of docker") == InvalidDirectiveSyntax(
+        failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
+        directive_kind=DirectiveKind.REPLACE_USE,
+        missing_operand="new_item",
+    )
+    assert decompose_directive("use docker and prohibit peanuts") == InvalidDirectiveSyntax(
+        failure=DirectiveSyntaxFailure.COMPOUND_DIRECTIVE,
+    )
+    assert decompose_directive("hello there") is None
 
 
 def test_initial_state_and_engine_properties() -> None:

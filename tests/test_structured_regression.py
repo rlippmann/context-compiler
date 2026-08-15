@@ -125,13 +125,7 @@ def test_structured_regression_scenarios() -> None:
             assert expected_turn["input"] == user_input, f"{context} input_mismatch"
 
             expected_decision = expected_turn["decision"]
-            assert decision["kind"] == expected_decision["kind"], (
-                f"{context} decision_kind_mismatch"
-            )
-            if decision["kind"] == "error":
-                assert decision["message"] == expected_decision["message"], (
-                    f"{context} message_mismatch"
-                )
+            assert decision == expected_decision, f"{context} decision_mismatch"
 
             expected_state = expected_turn["state"]
             if state != expected_state:
