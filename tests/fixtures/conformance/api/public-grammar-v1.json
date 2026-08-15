@@ -23,7 +23,67 @@
         "kind": "class"
       },
       "CanonicalDirective": {
-        "kind": "class"
+        "kind": "class",
+        "construction_probes": [
+          {
+            "kwargs": {
+              "kind": "use_item",
+              "operands": {
+                "item": "docker"
+              }
+            },
+            "return_shape": {
+              "kind": "canonical_directive",
+              "text": "use docker",
+              "directive_kind": "use_item",
+              "operands": {
+                "item": "docker"
+              }
+            }
+          },
+          {
+            "kwargs": {
+              "kind": "not_a_directive_kind",
+              "operands": {
+                "item": "docker"
+              }
+            },
+            "raises": {
+              "type": "ValueError"
+            }
+          },
+          {
+            "kwargs": {
+              "kind": "use_item",
+              "operands": {}
+            },
+            "raises": {
+              "type": "ValueError"
+            }
+          },
+          {
+            "kwargs": {
+              "kind": "clear_state",
+              "operands": {
+                "item": "docker"
+              }
+            },
+            "raises": {
+              "type": "ValueError"
+            }
+          },
+          {
+            "kwargs": {
+              "kind": "set_premise",
+              "operands": {
+                "value": 123
+              }
+            },
+            "raises": {
+              "type": "ValueError"
+            }
+          }
+        ]
       },
       "InvalidDirectiveSyntax": {
         "kind": "class"

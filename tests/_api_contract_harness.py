@@ -50,6 +50,28 @@ def resolve_probe_value(value: object) -> object:
     raise AssertionError(f"Unknown probe fixture: {fixture!r}")
 
 
+def assert_probe_raises(
+    callback: Any,
+    probe: dict[str, Any],
+    contract: dict[str, Any] | None = None,
+) -> None:
+    args = [resolve_probe_value(value) for value in probe.get("args", [])]
+    kwargs = {key: resolve_probe_value(value) for key, value in probe.get("kwargs", {}).items()}
+
+    raises = probe["raises"]
+    expected_exception = _resolve_exception_type(raises["type"])
+
+    try:
+        callback(*args, **kwargs)
+    except Exception as exc:  # noqa: BLE001
+        assert isinstance(exc, expected_exception)
+        if "shape" in raises:
+            assert_shape(exc, raises["shape"], contract)
+        return
+
+    raise AssertionError(f"Expected {raises['type']} to be raised")
+
+
 def assert_shape(
     value: object, shape: dict[str, Any], contract: dict[str, Any] | None = None
 ) -> None:
@@ -89,6 +111,10 @@ def assert_shape(
             )
             for item in shape["items"]
         )
+        return
+
+    if "kind" in shape and shape["kind"] == "exception":
+        assert isinstance(value, _resolve_exception_type(shape["type"]))
         return
 
     expected_types = shape["type"]
@@ -141,6 +167,15 @@ def validate_export_kind(name: str, exported: object, expected_kind: str) -> Non
         assert inspect.isclass(exported), name
         return
     raise AssertionError(f"Unsupported export kind {expected_kind!r} for {name}")
+
+
+def _resolve_exception_type(name: str) -> type[BaseException]:
+    builtins_obj = __builtins__
+    namespace = builtins_obj if isinstance(builtins_obj, dict) else vars(builtins_obj)
+    resolved = namespace.get(name)
+    if not isinstance(resolved, type) or not issubclass(resolved, BaseException):
+        raise AssertionError(f"Unsupported exception type {name!r}")
+    return resolved
 
 
 def validate_engine_member_runtime(
@@ -273,7 +308,11 @@ def _validate_export_member_spec(
     label: str,
 ) -> None:
     _assert_type(member_spec, dict, label)
-    _assert_closed_keys(member_spec, {"kind", "value", "signature", "shape_probes"}, label)
+    _assert_closed_keys(
+        member_spec,
+        {"kind", "value", "signature", "shape_probes", "construction_probes"},
+        label,
+    )
     _require_fields(member_spec, {"kind"}, label)
 
     kind = member_spec["kind"]
@@ -300,6 +339,11 @@ def _validate_export_member_spec(
 
     probes = member_spec.get("shape_probes", [])
     _validate_shape_probes(probes, f"{label}.shape_probes")
+
+    construction_probes = member_spec.get("construction_probes", [])
+    if kind != "class" and construction_probes:
+        raise AssertionError(f"{label} only class exports may declare construction_probes")
+    _validate_construction_probes(construction_probes, f"{label}.construction_probes")
 
 
 def _validate_engine_member_spec(
@@ -354,6 +398,12 @@ def _validate_shape_probes(probes: object, label: str) -> None:
         _validate_shape_probe_spec(probe, f"{label}[{index}]")
 
 
+def _validate_construction_probes(probes: object, label: str) -> None:
+    _assert_type(probes, list, label)
+    for index, probe in enumerate(probes):
+        _validate_construction_probe_spec(probe, f"{label}[{index}]")
+
+
 def _validate_shape_probe_spec(probe: object, label: str) -> None:
     _assert_type(probe, dict, label)
     _assert_closed_keys(probe, {"args", "kwargs", "return_shape"}, label)
@@ -372,11 +422,47 @@ def _validate_shape_probe_spec(probe: object, label: str) -> None:
     _validate_shape_spec(probe["return_shape"], f"{label}.return_shape")
 
 
+def _validate_construction_probe_spec(probe: object, label: str) -> None:
+    _assert_type(probe, dict, label)
+    _assert_closed_keys(probe, {"args", "kwargs", "return_shape", "raises"}, label)
+
+    has_return = "return_shape" in probe
+    has_raises = "raises" in probe
+    if has_return == has_raises:
+        raise AssertionError(f"{label} must declare exactly one of return_shape or raises")
+
+    args = probe.get("args", [])
+    kwargs = probe.get("kwargs", {})
+    _assert_type(args, list, f"{label}.args")
+    _assert_string_keyed_dict(kwargs, f"{label}.kwargs")
+
+    for index, value in enumerate(args):
+        _validate_probe_value(value, f"{label}.args[{index}]")
+    for key, value in kwargs.items():
+        _validate_probe_value(value, f"{label}.kwargs[{key!r}]")
+
+    if has_return:
+        _validate_shape_spec(probe["return_shape"], f"{label}.return_shape")
+        return
+
+    _validate_exception_shape_spec(probe["raises"], f"{label}.raises")
+
+
 def _validate_probe_value(value: object, label: str) -> None:
     if not isinstance(value, dict) or "fixture" not in value:
         return
     _assert_closed_keys(value, {"fixture"}, label)
     _assert_equal(value["fixture"], "empty_engine", f"{label}.fixture")
+
+
+def _validate_exception_shape_spec(raises: object, label: str) -> None:
+    _assert_type(raises, dict, label)
+    _assert_closed_keys(raises, {"type", "shape"}, label)
+    _require_fields(raises, {"type"}, label)
+    _assert_type(raises["type"], str, f"{label}.type")
+    _resolve_exception_type(raises["type"])
+    if "shape" in raises:
+        _validate_shape_spec(raises["shape"], f"{label}.shape")
 
 
 def _validate_shape_spec(shape: object, label: str) -> None:
@@ -439,6 +525,12 @@ def _validate_shape_spec(shape: object, label: str) -> None:
                         str,
                         f"{item_label}.operand_names[{operand_index}]",
                     )
+            return
+        if kind == "exception":
+            _assert_closed_keys(shape, {"kind", "type"}, label)
+            _require_fields(shape, {"kind", "type"}, label)
+            _assert_type(shape["type"], str, f"{label}.type")
+            _resolve_exception_type(shape["type"])
             return
         raise AssertionError(f"{label}.kind has unsupported shape kind {kind!r}")
 
