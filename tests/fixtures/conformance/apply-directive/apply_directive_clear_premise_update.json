@@ -1,0 +1,28 @@
+{
+  "id": "apply_directive_clear_premise_update",
+  "kind": "apply_directive",
+  "initial_state": {
+    "premise": "concise replies",
+    "policies": {
+      "docker": "use"
+    },
+    "version": 2
+  },
+  "action": {
+    "fn": "apply_directive",
+    "text": "clear premise"
+  },
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "message": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker": "use"
+      },
+      "version": 2
+    }
+  }
+}

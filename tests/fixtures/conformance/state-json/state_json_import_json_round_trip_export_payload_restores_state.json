@@ -1,0 +1,25 @@
+{
+  "id": "state_json_import_json_round_trip_export_payload_restores_state",
+  "kind": "state_json",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "action": {
+    "fn": "import_json",
+    "payload": "{\"policies\":{\"docker\":\"use\",\"don't\":\"use\",\"dont\":\"prohibit\",\"the docker\":\"prohibit\"},\"premise\":\"Use concise output\",\"version\":2}"
+  },
+  "expected": {
+    "state": {
+      "premise": "Use concise output",
+      "policies": {
+        "docker": "use",
+        "don't": "use",
+        "dont": "prohibit",
+        "the docker": "prohibit"
+      },
+      "version": 2
+    }
+  }
+}

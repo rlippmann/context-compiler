@@ -21,6 +21,9 @@ _GRAMMAR_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "conforma
 _MUTATION_ISOLATION_FIXTURES_DIR = (
     Path(__file__).resolve().parent / "fixtures" / "conformance" / "mutation-isolation"
 )
+_APPLY_DIRECTIVE_FIXTURES_DIR = (
+    Path(__file__).resolve().parent / "fixtures" / "conformance" / "apply-directive"
+)
 
 
 def _json_files(dir_path: Path) -> list[Path]:
@@ -121,6 +124,34 @@ def _validate_state_json_fixture(fixture: dict[str, object], fixture_id: object)
     assert isinstance(expected["state"], dict), fixture_id
 
 
+def _validate_apply_directive_fixture(fixture: dict[str, object], fixture_id: object) -> None:
+    _assert_allowed_keys(
+        fixture,
+        {"id", "kind", "initial_state", "action", "expected"} | ({"prelude"} & set(fixture)),
+        fixture_id,
+        "fixture",
+    )
+    assert fixture["kind"] == "apply_directive", fixture_id
+    assert isinstance(fixture["initial_state"], dict), fixture_id
+    if "prelude" in fixture:
+        _assert_str_list(fixture["prelude"], fixture_id, "prelude")
+
+    action = fixture["action"]
+    assert isinstance(action, dict), fixture_id
+    _assert_allowed_keys(action, {"fn", "text"}, fixture_id, "action")
+    assert action["fn"] == "apply_directive", fixture_id
+    assert isinstance(action["text"], str), fixture_id
+
+    expected = fixture["expected"]
+    assert isinstance(expected, dict), fixture_id
+    _assert_allowed_keys(expected, {"decision", "state"}, fixture_id, "expected")
+    assert isinstance(expected["state"], dict), fixture_id
+
+    decision = expected["decision"]
+    assert isinstance(decision, dict), fixture_id
+    _validate_public_decision(decision, fixture_id, "expected.decision")
+
+
 def _validate_grammar_fixture(fixture: dict[str, object], fixture_id: object) -> None:
     _assert_allowed_keys(fixture, {"id", "kind", "action", "expected"}, fixture_id, "fixture")
     assert fixture["kind"] == "grammar", fixture_id
@@ -219,6 +250,42 @@ def test_state_json_fixtures() -> None:
                 with pytest.raises(Exception, match=error["message_contains"]) as exc_info:
                     engine.import_json(payload)
                 assert type(exc_info.value).__name__ == error["type"], fixture_id
+
+        assert _state_observation(engine) == expected["state"], fixture_id
+
+
+def test_apply_directive_fixtures() -> None:
+    for path in _json_files(_APPLY_DIRECTIVE_FIXTURES_DIR):
+        fixture = _load(path)
+        fixture_id = fixture["id"]
+
+        _assert_fixture_path_matches_id(path, fixture_id)
+        _validate_apply_directive_fixture(fixture, fixture_id)
+
+        engine = Engine()
+        engine.import_json(
+            json.dumps(fixture["initial_state"], sort_keys=True, separators=(",", ":"))
+        )
+        _apply_prelude(engine, fixture.get("prelude", []))
+
+        action = fixture["action"]
+        directive = decompose_directive(action["text"])
+        assert isinstance(directive, CanonicalDirective), fixture_id
+        decision = engine.apply_directive(directive)
+
+        expected = fixture["expected"]
+        expected_decision = expected["decision"]
+        assert decision["kind"] == expected_decision["kind"], fixture_id
+
+        if decision["kind"] == DECISION_ERROR:
+            expected_message = expected_decision.get("message")
+            actual_message = decision["message"]
+            if expected_message is None:
+                assert actual_message != "", fixture_id
+            else:
+                assert actual_message == expected_message, fixture_id
+        else:
+            assert decision == expected_decision, fixture_id
 
         assert _state_observation(engine) == expected["state"], fixture_id
 

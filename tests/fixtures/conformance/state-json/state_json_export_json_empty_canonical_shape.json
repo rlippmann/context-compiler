@@ -1,0 +1,20 @@
+{
+  "id": "state_json_export_json_empty_canonical_shape",
+  "kind": "state_json",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "action": {
+    "fn": "export_json"
+  },
+  "expected": {
+    "payload": "{\"policies\":{},\"premise\":null,\"version\":2}",
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    }
+  }
+}
