@@ -1,0 +1,17 @@
+{
+  "id": "grammar_decompose_remove_policy",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "remove policy docker"
+  },
+  "expected": {
+    "directive": {
+      "kind": "remove_policy",
+      "text": "remove policy docker",
+      "operands": {
+        "item": "docker"
+      }
+    }
+  }
+}

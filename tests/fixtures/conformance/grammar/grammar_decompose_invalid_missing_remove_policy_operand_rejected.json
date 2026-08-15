@@ -1,0 +1,16 @@
+{
+  "id": "grammar_decompose_invalid_missing_remove_policy_operand_rejected",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "remove policy"
+  },
+  "expected": {
+    "directive": {
+      "kind": "invalid_directive_syntax",
+      "failure": "missing_required_operand",
+      "directive_kind": "remove_policy",
+      "missing_operand": "item"
+    }
+  }
+}

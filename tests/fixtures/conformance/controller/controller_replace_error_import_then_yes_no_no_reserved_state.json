@@ -1,0 +1,54 @@
+{
+  "id": "controller_replace_error_import_then_yes_no_no_reserved_state",
+  "kind": "controller",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "operations": [
+    {
+      "fn": "step",
+      "input": "use kubectl instead of docker",
+      "label": "replacement_error"
+    },
+    {
+      "fn": "import_json",
+      "payload": "{\"policies\":{\"pytest\":\"use\"},\"premise\":\"baseline\",\"version\":2}"
+    },
+    {
+      "fn": "step",
+      "input": "yes",
+      "label": "yes_followup"
+    },
+    {
+      "fn": "step",
+      "input": "no",
+      "label": "no_followup"
+    }
+  ],
+  "expected": {
+    "observations": {
+      "replacement_error": {
+        "kind": "error",
+        "message": "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
+      },
+      "yes_followup": {
+        "kind": "no_directive",
+        "message": null
+      },
+      "no_followup": {
+        "kind": "no_directive",
+        "message": null
+      }
+    },
+    "equal": [],
+    "state": {
+      "premise": "baseline",
+      "policies": {
+        "pytest": "use"
+      },
+      "version": 2
+    }
+  }
+}

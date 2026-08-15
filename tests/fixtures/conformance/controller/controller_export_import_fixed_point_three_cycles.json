@@ -1,0 +1,57 @@
+{
+  "id": "controller_export_import_fixed_point_three_cycles",
+  "kind": "controller",
+  "initial_state": {
+    "premise": "Use concise output",
+    "policies": {
+      "docker": "prohibit",
+      "pytest": "use"
+    },
+    "version": 2
+  },
+  "operations": [
+    {
+      "fn": "export_json",
+      "label": "payload_1"
+    },
+    {
+      "fn": "import_json",
+      "payload_ref": "payload_1"
+    },
+    {
+      "fn": "export_json",
+      "label": "payload_2"
+    },
+    {
+      "fn": "import_json",
+      "payload_ref": "payload_2"
+    },
+    {
+      "fn": "export_json",
+      "label": "payload_3"
+    }
+  ],
+  "expected": {
+    "observations": {
+      "payload_1": "{\"policies\":{\"docker\":\"prohibit\",\"pytest\":\"use\"},\"premise\":\"Use concise output\",\"version\":2}"
+    },
+    "equal": [
+      [
+        "payload_1",
+        "payload_2"
+      ],
+      [
+        "payload_2",
+        "payload_3"
+      ]
+    ],
+    "state": {
+      "premise": "Use concise output",
+      "policies": {
+        "docker": "prohibit",
+        "pytest": "use"
+      },
+      "version": 2
+    }
+  }
+}

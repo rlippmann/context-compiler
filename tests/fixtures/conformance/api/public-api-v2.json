@@ -86,6 +86,28 @@
               "type": "string",
               "const": "confirm?"
             }
+          },
+          {
+            "kwargs": {
+              "decision": {
+                "kind": "update",
+                "message": null
+              }
+            },
+            "return_shape": {
+              "type": "null"
+            }
+          },
+          {
+            "kwargs": {
+              "decision": {
+                "kind": "no_directive",
+                "message": null
+              }
+            },
+            "return_shape": {
+              "type": "null"
+            }
           }
         ]
       },
@@ -111,6 +133,30 @@
             "return_shape": {
               "type": "boolean",
               "const": true
+            }
+          },
+          {
+            "kwargs": {
+              "decision": {
+                "kind": "update",
+                "message": null
+              }
+            },
+            "return_shape": {
+              "type": "boolean",
+              "const": false
+            }
+          },
+          {
+            "kwargs": {
+              "decision": {
+                "kind": "no_directive",
+                "message": null
+              }
+            },
+            "return_shape": {
+              "type": "boolean",
+              "const": false
             }
           }
         ]
@@ -138,6 +184,30 @@
               "type": "boolean",
               "const": true
             }
+          },
+          {
+            "kwargs": {
+              "decision": {
+                "kind": "update",
+                "message": null
+              }
+            },
+            "return_shape": {
+              "type": "boolean",
+              "const": false
+            }
+          },
+          {
+            "kwargs": {
+              "decision": {
+                "kind": "error",
+                "message": "confirm?"
+              }
+            },
+            "return_shape": {
+              "type": "boolean",
+              "const": false
+            }
           }
         ]
       },
@@ -163,6 +233,30 @@
             "return_shape": {
               "type": "boolean",
               "const": true
+            }
+          },
+          {
+            "kwargs": {
+              "decision": {
+                "kind": "error",
+                "message": "confirm?"
+              }
+            },
+            "return_shape": {
+              "type": "boolean",
+              "const": false
+            }
+          },
+          {
+            "kwargs": {
+              "decision": {
+                "kind": "no_directive",
+                "message": null
+              }
+            },
+            "return_shape": {
+              "type": "boolean",
+              "const": false
             }
           }
         ]

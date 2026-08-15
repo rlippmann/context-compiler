@@ -1,0 +1,66 @@
+{
+  "id": "controller_step_apply_equivalence_clear_state",
+  "kind": "controller",
+  "initial_state": {
+    "premise": "baseline",
+    "policies": {
+      "docker": "use"
+    },
+    "version": 2
+  },
+  "operations": [
+    {
+      "fn": "export_json",
+      "label": "initial_payload"
+    },
+    {
+      "fn": "step",
+      "input": "clear state",
+      "label": "step_decision"
+    },
+    {
+      "fn": "export_json",
+      "label": "step_payload"
+    },
+    {
+      "fn": "import_json",
+      "payload_ref": "initial_payload"
+    },
+    {
+      "fn": "apply_directive",
+      "text": "clear state",
+      "label": "apply_decision"
+    },
+    {
+      "fn": "export_json",
+      "label": "apply_payload"
+    }
+  ],
+  "expected": {
+    "observations": {
+      "step_decision": {
+        "kind": "update",
+        "message": null
+      },
+      "apply_decision": {
+        "kind": "update",
+        "message": null
+      }
+    },
+    "equal": [
+      [
+        "step_decision",
+        "apply_decision"
+      ],
+      [
+        "step_payload",
+        "apply_payload"
+      ]
+    ],
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    }
+  }
+}

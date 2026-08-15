@@ -1,0 +1,21 @@
+{
+  "id": "step_compound_intervening_text_second_directive_invalid_boundary",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "input": "use docker for development prohibit peanuts",
+  "expected": {
+    "decision": {
+      "kind": "no_directive",
+      "message": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    }
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "id": "replacement_error_followup_independence",
+  "turns": [
+    {
+      "input": "use kubectl instead of docker",
+      "decision": {
+        "kind": "error",
+        "message": "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
+      },
+      "state": {
+        "premise": null,
+        "policies": {},
+        "version": 2
+      }
+    },
+    {
+      "input": "use docker",
+      "decision": {
+        "kind": "update",
+        "message": null
+      },
+      "state": {
+        "premise": null,
+        "policies": {
+          "docker": "use"
+        },
+        "version": 2
+      }
+    },
+    {
+      "input": "yes",
+      "decision": {
+        "kind": "no_directive",
+        "message": null
+      },
+      "state": {
+        "premise": null,
+        "policies": {
+          "docker": "use"
+        },
+        "version": 2
+      }
+    }
+  ]
+}

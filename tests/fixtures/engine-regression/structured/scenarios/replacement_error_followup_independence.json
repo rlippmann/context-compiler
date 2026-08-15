@@ -1,0 +1,10 @@
+{
+  "description": "Replacement error does not reserve later follow-up turns after subsequent updates",
+  "id": "replacement_error_followup_independence",
+  "initial_state": null,
+  "inputs": [
+    "use kubectl instead of docker",
+    "use docker",
+    "yes"
+  ]
+}

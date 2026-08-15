@@ -1,0 +1,16 @@
+{
+  "id": "grammar_decompose_invalid_missing_prohibit_operand_rejected",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "prohibit"
+  },
+  "expected": {
+    "directive": {
+      "kind": "invalid_directive_syntax",
+      "failure": "missing_required_operand",
+      "directive_kind": "prohibit_item",
+      "missing_operand": "item"
+    }
+  }
+}

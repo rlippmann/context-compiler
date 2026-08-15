@@ -134,6 +134,33 @@ existing conformance runner in
 Portable fixture data remains language-neutral. Other ports may add execution
 support in later synchronized changes.
 
+## Controller fixtures
+
+For [`conformance/controller/`](conformance/controller/):
+
+Portable deterministic workflow fixtures spanning multiple public API calls on a
+single engine instance.
+
+These fixtures cover representative controller-level invariants that require
+more than one public call, such as:
+
+* repeated `export_json()` / `import_json(...)` fixed-point stability
+* `step(...)` / `apply_directive(...)` equivalence for canonical directives
+* absence of reserved follow-up state after semantic errors
+
+Each fixture records only portable observations:
+
+* labeled decision or payload observations from public calls
+* equality checks between labeled observations
+* final authoritative state
+
+The current runner supports:
+
+* `step`
+* `apply_directive`
+* `export_json`
+* `import_json`
+
 ## Source of truth
 
 Fixtures reflect current Python behavior and tests.

@@ -1,0 +1,27 @@
+{
+  "id": "step_replace_both_prohibited_prioritizes_source_error",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {
+      "docker": "prohibit",
+      "kubectl": "prohibit"
+    },
+    "version": 2
+  },
+  "input": "use kubectl instead of docker",
+  "expected": {
+    "decision": {
+      "kind": "error",
+      "message": "\"docker\" is currently prohibited.\nSubmit explicit directive(s) to remove it or use a different item."
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker": "prohibit",
+        "kubectl": "prohibit"
+      },
+      "version": 2
+    }
+  }
+}
