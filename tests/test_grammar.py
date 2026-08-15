@@ -61,10 +61,11 @@ def test_directive_syntax_failure_members_and_values() -> None:
 def test_canonical_directive_is_frozen_and_slotted() -> None:
     directive = CanonicalDirective(
         kind=DirectiveKind.USE_ITEM,
-        operands=MappingProxyType({"item": "docker"}),
+        operands={"item": "docker"},
     )
     assert directive.__slots__ == ("kind", "operands")
     assert directive.text == "use docker"
+    assert isinstance(directive.operands, MappingProxyType)
     with pytest.raises(FrozenInstanceError):
         directive.kind = DirectiveKind.PROHIBIT_ITEM  # type: ignore[misc]
 
@@ -105,7 +106,7 @@ def test_decompose_directive_accepts_each_canonical_family(
     decomposed = decompose_directive(text)
     assert decomposed == CanonicalDirective(
         kind=expected_kind,
-        operands=MappingProxyType(expected_operands),
+        operands=expected_operands,
     )
 
 
@@ -269,21 +270,21 @@ def test_equivalent_accepted_inputs_share_canonical_text(
         (
             CanonicalDirective(
                 kind=DirectiveKind.USE_ITEM,
-                operands=MappingProxyType({"item": "docker"}),
+                operands={"item": "docker"},
             ),
             "use docker",
         ),
         (
             CanonicalDirective(
                 kind=DirectiveKind.CHANGE_PREMISE,
-                operands=MappingProxyType({"value": "formal tone"}),
+                operands={"value": "formal tone"},
             ),
             "change premise to formal tone",
         ),
         (
             CanonicalDirective(
                 kind=DirectiveKind.REPLACE_USE,
-                operands=MappingProxyType({"new_item": "podman", "old_item": "docker"}),
+                operands={"new_item": "podman", "old_item": "docker"},
             ),
             "use podman instead of docker",
         ),
@@ -507,44 +508,43 @@ def test_serialize_canonical_directive_rejects_unsupported_kind() -> None:
         )
 
 
-def test_render_directive_uses_decompose_directive_as_authoritative_round_trip(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        grammar_module,
-        "decompose_directive",
-        lambda _: CanonicalDirective(
-            kind=DirectiveKind.USE_ITEM,
-            operands=MappingProxyType({"item": "docker"}),
+@pytest.mark.parametrize(
+    ("kind", "operands", "message"),
+    [
+        (DirectiveKind.SET_PREMISE, {}, "Missing required operands"),
+        (DirectiveKind.REPLACE_USE, {"new_item": "podman"}, "Missing required operands"),
+        (DirectiveKind.CLEAR_STATE, {"item": "docker"}, "Unexpected operands"),
+        (DirectiveKind.USE_ITEM, {"value": "docker"}, "Missing required operands"),
+        (DirectiveKind.USE_ITEM, {"item": "docker", "old_item": "podman"}, "Unexpected operands"),
+        (DirectiveKind.SET_PREMISE, {"value": ""}, "cannot be empty"),
+        (DirectiveKind.SET_PREMISE, {"value": "   "}, "cannot be empty"),
+        (
+            DirectiveKind.USE_ITEM,
+            {"item": "docker and prohibit peanuts"},
+            "canonical use_item directive",
         ),
-    )
+        (
+            DirectiveKind.SET_PREMISE,
+            {"value": "use docker and prohibit peanuts"},
+            "canonical set_premise directive",
+        ),
+        (
+            DirectiveKind.USE_ITEM,
+            {"item": "docker instead of podman"},
+            "canonical use_item directive",
+        ),
+        ("not_a_directive_kind", {"item": "docker"}, "Unsupported directive kind"),
+    ],
+)
+def test_canonical_directive_rejects_invalid_construction(
+    kind: DirectiveKind | str, operands: dict[str, str], message: str
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        CanonicalDirective(kind=kind, operands=operands)  # type: ignore[arg-type]
 
+
+def test_render_directive_builds_text_from_validated_canonical_directive() -> None:
     assert grammar_module._render_directive(DirectiveKind.USE_ITEM, item="docker") == "use docker"
-
-
-def test_render_directive_rejects_when_decompose_directive_disagrees_with_rendered_kind(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(
-        grammar_module,
-        "decompose_directive",
-        lambda _: CanonicalDirective(
-            kind=DirectiveKind.PROHIBIT_ITEM,
-            operands=MappingProxyType({"item": "docker"}),
-        ),
-    )
-
-    with pytest.raises(ValueError, match="canonical use_item directive"):
-        grammar_module._render_directive(DirectiveKind.USE_ITEM, item="docker")
-
-
-def test_render_directive_rejects_when_decompose_directive_returns_noncanonical_result(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(grammar_module, "decompose_directive", lambda _: InvalidDirectiveSyntax())
-
-    with pytest.raises(ValueError, match="canonical use_item directive"):
-        grammar_module._render_directive(DirectiveKind.USE_ITEM, item="docker")
 
 
 def test_invalid_directive_syntax_is_frozen_and_slotted() -> None:
