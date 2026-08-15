@@ -1265,6 +1265,31 @@ def test_remove_policy_uses_normalized_item_matching() -> None:
     _assert_observations(engine, premise=None, policies={})
 
 
+def test_unicode_casefold_policy_identity_makes_strasse_idempotent() -> None:
+    engine = Engine()
+
+    first = engine.step("use Straße")
+    second = engine.step("use STRASSE")
+
+    assert first == {"kind": DECISION_UPDATE, "message": None}
+    assert second == {"kind": DECISION_UPDATE, "message": None}
+    _assert_observations(engine, premise=None, policies={"strasse": "use"})
+
+
+def test_unicode_casefold_policy_identity_detects_strasse_contradiction() -> None:
+    engine = Engine()
+
+    first = engine.step("use Straße")
+    second = engine.step("prohibit STRASSE")
+
+    assert first == {"kind": DECISION_UPDATE, "message": None}
+    assert second == {
+        "kind": DECISION_ERROR,
+        "message": ('"strasse" is currently in use.\nRemove or replace it before prohibiting it.'),
+    }
+    _assert_observations(engine, premise=None, policies={"strasse": "use"})
+
+
 def test_use_and_prohibit_article_variants_remain_distinct_policies() -> None:
     engine = Engine()
 
@@ -1343,6 +1368,25 @@ def test_import_json_preserves_distinct_dont_and_dont_apostrophe_policy_keys() -
         premise=None,
         policies={"don't": "use", "dont": "prohibit"},
     )
+
+
+def test_import_json_rejects_unicode_casefold_policy_key_collisions_atomically() -> None:
+    engine = Engine()
+    engine.step("use kubectl")
+    before = _observations(engine)
+
+    with pytest.raises(ValueError, match="Invalid state payload"):
+        engine.import_json(
+            json.dumps(
+                {
+                    "premise": None,
+                    "policies": {"Straße": "use", "STRASSE": "prohibit"},
+                    "version": 2,
+                }
+            )
+        )
+
+    assert _observations(engine) == before
 
 
 def test_export_import_round_trip_preserves_distinct_normalized_policy_keys() -> None:

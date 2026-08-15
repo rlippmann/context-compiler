@@ -1,0 +1,26 @@
+{
+  "id": "step_policy_identity_unicode_casefold_contradiction_error",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "use Straße"
+  ],
+  "input": "prohibit STRASSE",
+  "expected": {
+    "decision": {
+      "kind": "error",
+      "message": "\"strasse\" is currently in use.\nRemove or replace it before prohibiting it."
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "strasse": "use"
+      },
+      "version": 2
+    }
+  }
+}
