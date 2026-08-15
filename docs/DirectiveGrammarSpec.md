@@ -671,13 +671,12 @@ input value and silently discarding the other.
 If a future version intentionally introduces broader policy-identity semantics,
 that behavior must be specified explicitly.
 
-Repository drift note:
+Acquisition-layer note:
 
-- the current runtime implementation still performs additional item-key
-  rewrites beyond the normative boundary above, including leading-article
-  removal and `dont` to `don't` rewriting;
-- those behaviors are current implementation details and test-backed runtime
-  behavior, but they are not frozen here as the intended core semantic contract.
+- language-specific or semantic normalization beyond the representation-level
+  rules above belongs outside core;
+- examples include leading-article removal, rewriting `dont` to `don't`, and
+  other broader human-input interpretation behaviors.
 
 ### 11.2 Premise-value sanitation
 
