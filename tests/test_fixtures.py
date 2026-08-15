@@ -49,6 +49,65 @@ def _assert_str_list(value: object, fixture_id: object, label: str) -> None:
     assert all(isinstance(item, str) for item in value), f"{fixture_id}: invalid {label}"
 
 
+def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id: object) -> None:
+    _assert_allowed_keys(
+        fixture,
+        {"id", "kind", "initial_state", "operation", "handles", "mutations", "expected"},
+        fixture_id,
+        "fixture",
+    )
+    assert fixture["kind"] == "mutation_isolation", fixture_id
+    assert isinstance(fixture["initial_state"], dict), fixture_id
+
+    operation = fixture["operation"]
+    assert isinstance(operation, dict), fixture_id
+    _assert_allowed_keys(
+        operation, {"fn", "input", "result_handle"} & set(operation), fixture_id, "operation"
+    )
+    assert operation["fn"] in {"engine.step", "engine.policies", "engine.premise"}, fixture_id
+    if operation["fn"] == "engine.step":
+        _assert_allowed_keys(operation, {"fn", "input", "result_handle"}, fixture_id, "operation")
+        assert isinstance(operation["input"], str), fixture_id
+    else:
+        _assert_allowed_keys(operation, {"fn", "result_handle"}, fixture_id, "operation")
+    assert isinstance(operation["result_handle"], str), fixture_id
+
+    handles = fixture["handles"]
+    assert isinstance(handles, dict), fixture_id
+    assert operation["result_handle"] in handles, fixture_id
+    for handle_name, handle_meta in handles.items():
+        assert isinstance(handle_name, str), fixture_id
+        assert isinstance(handle_meta, dict), fixture_id
+        _assert_allowed_keys(handle_meta, {"kind"}, fixture_id, f"handles.{handle_name}")
+        assert isinstance(handle_meta["kind"], str), fixture_id
+
+    mutations = fixture["mutations"]
+    assert isinstance(mutations, list), fixture_id
+    for index, mutation in enumerate(mutations):
+        assert isinstance(mutation, dict), fixture_id
+        _assert_allowed_keys(
+            mutation,
+            {"target_handle", "path", "op", "value"},
+            fixture_id,
+            f"mutations[{index}]",
+        )
+        assert mutation["target_handle"] in handles, fixture_id
+        _assert_str_list(mutation["path"], fixture_id, f"mutations[{index}].path")
+        assert mutation["op"] == "set", fixture_id
+
+    expected = fixture["expected"]
+    assert isinstance(expected, dict), fixture_id
+    _assert_allowed_keys(
+        expected,
+        {"authoritative_state"} | ({"caller_owned_observations"} & set(expected)),
+        fixture_id,
+        "expected",
+    )
+    assert isinstance(expected["authoritative_state"], dict), fixture_id
+    if "caller_owned_observations" in expected:
+        assert isinstance(expected["caller_owned_observations"], dict), fixture_id
+
+
 def _validate_public_decision(decision: dict[str, object], fixture_id: object, label: str) -> None:
     _assert_allowed_keys(decision, {"kind", "message"}, fixture_id, label)
     kind = decision.get("kind")
@@ -195,6 +254,24 @@ def _state_observation(engine: object) -> dict[str, object]:
         "policies": dict(engine.policies),
         "version": 2,
     }
+
+
+def _resolve_handle_path(root: object, path: list[str]) -> object:
+    current = root
+    for key in path:
+        assert isinstance(current, dict)
+        current = current[key]
+    return current
+
+
+def _apply_handle_mutation(root: object, path: list[str], value: object) -> None:
+    assert path
+    current = root
+    for key in path[:-1]:
+        assert isinstance(current, dict)
+        current = current[key]
+    assert isinstance(current, dict)
+    current[path[-1]] = value
 
 
 def test_step_fixtures() -> None:
@@ -352,6 +429,7 @@ def test_mutation_isolation_fixtures() -> None:
     for path in _json_files(_MUTATION_ISOLATION_FIXTURES_DIR):
         fixture = _load(path)
         fixture_id = fixture["id"]
+        _validate_mutation_isolation_fixture(fixture, fixture_id)
         operation = fixture["operation"]
         fn = operation["fn"]
         engine = Engine()
@@ -359,23 +437,32 @@ def test_mutation_isolation_fixtures() -> None:
             json.dumps(fixture["initial_state"], sort_keys=True, separators=(",", ":"))
         )
 
+        handles: dict[str, object]
         if fn == "engine.step":
-            decision = engine.step(operation["input"])
-            decision["message"] = "mutated note"
-            assert _state_observation(engine) == fixture["expected"]["authoritative_state"], (
-                fixture_id
-            )
+            handles = {operation["result_handle"]: engine.step(operation["input"])}
+        elif fn == "engine.policies":
+            handles = {operation["result_handle"]: engine.policies}
+        else:
+            assert fn == "engine.premise", fixture_id
+            handles = {operation["result_handle"]: {"value": engine.premise}}
+
+        for mutation in fixture["mutations"]:
+            target = handles[mutation["target_handle"]]
+            path = mutation["path"]
+            assert isinstance(path, list), fixture_id
+            _apply_handle_mutation(target, path, mutation["value"])
+
+        expected = fixture["expected"]
+        assert _state_observation(engine) == expected["authoritative_state"], fixture_id
+
+        observations = expected.get("caller_owned_observations")
+        if observations is None:
             continue
 
-        if fn == "engine.policies":
-            policies = engine.policies
-            policies["docker"] = "prohibit"
-            assert _state_observation(engine) == fixture["expected"]["authoritative_state"], (
-                fixture_id
-            )
-            continue
-
-        assert fn == "engine.premise", fixture_id
-        premise_box = {"value": engine.premise}
-        premise_box["value"] = "mutated premise"
-        assert _state_observation(engine) == fixture["expected"]["authoritative_state"], fixture_id
+        assert isinstance(observations, dict), fixture_id
+        for label, observation in observations.items():
+            assert isinstance(observation, dict), fixture_id
+            _assert_allowed_keys(observation, {"target_handle", "path", "value"}, fixture_id, label)
+            target = handles[observation["target_handle"]]
+            observed = _resolve_handle_path(target, observation["path"])
+            assert observed == observation["value"], fixture_id

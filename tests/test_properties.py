@@ -1007,11 +1007,15 @@ def test_replacement_near_misses_never_parse_as_canonical_or_mutate_state(text: 
 
 @given(
     st.one_of(
-        VALID_NONEMPTY_ITEM_TEXT.map(lambda old_item: (f"use instead of {old_item}", "new_item")),
-        VALID_USE_ITEM_TEXT.map(lambda new_item: (f"use {new_item} instead of", "old_item")),
+        CANONICAL_GRAMMAR_ITEM_TEXT.map(
+            lambda old_item: (f"use instead of {old_item}", "new_item")
+        ),
+        CANONICAL_GRAMMAR_ITEM_TEXT.map(
+            lambda new_item: (f"use {new_item} instead of", "old_item")
+        ),
     )
 )
-def test_incomplete_replacement_forms_report_replace_use_family(
+def test_incomplete_replacement_forms_report_replace_use_missing_operand(
     case: tuple[str, str],
 ) -> None:
     text, missing_operand = case
@@ -1019,9 +1023,5 @@ def test_incomplete_replacement_forms_report_replace_use_family(
 
     assert isinstance(parsed, InvalidDirectiveSyntax)
     assert parsed.failure is DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND
-    assert parsed.directive_kind in {DirectiveKind.REPLACE_USE, DirectiveKind.USE_ITEM}
-    if parsed.directive_kind is DirectiveKind.USE_ITEM:
-        assert missing_operand == "new_item"
-        assert parsed.missing_operand == "item"
-    else:
-        assert parsed.missing_operand == missing_operand
+    assert parsed.directive_kind is DirectiveKind.REPLACE_USE
+    assert parsed.missing_operand == missing_operand

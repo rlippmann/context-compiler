@@ -4,11 +4,10 @@ from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
 from context_compiler import (
-    DECISION_ERROR,
     DECISION_NO_DIRECTIVE,
-    DECISION_UPDATE,
     Engine,
 )
+from context_compiler.grammar import InvalidDirectiveSyntax, decompose_directive
 
 CANONICAL_SECOND_DIRECTIVES = [
     "set premise concise",
@@ -57,7 +56,9 @@ def _assert_compound_no_directive(user_input: str) -> None:
     second=st.sampled_from(CANONICAL_SECOND_DIRECTIVES),
 )
 def test_compound_separator_robustness(separator: str, second: str) -> None:
-    _assert_compound_no_directive(f"use docker{separator}{second}")
+    user_input = f"use docker{separator}{second}"
+    assert isinstance(decompose_directive(user_input), InvalidDirectiveSyntax)
+    _assert_compound_no_directive(user_input)
 
 
 @settings(max_examples=50)
@@ -74,7 +75,9 @@ def test_compound_arbitrary_intervening_text(chunks: list[str], second: str) -> 
     lowered = intervening.lower()
     assume(all(token not in lowered for token in CANONICAL_STARTS))
 
-    _assert_compound_no_directive(f"use docker {intervening} {second}")
+    user_input = f"use docker {intervening} {second}"
+    assert isinstance(decompose_directive(user_input), InvalidDirectiveSyntax)
+    _assert_compound_no_directive(user_input)
 
 
 @settings(max_examples=50)
@@ -89,10 +92,13 @@ def test_embedded_canonical_tokens_do_not_trigger_compound_detection(
     engine = Engine()
     before = _observations(engine)
 
-    decision = engine.step(f"use docker {prefix}{token}{suffix}")
+    user_input = f"use docker {prefix}{token}{suffix}"
+    parsed = decompose_directive(user_input)
+    decision = engine.step(user_input)
 
-    assert decision["kind"] != DECISION_ERROR or decision["message"] != ""
-    assert decision["kind"] == DECISION_UPDATE
+    assert parsed is not None
+    assert not isinstance(parsed, InvalidDirectiveSyntax)
+    assert decision == {"kind": "update", "message": None}
     assert _observations(engine) != before
 
 
@@ -131,7 +137,9 @@ def test_case_mutated_second_directive_does_not_trigger_compound_detection(
     engine = Engine()
     before = _observations(engine)
 
-    decision = engine.step(f"use docker {second_start}")
+    user_input = f"use docker {second_start}"
+    assert isinstance(decompose_directive(user_input), InvalidDirectiveSyntax)
+    decision = engine.step(user_input)
 
     assert decision == {"kind": DECISION_NO_DIRECTIVE, "message": None}
     assert _observations(engine) == before
@@ -151,7 +159,9 @@ def test_case_mutated_second_directive_does_not_trigger_compound_detection(
 def test_quotes_do_not_create_protected_region_after_first_directive(
     quote: str, payload: str, closing: str, second: str
 ) -> None:
-    _assert_compound_no_directive(f"use {quote}{payload}{closing} {second}")
+    user_input = f"use {quote}{payload}{closing} {second}"
+    assert isinstance(decompose_directive(user_input), InvalidDirectiveSyntax)
+    _assert_compound_no_directive(user_input)
 
 
 @settings(max_examples=20)
