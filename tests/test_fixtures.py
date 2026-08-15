@@ -24,6 +24,9 @@ _MUTATION_ISOLATION_FIXTURES_DIR = (
 _APPLY_DIRECTIVE_FIXTURES_DIR = (
     Path(__file__).resolve().parent / "fixtures" / "conformance" / "apply-directive"
 )
+_CONTROLLER_FIXTURES_DIR = (
+    Path(__file__).resolve().parent / "fixtures" / "conformance" / "controller"
+)
 
 
 def _json_files(dir_path: Path) -> list[Path]:
@@ -239,6 +242,82 @@ def _validate_grammar_fixture(fixture: dict[str, object], fixture_id: object) ->
             assert isinstance(error["message_contains"], str), fixture_id
         else:
             _assert_allowed_keys(expected, {"text", "directive_kind"}, fixture_id, "expected")
+
+
+def _validate_controller_fixture(fixture: dict[str, object], fixture_id: object) -> None:
+    _assert_allowed_keys(
+        fixture,
+        {"id", "kind", "initial_state", "operations", "expected"},
+        fixture_id,
+        "fixture",
+    )
+    assert fixture["kind"] == "controller", fixture_id
+    assert isinstance(fixture["initial_state"], dict), fixture_id
+
+    operations = fixture["operations"]
+    assert isinstance(operations, list), fixture_id
+    for index, operation in enumerate(operations):
+        assert isinstance(operation, dict), fixture_id
+        fn = operation.get("fn")
+        assert isinstance(fn, str), fixture_id
+
+        if fn == "step":
+            _assert_allowed_keys(
+                operation,
+                {"fn", "input", "label"},
+                fixture_id,
+                f"operations[{index}]",
+            )
+            assert isinstance(operation["input"], str), fixture_id
+            assert isinstance(operation["label"], str), fixture_id
+        elif fn == "apply_directive":
+            _assert_allowed_keys(
+                operation,
+                {"fn", "text", "label"},
+                fixture_id,
+                f"operations[{index}]",
+            )
+            assert isinstance(operation["text"], str), fixture_id
+            assert isinstance(operation["label"], str), fixture_id
+        elif fn == "export_json":
+            _assert_allowed_keys(operation, {"fn", "label"}, fixture_id, f"operations[{index}]")
+            assert isinstance(operation["label"], str), fixture_id
+        else:
+            assert fn == "import_json", fixture_id
+            _assert_allowed_keys(
+                operation,
+                {"fn"} | ({"payload"} & set(operation)) | ({"payload_ref"} & set(operation)),
+                fixture_id,
+                f"operations[{index}]",
+            )
+            has_payload = "payload" in operation
+            has_payload_ref = "payload_ref" in operation
+            assert has_payload != has_payload_ref, fixture_id
+            if has_payload:
+                assert isinstance(operation["payload"], str), fixture_id
+            if has_payload_ref:
+                assert isinstance(operation["payload_ref"], str), fixture_id
+
+    expected = fixture["expected"]
+    assert isinstance(expected, dict), fixture_id
+    _assert_allowed_keys(expected, {"observations", "equal", "state"}, fixture_id, "expected")
+    assert isinstance(expected["observations"], dict), fixture_id
+    assert isinstance(expected["equal"], list), fixture_id
+    assert isinstance(expected["state"], dict), fixture_id
+
+    for label, observation in expected["observations"].items():
+        assert isinstance(label, str), fixture_id
+        if isinstance(observation, dict):
+            _validate_public_decision(observation, fixture_id, f"expected.observations.{label}")
+        else:
+            assert isinstance(observation, str), fixture_id
+
+    for index, pair in enumerate(expected["equal"]):
+        assert isinstance(pair, list), fixture_id
+        assert len(pair) == 2, fixture_id
+        assert all(isinstance(item, str) for item in pair), (
+            f"{fixture_id}: invalid expected.equal[{index}]"
+        )
 
 
 def _apply_prelude(engine: object, prelude: object) -> None:
@@ -466,3 +545,52 @@ def test_mutation_isolation_fixtures() -> None:
             target = handles[observation["target_handle"]]
             observed = _resolve_handle_path(target, observation["path"])
             assert observed == observation["value"], fixture_id
+
+
+def test_controller_fixtures() -> None:
+    for path in _json_files(_CONTROLLER_FIXTURES_DIR):
+        fixture = _load(path)
+        fixture_id = fixture["id"]
+
+        _assert_fixture_path_matches_id(path, fixture_id)
+        _validate_controller_fixture(fixture, fixture_id)
+
+        engine = Engine()
+        engine.import_json(
+            json.dumps(fixture["initial_state"], sort_keys=True, separators=(",", ":"))
+        )
+
+        observations: dict[str, object] = {}
+        for operation in fixture["operations"]:
+            fn = operation["fn"]
+
+            if fn == "step":
+                observations[operation["label"]] = engine.step(operation["input"])
+                continue
+
+            if fn == "apply_directive":
+                directive = decompose_directive(operation["text"])
+                assert isinstance(directive, CanonicalDirective), fixture_id
+                observations[operation["label"]] = engine.apply_directive(directive)
+                continue
+
+            if fn == "export_json":
+                observations[operation["label"]] = engine.export_json()
+                continue
+
+            assert fn == "import_json", fixture_id
+            payload = operation.get("payload")
+            if payload is None:
+                payload_ref = operation["payload_ref"]
+                payload = observations[payload_ref]
+                assert isinstance(payload, str), fixture_id
+            engine.import_json(payload)
+
+        expected = fixture["expected"]
+        for label, expected_observation in expected["observations"].items():
+            assert observations[label] == expected_observation, fixture_id
+
+        for left, right in expected["equal"]:
+            assert observations[left] == observations[right], fixture_id
+
+        assert _state_observation(engine) == expected["state"], fixture_id

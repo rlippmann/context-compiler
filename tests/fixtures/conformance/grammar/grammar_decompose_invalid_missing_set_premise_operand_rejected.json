@@ -1,0 +1,16 @@
+{
+  "id": "grammar_decompose_invalid_missing_set_premise_operand_rejected",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "set premise"
+  },
+  "expected": {
+    "directive": {
+      "kind": "invalid_directive_syntax",
+      "failure": "missing_required_operand",
+      "directive_kind": "set_premise",
+      "missing_operand": "value"
+    }
+  }
+}

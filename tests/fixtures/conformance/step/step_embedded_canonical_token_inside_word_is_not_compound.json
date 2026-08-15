@@ -1,0 +1,23 @@
+{
+  "id": "step_embedded_canonical_token_inside_word_is_not_compound",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "input": "use docker xusey",
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "message": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker xusey": "use"
+      },
+      "version": 2
+    }
+  }
+}

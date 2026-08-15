@@ -1,0 +1,15 @@
+{
+  "id": "grammar_decompose_clear_premise",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "clear premise"
+  },
+  "expected": {
+    "directive": {
+      "kind": "clear_premise",
+      "text": "clear premise",
+      "operands": {}
+    }
+  }
+}

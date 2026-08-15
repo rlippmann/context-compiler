@@ -1,0 +1,21 @@
+{
+  "id": "step_change_premise_missing_operand_no_directive",
+  "kind": "step",
+  "initial_state": {
+    "premise": "baseline",
+    "policies": {},
+    "version": 2
+  },
+  "input": "change premise to",
+  "expected": {
+    "decision": {
+      "kind": "no_directive",
+      "message": null
+    },
+    "state": {
+      "premise": "baseline",
+      "policies": {},
+      "version": 2
+    }
+  }
+}
