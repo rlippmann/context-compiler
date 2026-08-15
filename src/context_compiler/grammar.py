@@ -1,7 +1,7 @@
 """Immutable canonical grammar helpers for Context Compiler directives."""
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from types import MappingProxyType
@@ -39,6 +39,12 @@ class CanonicalDirective:
 
     kind: DirectiveKind
     operands: MappingProxyType[str, str]
+
+    def __post_init__(self) -> None:
+        normalized_kind = _normalize_directive_kind(self.kind)
+        normalized_operands = _normalize_canonical_operands(normalized_kind, self.operands)
+        object.__setattr__(self, "kind", normalized_kind)
+        object.__setattr__(self, "operands", MappingProxyType(normalized_operands))
 
     @property
     def text(self) -> str:
@@ -387,6 +393,72 @@ def _invalid_directive_syntax(
     )
 
 
+def _normalize_directive_kind(kind: DirectiveKind | str) -> DirectiveKind:
+    try:
+        return kind if isinstance(kind, DirectiveKind) else DirectiveKind(kind)
+    except ValueError as exc:
+        raise ValueError(f"Unsupported directive kind: {kind!r}") from exc
+
+
+def _normalize_canonical_operands(
+    kind: DirectiveKind,
+    operands: Mapping[str, str],
+) -> dict[str, str]:
+    spec = _DIRECTIVE_SPECS[kind]
+    expected_names = set(spec.operand_names)
+    actual_names = set(operands)
+    unexpected_names = actual_names - expected_names
+    missing_names = expected_names - actual_names
+    if missing_names:
+        missing = ", ".join(sorted(missing_names))
+        raise ValueError(f"Missing required operands for {kind.value}: {missing}")
+    if unexpected_names:
+        unexpected = ", ".join(sorted(unexpected_names))
+        raise ValueError(f"Unexpected operands for {kind.value}: {unexpected}")
+
+    normalized_operands: dict[str, str] = {}
+    for name in spec.operand_names:
+        raw_value = operands[name]
+        if not isinstance(raw_value, str):
+            raise ValueError(f"Operand {name!r} for {kind.value} must be a string.")
+        if not _operand_has_content(raw_value):
+            raise ValueError(f"Operand {name!r} for {kind.value} cannot be empty.")
+        normalized_operands[name] = raw_value
+
+    _validate_operand_constraints(kind, normalized_operands)
+    _validate_rendered_canonical_shape(kind, normalized_operands)
+    return normalized_operands
+
+
+def _validate_operand_constraints(kind: DirectiveKind, operands: Mapping[str, str]) -> None:
+    if kind is DirectiveKind.SET_PREMISE:
+        value = operands["value"]
+        if _operand_starts_with_token(value, "to"):
+            raise ValueError(f"Operands do not produce a canonical {kind.value} directive.")
+        return
+
+    if kind is DirectiveKind.USE_ITEM:
+        item = operands["item"]
+        normalized_item = _normalized_for_matching(item)
+        if _INSTEAD_OF_DELIMITER in normalized_item:
+            raise ValueError(f"Operands do not produce a canonical {kind.value} directive.")
+        return
+
+    if kind is DirectiveKind.REPLACE_USE:
+        new_item = operands["new_item"]
+        old_item = operands["old_item"]
+        if _INSTEAD_OF_DELIMITER in _normalized_for_matching(
+            new_item
+        ) or _INSTEAD_OF_DELIMITER in _normalized_for_matching(old_item):
+            raise ValueError(f"Operands do not produce a canonical {kind.value} directive.")
+
+
+def _validate_rendered_canonical_shape(kind: DirectiveKind, operands: Mapping[str, str]) -> None:
+    rendered = _serialize_canonical_directive(kind, MappingProxyType(dict(operands)))
+    if _contains_multiple_canonical_directives(rendered):
+        raise ValueError(f"Operands do not produce a canonical {kind.value} directive.")
+
+
 def decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSyntax | None:
     """Parse one canonical directive into its semantic kind and operands.
 
@@ -585,49 +657,19 @@ def _serialize_canonical_directive(
     kind: DirectiveKind | str, operands: MappingProxyType[str, str]
 ) -> str:
     """Serialize a validated semantic directive without reparsing it."""
-    try:
-        normalized_kind = kind if isinstance(kind, DirectiveKind) else DirectiveKind(kind)
-        spec = _DIRECTIVE_SPECS[normalized_kind]
-    except (KeyError, ValueError) as exc:
-        raise ValueError(f"Unsupported directive kind: {kind!r}") from exc
+    normalized_kind = _normalize_directive_kind(kind)
+    spec = _DIRECTIVE_SPECS[normalized_kind]
 
     return spec.renderer(operands)
 
 
 def _render_directive(kind: DirectiveKind | str, /, **operands: str) -> str:
     """Produce canonical directive text from a semantic kind and operands."""
-    try:
-        normalized_kind = kind if isinstance(kind, DirectiveKind) else DirectiveKind(kind)
-        spec = _DIRECTIVE_SPECS[normalized_kind]
-    except (KeyError, ValueError) as exc:
-        raise ValueError(f"Unsupported directive kind: {kind!r}") from exc
-
-    expected_names = set(spec.operand_names)
-    actual_names = set(operands)
-    unexpected_names = actual_names - expected_names
-    missing_names = expected_names - actual_names
-    if missing_names:
-        missing = ", ".join(sorted(missing_names))
-        raise ValueError(f"Missing required operands for {normalized_kind.value}: {missing}")
-    if unexpected_names:
-        unexpected = ", ".join(sorted(unexpected_names))
-        raise ValueError(f"Unexpected operands for {normalized_kind.value}: {unexpected}")
-
-    normalized_operands: dict[str, str] = {}
-    for name in spec.operand_names:
-        raw_value = operands[name]
-        if not isinstance(raw_value, str):
-            raise ValueError(f"Operand {name!r} for {normalized_kind.value} must be a string.")
-        if raw_value.strip() == "":
-            raise ValueError(f"Operand {name!r} for {normalized_kind.value} cannot be empty.")
-        normalized_operands[name] = raw_value
-
-    operand_view = MappingProxyType(normalized_operands)
-    rendered = _serialize_canonical_directive(normalized_kind, operand_view)
-    decomposed = decompose_directive(rendered)
-    if not isinstance(decomposed, CanonicalDirective) or decomposed.kind is not normalized_kind:
-        raise ValueError(f"Operands do not produce a canonical {normalized_kind.value} directive.")
-    return rendered
+    normalized_kind = _normalize_directive_kind(kind)
+    return CanonicalDirective(
+        kind=normalized_kind,
+        operands=MappingProxyType(dict(operands)),
+    ).text
 
 
 __all__ = [
