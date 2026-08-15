@@ -1,0 +1,24 @@
+{
+  "id": "step_affirmative_followup_no_directive_phrase_token",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "use kubectl instead of docker"
+  ],
+  "input": "yes please",
+  "expected": {
+    "decision": {
+      "kind": "no_directive",
+      "message": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    }
+  }
+}

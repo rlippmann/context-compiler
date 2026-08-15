@@ -1,0 +1,15 @@
+{
+  "id": "grammar_decompose_boundary_whitespace_trim_clear_state",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": " clear state "
+  },
+  "expected": {
+    "directive": {
+      "kind": "clear_state",
+      "text": "clear state",
+      "operands": {}
+    }
+  }
+}

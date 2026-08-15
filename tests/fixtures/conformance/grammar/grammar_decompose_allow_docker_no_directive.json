@@ -1,0 +1,11 @@
+{
+  "id": "grammar_decompose_allow_docker_no_directive",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "allow docker"
+  },
+  "expected": {
+    "directive": null
+  }
+}
