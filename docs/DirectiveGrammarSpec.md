@@ -650,7 +650,7 @@ Policy identity currently uses:
 
 - Unicode NFKC normalization: yes
 - apostrophe-character normalization (for example `’` to `'`): yes
-- case folding: yes
+- Unicode default full case folding: yes
 - internal whitespace collapse: yes
 - article removal: no
 - spelling correction: no
@@ -658,6 +658,16 @@ Policy identity currently uses:
 - rewriting `dont` to `don't`: no
 - synonym matching: no
 - natural-language equivalence: no
+
+Normalization order for policy identity is:
+
+1. Unicode NFKC normalization
+2. apostrophe-character normalization
+3. Unicode default full case folding
+4. internal whitespace collapse
+
+For Python implementations, Step 3 corresponds to `str.casefold()`.
+Ordinary lowercasing is not sufficient.
 
 The `yes` entries above are representation canonicalization. They do not
 authorize natural-language interpretation of different wordings as the same
