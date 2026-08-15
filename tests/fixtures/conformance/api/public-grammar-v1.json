@@ -43,6 +43,52 @@
           },
           {
             "kwargs": {
+              "kind": "clear_state",
+              "operands": {}
+            },
+            "return_shape": {
+              "kind": "canonical_directive",
+              "text": "clear state",
+              "directive_kind": "clear_state",
+              "operands": {}
+            }
+          },
+          {
+            "kwargs": {
+              "kind": "set_premise",
+              "operands": {
+                "value": "concise replies"
+              }
+            },
+            "return_shape": {
+              "kind": "canonical_directive",
+              "text": "set premise concise replies",
+              "directive_kind": "set_premise",
+              "operands": {
+                "value": "concise replies"
+              }
+            }
+          },
+          {
+            "kwargs": {
+              "kind": "replace_use",
+              "operands": {
+                "new_item": "podman",
+                "old_item": "docker"
+              }
+            },
+            "return_shape": {
+              "kind": "canonical_directive",
+              "text": "use podman instead of docker",
+              "directive_kind": "replace_use",
+              "operands": {
+                "new_item": "podman",
+                "old_item": "docker"
+              }
+            }
+          },
+          {
+            "kwargs": {
               "kind": "not_a_directive_kind",
               "operands": {
                 "item": "docker"
