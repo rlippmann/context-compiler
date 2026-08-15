@@ -128,6 +128,29 @@
             "raises": {
               "type": "ValueError"
             }
+          },
+          {
+            "kwargs": {
+              "kind": "set_premise",
+              "operands": {
+                "value": "to concise replies"
+              }
+            },
+            "raises": {
+              "type": "ValueError"
+            }
+          },
+          {
+            "kwargs": {
+              "kind": "replace_use",
+              "operands": {
+                "new_item": "podman instead of nerdctl",
+                "old_item": "docker"
+              }
+            },
+            "raises": {
+              "type": "ValueError"
+            }
           }
         ]
       },
