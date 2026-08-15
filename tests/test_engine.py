@@ -482,7 +482,7 @@ def test_import_json_accepts_valid_policy_key_and_normalizes_it() -> None:
     _assert_observations(engine, premise=None, policies={"docker": "use"})
 
 
-def test_replace_use_clarifies_when_old_policy_is_not_use_in_invalid_internal_state() -> None:
+def test_replace_use_errors_when_old_policy_is_not_use_in_invalid_internal_state() -> None:
     engine = Engine()
     # Defensive-path coverage for impossible external state values.
     engine._state["policies"]["docker"] = "invalid"  # type: ignore[assignment]  # noqa: SLF001
@@ -1138,7 +1138,7 @@ def test_replace_use_priority_prefers_source_prohibit_error_when_both_prohibit()
     assert dict(engine.policies) == {"docker": "prohibit", "kubectl": "prohibit"}
 
 
-def test_replace_use_invalid_source_state_prohibit_clarifies_without_mutation() -> None:
+def test_replace_use_invalid_source_state_prohibit_errors_without_mutation() -> None:
     engine = Engine()
     engine.step("prohibit docker")
     engine.step("use pytest")
