@@ -312,7 +312,7 @@ def _sanitize_premise_value(value: str) -> str:
 def _normalize_item(value: str) -> str:
     normalized = unicode_normalize("NFKC", value)
     normalized = normalized.replace("’", "'").replace("`", "'")
-    normalized = normalized.lower()
+    normalized = normalized.casefold()
     normalized = re.sub(r"\s+", " ", normalized).strip()
     return normalized
 

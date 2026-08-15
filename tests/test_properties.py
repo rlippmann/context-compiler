@@ -38,7 +38,7 @@ def _run_sequence(inputs: list[str]) -> tuple[object, dict[str, object]]:
 def _normalize_item_like_engine(value: str) -> str:
     normalized = unicode_normalize("NFKC", value)
     normalized = normalized.replace("’", "'").replace("`", "'")
-    normalized = normalized.lower()
+    normalized = normalized.casefold()
     normalized = re.sub(r"\s+", " ", normalized).strip()
     return normalized
 
