@@ -1,0 +1,23 @@
+{
+  "id": "step_tab_separator_remove_policy_update",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {
+      "docker": "use"
+    },
+    "version": 2
+  },
+  "input": "remove policy\tdocker",
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "message": null
+    },
+    "state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    }
+  }
+}
