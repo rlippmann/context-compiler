@@ -10,7 +10,7 @@ def _observations(engine: object) -> tuple[object, object]:
     return engine.premise, dict(engine.policies)
 
 
-def test_parser_trims_leading_space_for_canonical_directive() -> None:
+def test_step_trims_leading_space_for_canonical_directive() -> None:
     engine = Engine()
 
     decision = engine.step(" set premise concise")
@@ -22,7 +22,7 @@ def test_parser_trims_leading_space_for_canonical_directive() -> None:
     assert _observations(engine) == ("concise", {})
 
 
-def test_parser_does_not_accept_conversational_aliases() -> None:
+def test_step_does_not_accept_conversational_aliases() -> None:
     engine = Engine()
 
     for text in [
@@ -105,7 +105,7 @@ def test_remove_policy_missing_or_whitespace_payload_remains_no_directive() -> N
     assert _observations(engine) == before
 
 
-def test_invalid_replacement_does_not_block_following_directives() -> None:
+def test_missing_source_replacement_error_does_not_block_following_directives() -> None:
     engine = Engine()
     first = engine.step("use kubectl instead of docker")
     assert first["kind"] == DECISION_ERROR
@@ -118,7 +118,7 @@ def test_invalid_replacement_does_not_block_following_directives() -> None:
     assert _observations(engine) == ("concise", {})
 
 
-def test_replace_update_independent_followup_is_no_directive() -> None:
+def test_missing_source_replacement_error_independent_followup_is_no_directive() -> None:
     engine = Engine()
     first = engine.step("use kubectl instead of docker")
     second = engine.step("sounds good")

@@ -622,7 +622,7 @@ def test_no_directive_sequence_preserves_state_and_decision_kind(inputs: list[st
 
 
 @given(st.text(min_size=1, max_size=30))
-def test_contradiction_use_after_prohibit_always_clarifies(item: str) -> None:
+def test_contradiction_use_after_prohibit_always_errors(item: str) -> None:
     assume(not _contains_canonical_start_fragment(item))
     assume(_is_canonical_directive(decompose_directive(f"prohibit {item}")))
     assume(_is_canonical_directive(decompose_directive(f"use {item}")))
@@ -636,7 +636,7 @@ def test_contradiction_use_after_prohibit_always_clarifies(item: str) -> None:
 
 
 @given(st.text(min_size=1, max_size=30))
-def test_contradiction_prohibit_after_use_always_clarifies(item: str) -> None:
+def test_contradiction_prohibit_after_use_always_errors(item: str) -> None:
     assume(" instead of " not in item)
     assume(not item.startswith("instead of "))
     assume(not item.endswith(" instead of"))
