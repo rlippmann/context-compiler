@@ -68,7 +68,7 @@ Shows `prohibit peanuts` -> `remove policy peanuts` -> `use peanuts`.
 
 ## 08_apply_directive_decisions.py
 
-Shows how to decompose input into a `CanonicalDirective`, apply it through
-`engine.apply_directive(...)`, and inspect structured update and semantic error
-Decisions. Demonstrates selecting and applying returned repair directives
-explicitly.
+Shows both public Decision API boundaries: raw input through `engine.step(...)`,
+and canonical directives from `decompose_directive(...)` through
+`engine.apply_directive(...)`. Inspects concrete Decision variants and selects
+repair directives explicitly.
