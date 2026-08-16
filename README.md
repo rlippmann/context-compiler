@@ -5,9 +5,8 @@
 [![License](https://img.shields.io/pypi/l/context-compiler)](https://pypi.org/project/context-compiler/)
 
 Context Compiler is a deterministic conversational state authority for LLM applications.
-It handles canonical directive execution, semantic validation, deterministic
-error decisions, runtime semantic continuation boundaries, and structured authoritative state for
-the host.
+It handles canonical directive execution, semantic validation, terminal error
+decisions, advisory repairs, and structured authoritative state for the host.
 
 ## What Context Compiler provides
 
@@ -15,7 +14,7 @@ Context Compiler gives hosts fixed state rules:
 
 - handle canonical explicit state changes with deterministic rules
 - error instead of silent overwrite for blocked/ambiguous changes
-- preserve supported pending continuation when explicit confirmation is required
+- return structured terminal errors with explicitly selectable advisory repairs
 - export and import authoritative state for host-managed persistence
 - produce structured authoritative state for downstream host decisions
 
@@ -62,8 +61,8 @@ The architecture has three layers:
   directive-shaped syntax, or ordinary no_directive
 - semantic evaluation decides whether a canonical directive updates state,
   clarifies, or no-ops
-- semantic continuation optionally preserves a deterministic blocked transition
-  that needs explicit `yes` / `no`
+- semantic evaluation returns an update or a terminal error with structured
+  advisory repairs when a canonical directive conflicts with state
 
 ### Explicit directive
 
@@ -81,7 +80,7 @@ use docker and prohibit peanuts
 ```
 
 - Without an authority layer: host/model behavior varies
-- Context Compiler: treats this as invalid directive-shaped syntax, keeps authoritative state unchanged, and does not create pending continuation
+- Context Compiler: treats this as invalid directive-shaped syntax and keeps authoritative state unchanged
 
 ### State-dependent operation
 
@@ -167,7 +166,7 @@ For runnable application-layer examples, see
 [`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations).
 That companion repository shows enforcement points built on compiler state,
 including retrieval filtering, schema selection, tool gating, execution
-authorization, gateway middleware, runtime continuation handling, and prompt
+authorization, gateway middleware, runtime state handling, and prompt
 construction.
 
 ## Does it Work?
@@ -420,8 +419,8 @@ the compiler.
 
 - They transport **authoritative state only**
 - Hosts own any broader interaction or session workflow around that state
-- Pending continuation, if supported by the active engine contract, remains a
-  runtime semantic concept rather than a documented persisted artifact
+- Decision objects and advisory repairs are not persisted; persistence carries
+  authoritative state only
 
 ---
 
@@ -464,11 +463,14 @@ Directive-shaped invalid input is outside the canonical language, and
 `error` is reserved for canonical directives that later fail semantic
 evaluation against authoritative state.
 
-Pending continuation is a separate runtime layer. It may exist only after a
-canonical directive reaches a supported semantic `error` case. It never
-repairs malformed syntax or reinterprets non-canonical input as a directive.
-An absent source item in a canonical replacement directive is itself a
-semantic `error` case and does not authorize degradation to plain `use`.
+A semantic error is a terminal result for the current input. It leaves
+authoritative state unchanged and returns the failure classification, failed
+canonical directive, ordered advisory repairs, and presentation message.
+Repairs are canonical directives. They are advisory only, are never applied
+automatically, and require explicit host selection and submission through
+`engine.apply_directive(...)`. An absent source item in a canonical replacement
+directive is a semantic `error` and does not authorize degradation to plain
+`use`.
 
 Examples:
 
@@ -516,8 +518,8 @@ boundary, see [DirectiveGrammarSpec.md](docs/DirectiveGrammarSpec.md).
 **Isn't this just prompt reinjection?**
 No. Prompt construction is one downstream use of authoritative state.
 Context Compiler is the authority layer that decides when state changes are
-allowed, when error is required, and how continuation state is
-restored. For runnable application-layer examples, see
+allowed, when a terminal error is required, and which advisory repairs are
+available. For runnable application-layer examples, see
 [`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations).
 
 Human-facing interpretation is a separate concern. If you want to recognize
@@ -538,8 +540,8 @@ User: prohibit python_script
 ```
 
 Without an authority layer, the application must invent conflict-resolution and
-continuation rules itself. Context Compiler applies deterministic
-state-transition rules and can return error instead of silently
+repair rules itself. Context Compiler applies deterministic state-transition
+rules and can return a terminal error instead of silently
 overwriting state.
 
 ---
@@ -548,11 +550,11 @@ overwriting state.
 
 ### Guarantees
 
-- State changes only through explicit user directives or confirmation.
+- State changes only through canonical directives that pass semantic evaluation.
 - Identical input sequences produce identical compiler state.
 - Model responses never modify compiler state.
 - Ambiguous directives trigger error instead of changing state.
-- Syntax errors never create pending continuation.
+- Syntax errors never produce semantic errors or state changes.
 
 Behavioral tests and Hypothesis-based property tests verify these invariants.
 

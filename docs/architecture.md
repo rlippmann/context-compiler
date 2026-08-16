@@ -32,14 +32,11 @@ Boundary:
 - core separates three layers:
   - syntax classification
   - semantic evaluation
-  - semantic continuation
-- pending yes/no confirmation belongs only to semantic continuation of
-  canonical operations already established by core
-- pending continuation is runtime state, not grammar
-- malformed or non-canonical input must never create pending continuation
-- Pending continuation is independent from replacement semantics. A missing
-  source item in `use <new> instead of <old>` is a semantic replacement error
-  and does not create pending continuation.
+- semantic errors are terminal results for the current input
+- semantic errors leave authoritative state unchanged and expose advisory
+  canonical repairs for explicit host selection
+- a missing source item in `use <new> instead of <old>` is a semantic
+  replacement error and does not degrade into another directive
 
 ## Acquisition Layer
 
