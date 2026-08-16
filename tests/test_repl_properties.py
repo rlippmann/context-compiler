@@ -42,12 +42,12 @@ def _run_repl_lines(lines: list[str]) -> tuple[str, list[str]]:
 def _oracle_render_decision(
     decision: dict[str, object], *, state: dict[str, object] | None
 ) -> list[str]:
-    kind = decision["kind"]
+    kind = decision.kind
     if kind == DECISION_NO_DIRECTIVE:
         return ["no_directive"]
 
     if kind == DECISION_ERROR:
-        prompt_obj = decision["message"]
+        prompt_obj = decision.message
         prompt = prompt_obj if isinstance(prompt_obj, str) else ""
         prompt_lines = prompt.splitlines() if prompt else [""]
         return [f"error: {prompt_lines[0]}", *prompt_lines[1:]]

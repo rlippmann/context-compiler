@@ -4,7 +4,7 @@ from collections.abc import Mapping
 
 from context_compiler import (
     Engine,
-    is_error,
+    SemanticErrorDecision,
 )
 from demos.common import (
     build_baseline_messages,
@@ -69,7 +69,7 @@ def main() -> None:
     reinjected_output = complete_messages(reinjected_messages)
     print_model_output("Reinjected-state", reinjected_output)
 
-    if is_error(decision):
+    if isinstance(decision, SemanticErrorDecision):
         print_messages("compiler-mediated (full)", [])
         mediated_output = "[no call] authoritative state blocked replacement without source use"
         print_model_output("Compiler-mediated (full)", mediated_output)
@@ -99,7 +99,7 @@ def main() -> None:
 
     baseline_has_authoritative_precondition = False
     reinjected_has_authoritative_precondition = False
-    compiler_pass = is_error(decision) and state_preserved
+    compiler_pass = isinstance(decision, SemanticErrorDecision) and state_preserved
     compact_pass = compact_error_preserved and compact_state_preserved
 
     print_host_check(
@@ -114,7 +114,7 @@ def main() -> None:
     )
     print_host_check(
         "COMPILER_BLOCKED_INVALID_REPLACEMENT",
-        yes_no(is_error(decision)),
+        yes_no(isinstance(decision, SemanticErrorDecision)),
         context="compiler-mediated",
     )
     print_host_check(

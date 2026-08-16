@@ -1,5 +1,6 @@
 import string
 
+from _decision_test_helpers import assert_decision
 from hypothesis import assume, given, settings
 from hypothesis import strategies as st
 
@@ -46,7 +47,7 @@ def _assert_compound_no_directive(user_input: str) -> None:
 
     decision = engine.step(user_input)
 
-    assert decision == {"kind": DECISION_NO_DIRECTIVE, "message": None}
+    assert_decision(decision, {"kind": DECISION_NO_DIRECTIVE})
     assert _observations(engine) == before
 
 
@@ -98,7 +99,7 @@ def test_embedded_canonical_tokens_do_not_trigger_compound_detection(
 
     assert parsed is not None
     assert not isinstance(parsed, InvalidDirectiveSyntax)
-    assert decision == {"kind": "update", "message": None}
+    assert_decision(decision, {"kind": "update"})
     assert _observations(engine) != before
 
 
@@ -118,7 +119,7 @@ def test_leading_non_directive_text_disables_compound_detection(prefix: str, sec
     before = _observations(engine)
     decision = engine.step(f"{prefix} use docker {second}")
 
-    assert decision == {"kind": DECISION_NO_DIRECTIVE, "message": None}
+    assert_decision(decision, {"kind": DECISION_NO_DIRECTIVE})
     assert _observations(engine) == before
 
 
@@ -141,7 +142,7 @@ def test_case_mutated_second_directive_does_not_trigger_compound_detection(
     assert isinstance(decompose_directive(user_input), InvalidDirectiveSyntax)
     decision = engine.step(user_input)
 
-    assert decision == {"kind": DECISION_NO_DIRECTIVE, "message": None}
+    assert_decision(decision, {"kind": DECISION_NO_DIRECTIVE})
     assert _observations(engine) == before
 
 
@@ -175,5 +176,5 @@ def test_fully_quoted_input_remains_no_directive(quote: str, second: str) -> Non
 
     decision = engine.step(f"{quote}use docker {second}{quote}")
 
-    assert decision == {"kind": DECISION_NO_DIRECTIVE, "message": None}
+    assert_decision(decision, {"kind": DECISION_NO_DIRECTIVE})
     assert _observations(engine) == before

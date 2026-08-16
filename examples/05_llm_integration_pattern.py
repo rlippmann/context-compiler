@@ -6,9 +6,9 @@ from _util import print_decision_summary, print_engine_observations
 
 from context_compiler import (
     Engine,
-    is_error,
-    is_no_directive,
-    is_update,
+    NoDirectiveDecision,
+    SemanticErrorDecision,
+    UpdateDecision,
 )
 
 
@@ -28,18 +28,18 @@ def handle_turn(engine_input: str, engine: Engine) -> None:
     print(f"User: {engine_input}")
     print_decision_summary(decision)
 
-    if is_no_directive(decision):
+    if isinstance(decision, NoDirectiveDecision):
         # Ordinary input stays host-managed; this example forwards it to the model unchanged.
         print("Host action: no_directive -> core recognized no canonical directive")
         print("Host choice in this example: call fake_llm() without state")
         fake_llm(None, engine_input)
-    elif is_update(decision):
+    elif isinstance(decision, UpdateDecision):
         # Successful directives produce authoritative state that host code can pass downstream.
         print("Host action: update -> call fake_llm() with compiled state")
         fake_llm((engine.premise, engine.policies), engine_input)
-    elif is_error(decision):
+    elif isinstance(decision, SemanticErrorDecision):
         print("Host action: error -> show prompt, DO NOT call LLM")
-        print("error message:", decision["message"])
+        print("error message:", decision.message)
     print()
 
 

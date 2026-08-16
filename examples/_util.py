@@ -5,8 +5,9 @@ from typing import Any, Literal
 from context_compiler import (
     POLICY_PROHIBIT,
     POLICY_USE,
-    is_error,
-    is_update,
+    NoDirectiveDecision,
+    SemanticErrorDecision,
+    UpdateDecision,
 )
 
 # These helpers only format readable example output; they are not part of the library API.
@@ -53,19 +54,20 @@ def print_engine_observations(
 
 
 def print_decision_summary(decision: Any, *, state: Any | None = None) -> None:
-    if is_update(decision):
+    if isinstance(decision, UpdateDecision):
         print("result: updated")
         if state is not None:
             print_state_summary(state, "compiled state")
         return
 
-    if is_error(decision):
+    if isinstance(decision, SemanticErrorDecision):
         print("result: error")
-        prompt = decision["message"]
+        prompt = decision.message
         if prompt:
             print("error message:")
             for line in prompt.splitlines():
                 print(f"- {line}")
         return
 
+    assert isinstance(decision, NoDirectiveDecision)
     print("result: no_directive")

@@ -4,20 +4,23 @@ import json
 import re
 from collections.abc import Mapping
 from copy import deepcopy
-from enum import StrEnum
 from typing import Literal, TypedDict
 from unicodedata import normalize as unicode_normalize
 
 from .const import (
-    DECISION_ERROR,
-    DECISION_NO_DIRECTIVE,
-    DECISION_UPDATE,
     POLICY_PROHIBIT,
     POLICY_USE,
     SCHEMA_VERSION,
     STATE_POLICIES,
     STATE_PREMISE,
     STATE_VERSION,
+)
+from .decision import (
+    Decision,
+    NoDirectiveDecision,
+    SemanticErrorDecision,
+    SemanticFailure,
+    UpdateDecision,
 )
 from .grammar import CanonicalDirective, DirectiveKind, decompose_directive
 
@@ -32,27 +35,12 @@ class _State(TypedDict):
     version: Literal[2]
 
 
-class DecisionKind(StrEnum):
-    """Public decision-kind vocabulary for host-side branching."""
-
-    NO_DIRECTIVE = DECISION_NO_DIRECTIVE
-    UPDATE = DECISION_UPDATE
-    ERROR = DECISION_ERROR
-
-
-class Decision(TypedDict):
-    """Report one deterministic engine outcome to host-side callers."""
-
-    kind: DecisionKind
-    message: str | None
-
-
 class _EvaluatedTransition(TypedDict):
-    decision: Decision
+    decision: UpdateDecision | SemanticErrorDecision
     next_state: _State
 
 
-_NO_DIRECTIVE: Decision = {"kind": DecisionKind.NO_DIRECTIVE, "message": None}
+_NO_DIRECTIVE = NoDirectiveDecision()
 
 
 class Engine:
@@ -100,11 +88,13 @@ class Engine:
 
         directive = decompose_directive(user_input)
         if not isinstance(directive, CanonicalDirective):
-            return _NO_DIRECTIVE.copy()
+            return _NO_DIRECTIVE
 
         return self.apply_directive(directive)
 
-    def apply_directive(self, directive: CanonicalDirective) -> Decision:
+    def apply_directive(
+        self, directive: CanonicalDirective
+    ) -> UpdateDecision | SemanticErrorDecision:
         """Evaluate and commit one canonical directive against authoritative state."""
 
         evaluated = self._evaluate_directive_transition(self._state, directive)
@@ -119,42 +109,40 @@ class Engine:
             return {"decision": error_decision, "next_state": deepcopy(state)}
 
         next_state = self._apply_directive(directive, state=state)
-        return {"decision": _update_decision(next_state), "next_state": next_state}
+        return {
+            "decision": _update_decision(state, next_state),
+            "next_state": next_state,
+        }
 
     def _replace_state(self, state: _State) -> None:
         self._state = state
 
     def _pre_mutation_error(
         self, directive: CanonicalDirective, *, state: _State | None = None
-    ) -> Decision | None:
+    ) -> SemanticErrorDecision | None:
         candidate_state = self._state if state is None else state
         # Single error path: all error outcomes are detected before any mutation.
         if (
             directive.kind is DirectiveKind.SET_PREMISE
             and candidate_state[STATE_PREMISE] is not None
         ):
-            return _error("Premise already set.\nUse 'change premise to <value>' to modify it.")
+            return _error(SemanticFailure.PREMISE_ALREADY_SET, directive)
 
         if (
             directive.kind is DirectiveKind.CHANGE_PREMISE
             and candidate_state[STATE_PREMISE] is None
         ):
-            return _error("No premise is set.\nUse 'set premise <value>' to define one.")
+            return _error(SemanticFailure.PREMISE_NOT_SET, directive)
 
         if directive.kind is DirectiveKind.USE_ITEM:
             item_key = _normalize_item(directive.operands["item"])
             if candidate_state[STATE_POLICIES].get(item_key) == POLICY_PROHIBIT:
-                return _error(
-                    f'"{item_key}" is currently prohibited.\nRemove or replace it before using it.'
-                )
+                return _error(SemanticFailure.ITEM_PROHIBITED, directive)
 
         if directive.kind is DirectiveKind.PROHIBIT_ITEM:
             item_key = _normalize_item(directive.operands["item"])
             if candidate_state[STATE_POLICIES].get(item_key) == POLICY_USE:
-                return _error(
-                    f'"{item_key}" is currently in use.\n'
-                    "Remove or replace it before prohibiting it."
-                )
+                return _error(SemanticFailure.ITEM_ALREADY_IN_USE, directive)
 
         if directive.kind is DirectiveKind.REPLACE_USE:
             new_item = directive.operands["new_item"]
@@ -167,20 +155,11 @@ class Engine:
             old_state = candidate_state[STATE_POLICIES].get(old_key)
             new_state = candidate_state[STATE_POLICIES].get(new_key)
             if old_state == POLICY_PROHIBIT:
-                return _error(
-                    f'"{old_item}" is currently prohibited.\n'
-                    "Submit explicit directive(s) to remove it or use a different item."
-                )
+                return _error(SemanticFailure.REPLACEMENT_SOURCE_PROHIBITED, directive)
             if new_state == POLICY_PROHIBIT:
-                return _error(
-                    f'"{new_item}" is currently prohibited.\n'
-                    "Submit explicit directive(s) to remove it or use a different item."
-                )
+                return _error(SemanticFailure.REPLACEMENT_TARGET_PROHIBITED, directive)
             if old_state != POLICY_USE:
-                return _error(
-                    f'"{old_item}" is not currently in use.\n'
-                    "Replacement requires an active 'use' policy."
-                )
+                return _error(SemanticFailure.REPLACEMENT_SOURCE_MISSING, directive)
 
         return None
 
@@ -317,9 +296,13 @@ def _normalize_item(value: str) -> str:
     return normalized
 
 
-def _error(message: str) -> Decision:
-    return {"kind": DecisionKind.ERROR, "message": message}
+def _error(
+    failure: SemanticFailure,
+    directive: CanonicalDirective,
+    repairs: tuple[CanonicalDirective, ...] = (),
+) -> SemanticErrorDecision:
+    return SemanticErrorDecision(failure=failure, directive=directive, repairs=repairs)
 
 
-def _update_decision(_state: _State) -> Decision:
-    return {"kind": DecisionKind.UPDATE, "message": None}
+def _update_decision(previous_state: _State, next_state: _State) -> UpdateDecision:
+    return UpdateDecision(changed=previous_state != next_state)

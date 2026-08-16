@@ -35,7 +35,7 @@ from typing import Any, cast
 
 from context_compiler import (
     Engine,
-    is_error,
+    SemanticErrorDecision,
 )
 
 RUBRIC_WEIGHTS: dict[str, int] = {
@@ -704,12 +704,12 @@ def main() -> None:
             error_result: dict[str, Any] | None = None
             for index, directive in enumerate(task.directives):
                 decision = engine.step(directive)
-                if is_error(decision):
+                if isinstance(decision, SemanticErrorDecision):
                     error_result = {
                         "error": "compiler_lane_error",
                         "directive_index": index,
                         "directive": directive,
-                        "message": decision["message"],
+                        "message": decision.message,
                     }
                     break
 

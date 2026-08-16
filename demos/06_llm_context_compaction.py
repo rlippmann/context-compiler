@@ -1,8 +1,8 @@
 """Demo 6: host-side prompt replacement from authoritative step-derived state."""
 
 from context_compiler import (
-    DECISION_UPDATE,
     Engine,
+    UpdateDecision,
 )
 from demos.common import compact_user_turns, is_verbose, print_info_report, state_observations
 
@@ -46,7 +46,7 @@ def _compile_premise(turns: list[str]) -> str:
     engine = Engine()
     for turn in turns:
         decision = engine.step(turn)
-        assert decision["kind"] == DECISION_UPDATE
+        assert isinstance(decision, UpdateDecision)
     compiled_premise = engine.premise
     assert compiled_premise is not None
     return compiled_premise

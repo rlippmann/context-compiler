@@ -4,6 +4,7 @@ from copy import deepcopy
 from unicodedata import normalize as unicode_normalize
 
 import pytest
+from _decision_test_helpers import assert_decision
 from hypothesis import assume, given
 from hypothesis import strategies as st
 
@@ -551,8 +552,8 @@ def test_idempotent_use_item_is_update_and_stable_state(item: str) -> None:
     d1 = engine.step(f"use {item}")
     d2 = engine.step(f"use {item}")
 
-    assert d1["kind"] == "update"
-    assert d2["kind"] == "update"
+    assert d1.kind == "update"
+    assert d2.kind == "update"
     assert len(engine.policies) == 1
 
 
@@ -565,8 +566,8 @@ def test_use_item_with_whitespace_only_payload_remains_no_directive(item: str) -
     d1 = engine.step(f"use {item}")
     d2 = engine.step(f"use {item}")
 
-    assert d1 == {"kind": DECISION_NO_DIRECTIVE, "message": None}
-    assert d2 == {"kind": DECISION_NO_DIRECTIVE, "message": None}
+    assert_decision(d1, {"kind": DECISION_NO_DIRECTIVE})
+    assert_decision(d2, {"kind": DECISION_NO_DIRECTIVE})
     assert _observations(engine) == before
 
 
@@ -579,8 +580,8 @@ def test_idempotent_prohibit_item_is_update_and_stable_state(item: str) -> None:
     d1 = engine.step(f"prohibit {item}")
     d2 = engine.step(f"prohibit {item}")
 
-    assert d1["kind"] == DECISION_UPDATE
-    assert d2["kind"] == DECISION_UPDATE
+    assert d1.kind == DECISION_UPDATE
+    assert d2.kind == DECISION_UPDATE
     assert len(engine.policies) == 1
 
 
@@ -593,8 +594,8 @@ def test_prohibit_item_with_whitespace_only_payload_remains_no_directive(item: s
     d1 = engine.step(f"prohibit {item}")
     d2 = engine.step(f"prohibit {item}")
 
-    assert d1 == {"kind": DECISION_NO_DIRECTIVE, "message": None}
-    assert d2 == {"kind": DECISION_NO_DIRECTIVE, "message": None}
+    assert_decision(d1, {"kind": DECISION_NO_DIRECTIVE})
+    assert_decision(d2, {"kind": DECISION_NO_DIRECTIVE})
     assert _observations(engine) == before
 
 
@@ -605,7 +606,7 @@ def test_non_matching_inputs_can_remain_no_directive_only(inputs: list[str]) -> 
 
     for text in inputs:
         decision = engine.step(f"please {text}")
-        assert decision["kind"] == DECISION_NO_DIRECTIVE
+        assert decision.kind == DECISION_NO_DIRECTIVE
 
     assert _observations(engine) == before
 
@@ -617,7 +618,7 @@ def test_no_directive_sequence_preserves_state_and_decision_kind(inputs: list[st
 
     for text in inputs:
         decision = engine.step(f"prefix {text}")
-        assert decision == {"kind": DECISION_NO_DIRECTIVE, "message": None}
+        assert_decision(decision, {"kind": DECISION_NO_DIRECTIVE})
         assert _observations(engine) == before
 
 
@@ -631,7 +632,7 @@ def test_contradiction_use_after_prohibit_always_errors(item: str) -> None:
     before = _observations(engine)
 
     decision = engine.step(f"use {item}")
-    assert decision["kind"] == DECISION_ERROR
+    assert decision.kind == DECISION_ERROR
     assert _observations(engine) == before
 
 
@@ -648,7 +649,7 @@ def test_contradiction_prohibit_after_use_always_errors(item: str) -> None:
     before = _observations(engine)
 
     decision = engine.step(f"prohibit {item}")
-    assert decision["kind"] == DECISION_ERROR
+    assert decision.kind == DECISION_ERROR
     assert _observations(engine) == before
 
 
@@ -709,11 +710,14 @@ def test_deterministic_replacement_matches_equivalent_explicit_transition(
     engine.import_json(json.dumps(initial_state, sort_keys=True, separators=(",", ":")))
     decision = engine.step(f"use {new_item} instead of {old_item}")
 
-    assert expected_decision == {
-        "kind": DECISION_UPDATE,
-        "message": None,
-    }
-    assert decision == expected_decision
+    assert_decision(
+        expected_decision,
+        {
+            "kind": DECISION_UPDATE,
+            "message": None,
+        },
+    )
+    assert decision.kind == expected_decision.kind
     assert _observations(engine) == expected_state
 
 
@@ -728,8 +732,8 @@ def test_apply_directive_semantic_errors_never_partially_mutate_state(
 
     decision = engine.apply_directive(directive)
 
-    assert decision == {"kind": DECISION_ERROR, "message": decision["message"]}
-    assert decision["message"] is not None
+    assert decision.kind == DECISION_ERROR
+    assert decision.message is not None
     assert _observations(engine) == before
 
 
@@ -745,8 +749,8 @@ def test_apply_directive_replacement_error_cases_preserve_state(
 
     decision = engine.apply_directive(directive)
 
-    assert decision["kind"] == DECISION_ERROR
-    assert decision["message"] is not None
+    assert decision.kind == DECISION_ERROR
+    assert decision.message is not None
     assert _observations(engine) == before
 
 
@@ -769,7 +773,7 @@ def test_apply_directive_replacement_with_normalized_equivalent_keys_is_noop_upd
 
     decision = engine.apply_directive(directive)
 
-    assert decision == {"kind": DECISION_UPDATE, "message": None}
+    assert_decision(decision, {"kind": DECISION_UPDATE})
     assert _observations(engine) == before
 
 
@@ -796,7 +800,7 @@ def test_apply_directive_valid_replacement_performs_expected_transition(
     expected_policies.pop(_normalize_item_like_engine(old_item), None)
     expected_policies[_normalize_item_like_engine(new_item)] = "use"
 
-    assert decision == {"kind": DECISION_UPDATE, "message": None}
+    assert_decision(decision, {"kind": DECISION_UPDATE})
     assert _observations(engine) == (before_premise, expected_policies)
 
 
@@ -849,11 +853,11 @@ def test_apply_directive_policy_lifecycle_matches_simple_state_model(
         decision = engine.apply_directive(directive)
 
         if expected_error:
-            assert decision["kind"] == DECISION_ERROR
+            assert decision.kind == DECISION_ERROR
             assert _observations(engine) == before
             assert model == before_model
         else:
-            assert decision == {"kind": DECISION_UPDATE, "message": None}
+            assert_decision(decision, {"kind": DECISION_UPDATE})
             assert dict(engine.policies) == model
             assert all(value in {"use", "prohibit"} for value in model.values())
 
@@ -895,12 +899,12 @@ def test_apply_directive_premise_lifecycle_matches_simple_model(
         after_premise, after_policies = _observations(engine)
 
         if expected_error:
-            assert decision["kind"] == DECISION_ERROR
+            assert decision.kind == DECISION_ERROR
             assert after_premise == before_premise
             assert after_policies == before_policies
             assert model_premise == before_model_premise
         else:
-            assert decision == {"kind": DECISION_UPDATE, "message": None}
+            assert_decision(decision, {"kind": DECISION_UPDATE})
             assert after_premise == model_premise
             if operation[0] == "clear_state":
                 assert after_policies == {}
@@ -1001,7 +1005,7 @@ def test_replacement_near_misses_never_parse_as_canonical_or_mutate_state(text: 
     decision = engine.step(text)
 
     assert not (isinstance(parsed, CanonicalDirective) and parsed.kind is DirectiveKind.REPLACE_USE)
-    assert decision == {"kind": DECISION_NO_DIRECTIVE, "message": None}
+    assert_decision(decision, {"kind": DECISION_NO_DIRECTIVE})
     assert _observations(engine) == before
 
 

@@ -2,7 +2,7 @@
 
 from context_compiler import (
     Engine,
-    is_error,
+    SemanticErrorDecision,
 )
 from demos.common import (
     build_baseline_messages,
@@ -69,9 +69,9 @@ def main() -> None:
     reinjected_output = complete_messages(reinjected_messages)
     print_model_output("Reinjected-state", reinjected_output)
 
-    if is_error(second):
+    if isinstance(second, SemanticErrorDecision):
         print_messages("compiler-mediated (full)", [])
-        mediated_output = f"[no call] error required: {second['message']}\nACTION:error"
+        mediated_output = f"[no call] error required: {second.message}\nACTION:error"
         print_model_output("Compiler-mediated (full)", mediated_output)
     else:
         premise, policies = observe_engine(engine)
@@ -106,7 +106,7 @@ def main() -> None:
     compact_action = extract_tag_value(compact_output, "ACTION")
     baseline_respects = baseline_action is not None and baseline_action.lower() == "error"
     reinjected_respects = reinjected_action is not None and reinjected_action.lower() == "error"
-    compiler_host_blocked = is_error(second)
+    compiler_host_blocked = isinstance(second, SemanticErrorDecision)
     mediated_respects = compiler_host_blocked
     compact_respects = compacted_prompt is not None or (
         compact_action is not None and compact_action.lower() == "error"

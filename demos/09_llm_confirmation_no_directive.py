@@ -4,8 +4,8 @@ from collections.abc import Mapping
 
 from context_compiler import (
     Engine,
-    is_error,
-    is_no_directive,
+    NoDirectiveDecision,
+    SemanticErrorDecision,
 )
 from demos.common import (
     build_baseline_messages,
@@ -105,9 +105,13 @@ def main() -> None:
         )
         print_model_output("Compiler-mediated + compact", compact_output)
 
-    deterministic_initial_error = is_error(first) and state_preserved_after_first
-    unrelated_followup_no_directive = is_no_directive(second) and state_preserved_after_second
-    confirmation_token_not_consumed = is_no_directive(third)
+    deterministic_initial_error = (
+        isinstance(first, SemanticErrorDecision) and state_preserved_after_first
+    )
+    unrelated_followup_no_directive = (
+        isinstance(second, NoDirectiveDecision) and state_preserved_after_second
+    )
+    confirmation_token_not_consumed = isinstance(third, NoDirectiveDecision)
     premise, policies = observe_engine(engine)
     deterministic_final_state = _is_initial_authoritative_state(premise=premise, policies=policies)
     _, compacted_policies = state_observations(compacted_state)

@@ -7,24 +7,25 @@ from .const import (
     POLICY_PROHIBIT,
     POLICY_USE,
 )
-from .decision_helpers import (
-    get_error_message,
-    is_error,
-    is_no_directive,
-    is_update,
-)
-from .engine import (
+from .decision import (
     Decision,
     DecisionKind,
-    Engine,
-    PolicyValue,
+    NoDirectiveDecision,
+    SemanticErrorDecision,
+    SemanticFailure,
+    UpdateDecision,
 )
+from .engine import Engine, PolicyValue
 
 __version__ = version("context-compiler")
 
 __all__ = [
     "Decision",
     "DecisionKind",
+    "NoDirectiveDecision",
+    "SemanticErrorDecision",
+    "SemanticFailure",
+    "UpdateDecision",
     "DECISION_ERROR",
     "DECISION_NO_DIRECTIVE",
     "DECISION_UPDATE",
@@ -32,8 +33,4 @@ __all__ = [
     "POLICY_PROHIBIT",
     "POLICY_USE",
     "PolicyValue",
-    "get_error_message",
-    "is_error",
-    "is_no_directive",
-    "is_update",
 ]

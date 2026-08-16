@@ -7,8 +7,8 @@ from typing import TextIO
 
 from . import __version__
 from .const import STATE_POLICIES, STATE_PREMISE, STATE_VERSION
-from .decision_helpers import is_error, is_no_directive, is_update
-from .engine import Decision, DecisionKind, Engine, PolicyValue
+from .decision import Decision, NoDirectiveDecision, SemanticErrorDecision, UpdateDecision
+from .engine import Engine, PolicyValue
 
 OUTPUT_VERSION = 1
 
@@ -37,10 +37,6 @@ def _has_embedded_newline(raw_line: str) -> bool:
     if body.endswith("\r"):
         body = body[:-1]
     return "\n" in body or "\r" in body
-
-
-def _multi_command_decision() -> Decision:
-    return {"kind": DecisionKind.ERROR, "message": _MULTI_COMMAND_PROMPT}
 
 
 def _print_interactive_help(out_stream: TextIO) -> None:
@@ -81,14 +77,14 @@ def _render_decision_lines(
     premise: str | None = None,
     policies: Mapping[str, PolicyValue] | None = None,
 ) -> list[str]:
-    if is_no_directive(decision):
+    if isinstance(decision, NoDirectiveDecision):
         return ["no_directive"]
-    if is_error(decision):
-        message = decision["message"]
+    if isinstance(decision, SemanticErrorDecision):
+        message = decision.message
         prompt_lines = message.splitlines() if message else [""]
         return [f"error: {prompt_lines[0]}", *prompt_lines[1:]]
 
-    assert is_update(decision)
+    assert isinstance(decision, UpdateDecision)
     assert policies is not None
     return ["updated", *_render_state_lines(premise=premise, policies=policies)]
 
@@ -127,6 +123,11 @@ def _state_payload(
     }
 
 
+def _decision_payload(decision: Decision) -> dict[str, object]:
+    message = decision.message if isinstance(decision, SemanticErrorDecision) else None
+    return {"kind": decision.kind, "message": message}
+
+
 def _json_step_payload(
     decision: Decision,
     *,
@@ -138,7 +139,7 @@ def _json_step_payload(
     payload: dict[str, object] = {
         "output_version": OUTPUT_VERSION,
         "mode": mode,
-        "decision": decision,
+        "decision": _decision_payload(decision),
         "state": _state_payload(premise=premise, policies=policies),
     }
     payload["command"] = command
@@ -244,7 +245,11 @@ def run_repl(
             if line == "":
                 return
             if _has_embedded_newline(line):
-                _print_decision_lines(_multi_command_decision(), out_stream, leading_blank=True)
+                _print_command_error(
+                    out_stream,
+                    leading_blank=True,
+                    message=_MULTI_COMMAND_PROMPT,
+                )
                 continue
             user_input = line.rstrip("\n")
             token = user_input.strip().lower()
@@ -307,7 +312,11 @@ def run_repl(
                     ),
                 )
             else:
-                _print_decision_lines(_multi_command_decision(), out_stream, leading_blank=False)
+                _print_command_error(
+                    out_stream,
+                    leading_blank=False,
+                    message=_MULTI_COMMAND_PROMPT,
+                )
             continue
         user_input = line.rstrip("\n")
         if user_input.strip().lower() in _EXIT_TOKENS:
