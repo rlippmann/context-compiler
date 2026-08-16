@@ -9,8 +9,9 @@ from . import __version__
 from .const import STATE_POLICIES, STATE_PREMISE, STATE_VERSION
 from .decision import Decision, NoDirectiveDecision, SemanticErrorDecision, UpdateDecision
 from .engine import Engine, PolicyValue
+from .grammar import CanonicalDirective
 
-OUTPUT_VERSION = 1
+OUTPUT_VERSION = 2
 
 _EXIT_TOKENS = {"exit", "quit"}
 _HELP_TOKENS = {"help", "?"}
@@ -124,14 +125,33 @@ def _state_payload(
 
 
 def _decision_payload(decision: Decision) -> dict[str, object]:
-    """Project a Decision into the REPL's presentation-only JSON output.
+    """Project a Decision into the versioned CLI JSON output.
 
     This is a CLI response shape, not Decision serialization. The core domain
-    result remains an ephemeral object with structured semantic fields.
+    result remains an ephemeral object.
     """
 
-    message = decision.message if isinstance(decision, SemanticErrorDecision) else None
-    return {"kind": decision.kind, "message": message}
+    if isinstance(decision, NoDirectiveDecision):
+        return {"kind": decision.kind, "message": None}
+    if isinstance(decision, UpdateDecision):
+        return {"kind": decision.kind, "changed": decision.changed, "message": None}
+
+    assert isinstance(decision, SemanticErrorDecision)
+    return {
+        "kind": decision.kind,
+        "failure": decision.failure,
+        "directive": _directive_payload(decision.directive),
+        "repairs": [_directive_payload(repair) for repair in decision.repairs],
+        "message": decision.message,
+    }
+
+
+def _directive_payload(directive: CanonicalDirective) -> dict[str, object]:
+    return {
+        "kind": directive.kind,
+        "text": directive.text,
+        "operands": dict(directive.operands),
+    }
 
 
 def _json_step_payload(

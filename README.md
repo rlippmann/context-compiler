@@ -214,6 +214,12 @@ for non-interactive usage.
 context-compiler --json < input.txt
 ```
 
+The JSON output uses `output_version: 2`. Decision payloads expose structured
+fields: updates include `changed`; semantic errors include `failure`, the
+failed canonical `directive`, ordered advisory `repairs`, and `message`.
+These fields are a CLI projection of ephemeral Decisions, not Decision object
+serialization. Repairs are never applied automatically.
+
 Preload options load authoritative state:
 
 - `--initial-state-json` / `--initial-state-file` load saved state

@@ -9,6 +9,7 @@ import pytest
 
 import context_compiler.repl as repl_module
 from context_compiler import (
+    DECISION_ERROR,
     DECISION_UPDATE,
     Engine,
     __version__,
@@ -348,20 +349,22 @@ def test_repl_non_interactive_json_bare_input_step_result() -> None:
     rows = _run_non_interactive_json_lines("set premise concise\nquit\n")
     assert len(rows) == 1
     row = rows[0]
-    assert row["output_version"] == 1
+    assert row["output_version"] == 2
     assert row["mode"] == "step"
     assert row["command"] == "input"
     assert row["state"] == {"premise": "concise", "policies": {}, "version": 2}
     decision = row["decision"]
     assert isinstance(decision, dict)
     assert decision["kind"] == DECISION_UPDATE
+    assert decision["changed"] is True
+    assert decision["message"] is None
 
 
 def test_repl_non_interactive_json_state_command() -> None:
     rows = _run_non_interactive_json_lines("set premise concise\nstate\nquit\n")
     assert rows[1]["command"] == "state"
     assert rows[1]["mode"] == "state"
-    assert rows[1]["output_version"] == 1
+    assert rows[1]["output_version"] == 2
     state = rows[1]["state"]
     assert isinstance(state, dict)
     assert state["premise"] == "concise"
@@ -378,7 +381,7 @@ def test_repl_non_interactive_json_machine_readable_step_error() -> None:
                 "message": "step requires input.\nUse 'step <input>'.",
             },
             "mode": "error",
-            "output_version": 1,
+            "output_version": 2,
         }
     ]
 
@@ -390,10 +393,11 @@ def test_repl_non_interactive_json_step_alias_result() -> None:
             "command": "step",
             "decision": {
                 "kind": "update",
+                "changed": True,
                 "message": None,
             },
             "mode": "step",
-            "output_version": 1,
+            "output_version": 2,
             "state": {"premise": "concise", "policies": {}, "version": 2},
         }
     ]
@@ -415,9 +419,42 @@ def test_repl_non_interactive_json_multi_command_chunk_error() -> None:
                 "message": "Multiple commands detected.\nEnter one command per line.",
             },
             "mode": "error",
-            "output_version": 1,
+            "output_version": 2,
         }
     ]
+
+
+def test_repl_non_interactive_json_semantic_error_has_structured_decision() -> None:
+    rows = _run_non_interactive_json_lines("prohibit docker\nuse docker\nquit\n")
+
+    assert rows[1] == {
+        "command": "input",
+        "decision": {
+            "kind": DECISION_ERROR,
+            "failure": "item_prohibited",
+            "directive": {
+                "kind": "use_item",
+                "text": "use docker",
+                "operands": {"item": "docker"},
+            },
+            "repairs": [
+                {
+                    "kind": "remove_policy",
+                    "text": "remove policy docker",
+                    "operands": {"item": "docker"},
+                },
+                {
+                    "kind": "use_item",
+                    "text": "use docker",
+                    "operands": {"item": "docker"},
+                },
+            ],
+            "message": '"docker" is currently prohibited.\nRemove or replace it before using it.',
+        },
+        "mode": "step",
+        "output_version": 2,
+        "state": {"premise": None, "policies": {"docker": "prohibit"}, "version": 2},
+    }
 
 
 def test_repl_interactive_help_commands() -> None:
