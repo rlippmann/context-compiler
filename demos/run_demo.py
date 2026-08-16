@@ -28,10 +28,9 @@ DEMO_FILES: dict[str, str] = {
     "6": "06_llm_context_compaction.py",
     "7": "07_llm_prompt_vs_state.py",
     "8": "08_llm_replacement_precondition.py",
-    "9": "09_llm_confirmation_no_directive.py",
 }
 
-SCORED_DEMOS = {"1", "2", "3", "4", "5", "7", "8", "9"}
+SCORED_DEMOS = {"1", "2", "3", "4", "5", "7", "8"}
 
 
 def _preflight_all_mode(*, context_size: int | None = None) -> None:

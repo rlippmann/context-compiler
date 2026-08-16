@@ -71,4 +71,7 @@ Shows `prohibit peanuts` -> `remove policy peanuts` -> `use peanuts`.
 Shows both public Decision API boundaries: raw input through `engine.step(...)`,
 and canonical directives from `decompose_directive(...)` through
 `engine.apply_directive(...)`. Inspects concrete Decision variants and selects
-repair directives explicitly.
+repair directives explicitly. It also shows that a missing-source replacement
+is a terminal semantic error: state remains unchanged and later unrelated input
+is handled as `NoDirectiveDecision`, with no repair or continuation applied
+implicitly.
