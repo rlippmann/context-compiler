@@ -65,3 +65,10 @@ The example demonstrates authoritative state restoration with
 
 Demonstrates explicit single-policy correction without `reset policies`.  
 Shows `prohibit peanuts` -> `remove policy peanuts` -> `use peanuts`.
+
+## 08_apply_directive_decisions.py
+
+Shows how to decompose input into a `CanonicalDirective`, apply it through
+`engine.apply_directive(...)`, and inspect structured update and semantic error
+Decisions. Demonstrates selecting and applying returned repair directives
+explicitly.

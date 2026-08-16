@@ -60,11 +60,23 @@ pytestmark = pytest.mark.contract
                 "- use policies: peanuts",
             ),
         ),
+        (
+            "08_apply_directive_decisions.py",
+            (
+                "CanonicalDirective: prohibit docker",
+                "UpdateDecision.changed: True",
+                "SemanticErrorDecision.failure: item_prohibited",
+                "SemanticErrorDecision.directive: use docker",
+                "SemanticErrorDecision.repairs: remove policy docker, use docker",
+                'SemanticErrorDecision.message: "docker" is currently prohibited.',
+                "Applying selected repairs:",
+            ),
+        ),
     ],
 )
 def test_examples_scripts_smoke(
     script_name: str,
-    expected_markers: tuple[str, str],
+    expected_markers: tuple[str, ...],
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
