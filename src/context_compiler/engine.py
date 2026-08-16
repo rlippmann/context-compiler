@@ -4,6 +4,7 @@ import json
 import re
 from collections.abc import Mapping
 from copy import deepcopy
+from types import MappingProxyType
 from typing import Literal, TypedDict
 from unicodedata import normalize as unicode_normalize
 
@@ -130,7 +131,7 @@ class Engine:
             return _error(
                 failure=SemanticFailure.PREMISE_ALREADY_SET,
                 directive=directive,
-                repairs=(),
+                repairs=(_repair_change_premise(directive.operands["value"]),),
             )
 
         if (
@@ -140,7 +141,7 @@ class Engine:
             return _error(
                 failure=SemanticFailure.PREMISE_NOT_SET,
                 directive=directive,
-                repairs=(),
+                repairs=(_repair_set_premise(directive.operands["value"]),),
             )
 
         if directive.kind is DirectiveKind.USE_ITEM:
@@ -149,7 +150,10 @@ class Engine:
                 return _error(
                     failure=SemanticFailure.ITEM_PROHIBITED,
                     directive=directive,
-                    repairs=(),
+                    repairs=(
+                        _repair_remove_policy(directive.operands["item"]),
+                        _repair_use_item(directive.operands["item"]),
+                    ),
                 )
 
         if directive.kind is DirectiveKind.PROHIBIT_ITEM:
@@ -158,7 +162,10 @@ class Engine:
                 return _error(
                     failure=SemanticFailure.ITEM_ALREADY_IN_USE,
                     directive=directive,
-                    repairs=(),
+                    repairs=(
+                        _repair_remove_policy(directive.operands["item"]),
+                        _repair_prohibit_item(directive.operands["item"]),
+                    ),
                 )
 
         if directive.kind is DirectiveKind.REPLACE_USE:
@@ -181,7 +188,10 @@ class Engine:
                 return _error(
                     failure=SemanticFailure.REPLACEMENT_TARGET_PROHIBITED,
                     directive=directive,
-                    repairs=(),
+                    repairs=(
+                        _repair_remove_policy(new_item),
+                        directive,
+                    ),
                 )
             if old_state != POLICY_USE:
                 return _error(
@@ -331,6 +341,41 @@ def _error(
     repairs: tuple[CanonicalDirective, ...],
 ) -> SemanticErrorDecision:
     return SemanticErrorDecision(failure=failure, directive=directive, repairs=repairs)
+
+
+def _repair_remove_policy(item: str) -> CanonicalDirective:
+    return CanonicalDirective(
+        kind=DirectiveKind.REMOVE_POLICY,
+        operands=MappingProxyType({"item": item}),
+    )
+
+
+def _repair_use_item(item: str) -> CanonicalDirective:
+    return CanonicalDirective(
+        kind=DirectiveKind.USE_ITEM,
+        operands=MappingProxyType({"item": item}),
+    )
+
+
+def _repair_prohibit_item(item: str) -> CanonicalDirective:
+    return CanonicalDirective(
+        kind=DirectiveKind.PROHIBIT_ITEM,
+        operands=MappingProxyType({"item": item}),
+    )
+
+
+def _repair_change_premise(value: str) -> CanonicalDirective:
+    return CanonicalDirective(
+        kind=DirectiveKind.CHANGE_PREMISE,
+        operands=MappingProxyType({"value": value}),
+    )
+
+
+def _repair_set_premise(value: str) -> CanonicalDirective:
+    return CanonicalDirective(
+        kind=DirectiveKind.SET_PREMISE,
+        operands=MappingProxyType({"value": value}),
+    )
 
 
 def _update_decision(previous_state: _State, next_state: _State) -> UpdateDecision:

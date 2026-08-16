@@ -9,6 +9,8 @@ from context_compiler import (
     DECISION_NO_DIRECTIVE,
     DECISION_UPDATE,
     Engine,
+    SemanticErrorDecision,
+    SemanticFailure,
 )
 from context_compiler.engine import (
     _load_state_obj,
@@ -45,6 +47,17 @@ def _canonical_directive(
     **operands: str,
 ) -> CanonicalDirective:
     return CanonicalDirective(kind=kind, operands=operands)
+
+
+def _assert_error(
+    decision: object,
+    *,
+    failure: SemanticFailure,
+    repairs: tuple[CanonicalDirective, ...],
+) -> None:
+    assert isinstance(decision, SemanticErrorDecision)
+    assert decision.failure is failure
+    assert decision.repairs == repairs
 
 
 @pytest.mark.parametrize(
@@ -1713,3 +1726,129 @@ def test_compound_no_directive_after_prior_missing_source_replacement_error() ->
 
     assert_decision(decision, {"kind": DECISION_NO_DIRECTIVE})
     _assert_observations(engine, premise=None, policies={})
+
+
+def test_item_prohibited_repairs_are_ordered_and_state_remains_unchanged() -> None:
+    engine = Engine()
+    engine.step("prohibit Docker")
+    before = _observations(engine)
+
+    decision = engine.step("use Docker")
+
+    _assert_error(
+        decision,
+        failure=SemanticFailure.ITEM_PROHIBITED,
+        repairs=(
+            _canonical_directive(DirectiveKind.REMOVE_POLICY, item="Docker"),
+            _canonical_directive(DirectiveKind.USE_ITEM, item="Docker"),
+        ),
+    )
+    assert _observations(engine) == before
+
+
+def test_item_already_in_use_repairs_are_ordered_and_state_remains_unchanged() -> None:
+    engine = Engine()
+    engine.step("use Docker")
+    before = _observations(engine)
+
+    decision = engine.step("prohibit Docker")
+
+    _assert_error(
+        decision,
+        failure=SemanticFailure.ITEM_ALREADY_IN_USE,
+        repairs=(
+            _canonical_directive(DirectiveKind.REMOVE_POLICY, item="Docker"),
+            _canonical_directive(DirectiveKind.PROHIBIT_ITEM, item="Docker"),
+        ),
+    )
+    assert _observations(engine) == before
+
+
+def test_replacement_target_prohibited_repairs_remove_target_then_retry_original() -> None:
+    engine = Engine()
+    engine.step("use Docker")
+    engine.step("prohibit Podman")
+    before = _observations(engine)
+    directive = _canonical_directive(
+        DirectiveKind.REPLACE_USE,
+        new_item="Podman",
+        old_item="Docker",
+    )
+
+    decision = engine.apply_directive(directive)
+
+    _assert_error(
+        decision,
+        failure=SemanticFailure.REPLACEMENT_TARGET_PROHIBITED,
+        repairs=(
+            _canonical_directive(DirectiveKind.REMOVE_POLICY, item="Podman"),
+            directive,
+        ),
+    )
+    assert _observations(engine) == before
+
+
+@pytest.mark.parametrize(
+    ("setup", "input_text", "failure"),
+    [
+        (
+            "prohibit Docker",
+            "use Podman instead of Docker",
+            SemanticFailure.REPLACEMENT_SOURCE_PROHIBITED,
+        ),
+        (None, "use Podman instead of Docker", SemanticFailure.REPLACEMENT_SOURCE_MISSING),
+    ],
+)
+def test_semantic_failures_without_deterministic_repairs_have_empty_repairs(
+    setup: str | None,
+    input_text: str,
+    failure: SemanticFailure,
+) -> None:
+    engine = Engine()
+    if setup is not None:
+        engine.step(setup)
+    before = _observations(engine)
+
+    decision = engine.step(input_text)
+
+    _assert_error(decision, failure=failure, repairs=())
+    assert _observations(engine) == before
+
+
+def test_premise_already_set_repair_changes_to_requested_value() -> None:
+    engine = Engine()
+    engine.step("set premise baseline")
+    before = _observations(engine)
+
+    decision = engine.step("set premise replacement")
+
+    _assert_error(
+        decision,
+        failure=SemanticFailure.PREMISE_ALREADY_SET,
+        repairs=(
+            _canonical_directive(
+                DirectiveKind.CHANGE_PREMISE,
+                value="replacement",
+            ),
+        ),
+    )
+    assert _observations(engine) == before
+
+
+def test_premise_not_set_repair_sets_requested_value() -> None:
+    engine = Engine()
+    before = _observations(engine)
+
+    decision = engine.step("change premise to replacement")
+
+    _assert_error(
+        decision,
+        failure=SemanticFailure.PREMISE_NOT_SET,
+        repairs=(
+            _canonical_directive(
+                DirectiveKind.SET_PREMISE,
+                value="replacement",
+            ),
+        ),
+    )
+    assert _observations(engine) == before
