@@ -170,7 +170,7 @@ Notes:
 - Anthropic runs in this repo are executed through the `openai_compatible` provider path.
 - `PASS` means the demo-specific expected-behavior check for that path succeeded; `FAIL` means it did not.
 - `reinjected-state` can be enough for some persistence cases; in this demo set it is intentionally used as a prompt-only comparison baseline.
-- Scored checks focus on app-side authority rules (for example blocked mutation and non-pending invalid replacement handling), not model prose quality. `reinjected-state` remains plain text injection only.
+- Scored checks focus on app-side authority rules (for example blocked mutation and terminal invalid replacement handling), not model prose quality. `reinjected-state` remains plain text injection only.
 - Interpretation:
 
 - Demos `01`-`05` and `07` mostly test persistence and policy-following behavior across turns.
