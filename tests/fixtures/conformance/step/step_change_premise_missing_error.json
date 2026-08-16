@@ -10,6 +10,23 @@
   "expected": {
     "decision": {
       "kind": "error",
+      "failure": "premise_not_set",
+      "directive": {
+        "kind": "change_premise",
+        "text": "change premise to concise replies",
+        "operands": {
+          "value": "concise replies"
+        }
+      },
+      "repairs": [
+        {
+          "kind": "set_premise",
+          "text": "set premise concise replies",
+          "operands": {
+            "value": "concise replies"
+          }
+        }
+      ],
       "message": "No premise is set.\nUse 'set premise <value>' to define one."
     },
     "state": {

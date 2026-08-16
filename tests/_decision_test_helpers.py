@@ -8,6 +8,7 @@ from context_compiler import (
     SemanticErrorDecision,
     UpdateDecision,
 )
+from context_compiler.grammar import CanonicalDirective
 
 
 def assert_decision(decision: Decision, expected: Mapping[str, object]) -> None:
@@ -29,4 +30,17 @@ def decision_observation(decision: Decision) -> dict[str, object]:
     """Adapt a domain result for existing fixture assertions."""
 
     message = decision.message if isinstance(decision, SemanticErrorDecision) else None
-    return {"kind": decision.kind, "message": message}
+    observation: dict[str, object] = {"kind": decision.kind, "message": message}
+    if isinstance(decision, SemanticErrorDecision):
+        observation["failure"] = decision.failure
+        observation["directive"] = _directive_observation(decision.directive)
+        observation["repairs"] = [_directive_observation(repair) for repair in decision.repairs]
+    return observation
+
+
+def _directive_observation(directive: CanonicalDirective) -> dict[str, object]:
+    return {
+        "kind": directive.kind,
+        "text": directive.text,
+        "operands": dict(directive.operands),
+    }

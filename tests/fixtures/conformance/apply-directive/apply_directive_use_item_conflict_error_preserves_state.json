@@ -15,6 +15,30 @@
   "expected": {
     "decision": {
       "kind": "error",
+      "failure": "item_prohibited",
+      "directive": {
+        "kind": "use_item",
+        "text": "use docker",
+        "operands": {
+          "item": "docker"
+        }
+      },
+      "repairs": [
+        {
+          "kind": "remove_policy",
+          "text": "remove policy docker",
+          "operands": {
+            "item": "docker"
+          }
+        },
+        {
+          "kind": "use_item",
+          "text": "use docker",
+          "operands": {
+            "item": "docker"
+          }
+        }
+      ],
       "message": "\"docker\" is currently prohibited.\nRemove or replace it before using it."
     },
     "state": {
