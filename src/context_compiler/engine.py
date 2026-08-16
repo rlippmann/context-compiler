@@ -127,23 +127,39 @@ class Engine:
             directive.kind is DirectiveKind.SET_PREMISE
             and candidate_state[STATE_PREMISE] is not None
         ):
-            return _error(SemanticFailure.PREMISE_ALREADY_SET, directive)
+            return _error(
+                failure=SemanticFailure.PREMISE_ALREADY_SET,
+                directive=directive,
+                repairs=(),
+            )
 
         if (
             directive.kind is DirectiveKind.CHANGE_PREMISE
             and candidate_state[STATE_PREMISE] is None
         ):
-            return _error(SemanticFailure.PREMISE_NOT_SET, directive)
+            return _error(
+                failure=SemanticFailure.PREMISE_NOT_SET,
+                directive=directive,
+                repairs=(),
+            )
 
         if directive.kind is DirectiveKind.USE_ITEM:
             item_key = _normalize_item(directive.operands["item"])
             if candidate_state[STATE_POLICIES].get(item_key) == POLICY_PROHIBIT:
-                return _error(SemanticFailure.ITEM_PROHIBITED, directive)
+                return _error(
+                    failure=SemanticFailure.ITEM_PROHIBITED,
+                    directive=directive,
+                    repairs=(),
+                )
 
         if directive.kind is DirectiveKind.PROHIBIT_ITEM:
             item_key = _normalize_item(directive.operands["item"])
             if candidate_state[STATE_POLICIES].get(item_key) == POLICY_USE:
-                return _error(SemanticFailure.ITEM_ALREADY_IN_USE, directive)
+                return _error(
+                    failure=SemanticFailure.ITEM_ALREADY_IN_USE,
+                    directive=directive,
+                    repairs=(),
+                )
 
         if directive.kind is DirectiveKind.REPLACE_USE:
             new_item = directive.operands["new_item"]
@@ -156,11 +172,23 @@ class Engine:
             old_state = candidate_state[STATE_POLICIES].get(old_key)
             new_state = candidate_state[STATE_POLICIES].get(new_key)
             if old_state == POLICY_PROHIBIT:
-                return _error(SemanticFailure.REPLACEMENT_SOURCE_PROHIBITED, directive)
+                return _error(
+                    failure=SemanticFailure.REPLACEMENT_SOURCE_PROHIBITED,
+                    directive=directive,
+                    repairs=(),
+                )
             if new_state == POLICY_PROHIBIT:
-                return _error(SemanticFailure.REPLACEMENT_TARGET_PROHIBITED, directive)
+                return _error(
+                    failure=SemanticFailure.REPLACEMENT_TARGET_PROHIBITED,
+                    directive=directive,
+                    repairs=(),
+                )
             if old_state != POLICY_USE:
-                return _error(SemanticFailure.REPLACEMENT_SOURCE_MISSING, directive)
+                return _error(
+                    failure=SemanticFailure.REPLACEMENT_SOURCE_MISSING,
+                    directive=directive,
+                    repairs=(),
+                )
 
         return None
 
@@ -300,7 +328,7 @@ def _normalize_item(value: str) -> str:
 def _error(
     failure: SemanticFailure,
     directive: CanonicalDirective,
-    repairs: tuple[CanonicalDirective, ...] = (),
+    repairs: tuple[CanonicalDirective, ...],
 ) -> SemanticErrorDecision:
     return SemanticErrorDecision(failure=failure, directive=directive, repairs=repairs)
 
