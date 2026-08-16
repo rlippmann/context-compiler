@@ -132,6 +132,10 @@
                 "kind": "POSITIONAL_OR_KEYWORD",
                 "has_default": false
               }
+            ],
+            "returns": [
+              "UpdateDecision",
+              "SemanticErrorDecision"
             ]
           }
         },
@@ -162,6 +166,11 @@
                 "kind": "POSITIONAL_OR_KEYWORD",
                 "has_default": false
               }
+            ],
+            "returns": [
+              "NoDirectiveDecision",
+              "UpdateDecision",
+              "SemanticErrorDecision"
             ]
           }
         }

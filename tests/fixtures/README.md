@@ -50,10 +50,12 @@ The `Decision` payload in this family uses one shared shape:
 
 * `{"kind":"no_directive","message":null}`
 * `{"kind":"update","message":null}`
-* `{"kind":"error","message": ...}`
+* `{"kind":"error","failure": ..., "directive": ..., "repairs": [...], "message": ...}`
 
-`message` is only semantically meaningful for `error`. Non-error outcomes keep
-the field for structural consistency and use `null`.
+Semantic errors always include the machine-readable `failure`, the rejected
+canonical `directive`, and an ordered list of advisory canonical `repairs`.
+`message` is derived human-readable text for presentation. Non-error outcomes
+keep the field for structural consistency and use `null`.
 
 The current runner enforces a closed fixture shape for this family.
 Unknown top-level and documented nested fields are rejected.

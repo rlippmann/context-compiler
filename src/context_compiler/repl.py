@@ -124,6 +124,12 @@ def _state_payload(
 
 
 def _decision_payload(decision: Decision) -> dict[str, object]:
+    """Project a Decision into the REPL's presentation-only JSON output.
+
+    This is a CLI response shape, not Decision serialization. The core domain
+    result remains an ephemeral object with structured semantic fields.
+    """
+
     message = decision.message if isinstance(decision, SemanticErrorDecision) else None
     return {"kind": decision.kind, "message": message}
 
