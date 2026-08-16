@@ -35,16 +35,54 @@
         "kind": "class"
       },
       "NoDirectiveDecision": {
-        "kind": "class"
+        "kind": "class",
+        "construction_probes": [
+          {
+            "return_shape": {
+              "kind": "decision_variant",
+              "type": "NoDirectiveDecision",
+              "required_attributes": ["kind"]
+            }
+          }
+        ]
       },
       "SemanticErrorDecision": {
-        "kind": "class"
+        "kind": "class",
+        "construction_probes": [
+          {
+            "kwargs": {
+              "failure": {"fixture": "item_prohibited_failure"},
+              "directive": {"fixture": "use_docker_directive"}
+            },
+            "return_shape": {
+              "kind": "decision_variant",
+              "type": "SemanticErrorDecision",
+              "required_attributes": [
+                "kind",
+                "failure",
+                "directive",
+                "repairs",
+                "message"
+              ]
+            }
+          }
+        ]
       },
       "SemanticFailure": {
         "kind": "class"
       },
       "UpdateDecision": {
-        "kind": "class"
+        "kind": "class",
+        "construction_probes": [
+          {
+            "kwargs": {"changed": true},
+            "return_shape": {
+              "kind": "decision_variant",
+              "type": "UpdateDecision",
+              "required_attributes": ["kind", "changed"]
+            }
+          }
+        ]
       },
       "DECISION_ERROR": {
         "kind": "constant",

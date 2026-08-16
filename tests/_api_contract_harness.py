@@ -46,6 +46,10 @@ def resolve_probe_value(value: object) -> object:
     fixture = value["fixture"]
     if fixture == "empty_engine":
         return context_compiler.Engine()
+    if fixture == "item_prohibited_failure":
+        return context_compiler.SemanticFailure.ITEM_PROHIBITED
+    if fixture == "use_docker_directive":
+        return grammar.decompose_directive("use docker")
 
     raise AssertionError(f"Unknown probe fixture: {fixture!r}")
 
@@ -84,6 +88,21 @@ def assert_shape(
         expected_members = contract["engine"]["public_members"]["members"]
         actual_members = sorted(name for name in dir(value) if not name.startswith("_"))
         assert actual_members == sorted(expected_members.keys())
+        return
+
+    if "kind" in shape and shape["kind"] == "decision_variant":
+        decision_type = getattr(context_compiler, shape["type"])
+        assert isinstance(value, decision_type)
+        for attribute in shape["required_attributes"]:
+            assert hasattr(value, attribute), attribute
+        if shape["type"] == "UpdateDecision":
+            assert isinstance(value.changed, bool)
+        elif shape["type"] == "SemanticErrorDecision":
+            assert isinstance(value.failure, context_compiler.SemanticFailure)
+            assert isinstance(value.directive, grammar.CanonicalDirective)
+            assert isinstance(value.repairs, tuple)
+            assert all(isinstance(repair, grammar.CanonicalDirective) for repair in value.repairs)
+            assert isinstance(value.message, str)
         return
 
     if "kind" in shape and shape["kind"] == "canonical_directive":
@@ -452,7 +471,12 @@ def _validate_probe_value(value: object, label: str) -> None:
     if not isinstance(value, dict) or "fixture" not in value:
         return
     _assert_closed_keys(value, {"fixture"}, label)
-    _assert_equal(value["fixture"], "empty_engine", f"{label}.fixture")
+    if value["fixture"] not in {
+        "empty_engine",
+        "item_prohibited_failure",
+        "use_docker_directive",
+    }:
+        raise AssertionError(f"Unknown probe fixture: {value['fixture']!r}")
 
 
 def _validate_exception_shape_spec(raises: object, label: str) -> None:
@@ -474,6 +498,18 @@ def _validate_shape_spec(shape: object, label: str) -> None:
         kind = shape["kind"]
         if kind == "engine_instance":
             _assert_closed_keys(shape, {"kind"}, label)
+            return
+        if kind == "decision_variant":
+            _assert_closed_keys(shape, {"kind", "type", "required_attributes"}, label)
+            _require_fields(shape, {"kind", "type", "required_attributes"}, label)
+            _assert_type(shape["type"], str, f"{label}.type")
+            required_attributes = shape["required_attributes"]
+            _assert_type(required_attributes, list, f"{label}.required_attributes")
+            for index, attribute in enumerate(required_attributes):
+                _assert_type(attribute, str, f"{label}.required_attributes[{index}]")
+            getattr(context_compiler, shape["type"])
+            for attribute in required_attributes:
+                _assert_type(attribute, str, f"{label}.{attribute}")
             return
         if kind == "canonical_directive":
             _assert_closed_keys(shape, {"kind", "text", "directive_kind", "operands"}, label)

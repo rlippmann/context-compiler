@@ -113,47 +113,47 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
 
 
 def _validate_public_decision(decision: dict[str, object], fixture_id: object, label: str) -> None:
-    _assert_allowed_keys(
-        decision,
-        {"kind", "message"} | ({"failure", "directive", "repairs"} & set(decision)),
-        fixture_id,
-        label,
-    )
     kind = decision.get("kind")
     assert isinstance(kind, str), fixture_id
 
     if kind in {"no_directive", "update"}:
+        _assert_allowed_keys(decision, {"kind", "message"}, fixture_id, label)
         assert decision["message"] is None, fixture_id
         return
 
     assert kind == "error", fixture_id
+    _assert_allowed_keys(
+        decision,
+        {"kind", "failure", "directive", "repairs", "message"},
+        fixture_id,
+        label,
+    )
+    assert isinstance(decision["failure"], str), fixture_id
     assert isinstance(decision["message"], str), fixture_id
-    if "failure" in decision:
-        assert isinstance(decision["failure"], str), fixture_id
-        directive = decision.get("directive")
-        assert isinstance(directive, dict), fixture_id
+    directive = decision["directive"]
+    assert isinstance(directive, dict), fixture_id
+    _assert_allowed_keys(
+        directive,
+        {"kind", "text", "operands"},
+        fixture_id,
+        f"{label}.directive",
+    )
+    assert isinstance(directive["kind"], str), fixture_id
+    assert isinstance(directive["text"], str), fixture_id
+    assert isinstance(directive["operands"], dict), fixture_id
+    repairs = decision["repairs"]
+    assert isinstance(repairs, list), fixture_id
+    for index, repair in enumerate(repairs):
+        assert isinstance(repair, dict), fixture_id
         _assert_allowed_keys(
-            directive,
+            repair,
             {"kind", "text", "operands"},
             fixture_id,
-            f"{label}.directive",
+            f"{label}.repairs[{index}]",
         )
-        assert isinstance(directive["kind"], str), fixture_id
-        assert isinstance(directive["text"], str), fixture_id
-        assert isinstance(directive["operands"], dict), fixture_id
-        repairs = decision.get("repairs")
-        assert isinstance(repairs, list), fixture_id
-        for index, repair in enumerate(repairs):
-            assert isinstance(repair, dict), fixture_id
-            _assert_allowed_keys(
-                repair,
-                {"kind", "text", "operands"},
-                fixture_id,
-                f"{label}.repairs[{index}]",
-            )
-            assert isinstance(repair["kind"], str), fixture_id
-            assert isinstance(repair["text"], str), fixture_id
-            assert isinstance(repair["operands"], dict), fixture_id
+        assert isinstance(repair["kind"], str), fixture_id
+        assert isinstance(repair["text"], str), fixture_id
+        assert isinstance(repair["operands"], dict), fixture_id
 
 
 def _assert_decision_observation(
