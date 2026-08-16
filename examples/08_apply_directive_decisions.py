@@ -58,7 +58,7 @@ def main() -> None:
     after_error = (followup_engine.premise, dict(followup_engine.policies))
     assert after_error == before
     print("State unchanged after missing-source replacement: True")
-    print("No repair or continuation applied automatically.")
+    print("No repair applied automatically; later input is evaluated independently.")
 
     followup = followup_engine.step("yes")
     assert isinstance(followup, NoDirectiveDecision)
