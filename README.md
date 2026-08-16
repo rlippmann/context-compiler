@@ -137,8 +137,9 @@ Use Context Compiler in your host application first:
 ```python
 from context_compiler import (
     Engine,
-    is_error,
-    is_update,
+    NoDirectiveDecision,
+    SemanticErrorDecision,
+    UpdateDecision,
 )
 
 engine = Engine()
@@ -146,16 +147,16 @@ engine = Engine()
 user_input = "set premise current project uses uv"
 decision = engine.step(user_input)
 
-if is_error(decision):
-    show_to_user(decision["message"])
-elif is_update(decision):
+if isinstance(decision, SemanticErrorDecision):
+    show_to_user(decision.message)
+elif isinstance(decision, UpdateDecision):
     messages = build_messages(
         premise=engine.premise,
         policies=engine.policies,
         user_input=user_input,
     )
     render(call_llm(messages))
-else:
+elif isinstance(decision, NoDirectiveDecision):
     render(call_llm(user_input))
 ```
 
@@ -246,7 +247,9 @@ uv run pytest
 
 ## Decision API
 
-Each user message produces a `Decision`.
+Each user message produces one immutable `Decision` variant. Use concrete
+variants with `isinstance` or pattern matching; use `kind` when generic code
+needs the stable discriminator.
 
 ```python
 class DecisionKind(StrEnum):
@@ -254,26 +257,53 @@ class DecisionKind(StrEnum):
     UPDATE = "update"
     ERROR = "error"
 
-class Decision(TypedDict):
-    kind: DecisionKind
-    message: str | None
+Decision = NoDirectiveDecision | UpdateDecision | SemanticErrorDecision
+
+@dataclass(frozen=True, slots=True)
+class NoDirectiveDecision:
+    kind = DecisionKind.NO_DIRECTIVE
+
+@dataclass(frozen=True, slots=True)
+class UpdateDecision:
+    kind = DecisionKind.UPDATE
+    changed: bool
+
+@dataclass(frozen=True, slots=True)
+class SemanticErrorDecision:
+    kind = DecisionKind.ERROR
+    failure: SemanticFailure
+    directive: CanonicalDirective
+    repairs: tuple[CanonicalDirective, ...]
+    message: str
 ```
 
-`message` is structurally present on every `Decision`, but it is semantically
-meaningful only for `error`. For `no_directive` and `update`, `message` is
-`None`.
+`UpdateDecision.changed` reports whether authoritative state actually changed.
+An accepted idempotent directive is still an `update` with
+`changed=False`.
+
+`SemanticErrorDecision.message` is derived human-readable text. Callers should
+use `failure` for machine decisions rather than parsing the message.
+
+`directive` is the canonical directive that failed semantic evaluation.
+`repairs` is an ordered tuple of advisory canonical directives. Repairs are
+never applied automatically; a host must explicitly submit a selected repair
+through `engine.apply_directive(...)`.
 
 Meaning:
 
 | kind | host behavior |
 | --- | --- |
 | no_directive | no canonical directive recognized; no authoritative state change; host decides what to do next |
-| update | authoritative state mutated; host may use updated state downstream |
-| error | show `message` and do not continue normal downstream processing yet |
+| update | canonical directive was accepted; inspect `changed` and use updated state downstream |
+| error | canonical directive was rejected semantically; inspect `failure`, show `message`, and optionally offer `repairs` |
 
-For normal app code, prefer the exported decision helpers (`is_error`,
-`is_update`, `is_no_directive`, `get_error_message`)
-instead of direct key traversal.
+`engine.step(...)` returns any of the three variants because parsing may produce
+no usable directive. `engine.apply_directive(...)` accepts only a
+`CanonicalDirective`, so it returns only `UpdateDecision` or
+`SemanticErrorDecision`.
+
+Grammar failures do not produce semantic errors. A semantic error is possible
+only after a canonical directive has parsed successfully.
 
 See [docs/api-reference.md](docs/api-reference.md) for the full public API
 reference.
@@ -283,8 +313,8 @@ Common API entry points:
 - engine lifecycle: `Engine()`, `engine.step(...)`,
   `engine.premise`, `engine.policies`, `engine.export_json(...)`,
   `engine.import_json(...)`
-- decision helpers: `is_error(...)`, `is_update(...)`, `is_no_directive(...)`,
-  `get_error_message(...)`
+- decision variants: `NoDirectiveDecision`, `UpdateDecision`,
+  `SemanticErrorDecision`, `SemanticFailure`
 - state transport: `engine.export_json(...)`, `engine.import_json(...)`
 
 ---
