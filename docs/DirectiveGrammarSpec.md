@@ -51,8 +51,10 @@ The compiler:
 5. Returns a deterministic `Decision`.
 
 The compiler never calls an LLM.
-All authoritative mutations originate from canonical user directives passed to
-`step()`.
+Raw input enters through `step(raw_input)`. Canonical directives may also enter
+through `apply_directive(directive)` after the host has parsed or otherwise
+validated them at the grammar boundary. All authoritative mutations originate
+from canonical directives evaluated through one of these engine boundaries.
 
 ## 3. Host Responsibilities
 
@@ -105,6 +107,26 @@ never applied automatically; hosts explicitly choose whether to submit one
 through `apply_directive(...)`. An empty tuple means no deterministic repair
 was proposed.
 
+The repair mapping is normative. When a listed repair is returned, repairs
+appear in the following order and use the operands from the failed canonical
+directive:
+
+| Failure | Ordered advisory repairs |
+| --- | --- |
+| `PREMISE_ALREADY_SET` | `change premise to <requested value>` |
+| `PREMISE_NOT_SET` | `set premise <requested value>` |
+| `ITEM_PROHIBITED` | `remove policy <item>`; `use <item>` |
+| `ITEM_ALREADY_IN_USE` | `remove policy <item>`; `prohibit <item>` |
+| `REPLACEMENT_TARGET_PROHIBITED` | `remove policy <target>`; retry the original replacement directive |
+| `REPLACEMENT_SOURCE_PROHIBITED` | no repair (`()`) |
+| `REPLACEMENT_SOURCE_MISSING` | no repair (`()`) |
+
+Every repair is a `CanonicalDirective`. Repairs are ordered and advisory only:
+the engine never applies them automatically, and a host must explicitly select
+and submit any repair through `apply_directive(...)`. A host may decline all
+repairs. The `message` field is presentation data; hosts must use `failure` and
+the structured directives for control flow rather than parse the message.
+
 Semantics:
 
 - `no_directive`: no canonical directive was recognized by core, no authoritative
@@ -114,9 +136,13 @@ Semantics:
 - `error`: canonical directive parsed, but semantic evaluation could not safely
   execute under current authoritative state
 
-`step(raw_input)` returns any of the three variants. `apply_directive(...)`
-accepts only `CanonicalDirective` and returns only `UpdateDecision` or
-`SemanticErrorDecision`; it never returns `NoDirectiveDecision`.
+`step(raw_input)` is the raw input boundary. It parses the input, may return
+`NoDirectiveDecision` when no canonical directive is produced, and performs
+semantic evaluation only after canonical parsing succeeds. It returns any of
+the three variants. `apply_directive(directive)` is the canonical execution
+boundary: it accepts only `CanonicalDirective` and returns only
+`UpdateDecision` or `SemanticErrorDecision`; it never returns
+`NoDirectiveDecision` and does not parse raw input.
 
 Grammar failures are not semantic errors. A semantic error can occur only
 after successful canonical parsing. The failed `CanonicalDirective` is always
