@@ -11,6 +11,7 @@ from context_compiler import (
     Engine,
     SemanticErrorDecision,
     SemanticFailure,
+    UpdateDecision,
 )
 from context_compiler.engine import (
     _load_state_obj,
@@ -1744,6 +1745,24 @@ def test_item_prohibited_repairs_are_ordered_and_state_remains_unchanged() -> No
         ),
     )
     assert _observations(engine) == before
+
+
+def test_host_can_explicitly_submit_selected_repairs() -> None:
+    engine = Engine()
+    engine.step("prohibit Docker")
+
+    decision = engine.step("use Docker")
+
+    assert isinstance(decision, SemanticErrorDecision)
+    assert len(decision.repairs) == 2
+    remove_policy, use_item = decision.repairs
+
+    first_result = engine.apply_directive(remove_policy)
+    second_result = engine.apply_directive(use_item)
+
+    assert isinstance(first_result, UpdateDecision)
+    assert isinstance(second_result, UpdateDecision)
+    assert engine.policies == {"docker": "use"}
 
 
 def test_item_already_in_use_repairs_are_ordered_and_state_remains_unchanged() -> None:

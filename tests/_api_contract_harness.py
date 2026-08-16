@@ -1,7 +1,7 @@
 import inspect
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, get_args, get_type_hints
 
 import context_compiler
 import context_compiler.grammar as grammar
@@ -167,6 +167,13 @@ def assert_signature_matches(obj: object, expected: dict[str, Any], label: str) 
         assert (actual.default is not inspect.Signature.empty) is expected_param["has_default"], (
             label
         )
+
+    expected_returns = expected.get("returns")
+    if expected_returns is not None:
+        actual_return = get_type_hints(obj)["return"]
+        actual_types = set(get_args(actual_return) or (actual_return,))
+        expected_types = {getattr(context_compiler, name) for name in expected_returns}
+        assert actual_types == expected_types, label
 
 
 def validate_export_kind(name: str, exported: object, expected_kind: str) -> None:
@@ -392,13 +399,19 @@ def _validate_engine_member_spec(
 
 def _validate_signature_spec(signature: object, label: str) -> None:
     _assert_type(signature, dict, label)
-    _assert_closed_keys(signature, {"params"}, label)
+    _assert_closed_keys(signature, {"params", "returns"}, label)
     _require_fields(signature, {"params"}, label)
 
     params = signature["params"]
     _assert_type(params, list, f"{label}.params")
     for index, param in enumerate(params):
         _validate_signature_param_spec(param, f"{label}.params[{index}]")
+
+    if "returns" in signature:
+        returns = signature["returns"]
+        _assert_type(returns, list, f"{label}.returns")
+        for index, return_type in enumerate(returns):
+            _assert_type(return_type, str, f"{label}.returns[{index}]")
 
 
 def _validate_signature_param_spec(param: object, label: str) -> None:

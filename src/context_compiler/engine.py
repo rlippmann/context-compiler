@@ -17,7 +17,6 @@ from .const import (
     STATE_VERSION,
 )
 from .decision import (
-    Decision,
     NoDirectiveDecision,
     SemanticErrorDecision,
     SemanticFailure,
@@ -77,7 +76,7 @@ class Engine:
 
         self._replace_state(_load_state_json(payload))
 
-    def step(self, user_input: str) -> Decision:
+    def step(self, user_input: str) -> NoDirectiveDecision | UpdateDecision | SemanticErrorDecision:
         """Evaluate and commit one user input against authoritative state.
 
         Non-canonical input does not produce a state transition and returns
