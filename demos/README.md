@@ -36,7 +36,7 @@ Runnable application-layer enforcement-point integrations live in
 | [06](./06_llm_context_compaction.py) | Context compaction | saved compiler state replacing transcript context | small or local models |
 | [07](./07_llm_prompt_vs_state.py) | Prompt engineering comparison | prompting vs saved compiler state | any model with long transcript sensitivity |
 | [08](./08_llm_replacement_precondition.py) | Replacement precondition | missing-source replacement applies deterministically from authoritative state | any model |
-| [09](./09_llm_confirmation_no_directive.py) | Confirmation no_directive | invalid replacement does not create an engine-owned confirmation state; later confirmation-style input remains ordinary no_directive | any model |
+| [09](./09_llm_confirmation_no_directive.py) | Replacement-error follow-up | invalid replacement is terminal; later follow-up input remains ordinary no_directive | any model |
 
 Stronger frontier models may show these behaviors less often, but the same
 patterns still appear in real applications.
@@ -176,7 +176,7 @@ Notes:
 
 - Demos `01`-`05` and `07` mostly test persistence and policy-following behavior across turns.
 - Demos `08`/`09` test rules for when state is allowed to change.
-- Demos `08` and `09` cover authority semantics prompt text does not implement by itself, such as replacement preconditions, blocked mutations, and waiting for confirmation before saving changes.
+- Demos `08` and `09` cover authority semantics prompt text does not implement by itself, such as replacement preconditions, blocked mutations, and terminal semantic errors before saving changes.
 - Plain prompt reinjection can produce reasonable answers, but it does not run these authority checks by itself and is not the only or preferred production integration pattern.
 - Similar outcomes across models in `08`/`09` reflect app behavior limits, not model leaderboard ranking.
 

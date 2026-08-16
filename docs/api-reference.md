@@ -12,16 +12,16 @@ Authoritative behavior documents:
 - [Project README](../README.md)
 
 For behavioral semantics, use the authoritative documents above. This page
-documents the supported public package surface without redefining directive or
-continuation behavior.
+documents the supported public package surface without redefining directive
+behavior.
 
 Core boundary:
 
 - core consumes canonical directives
 - canonical directive validation remains in core
 - semantic validation and authoritative state transitions remain in core
-- pending continuation, when supported, is created only by semantic evaluation
-  of canonical directives
+- semantic errors are terminal Decision results for the current input; hosts
+  recover only by explicitly selecting and submitting advisory repairs
 - human-facing normalization, malformed-input recovery, and intent drafting are
   outside the core contract
 - core does not convert failed canonical operations into different directives
@@ -296,8 +296,8 @@ Use these APIs for authoritative-state transport or persistence only.
 Conceptual boundary:
 
 - `export_json()` / `import_json()` are the current persistence contract
-- pending continuation, when supported by the engine contract, is runtime state
-  rather than a documented persistence feature
+- Decision objects are not part of persisted state; persistence transports
+  authoritative premise and policy state only
 - imported policy keys are normalized during `import_json(...)`
 - if a policy key normalizes to `""`, the payload is invalid and is rejected
 - if two imported policy keys normalize to the same canonical key, the payload
