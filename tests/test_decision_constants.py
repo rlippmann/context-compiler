@@ -1,3 +1,5 @@
+import pytest
+
 from context_compiler import (
     DECISION_ERROR,
     DECISION_NO_DIRECTIVE,
@@ -10,7 +12,10 @@ from context_compiler import (
     SemanticFailure,
     UpdateDecision,
 )
+from context_compiler.decision import _format_failure
 from context_compiler.grammar import CanonicalDirective, DirectiveKind
+
+pytestmark = pytest.mark.contract
 
 
 def test_decision_constants_match_decision_kind_literals() -> None:
@@ -58,3 +63,13 @@ def test_decision_variants_are_immutable_and_slotted() -> None:
         pass
     else:
         raise AssertionError("Decision variants must be immutable")
+
+
+def test_unhandled_semantic_failure_is_an_intentional_defensive_error() -> None:
+    directive = CanonicalDirective(
+        kind=DirectiveKind.USE_ITEM,
+        operands={"item": "docker"},
+    )
+
+    with pytest.raises(AssertionError, match="Unhandled semantic failure"):
+        _format_failure(object(), directive)  # type: ignore[arg-type]
