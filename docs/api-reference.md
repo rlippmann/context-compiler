@@ -171,56 +171,77 @@ state through the returned mapping.
 
 ## Decision API
 
-Each user message produces a `Decision`.
+Decisions are ephemeral immutable evaluation results. They are not persisted
+and do not provide mapping or serialization behavior.
 
 ```python
-class DecisionKind(StrEnum):
-    NO_DIRECTIVE = "no_directive"
-    UPDATE = "update"
-    ERROR = "error"
+Decision = NoDirectiveDecision | UpdateDecision | SemanticErrorDecision
 
-class Decision(TypedDict):
-    kind: DecisionKind
-    message: str | None
+class NoDirectiveDecision:
+    kind = DecisionKind.NO_DIRECTIVE
+
+class UpdateDecision:
+    kind = DecisionKind.UPDATE
+    changed: bool
+
+class SemanticErrorDecision:
+    kind = DecisionKind.ERROR
+    failure: SemanticFailure
+    directive: CanonicalDirective
+    repairs: tuple[CanonicalDirective, ...]
+    message: str  # derived property
 ```
 
-`message` is structurally present on every `Decision`, but only `error`
-decisions populate it with meaningful content. `no_directive` and `update`
-return `message=None`.
+Use concrete variants with `isinstance` or pattern matching. `Decision.kind`
+remains the stable discriminator for generic consumers and cross-language
+implementations.
 
-Decision kinds:
+`UpdateDecision.changed` reports whether authoritative state actually changed.
+Accepted idempotent directives still return `update`, with `changed=False`.
 
-| kind | Intended host use |
-| --- | --- |
-| `no_directive` | no canonical directive recognized; no authoritative state change; host decides what to do next |
-| `update` | authoritative state changed; host may apply downstream behavior using updated state |
-| `error` | show `message`; do not continue normal downstream processing yet |
+`SemanticErrorDecision` fields have distinct roles:
 
-Helper functions:
+- `failure` is the machine-readable semantic failure classification;
+- `directive` is the canonical directive rejected by semantic evaluation;
+- `repairs` is an ordered tuple of advisory canonical directives;
+- `message` is derived human-readable text for presentation.
 
-- `is_no_directive(decision)`
-- `is_update(decision)`
-- `is_error(decision)`
-- `get_error_message(decision)`
+Callers must use `failure` for control flow rather than parsing `message`.
+Repairs are never applied automatically. A host explicitly chooses whether to
+submit a repair through `engine.apply_directive(...)`. An empty tuple means no
+deterministic repair was proposed.
 
-`get_error_message(decision)` encodes the semantic convention above: it returns
-the user-facing error text only for `error`, otherwise `None`.
+Return types differ at the two engine boundaries:
+
+- `engine.step(user_input)` returns `NoDirectiveDecision | UpdateDecision |
+  SemanticErrorDecision`;
+- `engine.apply_directive(directive)` returns `UpdateDecision |
+  SemanticErrorDecision` and can never return `NoDirectiveDecision`.
+
+`step(...)` may return `no_directive` when parsing produces no usable
+canonical directive. Grammar failures are not semantic errors. Semantic errors
+occur only after a `CanonicalDirective` has parsed successfully.
 
 Typical use:
 
 ```python
 from context_compiler import (
-    is_error,
-    is_update,
     Engine,
+    NoDirectiveDecision,
+    SemanticErrorDecision,
+    UpdateDecision,
 )
 
 decision = engine.step(user_input)
 
-if is_error(decision):
-    show_to_user(decision["message"])
-elif is_update(decision):
-    apply_runtime_rules()
+if isinstance(decision, SemanticErrorDecision):
+    show_to_user(decision.message)
+    if decision.repairs:
+        offer_repairs(decision.repairs)
+elif isinstance(decision, UpdateDecision):
+    apply_runtime_rules(changed=decision.changed)
+elif isinstance(decision, NoDirectiveDecision):
+    handle_as_ordinary_input(user_input)
 ```
 
 ## State Access
@@ -301,6 +322,11 @@ literals in host code.
 Public result and data object names exported at package root include:
 
 - `Decision`
+- `DecisionKind`
+- `NoDirectiveDecision`
+- `UpdateDecision`
+- `SemanticErrorDecision`
+- `SemanticFailure`
 - `Engine`
 
 These names are part of the public package surface. For the exact portable API

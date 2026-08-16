@@ -71,22 +71,56 @@ class DecisionKind(StrEnum):
     UPDATE = "update"
     ERROR = "error"
 
-class Decision(TypedDict):
-    kind: DecisionKind
-    message: str | None
+Decision = NoDirectiveDecision | UpdateDecision | SemanticErrorDecision
+
+@dataclass(frozen=True, slots=True)
+class NoDirectiveDecision:
+    kind = DecisionKind.NO_DIRECTIVE
+
+@dataclass(frozen=True, slots=True)
+class UpdateDecision:
+    kind = DecisionKind.UPDATE
+    changed: bool
+
+@dataclass(frozen=True, slots=True)
+class SemanticErrorDecision:
+    kind = DecisionKind.ERROR
+    failure: SemanticFailure
+    directive: CanonicalDirective
+    repairs: tuple[CanonicalDirective, ...]
+    message: str  # derived property
 ```
 
-`message` is always structurally present, but only `error` gives it semantic
-content. `no_directive` and `update` use `message: null`.
+Decision values are immutable and ephemeral. They are not persisted and do not
+provide mapping or serialization behavior.
+
+`UpdateDecision.changed` reports whether authoritative state actually changed.
+An accepted idempotent directive remains an `update` with `changed=False`.
+
+`SemanticErrorDecision.failure` is the machine-readable semantic failure
+classification. Its `directive` is the canonical directive rejected by
+semantic evaluation. Its `message` is derived human-readable text, and its
+`repairs` is an ordered tuple of advisory canonical directives. Repairs are
+never applied automatically; hosts explicitly choose whether to submit one
+through `apply_directive(...)`. An empty tuple means no deterministic repair
+was proposed.
 
 Semantics:
 
 - `no_directive`: no canonical directive was recognized by core, no authoritative
   state change was made, and the host decides what to do next
 - `update`: canonical directive parsed and semantic evaluation completed without
-  a blocking conflict
-- `error`: canonical directive parsed, but semantic evaluation could not
-  safely execute under current authoritative state
+  a blocking conflict; `changed` reports whether state actually changed
+- `error`: canonical directive parsed, but semantic evaluation could not safely
+  execute under current authoritative state
+
+`step(raw_input)` returns any of the three variants. `apply_directive(...)`
+accepts only `CanonicalDirective` and returns only `UpdateDecision` or
+`SemanticErrorDecision`; it never returns `NoDirectiveDecision`.
+
+Grammar failures are not semantic errors. A semantic error can occur only
+after successful canonical parsing. The failed `CanonicalDirective` is always
+available on the error result.
 
 This specification does not add a new runtime `Decision.kind` for
 directive-shaped invalid input. Section 6 defines that classification

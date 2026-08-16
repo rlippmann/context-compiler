@@ -80,10 +80,11 @@ class Engine:
         """Evaluate and commit one user input against authoritative state.
 
         Non-canonical input does not produce a state transition and returns
-        ``no_directive``. At the current engine boundary, invalid directive
-        classification is handled the same way as no-directive input. Accepted
-        directives return ``update`` and commit the resulting authoritative
-        state before the decision is returned.
+        ``NoDirectiveDecision``. At the current engine boundary, invalid
+        directive classification is handled the same way as no-directive
+        input. Accepted canonical directives delegate to
+        ``apply_directive(...)`` and return ``UpdateDecision`` or
+        ``SemanticErrorDecision`` after the state transition is evaluated.
         """
 
         directive = decompose_directive(user_input)

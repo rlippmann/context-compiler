@@ -7,6 +7,7 @@ These examples are intended to teach:
 
 - directive grammar
 - `Decision` handling
+- immutable `Decision` variants and semantic error details
 - engine lifecycle
 - state access
 - state restoration through `export_json()` / `import_json()`
