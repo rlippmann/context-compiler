@@ -63,6 +63,10 @@ pytestmark = pytest.mark.contract
         (
             "08_apply_directive_decisions.py",
             (
+                "engine.step() raw input boundary:",
+                "NoDirectiveDecision.kind: no_directive",
+                "step raw input: prohibit docker",
+                "decompose_directive() + engine.apply_directive() canonical boundary:",
                 "CanonicalDirective: prohibit docker",
                 "UpdateDecision.changed: True",
                 "SemanticErrorDecision.failure: item_prohibited",
