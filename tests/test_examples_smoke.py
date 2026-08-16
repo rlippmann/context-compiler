@@ -68,7 +68,7 @@ pytestmark = pytest.mark.contract
                 "step raw input: prohibit docker",
                 "terminal semantic error follow-up:",
                 "State unchanged after missing-source replacement: True",
-                "No repair or continuation applied automatically.",
+                "No repair applied automatically; later input is evaluated independently.",
                 "Later unrelated input: NoDirectiveDecision",
                 "decompose_directive() + engine.apply_directive() canonical boundary:",
                 "CanonicalDirective: prohibit docker",

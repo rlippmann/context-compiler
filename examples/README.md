@@ -73,5 +73,4 @@ and canonical directives from `decompose_directive(...)` through
 `engine.apply_directive(...)`. Inspects concrete Decision variants and selects
 repair directives explicitly. It also shows that a missing-source replacement
 is a terminal semantic error: state remains unchanged and later unrelated input
-is handled as `NoDirectiveDecision`, with no repair or continuation applied
-implicitly.
+is handled as `NoDirectiveDecision`, with no repair applied implicitly.
