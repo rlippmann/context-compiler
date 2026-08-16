@@ -295,6 +295,23 @@ use `failure` for machine decisions rather than parsing the message.
 never applied automatically; a host must explicitly submit a selected repair
 through `engine.apply_directive(...)`.
 
+The normative repair mapping is:
+
+| Failure | Ordered advisory repairs |
+| --- | --- |
+| `PREMISE_ALREADY_SET` | `change premise to <requested value>` |
+| `PREMISE_NOT_SET` | `set premise <requested value>` |
+| `ITEM_PROHIBITED` | `remove policy <item>`; `use <item>` |
+| `ITEM_ALREADY_IN_USE` | `remove policy <item>`; `prohibit <item>` |
+| `REPLACEMENT_TARGET_PROHIBITED` | `remove policy <target>`; retry the original replacement directive |
+| `REPLACEMENT_SOURCE_PROHIBITED` | no repair (`()`) |
+| `REPLACEMENT_SOURCE_MISSING` | no repair (`()`) |
+
+Repairs are canonical, ordered, and advisory only. The engine never applies
+them automatically; hosts explicitly select and submit any repair they want to
+use. `message` is presentation data, so control flow must use `failure` and
+the structured directives rather than parse message text.
+
 Meaning:
 
 | kind | host behavior |
@@ -303,9 +320,11 @@ Meaning:
 | update | canonical directive was accepted; inspect `changed` and use updated state downstream |
 | error | canonical directive was rejected semantically; inspect `failure`, show `message`, and optionally offer `repairs` |
 
-`engine.step(...)` returns any of the three variants because parsing may produce
-no usable directive. `engine.apply_directive(...)` accepts only a
-`CanonicalDirective`, so it returns only `UpdateDecision` or
+`engine.step(...)` is the raw input boundary: it parses user input, may return
+`NoDirectiveDecision` when no canonical directive is produced, and performs
+semantic evaluation only after canonical parsing succeeds. The canonical
+execution boundary is `engine.apply_directive(...)`, which accepts only a
+`CanonicalDirective` and returns only `UpdateDecision` or
 `SemanticErrorDecision`.
 
 Grammar failures do not produce semantic errors. A semantic error is possible

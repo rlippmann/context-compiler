@@ -37,17 +37,9 @@ Boundary:
   canonical operations already established by core
 - pending continuation is runtime state, not grammar
 - malformed or non-canonical input must never create pending continuation
-- a missing source item in `use <new> instead of <old>` is a semantic
-  replacement error, not a justification for pending continuation
-
-Current repository note:
-
-- the intended contract allows semantic pending continuation for supported
-  deterministic blocked transitions
-- that continuation boundary remains independent from replacement errors where
-  the requested old item is absent from state
-  and should be treated as lagging the updated specification until runtime work
-  lands
+- Pending continuation is independent from replacement semantics. A missing
+  source item in `use <new> instead of <old>` is a semantic replacement error
+  and does not create pending continuation.
 
 ## Acquisition Layer
 
@@ -74,7 +66,9 @@ Repository:
 Boundary:
 
 - drafting is non-authoritative
-- drafting must not bypass `engine.step(...)`
+- drafting must not bypass the engine's canonical execution boundaries:
+  `engine.step(...)` for raw input or `engine.apply_directive(...)` for
+  `CanonicalDirective` values
 - drafting must not mutate compiler-owned authoritative state
 
 ## Application Layer

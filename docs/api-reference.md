@@ -211,6 +211,23 @@ Repairs are never applied automatically. A host explicitly chooses whether to
 submit a repair through `engine.apply_directive(...)`. An empty tuple means no
 deterministic repair was proposed.
 
+The normative repair mapping is:
+
+| Failure | Ordered advisory repairs |
+| --- | --- |
+| `PREMISE_ALREADY_SET` | `change premise to <requested value>` |
+| `PREMISE_NOT_SET` | `set premise <requested value>` |
+| `ITEM_PROHIBITED` | `remove policy <item>`; `use <item>` |
+| `ITEM_ALREADY_IN_USE` | `remove policy <item>`; `prohibit <item>` |
+| `REPLACEMENT_TARGET_PROHIBITED` | `remove policy <target>`; retry the original replacement directive |
+| `REPLACEMENT_SOURCE_PROHIBITED` | no repair (`()`) |
+| `REPLACEMENT_SOURCE_MISSING` | no repair (`()`) |
+
+Repairs are canonical directives, remain ordered, and are advisory only. Hosts
+must explicitly select any repair they want to submit; the engine never applies
+repairs automatically. `message` is presentation data, not a control-flow
+interface.
+
 Return types differ at the two engine boundaries:
 
 - `engine.step(user_input)` returns `NoDirectiveDecision | UpdateDecision |
@@ -218,9 +235,12 @@ Return types differ at the two engine boundaries:
 - `engine.apply_directive(directive)` returns `UpdateDecision |
   SemanticErrorDecision` and can never return `NoDirectiveDecision`.
 
-`step(...)` may return `no_directive` when parsing produces no usable
-canonical directive. Grammar failures are not semantic errors. Semantic errors
-occur only after a `CanonicalDirective` has parsed successfully.
+`step(...)` is the raw input boundary: it parses user input, may return
+`no_directive` when parsing produces no usable canonical directive, and performs
+semantic evaluation only after a `CanonicalDirective` has parsed successfully.
+`apply_directive(...)` is the canonical execution boundary and accepts only a
+`CanonicalDirective`; it does not parse raw text and returns only `UpdateDecision`
+or `SemanticErrorDecision`. Grammar failures are not semantic errors.
 
 Typical use:
 
