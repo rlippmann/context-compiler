@@ -108,6 +108,7 @@ Make engine behavior inspectable and externally controllable without guessing.
 - Machine-readable REPL JSON output containing:
   - versioned one-object-per-line output (`output_version`)
   - step / preview / state command result envelopes
+  - structured Decision fields for update changes and semantic errors
 - JSON preload for authoritative state:
   - `--initial-state-json`
   - `--initial-state-file`
