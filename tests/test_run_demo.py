@@ -58,7 +58,6 @@ def test_demo_file_mapping_uses_current_0_5_demo_filenames() -> None:
         "6": "06_llm_context_compaction.py",
         "7": "07_llm_prompt_vs_state.py",
         "8": "08_llm_replacement_precondition.py",
-        "9": "09_llm_confirmation_no_directive.py",
     }
 
     demos_dir = REPO_ROOT / "demos"

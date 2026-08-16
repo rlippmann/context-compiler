@@ -35,8 +35,7 @@ Runnable application-layer enforcement-point integrations live in
 | [05](./05_llm_prompt_drift_vs_state.py) | Prompt drift | long transcript failure | weaker long-context models ([see Demo 05 example](#demo-05-example-prompt-drift-under-longer-context)) |
 | [06](./06_llm_context_compaction.py) | Context compaction | saved compiler state replacing transcript context | small or local models |
 | [07](./07_llm_prompt_vs_state.py) | Prompt engineering comparison | prompting vs saved compiler state | any model with long transcript sensitivity |
-| [08](./08_llm_replacement_precondition.py) | Replacement precondition | missing-source replacement applies deterministically from authoritative state | any model |
-| [09](./09_llm_confirmation_no_directive.py) | Replacement-error follow-up | invalid replacement is terminal; later follow-up input remains ordinary no_directive | any model |
+| [08](./08_llm_replacement_precondition.py) | Replacement precondition | missing-source replacement is terminal; state remains unchanged | any model |
 
 Stronger frontier models may show these behaviors less often, but the same
 patterns still appear in real applications.
@@ -167,7 +166,7 @@ includes:
 
 Notes:
 
-- There are **8 scored demos** (`01`–`05`, `07`, `08`, `09`). `06_context_compaction` is informational and excluded from PASS/FAIL totals.
+- There are **7 scored demos** (`01`–`05`, `07`, `08`). `06_context_compaction` is informational and excluded from PASS/FAIL totals.
 - Anthropic runs in this repo are executed through the `openai_compatible` provider path.
 - `PASS` means the demo-specific expected-behavior check for that path succeeded; `FAIL` means it did not.
 - `reinjected-state` can be enough for some persistence cases; in this demo set it is intentionally used as a prompt-only comparison baseline.
@@ -175,10 +174,10 @@ Notes:
 - Interpretation:
 
 - Demos `01`-`05` and `07` mostly test persistence and policy-following behavior across turns.
-- Demos `08`/`09` test rules for when state is allowed to change.
-- Demos `08` and `09` cover authority semantics prompt text does not implement by itself, such as replacement preconditions, blocked mutations, and terminal semantic errors before saving changes.
+- Demo `08` tests rules for when state is allowed to change.
+- Demo `08` covers authority semantics prompt text does not implement by itself, such as replacement preconditions, blocked mutations, and terminal semantic errors before saving changes.
 - Plain prompt reinjection can produce reasonable answers, but it does not run these authority checks by itself and is not the only or preferred production integration pattern.
-- Similar outcomes across models in `08`/`09` reflect app behavior limits, not model leaderboard ranking.
+- Similar outcomes across models in `08` reflect app behavior limits, not model leaderboard ranking.
 
 ### Demo 05 example (prompt drift under longer context)
 

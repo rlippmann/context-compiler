@@ -49,6 +49,20 @@ def main() -> None:
     handle_step(step_engine, "hello there")
     handle_step(step_engine, "prohibit docker")
     handle_step(step_engine, "use docker")
+
+    print("terminal semantic error follow-up:")
+    followup_engine = Engine()
+    before = (followup_engine.premise, dict(followup_engine.policies))
+    replacement_error = followup_engine.step("use podman instead of docker")
+    assert isinstance(replacement_error, SemanticErrorDecision)
+    after_error = (followup_engine.premise, dict(followup_engine.policies))
+    assert after_error == before
+    print("State unchanged after missing-source replacement: True")
+    print("No repair or continuation applied automatically.")
+
+    followup = followup_engine.step("yes")
+    assert isinstance(followup, NoDirectiveDecision)
+    print("Later unrelated input: NoDirectiveDecision")
     print()
 
     print("decompose_directive() + engine.apply_directive() canonical boundary:")
