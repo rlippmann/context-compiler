@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 
 import pytest
+from _decision_test_helpers import decision_observation
 
 from context_compiler import Engine
 
@@ -116,7 +117,7 @@ def test_structured_regression_scenarios() -> None:
         assert len(inputs) == len(expected_turns), f"turn_count_mismatch: {scenario_id}"
 
         for turn_index, user_input in enumerate(inputs):
-            decision = engine.step(user_input)
+            decision = decision_observation(engine.step(user_input))
             state = _state_observation(engine)
             expected_turn = expected_turns[turn_index]
 

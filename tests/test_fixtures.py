@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 import pytest
+from _decision_test_helpers import decision_observation
 
 import context_compiler.grammar as grammar_module
 from context_compiler import (
@@ -370,17 +371,18 @@ def test_step_fixtures() -> None:
 
         expected = fixture["expected"]
         expected_decision = expected["decision"]
-        assert decision["kind"] == expected_decision["kind"], fixture_id
+        observed_decision = decision_observation(decision)
+        assert observed_decision["kind"] == expected_decision["kind"], fixture_id
 
-        if decision["kind"] == DECISION_ERROR:
+        if observed_decision["kind"] == DECISION_ERROR:
             expected_message = expected_decision.get("message")
-            actual_message = decision["message"]
+            actual_message = observed_decision["message"]
             if expected_message is None:
                 assert actual_message != "", fixture_id
             else:
                 assert actual_message == expected_message, fixture_id
         else:
-            assert decision == expected_decision, fixture_id
+            assert observed_decision == expected_decision, fixture_id
 
         assert _state_observation(engine) == expected["state"], fixture_id
 
@@ -439,17 +441,18 @@ def test_apply_directive_fixtures() -> None:
 
         expected = fixture["expected"]
         expected_decision = expected["decision"]
-        assert decision["kind"] == expected_decision["kind"], fixture_id
+        observed_decision = decision_observation(decision)
+        assert observed_decision["kind"] == expected_decision["kind"], fixture_id
 
-        if decision["kind"] == DECISION_ERROR:
+        if observed_decision["kind"] == DECISION_ERROR:
             expected_message = expected_decision.get("message")
-            actual_message = decision["message"]
+            actual_message = observed_decision["message"]
             if expected_message is None:
                 assert actual_message != "", fixture_id
             else:
                 assert actual_message == expected_message, fixture_id
         else:
-            assert decision == expected_decision, fixture_id
+            assert observed_decision == expected_decision, fixture_id
 
         assert _state_observation(engine) == expected["state"], fixture_id
 
@@ -529,7 +532,11 @@ def test_mutation_isolation_fixtures() -> None:
             target = handles[mutation["target_handle"]]
             path = mutation["path"]
             assert isinstance(path, list), fixture_id
-            _apply_handle_mutation(target, path, mutation["value"])
+            if fn == "engine.step":
+                with pytest.raises((AssertionError, AttributeError, TypeError)):
+                    _apply_handle_mutation(target, path, mutation["value"])
+            else:
+                _apply_handle_mutation(target, path, mutation["value"])
 
         expected = fixture["expected"]
         assert _state_observation(engine) == expected["authoritative_state"], fixture_id
@@ -565,13 +572,17 @@ def test_controller_fixtures() -> None:
             fn = operation["fn"]
 
             if fn == "step":
-                observations[operation["label"]] = engine.step(operation["input"])
+                observations[operation["label"]] = decision_observation(
+                    engine.step(operation["input"])
+                )
                 continue
 
             if fn == "apply_directive":
                 directive = decompose_directive(operation["text"])
                 assert isinstance(directive, CanonicalDirective), fixture_id
-                observations[operation["label"]] = engine.apply_directive(directive)
+                observations[operation["label"]] = decision_observation(
+                    engine.apply_directive(directive)
+                )
                 continue
 
             if fn == "export_json":

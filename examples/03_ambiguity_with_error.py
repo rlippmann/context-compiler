@@ -4,7 +4,7 @@ from _util import print_decision_summary, print_engine_observations
 
 from context_compiler import (
     Engine,
-    is_error,
+    SemanticErrorDecision,
 )
 
 
@@ -26,9 +26,9 @@ def main() -> None:
     print_decision_summary(decision2)
     print()
 
-    if is_error(decision2):
+    if isinstance(decision2, SemanticErrorDecision):
         print("Host behavior: error returned, do NOT call LLM.")
-        print(f"Error message: {decision2['message']}")
+        print(f"Error message: {decision2.message}")
     else:
         fake_llm("use peanuts")
     print()

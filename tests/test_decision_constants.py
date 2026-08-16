@@ -5,12 +5,12 @@ from context_compiler import (
     POLICY_PROHIBIT,
     POLICY_USE,
     DecisionKind,
-    get_error_message,
-    is_error,
-    is_no_directive,
-    is_update,
+    NoDirectiveDecision,
+    SemanticErrorDecision,
+    SemanticFailure,
+    UpdateDecision,
 )
-from context_compiler.engine import Decision
+from context_compiler.grammar import CanonicalDirective, DirectiveKind
 
 
 def test_decision_constants_match_decision_kind_literals() -> None:
@@ -27,34 +27,34 @@ def test_policy_constants_match_policy_literals() -> None:
     assert POLICY_PROHIBIT == "prohibit"
 
 
-def test_decision_helpers_for_update_decision() -> None:
-    decision: Decision = {
-        "kind": DecisionKind.UPDATE,
-        "message": None,
-    }
+def test_decision_variants_are_immutable_and_slotted() -> None:
+    no_directive = NoDirectiveDecision()
+    update = UpdateDecision(changed=True)
+    error = SemanticErrorDecision(
+        failure=SemanticFailure.ITEM_PROHIBITED,
+        directive=CanonicalDirective(
+            kind=DirectiveKind.USE_ITEM,
+            operands={"item": "docker"},
+        ),
+    )
 
-    assert is_update(decision) is True
-    assert is_error(decision) is False
-    assert is_no_directive(decision) is False
-    assert get_error_message(decision) is None
+    assert no_directive.kind is DecisionKind.NO_DIRECTIVE
+    assert update.kind is DecisionKind.UPDATE
+    assert update.changed is True
+    assert error.kind is DecisionKind.ERROR
+    assert error.failure is SemanticFailure.ITEM_PROHIBITED
+    assert error.directive.kind is DirectiveKind.USE_ITEM
+    assert error.repairs == ()
+    assert (
+        error.message == '"docker" is currently prohibited.\nRemove or replace it before using it.'
+    )
 
+    for decision in (no_directive, update, error):
+        assert hasattr(type(decision), "__slots__")
 
-def test_decision_helpers_for_error_decision() -> None:
-    decision: Decision = {
-        "kind": DecisionKind.ERROR,
-        "message": "Use what item?",
-    }
-
-    assert is_update(decision) is False
-    assert is_error(decision) is True
-    assert is_no_directive(decision) is False
-    assert get_error_message(decision) == "Use what item?"
-
-
-def test_decision_helpers_for_no_directive_decision() -> None:
-    decision: Decision = {"kind": DecisionKind.NO_DIRECTIVE, "message": None}
-
-    assert is_update(decision) is False
-    assert is_error(decision) is False
-    assert is_no_directive(decision) is True
-    assert get_error_message(decision) is None
+    try:
+        update.changed = False  # type: ignore[misc]
+    except AttributeError:
+        pass
+    else:
+        raise AssertionError("Decision variants must be immutable")

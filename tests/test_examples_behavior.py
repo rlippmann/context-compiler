@@ -35,10 +35,8 @@ def test_example_03_error_gate_blocks_llm_and_allows_later_update(
     llm_calls: list[str] = []
 
     def capture_decision_summary(decision: object) -> None:
-        assert isinstance(decision, dict)
-        kind = decision.get("kind")
-        assert isinstance(kind, str)
-        decision_kinds.append(kind)
+        assert hasattr(decision, "kind")
+        decision_kinds.append(decision.kind)
 
     def fake_llm(user_input: str) -> str:
         llm_calls.append(user_input)
@@ -92,10 +90,8 @@ def test_example_05_dispatches_no_directive_update_and_error_correctly(
     llm_calls: list[tuple[object, str]] = []
 
     def capture_decision_summary(decision: object) -> None:
-        assert isinstance(decision, dict)
-        kind = decision.get("kind")
-        assert isinstance(kind, str)
-        decision_kinds.append(kind)
+        assert hasattr(decision, "kind")
+        decision_kinds.append(decision.kind)
 
     def capture_fake_llm(state: object, user_input: str) -> str:
         llm_calls.append((state, user_input))

@@ -7,9 +7,6 @@
     "CheckpointPending",
     "CheckpointPendingReplacement",
     "PendingReplacement",
-    "ErrorDecision",
-    "NoDirectiveDecision",
-    "UpdateDecision",
     "get_decision_state",
     "_NO_DIRECTIVE"
   ],
@@ -18,23 +15,35 @@
     "names": [
       "Decision",
       "DecisionKind",
+      "NoDirectiveDecision",
+      "SemanticErrorDecision",
+      "SemanticFailure",
+      "UpdateDecision",
       "DECISION_ERROR",
       "DECISION_NO_DIRECTIVE",
       "DECISION_UPDATE",
       "Engine",
       "POLICY_PROHIBIT",
       "POLICY_USE",
-      "PolicyValue",
-      "get_error_message",
-      "is_error",
-      "is_no_directive",
-      "is_update"
+      "PolicyValue"
     ],
     "members": {
       "Decision": {
-        "kind": "type"
+        "kind": "type_alias"
       },
       "DecisionKind": {
+        "kind": "class"
+      },
+      "NoDirectiveDecision": {
+        "kind": "class"
+      },
+      "SemanticErrorDecision": {
+        "kind": "class"
+      },
+      "SemanticFailure": {
+        "kind": "class"
+      },
+      "UpdateDecision": {
         "kind": "class"
       },
       "DECISION_ERROR": {
@@ -62,204 +71,6 @@
       },
       "PolicyValue": {
         "kind": "type_alias"
-      },
-      "get_error_message": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "decision",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        },
-        "shape_probes": [
-          {
-            "kwargs": {
-              "decision": {
-                "kind": "error",
-                "message": "confirm?"
-              }
-            },
-            "return_shape": {
-              "type": "string",
-              "const": "confirm?"
-            }
-          },
-          {
-            "kwargs": {
-              "decision": {
-                "kind": "update",
-                "message": null
-              }
-            },
-            "return_shape": {
-              "type": "null"
-            }
-          },
-          {
-            "kwargs": {
-              "decision": {
-                "kind": "no_directive",
-                "message": null
-              }
-            },
-            "return_shape": {
-              "type": "null"
-            }
-          }
-        ]
-      },
-      "is_error": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "decision",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        },
-        "shape_probes": [
-          {
-            "kwargs": {
-              "decision": {
-                "kind": "error",
-                "message": "confirm?"
-              }
-            },
-            "return_shape": {
-              "type": "boolean",
-              "const": true
-            }
-          },
-          {
-            "kwargs": {
-              "decision": {
-                "kind": "update",
-                "message": null
-              }
-            },
-            "return_shape": {
-              "type": "boolean",
-              "const": false
-            }
-          },
-          {
-            "kwargs": {
-              "decision": {
-                "kind": "no_directive",
-                "message": null
-              }
-            },
-            "return_shape": {
-              "type": "boolean",
-              "const": false
-            }
-          }
-        ]
-      },
-      "is_no_directive": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "decision",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        },
-        "shape_probes": [
-          {
-            "kwargs": {
-              "decision": {
-                "kind": "no_directive",
-                "message": null
-              }
-            },
-            "return_shape": {
-              "type": "boolean",
-              "const": true
-            }
-          },
-          {
-            "kwargs": {
-              "decision": {
-                "kind": "update",
-                "message": null
-              }
-            },
-            "return_shape": {
-              "type": "boolean",
-              "const": false
-            }
-          },
-          {
-            "kwargs": {
-              "decision": {
-                "kind": "error",
-                "message": "confirm?"
-              }
-            },
-            "return_shape": {
-              "type": "boolean",
-              "const": false
-            }
-          }
-        ]
-      },
-      "is_update": {
-        "kind": "callable",
-        "signature": {
-          "params": [
-            {
-              "name": "decision",
-              "kind": "POSITIONAL_OR_KEYWORD",
-              "has_default": false
-            }
-          ]
-        },
-        "shape_probes": [
-          {
-            "kwargs": {
-              "decision": {
-                "kind": "update",
-                "message": null
-              }
-            },
-            "return_shape": {
-              "type": "boolean",
-              "const": true
-            }
-          },
-          {
-            "kwargs": {
-              "decision": {
-                "kind": "error",
-                "message": "confirm?"
-              }
-            },
-            "return_shape": {
-              "type": "boolean",
-              "const": false
-            }
-          },
-          {
-            "kwargs": {
-              "decision": {
-                "kind": "no_directive",
-                "message": null
-              }
-            },
-            "return_shape": {
-              "type": "boolean",
-              "const": false
-            }
-          }
-        ]
       }
     }
   },

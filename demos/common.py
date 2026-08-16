@@ -8,8 +8,8 @@ from typing import Literal, NotRequired, TypedDict
 from context_compiler import (
     Decision,
     Engine,
-    is_error,
-    is_update,
+    SemanticErrorDecision,
+    UpdateDecision,
 )
 from context_compiler.engine import PolicyValue
 from demos.llm_client import Message
@@ -103,14 +103,12 @@ def print_decision(
     if not is_verbose():
         return
     print(f"Compiler decision ({title}):")
-    if is_update(decision):
+    if isinstance(decision, UpdateDecision):
         print("result: updated")
         _print_state_summary(premise=premise, policies=policies)
-    elif is_error(decision):
+    elif isinstance(decision, SemanticErrorDecision):
         print("result: error")
-        message = decision["message"]
-        if message:
-            _print_multiline_prompt("error message", message)
+        _print_multiline_prompt("error message", decision.message)
         _print_state_summary(premise=premise, policies=policies)
     else:
         print("result: no_directive")
@@ -288,11 +286,11 @@ def compact_user_turns(
 
     for turn in user_turns:
         decision = engine.step(turn)
-        if is_update(decision):
+        if isinstance(decision, UpdateDecision):
             continue
         compacted_turns.append(turn)
-        if is_error(decision):
-            message = decision["message"]
+        if isinstance(decision, SemanticErrorDecision):
+            message = decision.message
             break
 
     premise, policies = observe_engine(engine)
