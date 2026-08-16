@@ -1,7 +1,7 @@
 """Example 8: apply canonical directives and inspect structured decisions."""
 
 from context_compiler import Engine, SemanticErrorDecision, UpdateDecision
-from context_compiler.grammar import CanonicalDirective, decompose_directive
+from context_compiler.grammar import CanonicalDirective, DirectiveKind, decompose_directive
 
 
 def apply_canonical_directive(
@@ -42,8 +42,16 @@ def main() -> None:
 
     if error.repairs:
         print("Applying selected repairs:")
-        for repair in error.repairs:
-            apply_canonical_directive(engine, repair)
+        remove_policy_repair = next(
+            repair for repair in error.repairs if repair.kind is DirectiveKind.REMOVE_POLICY
+        )
+        retry_use_repair = next(
+            repair for repair in error.repairs if repair.kind is DirectiveKind.USE_ITEM
+        )
+        print(f"Selected repair: {remove_policy_repair.text}")
+        apply_canonical_directive(engine, remove_policy_repair)
+        print(f"Selected repair: {retry_use_repair.text}")
+        apply_canonical_directive(engine, retry_use_repair)
 
 
 if __name__ == "__main__":
