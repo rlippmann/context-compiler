@@ -751,6 +751,7 @@ source material for later conformance fixtures.
 | `clear state then set premise project` | directive-shaped invalid input | none | compound attempt |
 | `use "docker and prohibit peanuts"` | directive-shaped invalid input | none | quotes do not protect embedded directive text |
 | `set premise "use docker and prohibit peanuts"` | directive-shaped invalid input | none | quotes do not protect embedded directive text |
+
 ## 12. Invariants
 
 1. State changes only from canonical directives that pass semantic evaluation.
