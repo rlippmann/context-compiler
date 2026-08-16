@@ -62,7 +62,12 @@ def _validate_structured_expected_fixture(expected: dict[str, object], fixture_i
 
         decision = turn["decision"]
         assert isinstance(decision, dict), fixture_id
-        _assert_allowed_keys(decision, {"kind", "message"}, fixture_id, "expected.turn.decision")
+        _assert_allowed_keys(
+            decision,
+            {"kind", "message"} | ({"failure", "directive", "repairs"} & set(decision)),
+            fixture_id,
+            "expected.turn.decision",
+        )
         assert isinstance(decision["kind"], str), fixture_id
         if decision["kind"] == "error":
             assert isinstance(decision["message"], str), fixture_id
@@ -126,7 +131,12 @@ def test_structured_regression_scenarios() -> None:
             assert expected_turn["input"] == user_input, f"{context} input_mismatch"
 
             expected_decision = expected_turn["decision"]
-            assert decision == expected_decision, f"{context} decision_mismatch"
+            if expected_decision["kind"] == "error":
+                assert decision["kind"] == expected_decision["kind"], f"{context} decision_mismatch"
+                for field, value in expected_decision.items():
+                    assert decision[field] == value, f"{context} decision_mismatch"
+            else:
+                assert decision == expected_decision, f"{context} decision_mismatch"
 
             expected_state = expected_turn["state"]
             if state != expected_state:

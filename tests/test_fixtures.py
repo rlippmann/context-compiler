@@ -113,7 +113,12 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
 
 
 def _validate_public_decision(decision: dict[str, object], fixture_id: object, label: str) -> None:
-    _assert_allowed_keys(decision, {"kind", "message"}, fixture_id, label)
+    _assert_allowed_keys(
+        decision,
+        {"kind", "message"} | ({"failure", "directive", "repairs"} & set(decision)),
+        fixture_id,
+        label,
+    )
     kind = decision.get("kind")
     assert isinstance(kind, str), fixture_id
 
@@ -123,6 +128,43 @@ def _validate_public_decision(decision: dict[str, object], fixture_id: object, l
 
     assert kind == "error", fixture_id
     assert isinstance(decision["message"], str), fixture_id
+    if "failure" in decision:
+        assert isinstance(decision["failure"], str), fixture_id
+        directive = decision.get("directive")
+        assert isinstance(directive, dict), fixture_id
+        _assert_allowed_keys(
+            directive,
+            {"kind", "text", "operands"},
+            fixture_id,
+            f"{label}.directive",
+        )
+        assert isinstance(directive["kind"], str), fixture_id
+        assert isinstance(directive["text"], str), fixture_id
+        assert isinstance(directive["operands"], dict), fixture_id
+        repairs = decision.get("repairs")
+        assert isinstance(repairs, list), fixture_id
+        for index, repair in enumerate(repairs):
+            assert isinstance(repair, dict), fixture_id
+            _assert_allowed_keys(
+                repair,
+                {"kind", "text", "operands"},
+                fixture_id,
+                f"{label}.repairs[{index}]",
+            )
+            assert isinstance(repair["kind"], str), fixture_id
+            assert isinstance(repair["text"], str), fixture_id
+            assert isinstance(repair["operands"], dict), fixture_id
+
+
+def _assert_decision_observation(
+    observed: dict[str, object], expected: dict[str, object], fixture_id: object
+) -> None:
+    if expected["kind"] == DECISION_ERROR:
+        assert observed["kind"] == expected["kind"], fixture_id
+        for field, value in expected.items():
+            assert observed[field] == value, fixture_id
+    else:
+        assert observed == expected, fixture_id
 
 
 def _validate_step_fixture(fixture: dict[str, object], fixture_id: object) -> None:
@@ -372,17 +414,7 @@ def test_step_fixtures() -> None:
         expected = fixture["expected"]
         expected_decision = expected["decision"]
         observed_decision = decision_observation(decision)
-        assert observed_decision["kind"] == expected_decision["kind"], fixture_id
-
-        if observed_decision["kind"] == DECISION_ERROR:
-            expected_message = expected_decision.get("message")
-            actual_message = observed_decision["message"]
-            if expected_message is None:
-                assert actual_message != "", fixture_id
-            else:
-                assert actual_message == expected_message, fixture_id
-        else:
-            assert observed_decision == expected_decision, fixture_id
+        _assert_decision_observation(observed_decision, expected_decision, fixture_id)
 
         assert _state_observation(engine) == expected["state"], fixture_id
 
@@ -442,17 +474,7 @@ def test_apply_directive_fixtures() -> None:
         expected = fixture["expected"]
         expected_decision = expected["decision"]
         observed_decision = decision_observation(decision)
-        assert observed_decision["kind"] == expected_decision["kind"], fixture_id
-
-        if observed_decision["kind"] == DECISION_ERROR:
-            expected_message = expected_decision.get("message")
-            actual_message = observed_decision["message"]
-            if expected_message is None:
-                assert actual_message != "", fixture_id
-            else:
-                assert actual_message == expected_message, fixture_id
-        else:
-            assert observed_decision == expected_decision, fixture_id
+        _assert_decision_observation(observed_decision, expected_decision, fixture_id)
 
         assert _state_observation(engine) == expected["state"], fixture_id
 
@@ -599,7 +621,10 @@ def test_controller_fixtures() -> None:
 
         expected = fixture["expected"]
         for label, expected_observation in expected["observations"].items():
-            assert observations[label] == expected_observation, fixture_id
+            if isinstance(expected_observation, dict) and "kind" in expected_observation:
+                _assert_decision_observation(observations[label], expected_observation, fixture_id)
+            else:
+                assert observations[label] == expected_observation, fixture_id
 
         for left, right in expected["equal"]:
             assert observations[left] == observations[right], fixture_id
