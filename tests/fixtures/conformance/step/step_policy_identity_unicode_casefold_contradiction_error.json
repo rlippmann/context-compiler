@@ -13,6 +13,30 @@
   "expected": {
     "decision": {
       "kind": "error",
+      "failure": "item_already_in_use",
+      "directive": {
+        "kind": "prohibit_item",
+        "text": "prohibit STRASSE",
+        "operands": {
+          "item": "STRASSE"
+        }
+      },
+      "repairs": [
+        {
+          "kind": "remove_policy",
+          "text": "remove policy STRASSE",
+          "operands": {
+            "item": "STRASSE"
+          }
+        },
+        {
+          "kind": "prohibit_item",
+          "text": "prohibit STRASSE",
+          "operands": {
+            "item": "STRASSE"
+          }
+        }
+      ],
       "message": "\"strasse\" is currently in use.\nRemove or replace it before prohibiting it."
     },
     "state": {

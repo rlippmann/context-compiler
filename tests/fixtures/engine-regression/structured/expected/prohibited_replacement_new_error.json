@@ -41,6 +41,32 @@
       },
       "decision": {
         "kind": "error",
+        "failure": "replacement_target_prohibited",
+        "directive": {
+          "kind": "replace_use",
+          "text": "use kubectl instead of docker",
+          "operands": {
+            "new_item": "kubectl",
+            "old_item": "docker"
+          }
+        },
+        "repairs": [
+          {
+            "kind": "remove_policy",
+            "text": "remove policy kubectl",
+            "operands": {
+              "item": "kubectl"
+            }
+          },
+          {
+            "kind": "replace_use",
+            "text": "use kubectl instead of docker",
+            "operands": {
+              "new_item": "kubectl",
+              "old_item": "docker"
+            }
+          }
+        ],
         "message": "\"kubectl\" is currently prohibited.\nSubmit explicit directive(s) to remove it or use a different item."
       },
       "input": "use kubectl instead of docker"

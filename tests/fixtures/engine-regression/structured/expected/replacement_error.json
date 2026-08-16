@@ -9,6 +9,16 @@
       },
       "decision": {
         "kind": "error",
+        "failure": "replacement_source_missing",
+        "directive": {
+          "kind": "replace_use",
+          "text": "use podman instead of docker",
+          "operands": {
+            "new_item": "podman",
+            "old_item": "docker"
+          }
+        },
+        "repairs": [],
         "message": "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
       },
       "input": "use podman instead of docker"

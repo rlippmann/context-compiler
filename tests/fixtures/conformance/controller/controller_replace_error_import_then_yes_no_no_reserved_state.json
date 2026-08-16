@@ -31,6 +31,16 @@
     "observations": {
       "replacement_error": {
         "kind": "error",
+        "failure": "replacement_source_missing",
+        "directive": {
+          "kind": "replace_use",
+          "text": "use kubectl instead of docker",
+          "operands": {
+            "new_item": "kubectl",
+            "old_item": "docker"
+          }
+        },
+        "repairs": [],
         "message": "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
       },
       "yes_followup": {

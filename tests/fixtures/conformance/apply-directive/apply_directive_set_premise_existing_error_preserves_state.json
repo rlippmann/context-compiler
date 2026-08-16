@@ -15,6 +15,23 @@
   "expected": {
     "decision": {
       "kind": "error",
+      "failure": "premise_already_set",
+      "directive": {
+        "kind": "set_premise",
+        "text": "set premise concise replies",
+        "operands": {
+          "value": "concise replies"
+        }
+      },
+      "repairs": [
+        {
+          "kind": "change_premise",
+          "text": "change premise to concise replies",
+          "operands": {
+            "value": "concise replies"
+          }
+        }
+      ],
       "message": "Premise already set.\nUse 'change premise to <value>' to modify it."
     },
     "state": {

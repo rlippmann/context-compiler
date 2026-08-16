@@ -21,6 +21,23 @@
       },
       "decision": {
         "kind": "error",
+        "failure": "premise_already_set",
+        "directive": {
+          "kind": "set_premise",
+          "text": "set premise formal replies",
+          "operands": {
+            "value": "formal replies"
+          }
+        },
+        "repairs": [
+          {
+            "kind": "change_premise",
+            "text": "change premise to formal replies",
+            "operands": {
+              "value": "formal replies"
+            }
+          }
+        ],
         "message": "Premise already set.\nUse 'change premise to <value>' to modify it."
       },
       "input": "set premise formal replies"
@@ -57,6 +74,23 @@
       },
       "decision": {
         "kind": "error",
+        "failure": "premise_not_set",
+        "directive": {
+          "kind": "change_premise",
+          "text": "change premise to formal tone",
+          "operands": {
+            "value": "formal tone"
+          }
+        },
+        "repairs": [
+          {
+            "kind": "set_premise",
+            "text": "set premise formal tone",
+            "operands": {
+              "value": "formal tone"
+            }
+          }
+        ],
         "message": "No premise is set.\nUse 'set premise <value>' to define one."
       },
       "input": "change premise to formal tone"

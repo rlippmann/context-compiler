@@ -13,6 +13,30 @@
   "expected": {
     "decision": {
       "kind": "error",
+      "failure": "item_already_in_use",
+      "directive": {
+        "kind": "prohibit_item",
+        "text": "prohibit don’t",
+        "operands": {
+          "item": "don’t"
+        }
+      },
+      "repairs": [
+        {
+          "kind": "remove_policy",
+          "text": "remove policy don’t",
+          "operands": {
+            "item": "don’t"
+          }
+        },
+        {
+          "kind": "prohibit_item",
+          "text": "prohibit don’t",
+          "operands": {
+            "item": "don’t"
+          }
+        }
+      ],
       "message": "\"don't\" is currently in use.\nRemove or replace it before prohibiting it."
     },
     "state": {

@@ -13,6 +13,16 @@
   "expected": {
     "decision": {
       "kind": "error",
+      "failure": "replacement_source_prohibited",
+      "directive": {
+        "kind": "replace_use",
+        "text": "use kubectl instead of docker",
+        "operands": {
+          "new_item": "kubectl",
+          "old_item": "docker"
+        }
+      },
+      "repairs": [],
       "message": "\"docker\" is currently prohibited.\nSubmit explicit directive(s) to remove it or use a different item."
     },
     "state": {
