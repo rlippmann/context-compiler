@@ -27,7 +27,7 @@
       "input": "use docker",
       "decision": {
         "kind": "update",
-        "message": null
+        "changed": true
       },
       "state": {
         "premise": null,

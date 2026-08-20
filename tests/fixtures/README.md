@@ -49,7 +49,7 @@ Then asserts:
 The `Decision` payload in this family uses one shared shape:
 
 * `{"kind":"no_directive","message":null}`
-* `{"kind":"update","message":null}`
+* `{"kind":"update","changed":true|false}`
 * `{"kind":"error","failure": ..., "directive": ..., "repairs": [...], "message": ...}`
 
 Semantic errors always include the machine-readable `failure`, the rejected

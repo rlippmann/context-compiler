@@ -316,7 +316,10 @@ def _match_directive_token(
             token_index += 1
             continue
 
-        if text[index].casefold() != token_char:
+        character = text[index]
+        if "A" <= character <= "Z":
+            character = chr(ord(character) + (ord("a") - ord("A")))
+        if character != token_char:
             return None
         index += 1
         token_index += 1

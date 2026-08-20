@@ -1,0 +1,17 @@
+{
+  "id": "grammar_decompose_ascii_case_prohibit_item",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "PROHIBIT peanuts"
+  },
+  "expected": {
+    "directive": {
+      "text": "prohibit peanuts",
+      "kind": "prohibit_item",
+      "operands": {
+        "item": "peanuts"
+      }
+    }
+  }
+}

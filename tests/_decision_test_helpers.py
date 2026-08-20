@@ -27,7 +27,10 @@ def assert_decision(decision: Decision, expected: Mapping[str, object]) -> None:
 
 
 def decision_observation(decision: Decision) -> dict[str, object]:
-    """Adapt a domain result for existing fixture assertions."""
+    """Return the portable observation shape for a domain decision."""
+
+    if isinstance(decision, UpdateDecision):
+        return {"kind": decision.kind, "changed": decision.changed}
 
     message = decision.message if isinstance(decision, SemanticErrorDecision) else None
     observation: dict[str, object] = {"kind": decision.kind, "message": message}

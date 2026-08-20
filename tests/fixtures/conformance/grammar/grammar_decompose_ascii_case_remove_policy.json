@@ -1,0 +1,17 @@
+{
+  "id": "grammar_decompose_ascii_case_remove_policy",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "REMOVE POLICY docker"
+  },
+  "expected": {
+    "directive": {
+      "text": "remove policy docker",
+      "kind": "remove_policy",
+      "operands": {
+        "item": "docker"
+      }
+    }
+  }
+}

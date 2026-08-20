@@ -38,11 +38,11 @@
     "observations": {
       "step_decision": {
         "kind": "update",
-        "message": null
+        "changed": true
       },
       "apply_decision": {
         "kind": "update",
-        "message": null
+        "changed": true
       }
     },
     "equal": [

@@ -1,0 +1,15 @@
+{
+  "id": "grammar_decompose_ascii_case_clear_premise",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "CLEAR PREMISE"
+  },
+  "expected": {
+    "directive": {
+      "text": "clear premise",
+      "kind": "clear_premise",
+      "operands": {}
+    }
+  }
+}

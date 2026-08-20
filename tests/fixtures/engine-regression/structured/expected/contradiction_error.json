@@ -11,7 +11,7 @@
       },
       "decision": {
         "kind": "update",
-        "message": null
+        "changed": true
       },
       "input": "use docker"
     },

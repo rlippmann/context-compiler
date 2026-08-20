@@ -1,0 +1,17 @@
+{
+  "id": "grammar_decompose_ascii_case_set_premise",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "SET PREMISE concise replies"
+  },
+  "expected": {
+    "directive": {
+      "text": "set premise concise replies",
+      "kind": "set_premise",
+      "operands": {
+        "value": "concise replies"
+      }
+    }
+  }
+}
