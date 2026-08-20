@@ -106,7 +106,20 @@ def assert_shape(
         return
 
     if "kind" in shape and shape["kind"] == "canonical_directive":
-        assert value == grammar.decompose_directive(shape["text"])
+        assert isinstance(value, grammar.CanonicalDirective)
+        assert value.text == shape["text"]
+        assert value.kind.value == shape["directive_kind"]
+        assert dict(value.operands) == shape["operands"]
+        return
+
+    if "kind" in shape and shape["kind"] == "directive_metadata":
+        assert isinstance(value, grammar.DirectiveMetadata)
+        observed_kind = (
+            value.kind.value if isinstance(value.kind, grammar.DirectiveKind) else value.kind
+        )
+        assert observed_kind == shape["directive_kind"]
+        assert value.canonical_start == shape["canonical_start"]
+        assert list(value.operand_names) == shape["operand_names"]
         return
 
     if "kind" in shape and shape["kind"] == "invalid_directive_syntax":
@@ -532,6 +545,23 @@ def _validate_shape_spec(shape: object, label: str) -> None:
             _assert_string_keyed_dict(shape["operands"], f"{label}.operands")
             for operand_name, operand_value in shape["operands"].items():
                 _assert_type(operand_value, str, f"{label}.operands[{operand_name!r}]")
+            return
+        if kind == "directive_metadata":
+            _assert_closed_keys(
+                shape,
+                {"kind", "directive_kind", "canonical_start", "operand_names"},
+                label,
+            )
+            _require_fields(
+                shape,
+                {"kind", "directive_kind", "canonical_start", "operand_names"},
+                label,
+            )
+            _assert_type(shape["directive_kind"], str, f"{label}.directive_kind")
+            _assert_type(shape["canonical_start"], str, f"{label}.canonical_start")
+            _assert_type(shape["operand_names"], list, f"{label}.operand_names")
+            for index, operand_name in enumerate(shape["operand_names"]):
+                _assert_type(operand_name, str, f"{label}.operand_names[{index}]")
             return
         if kind == "invalid_directive_syntax":
             _assert_closed_keys(

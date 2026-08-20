@@ -20,7 +20,26 @@
         "kind": "class"
       },
       "DirectiveMetadata": {
-        "kind": "class"
+        "kind": "class",
+        "construction_probes": [
+          {
+            "kwargs": {
+              "kind": "use_item",
+              "canonical_start": "use",
+              "operand_names": [
+                "item"
+              ]
+            },
+            "return_shape": {
+              "kind": "directive_metadata",
+              "directive_kind": "use_item",
+              "canonical_start": "use",
+              "operand_names": [
+                "item"
+              ]
+            }
+          }
+        ]
       },
       "CanonicalDirective": {
         "kind": "class",
@@ -146,6 +165,28 @@
               "operands": {
                 "new_item": "podman instead of nerdctl",
                 "old_item": "docker"
+              }
+            },
+            "raises": {
+              "type": "ValueError"
+            }
+          },
+          {
+            "kwargs": {
+              "kind": "use_item",
+              "operands": {
+                "item": "instead of"
+              }
+            },
+            "raises": {
+              "type": "ValueError"
+            }
+          },
+          {
+            "kwargs": {
+              "kind": "use_item",
+              "operands": {
+                "item": "docker prohibit peanuts"
               }
             },
             "raises": {

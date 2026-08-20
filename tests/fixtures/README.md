@@ -119,11 +119,15 @@ These fixtures define declarative scenarios for:
 * returned decision isolation
 * `engine.policies` caller-ownership isolation
 * `engine.premise` caller-ownership isolation
+* `CanonicalDirective.operands` mutation isolation
+* covered `DirectiveMetadata` field mutation isolation
 
 The portable contract for this family is:
 
 * no public API return value may provide a mutation path into authoritative engine state
 * live semantic reads exposed through public properties must remain caller-owned observations
+* exposed grammar objects covered by fixtures must preserve their observed
+  values when callers attempt the fixture-defined mutations
 
 Legacy mutation-isolation scenarios tied to removed raw-state construction or
 raw-state snapshot APIs are not part of the current supported fixture surface.
