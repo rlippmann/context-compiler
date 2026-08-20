@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from _api_contract_harness import (
@@ -76,6 +77,23 @@ def test_api_contract_fixture_forbidden_exports_are_not_present() -> None:
         assert not hasattr(context_compiler, name), name
 
 
+def test_api_contract_fixture_forbidden_engine_members_are_not_present() -> None:
+    contract = _load_contract()
+    engine = context_compiler.Engine()
+
+    for name in contract.get("forbidden_engine_members", []):
+        assert name not in dir(engine), name
+        assert not hasattr(engine, name), name
+
+
+def test_api_contract_fixture_forbidden_state_keys_are_not_exported() -> None:
+    contract = _load_contract()
+    state = json.loads(context_compiler.Engine().export_json())
+
+    for name in contract.get("forbidden_state_keys", []):
+        assert name not in state, name
+
+
 def test_public_annotation_dependencies_are_importable_from_root() -> None:
     assert context_compiler.PolicyValue is not None
 
@@ -88,6 +106,15 @@ def test_api_contract_fixture_has_unique_entries() -> None:
     forbidden_exports = contract.get("forbidden_exports", [])
     assert len(forbidden_exports) == len(set(forbidden_exports))
     assert not (set(forbidden_exports) & set(export_names))
+
+    forbidden_engine_members = contract.get("forbidden_engine_members", [])
+    assert len(forbidden_engine_members) == len(set(forbidden_engine_members))
+    assert not (
+        set(forbidden_engine_members) & set(contract["engine"]["public_members"]["members"])
+    )
+
+    forbidden_state_keys = contract.get("forbidden_state_keys", [])
+    assert len(forbidden_state_keys) == len(set(forbidden_state_keys))
 
     export_member_names = list(contract["exports"]["members"].keys())
     assert len(export_member_names) == len(set(export_member_names))
