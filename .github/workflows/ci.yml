@@ -4,8 +4,12 @@ on:
   push:
   pull_request:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  markdownlint:
+  quality:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -18,20 +22,10 @@ jobs:
       - name: Run Markdown lint
         run: ./scripts/validate_markdown.sh
 
-  test:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: ["3.11", "3.12", "3.13", "3.14"]
-
-    steps:
-      - uses: actions/checkout@v6
-
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up Python 3.12
         uses: actions/setup-python@v6
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.12"
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
@@ -55,17 +49,46 @@ jobs:
       - name: Mypy
         run: uv run mypy src examples demos
 
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14"]
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install dev dependencies
+        run: uv sync --dev
+
       - name: Install Hypothesis for tests
         run: uv pip install --python .venv/bin/python hypothesis
 
       - name: Install coverage tooling
+        if: matrix.python-version == '3.12'
         run: uv pip install --python .venv/bin/python pytest-cov
 
-      - name: Pytest
+      - name: Pytest with coverage
+        if: matrix.python-version == '3.12'
         run: uv run pytest --cov=context_compiler --cov-report=term --cov-report=xml:coverage.xml --cov-report=html:htmlcov
 
+      - name: Pytest
+        if: matrix.python-version != '3.12'
+        run: uv run pytest
+
       - name: Upload coverage report
-        if: always()
+        if: always() && matrix.python-version == '3.12'
         uses: actions/upload-artifact@v7
         with:
           name: coverage-python-${{ matrix.python-version }}
