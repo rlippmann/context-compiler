@@ -1,0 +1,18 @@
+{
+  "id": "grammar_decompose_ascii_case_replace_use",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "USE podman INSTEAD OF docker"
+  },
+  "expected": {
+    "directive": {
+      "text": "use podman instead of docker",
+      "kind": "replace_use",
+      "operands": {
+        "new_item": "podman",
+        "old_item": "docker"
+      }
+    }
+  }
+}

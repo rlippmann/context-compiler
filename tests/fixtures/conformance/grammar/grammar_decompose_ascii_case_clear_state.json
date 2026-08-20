@@ -1,0 +1,15 @@
+{
+  "id": "grammar_decompose_ascii_case_clear_state",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "CLEAR STATE"
+  },
+  "expected": {
+    "directive": {
+      "text": "clear state",
+      "kind": "clear_state",
+      "operands": {}
+    }
+  }
+}

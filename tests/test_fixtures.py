@@ -137,9 +137,14 @@ def _validate_public_decision(decision: dict[str, object], fixture_id: object, l
     kind = decision.get("kind")
     assert isinstance(kind, str), fixture_id
 
-    if kind in {"no_directive", "update"}:
+    if kind == "no_directive":
         _assert_allowed_keys(decision, {"kind", "message"}, fixture_id, label)
         assert decision["message"] is None, fixture_id
+        return
+
+    if kind == "update":
+        _assert_allowed_keys(decision, {"kind", "changed"}, fixture_id, label)
+        assert isinstance(decision["changed"], bool), fixture_id
         return
 
     assert kind == "error", fixture_id

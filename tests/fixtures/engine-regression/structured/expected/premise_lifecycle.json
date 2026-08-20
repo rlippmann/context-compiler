@@ -9,7 +9,7 @@
       },
       "decision": {
         "kind": "update",
-        "message": null
+        "changed": true
       },
       "input": "set premise concise replies"
     },
@@ -50,7 +50,7 @@
       },
       "decision": {
         "kind": "update",
-        "message": null
+        "changed": true
       },
       "input": "change premise to concise bullet points"
     },
@@ -62,7 +62,7 @@
       },
       "decision": {
         "kind": "update",
-        "message": null
+        "changed": true
       },
       "input": "clear premise"
     },

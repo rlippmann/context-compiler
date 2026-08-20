@@ -1,0 +1,15 @@
+{
+  "id": "grammar_decompose_ascii_case_reset_policies",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "RESET POLICIES"
+  },
+  "expected": {
+    "directive": {
+      "text": "reset policies",
+      "kind": "reset_policies",
+      "operands": {}
+    }
+  }
+}

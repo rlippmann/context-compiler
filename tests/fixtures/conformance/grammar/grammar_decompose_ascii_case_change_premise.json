@@ -1,0 +1,17 @@
+{
+  "id": "grammar_decompose_ascii_case_change_premise",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "CHANGE PREMISE TO formal tone"
+  },
+  "expected": {
+    "directive": {
+      "text": "change premise to formal tone",
+      "kind": "change_premise",
+      "operands": {
+        "value": "formal tone"
+      }
+    }
+  }
+}

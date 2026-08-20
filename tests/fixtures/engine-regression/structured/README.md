@@ -45,7 +45,8 @@ regressions are visible in:
 
 ## Prompt Matching
 
-`decision.message` is matched exactly, including `null` for non-error turns.
+Update observations expose `changed`; error observations expose
+`decision.message` and match it exactly.
 
 ## Adding a Scenario
 
