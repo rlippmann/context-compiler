@@ -1,0 +1,48 @@
+{
+  "id": "010_canonical_directive_operands_isolation",
+  "kind": "mutation_isolation",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "operation": {
+    "fn": "canonical_directive.operands",
+    "kind": "use_item",
+    "operands": {
+      "item": "docker"
+    },
+    "result_handle": "operands"
+  },
+  "handles": {
+    "operands": {
+      "kind": "immutable_or_defensive_snapshot"
+    }
+  },
+  "mutations": [
+    {
+      "target_handle": "operands",
+      "path": [
+        "item"
+      ],
+      "op": "set",
+      "value": "prohibit peanuts"
+    }
+  ],
+  "expected": {
+    "authoritative_state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    },
+    "caller_owned_observations": {
+      "operands_after_mutation": {
+        "target_handle": "operands",
+        "path": [
+          "item"
+        ],
+        "value": "docker"
+      }
+    }
+  }
+}

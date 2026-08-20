@@ -1,4 +1,5 @@
 import json
+from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
@@ -65,13 +66,33 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
 
     operation = fixture["operation"]
     assert isinstance(operation, dict), fixture_id
-    _assert_allowed_keys(
-        operation, {"fn", "input", "result_handle"} & set(operation), fixture_id, "operation"
-    )
-    assert operation["fn"] in {"engine.step", "engine.policies", "engine.premise"}, fixture_id
+    assert isinstance(operation, dict), fixture_id
+    assert operation["fn"] in {
+        "engine.step",
+        "engine.policies",
+        "engine.premise",
+        "canonical_directive.operands",
+        "directive_metadata",
+    }, fixture_id
     if operation["fn"] == "engine.step":
         _assert_allowed_keys(operation, {"fn", "input", "result_handle"}, fixture_id, "operation")
         assert isinstance(operation["input"], str), fixture_id
+    elif operation["fn"] == "canonical_directive.operands":
+        _assert_allowed_keys(
+            operation, {"fn", "kind", "operands", "result_handle"}, fixture_id, "operation"
+        )
+        assert isinstance(operation["kind"], str), fixture_id
+        assert isinstance(operation["operands"], dict), fixture_id
+    elif operation["fn"] == "directive_metadata":
+        _assert_allowed_keys(
+            operation,
+            {"fn", "kind", "canonical_start", "operand_names", "result_handle"},
+            fixture_id,
+            "operation",
+        )
+        assert isinstance(operation["kind"], str), fixture_id
+        assert isinstance(operation["canonical_start"], str), fixture_id
+        _assert_str_list(operation["operand_names"], fixture_id, "operation.operand_names")
     else:
         _assert_allowed_keys(operation, {"fn", "result_handle"}, fixture_id, "operation")
     assert isinstance(operation["result_handle"], str), fixture_id
@@ -381,8 +402,7 @@ def _state_observation(engine: object) -> dict[str, object]:
 def _resolve_handle_path(root: object, path: list[str]) -> object:
     current = root
     for key in path:
-        assert isinstance(current, dict)
-        current = current[key]
+        current = current[key] if isinstance(current, Mapping) else getattr(current, key)
     return current
 
 
@@ -390,10 +410,11 @@ def _apply_handle_mutation(root: object, path: list[str], value: object) -> None
     assert path
     current = root
     for key in path[:-1]:
-        assert isinstance(current, dict)
-        current = current[key]
-    assert isinstance(current, dict)
-    current[path[-1]] = value
+        current = current[key] if isinstance(current, Mapping) else getattr(current, key)
+    if isinstance(current, Mapping):
+        current[path[-1]] = value
+    else:
+        setattr(current, path[-1], value)
 
 
 def test_step_fixtures() -> None:
@@ -546,15 +567,26 @@ def test_mutation_isolation_fixtures() -> None:
             handles = {operation["result_handle"]: engine.step(operation["input"])}
         elif fn == "engine.policies":
             handles = {operation["result_handle"]: engine.policies}
-        else:
-            assert fn == "engine.premise", fixture_id
+        elif fn == "engine.premise":
             handles = {operation["result_handle"]: {"value": engine.premise}}
+        elif fn == "canonical_directive.operands":
+            directive = CanonicalDirective(kind=operation["kind"], operands=operation["operands"])
+            handles = {operation["result_handle"]: directive.operands}
+        else:
+            assert fn == "directive_metadata", fixture_id
+            handles = {
+                operation["result_handle"]: grammar_module.DirectiveMetadata(
+                    kind=operation["kind"],
+                    canonical_start=operation["canonical_start"],
+                    operand_names=tuple(operation["operand_names"]),
+                )
+            }
 
         for mutation in fixture["mutations"]:
             target = handles[mutation["target_handle"]]
             path = mutation["path"]
             assert isinstance(path, list), fixture_id
-            if fn == "engine.step":
+            if fn in {"engine.step", "canonical_directive.operands", "directive_metadata"}:
                 with pytest.raises((AssertionError, AttributeError, TypeError)):
                     _apply_handle_mutation(target, path, mutation["value"])
             else:

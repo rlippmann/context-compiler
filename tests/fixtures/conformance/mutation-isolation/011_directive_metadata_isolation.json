@@ -1,0 +1,49 @@
+{
+  "id": "011_directive_metadata_isolation",
+  "kind": "mutation_isolation",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "operation": {
+    "fn": "directive_metadata",
+    "kind": "use_item",
+    "canonical_start": "use",
+    "operand_names": [
+      "item"
+    ],
+    "result_handle": "metadata"
+  },
+  "handles": {
+    "metadata": {
+      "kind": "immutable_or_defensive_snapshot"
+    }
+  },
+  "mutations": [
+    {
+      "target_handle": "metadata",
+      "path": [
+        "kind"
+      ],
+      "op": "set",
+      "value": "prohibit_item"
+    }
+  ],
+  "expected": {
+    "authoritative_state": {
+      "premise": null,
+      "policies": {},
+      "version": 2
+    },
+    "caller_owned_observations": {
+      "metadata_kind_after_mutation": {
+        "target_handle": "metadata",
+        "path": [
+          "kind"
+        ],
+        "value": "use_item"
+      }
+    }
+  }
+}

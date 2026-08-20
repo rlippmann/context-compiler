@@ -53,6 +53,16 @@ def test_public_grammar_contract_matches_surface() -> None:
                 assert_shape(result, probe["return_shape"])
 
 
+def test_public_grammar_contract_exposes_directive_metadata_kind() -> None:
+    metadata = grammar.DirectiveMetadata(
+        kind=grammar.DirectiveKind.USE_ITEM,
+        canonical_start="use",
+        operand_names=("item",),
+    )
+
+    assert metadata.kind is grammar.DirectiveKind.USE_ITEM
+
+
 def test_public_grammar_contract_has_unique_entries() -> None:
     contract = _load_contract()
     export_names = contract["exports"]["names"]

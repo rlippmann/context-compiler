@@ -6,7 +6,8 @@ TypeScript.
 
 ## Contract
 
-The contract captured here is **authority isolation**, not immutability.
+The contract captured here is authority isolation plus the covered public
+mutation behavior of exposed grammar objects.
 
 Returned objects may remain mutable as long as:
 
@@ -14,6 +15,11 @@ Returned objects may remain mutable as long as:
 * caller-owned envelopes remain caller-owned
 * helper accessors preserve or avoid identity only where the public contract
   says they should
+
+For the grammar-object fixtures, exposed `CanonicalDirective.operands` and the
+covered `DirectiveMetadata` fields must preserve mutation isolation: a caller
+mutation either is rejected or does not change the exposed value observed after
+the mutation.
 
 ## Fixture shape
 
@@ -39,6 +45,8 @@ Examples:
 * `engine.step`
 * `engine.policies`
 * `engine.premise`
+* `canonical_directive.operands`
+* `directive_metadata`
 For the current corpus, `operation` uses a closed per-function field set.
 Unknown operation fields are invalid.
 
@@ -66,8 +74,9 @@ Each mutation describes:
 The mutation language stays language-neutral and avoids embedding Python or
 TypeScript syntax into the fixtures.
 
-The current Python runner supports string-key dict paths only. List traversal is
-outside the scope of this fixture family for now.
+The mutation language supports string-key dict or mapping paths and public
+attribute paths. List traversal is outside the scope of this fixture family for
+now.
 
 ### `expected`
 
