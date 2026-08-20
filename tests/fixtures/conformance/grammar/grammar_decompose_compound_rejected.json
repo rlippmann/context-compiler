@@ -8,7 +8,9 @@
   "expected": {
     "directive": {
       "kind": "invalid_directive_syntax",
-      "failure": "compound_directive"
+      "failure": "compound_directive",
+      "directive_kind": null,
+      "missing_operand": null
     }
   }
 }

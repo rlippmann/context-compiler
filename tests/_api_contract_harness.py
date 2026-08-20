@@ -586,7 +586,11 @@ def _validate_shape_spec(shape: object, label: str) -> None:
                 {"kind", "failure", "directive_kind", "missing_operand"},
                 label,
             )
-            _require_fields(shape, {"kind", "failure"}, label)
+            _require_fields(
+                shape,
+                {"kind", "failure", "directive_kind", "missing_operand"},
+                label,
+            )
             _assert_type(shape["failure"], str, f"{label}.failure")
             if "directive_kind" in shape and shape["directive_kind"] is not None:
                 _assert_type(shape["directive_kind"], str, f"{label}.directive_kind")
