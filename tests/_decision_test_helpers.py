@@ -32,8 +32,10 @@ def decision_observation(decision: Decision) -> dict[str, object]:
     if isinstance(decision, UpdateDecision):
         return {"kind": decision.kind, "changed": decision.changed}
 
-    message = decision.message if isinstance(decision, SemanticErrorDecision) else None
-    observation: dict[str, object] = {"kind": decision.kind, "message": message}
+    if not isinstance(decision, SemanticErrorDecision):
+        return {"kind": decision.kind}
+
+    observation: dict[str, object] = {"kind": decision.kind, "message": decision.message}
     if isinstance(decision, SemanticErrorDecision):
         observation["failure"] = decision.failure
         observation["directive"] = _directive_observation(decision.directive)

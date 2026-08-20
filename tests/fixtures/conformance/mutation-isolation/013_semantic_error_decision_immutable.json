@@ -1,5 +1,5 @@
 {
-  "id": "mutation_isolation_update_decision",
+  "id": "013_semantic_error_decision_immutable",
   "kind": "mutation_isolation",
   "initial_state": {
     "premise": null,
@@ -8,22 +8,27 @@
   },
   "operation": {
     "fn": "engine.step",
-    "input": "use docker",
+    "input": "prohibit docker",
     "result_handle": "decision"
   },
+  "prelude": ["use docker"],
   "handles": {
     "decision": {
-      "kind": "independently_constructed_result"
+      "kind": "immutable_result_with_nested_values"
     }
   },
   "mutations": [
     {
       "target_handle": "decision",
-      "path": [
-        "changed"
-      ],
+      "path": ["failure"],
       "op": "set",
-      "value": false
+      "value": "premise_not_set"
+    },
+    {
+      "target_handle": "decision",
+      "path": ["directive", "operands", "item"],
+      "op": "set",
+      "value": "peanuts"
     }
   ],
   "expected": {

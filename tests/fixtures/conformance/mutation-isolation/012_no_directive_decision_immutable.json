@@ -1,5 +1,5 @@
 {
-  "id": "mutation_isolation_update_decision",
+  "id": "012_no_directive_decision_immutable",
   "kind": "mutation_isolation",
   "initial_state": {
     "premise": null,
@@ -8,30 +8,26 @@
   },
   "operation": {
     "fn": "engine.step",
-    "input": "use docker",
+    "input": "hello there",
     "result_handle": "decision"
   },
   "handles": {
     "decision": {
-      "kind": "independently_constructed_result"
+      "kind": "immutable_result"
     }
   },
   "mutations": [
     {
       "target_handle": "decision",
-      "path": [
-        "changed"
-      ],
+      "path": ["kind"],
       "op": "set",
-      "value": false
+      "value": "update"
     }
   ],
   "expected": {
     "authoritative_state": {
       "premise": null,
-      "policies": {
-        "docker": "use"
-      },
+      "policies": {},
       "version": 2
     }
   }

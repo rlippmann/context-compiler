@@ -11,8 +11,7 @@
   "input": "remove policy docker and prohibit peanuts",
   "expected": {
     "decision": {
-      "kind": "no_directive",
-      "message": null
+      "kind": "no_directive"
     },
     "state": {
       "premise": null,

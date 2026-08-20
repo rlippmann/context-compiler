@@ -57,12 +57,15 @@ def _assert_str_list(value: object, fixture_id: object, label: str) -> None:
 def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id: object) -> None:
     _assert_allowed_keys(
         fixture,
-        {"id", "kind", "initial_state", "operation", "handles", "mutations", "expected"},
+        {"id", "kind", "initial_state", "operation", "handles", "mutations", "expected"}
+        | ({"prelude"} & set(fixture)),
         fixture_id,
         "fixture",
     )
     assert fixture["kind"] == "mutation_isolation", fixture_id
     assert isinstance(fixture["initial_state"], dict), fixture_id
+    if "prelude" in fixture:
+        _assert_str_list(fixture["prelude"], fixture_id, "prelude")
 
     operation = fixture["operation"]
     assert isinstance(operation, dict), fixture_id
@@ -138,8 +141,7 @@ def _validate_public_decision(decision: dict[str, object], fixture_id: object, l
     assert isinstance(kind, str), fixture_id
 
     if kind == "no_directive":
-        _assert_allowed_keys(decision, {"kind", "message"}, fixture_id, label)
-        assert decision["message"] is None, fixture_id
+        _assert_allowed_keys(decision, {"kind"}, fixture_id, label)
         return
 
     if kind == "update":
@@ -566,6 +568,7 @@ def test_mutation_isolation_fixtures() -> None:
         engine.import_json(
             json.dumps(fixture["initial_state"], sort_keys=True, separators=(",", ":"))
         )
+        _apply_prelude(engine, fixture.get("prelude", []))
 
         handles: dict[str, object]
         if fn == "engine.step":

@@ -44,12 +44,10 @@
         "message": "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
       },
       "yes_followup": {
-        "kind": "no_directive",
-        "message": null
+        "kind": "no_directive"
       },
       "no_followup": {
-        "kind": "no_directive",
-        "message": null
+        "kind": "no_directive"
       }
     },
     "equal": [],

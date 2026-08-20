@@ -48,14 +48,15 @@ Then asserts:
 
 The `Decision` payload in this family uses one shared shape:
 
-* `{"kind":"no_directive","message":null}`
+* `{"kind":"no_directive"}`
 * `{"kind":"update","changed":true|false}`
 * `{"kind":"error","failure": ..., "directive": ..., "repairs": [...], "message": ...}`
 
 Semantic errors always include the machine-readable `failure`, the rejected
 canonical `directive`, and an ordered list of advisory canonical `repairs`.
-`message` is derived human-readable text for presentation. Non-error outcomes
-keep the field for structural consistency and use `null`.
+`message` is derived human-readable text for presentation and is exposed only
+on semantic errors. All Decision variants are immutable, including their
+exposed nested directive and repair values.
 
 The current runner enforces a closed fixture shape for this family.
 Unknown top-level and documented nested fields are rejected.
@@ -116,6 +117,8 @@ structured objects or accept caller-owned structured inputs.
 These fixtures define declarative scenarios for:
 
 * update `Decision` isolation
+* immutable `NoDirectiveDecision`, `UpdateDecision`, and
+  `SemanticErrorDecision` results, including covered nested values
 * returned decision isolation
 * `engine.policies` caller-ownership isolation
 * `engine.premise` caller-ownership isolation
@@ -128,6 +131,7 @@ The portable contract for this family is:
 * live semantic reads exposed through public properties must remain caller-owned observations
 * exposed grammar objects covered by fixtures must preserve their observed
   values when callers attempt the fixture-defined mutations
+* Decision instances and their exposed nested values must reject mutation
 
 Legacy mutation-isolation scenarios tied to removed raw-state construction or
 raw-state snapshot APIs are not part of the current supported fixture surface.
