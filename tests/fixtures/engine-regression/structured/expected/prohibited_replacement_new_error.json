@@ -81,8 +81,7 @@
         "version": 2
       },
       "decision": {
-        "kind": "no_directive",
-        "message": null
+        "kind": "no_directive"
       },
       "input": "no"
     }

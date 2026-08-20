@@ -234,6 +234,20 @@ def validate_engine_member_runtime(
     raise AssertionError(f"Unsupported engine member kind {kind!r} for {name}")
 
 
+def validate_engine_member_probes(
+    engine: object, name: str, member_contract: dict[str, Any], contract: dict[str, Any]
+) -> None:
+    callback = getattr(engine, name)
+    for probe in member_contract.get("probes", []):
+        if "raises" in probe:
+            assert_probe_raises(callback, probe, contract)
+            continue
+        args = [resolve_probe_value(value) for value in probe.get("args", [])]
+        kwargs = {key: resolve_probe_value(value) for key, value in probe.get("kwargs", {}).items()}
+        result = callback(*args, **kwargs)
+        assert_shape(result, probe["return_shape"], contract)
+
+
 def _validate_contract(
     contract: object,
     *,
@@ -392,7 +406,7 @@ def _validate_engine_member_spec(
     label: str,
 ) -> None:
     _assert_type(member_spec, dict, label)
-    _assert_closed_keys(member_spec, {"kind", "signature"}, label)
+    _assert_closed_keys(member_spec, {"kind", "signature", "probes"}, label)
     _require_fields(member_spec, {"kind"}, label)
 
     kind = member_spec["kind"]
@@ -404,10 +418,13 @@ def _validate_engine_member_spec(
         if not has_signature:
             raise AssertionError(f"{label} method members require signature")
         _validate_signature_spec(member_spec["signature"], f"{label}.signature")
+        _validate_construction_probes(member_spec.get("probes", []), f"{label}.probes")
         return
 
     if has_signature:
         raise AssertionError(f"{label} property members must not declare signature")
+    if "probes" in member_spec:
+        raise AssertionError(f"{label} property members must not declare probes")
 
 
 def _validate_signature_spec(signature: object, label: str) -> None:

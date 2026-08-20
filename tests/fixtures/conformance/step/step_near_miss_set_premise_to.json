@@ -9,8 +9,7 @@
   "input": "set premise to concise",
   "expected": {
     "decision": {
-      "kind": "no_directive",
-      "message": null
+      "kind": "no_directive"
     },
     "state": {
       "premise": null,

@@ -137,7 +137,33 @@
               "UpdateDecision",
               "SemanticErrorDecision"
             ]
-          }
+          },
+          "probes": [
+            {
+              "args": ["use docker"],
+              "raises": {
+                "type": "AttributeError"
+              }
+            },
+            {
+              "args": [null],
+              "raises": {
+                "type": "AttributeError"
+              }
+            },
+            {
+              "args": [1],
+              "raises": {
+                "type": "AttributeError"
+              }
+            },
+            {
+              "args": [{}],
+              "raises": {
+                "type": "AttributeError"
+              }
+            }
+          ]
         },
         "import_json": {
           "kind": "method",

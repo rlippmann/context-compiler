@@ -5,6 +5,7 @@ from _api_contract_harness import (
     assert_signature_matches,
     load_api_contract,
     resolve_probe_value,
+    validate_engine_member_probes,
     validate_engine_member_runtime,
     validate_export_kind,
 )
@@ -64,6 +65,7 @@ def test_api_contract_fixture_matches_python_public_surface() -> None:
     for name, member_contract in expected_members.items():
         assert hasattr(engine, name), name
         validate_engine_member_runtime(engine_type, engine, name, member_contract)
+        validate_engine_member_probes(engine, name, member_contract, contract)
 
 
 def test_api_contract_fixture_forbidden_exports_are_not_present() -> None:

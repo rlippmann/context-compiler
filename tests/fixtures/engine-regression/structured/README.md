@@ -28,13 +28,13 @@ Each expected turn uses:
 
 * `input`
 * `decision.kind`
-* `decision.message`
+* `decision.message` for semantic errors only
 * `state`
 
 State is intentionally stored separately in each turn artifact rather than on
 the `Decision`.
-`decision.message` is only semantically meaningful for `error`; non-error turns
-store `null` for structural consistency.
+`decision.message` is exposed only for `error`; no-directive observations are
+the portable shape `{"kind":"no_directive"}`.
 
 ## Why Store State Every Turn
 
@@ -59,7 +59,7 @@ Update observations expose `changed`; error observations expose
 
 These fixtures validate **deterministic engine behavior only**:
 
-* `engine.step(...)` outputs (`Decision.kind`, `Decision.message`)
+* `engine.step(...)` outputs (`Decision.kind`, and `Decision.message` for errors)
 * post-turn authoritative state snapshot
 
 They do **not** cover:

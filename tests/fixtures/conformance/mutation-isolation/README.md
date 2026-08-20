@@ -9,12 +9,15 @@ TypeScript.
 The contract captured here is authority isolation plus the covered public
 mutation behavior of exposed grammar objects.
 
-Returned objects may remain mutable as long as:
+Returned state snapshots remain caller-owned, while public `Decision` variants
+are immutable. The contract requires:
 
 * mutating them cannot mutate authoritative engine state
 * caller-owned envelopes remain caller-owned
 * helper accessors preserve or avoid identity only where the public contract
   says they should
+* mutating any covered Decision field or nested exposed value is rejected and
+  does not change the observed value
 
 For the grammar-object fixtures, exposed `CanonicalDirective.operands` and the
 covered `DirectiveMetadata` fields must preserve mutation isolation: a caller
@@ -88,7 +91,7 @@ now.
 
 ## Scope boundary
 
-These fixtures cover only the shared API surface for Python 0.9 and the
+These fixtures cover only the shared API surface for Python and the
 unsynchronized TypeScript port.
 
 They intentionally do **not** include:
