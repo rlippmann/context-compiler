@@ -300,6 +300,16 @@ def _validate_grammar_fixture(fixture: dict[str, object], fixture_id: object) ->
         _assert_allowed_keys(action, {"fn", "text"}, fixture_id, "action")
         assert isinstance(action["text"], str), fixture_id
         _assert_allowed_keys(expected, {"directive"}, fixture_id, "expected")
+        directive = expected["directive"]
+        if isinstance(directive, dict) and directive.get("kind") == "invalid_directive_syntax":
+            _assert_allowed_keys(
+                directive,
+                {"kind", "failure", "directive_kind", "missing_operand"},
+                fixture_id,
+                "expected.directive",
+            )
+            assert "directive_kind" in directive, fixture_id
+            assert "missing_operand" in directive, fixture_id
     else:
         _assert_allowed_keys(action, {"fn", "kind", "operands"}, fixture_id, "action")
         assert isinstance(action["kind"], str), fixture_id

@@ -9,7 +9,8 @@
     "directive": {
       "kind": "invalid_directive_syntax",
       "failure": "malformed_directive",
-      "directive_kind": "set_premise"
+      "directive_kind": "set_premise",
+      "missing_operand": null
     }
   }
 }
