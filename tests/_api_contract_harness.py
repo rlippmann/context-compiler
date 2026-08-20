@@ -259,7 +259,13 @@ def _validate_contract(
 
     allowed_top_level = {"id", "kind", "module", "exports"}
     if allowed_engine_member_kinds is not None:
-        allowed_top_level |= {"target", "forbidden_exports", "engine"}
+        allowed_top_level |= {
+            "target",
+            "forbidden_exports",
+            "forbidden_engine_members",
+            "forbidden_state_keys",
+            "engine",
+        }
     _assert_closed_keys(contract, allowed_top_level, "contract")
 
     _require_fields(contract, {"id", "kind", "module", "exports"}, "contract")
@@ -270,6 +276,14 @@ def _validate_contract(
     forbidden_exports = contract.get("forbidden_exports", [])
     _assert_type(forbidden_exports, list, "contract.forbidden_exports")
     _assert_unique_strings(forbidden_exports, "contract.forbidden_exports")
+
+    forbidden_engine_members = contract.get("forbidden_engine_members", [])
+    _assert_type(forbidden_engine_members, list, "contract.forbidden_engine_members")
+    _assert_unique_strings(forbidden_engine_members, "contract.forbidden_engine_members")
+
+    forbidden_state_keys = contract.get("forbidden_state_keys", [])
+    _assert_type(forbidden_state_keys, list, "contract.forbidden_state_keys")
+    _assert_unique_strings(forbidden_state_keys, "contract.forbidden_state_keys")
 
     exports = contract["exports"]
     _validate_exports_spec(
