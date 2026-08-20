@@ -91,7 +91,7 @@ use podman instead of docker
 
 - Without explicit state transition rules: behavior depends on host/model handling
 - Context Compiler: applies the deterministic resulting transition when
-  `docker` is absent and `use podman` is otherwise valid; other semantic
+  `docker` is present and `use podman` is otherwise valid; other semantic
   conflicts may still error
 
 ### Lifecycle enforcement
