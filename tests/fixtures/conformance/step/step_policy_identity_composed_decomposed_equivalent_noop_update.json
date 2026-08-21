@@ -1,0 +1,26 @@
+{
+  "id": "step_policy_identity_composed_decomposed_equivalent_noop_update",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "use café"
+  ],
+  "input": "use café",
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "changed": false
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "café": "use"
+      },
+      "version": 2
+    }
+  }
+}

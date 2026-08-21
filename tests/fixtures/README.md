@@ -70,7 +70,9 @@ Shared `step` fixtures intentionally cover representative engine-observable
 parser/no_directive outcomes. Direct grammar classification belongs to the
 `conformance/grammar/` fixture family. The step fixtures do not attempt to
 freeze every ambiguous natural-language edge case as part of the cross-language
-contract.
+contract. Policy-identity fixtures in this family cover semantic normalization
+after grammar parsing; they do not authorize grammar-layer keyword or operand
+rewriting.
 
 ## Grammar fixtures
 
