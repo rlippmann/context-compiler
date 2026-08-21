@@ -1,0 +1,11 @@
+{
+  "id": "grammar_decompose_unicode_casefold_set_keyword_rejected",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "ſet premise concise"
+  },
+  "expected": {
+    "directive": null
+  }
+}

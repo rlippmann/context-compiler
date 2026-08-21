@@ -566,6 +566,10 @@ Observable consequences:
 
 - policy comparison is case-insensitive;
 - repeated internal whitespace does not create a distinct policy identity;
+- canonical-equivalent or compatibility-equivalent Unicode forms that produce
+  the same NFKC value do not create a distinct policy identity;
+- accent differences that remain after NFKC, such as `cafe` and `café`, remain
+  distinct policy identities;
 - equivalent apostrophe characters normalized by Section 10.1 do not create a
   distinct policy identity.
 
