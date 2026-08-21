@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import pytest
 from _api_contract_harness import (
     assert_shape,
     assert_signature_matches,
@@ -17,6 +18,8 @@ import context_compiler
 _CONTRACT_PATH = (
     Path(__file__).resolve().parent / "fixtures" / "conformance" / "api" / "public-api-v2.json"
 )
+
+pytestmark = pytest.mark.contract
 
 
 def _load_contract() -> dict[str, object]:
