@@ -72,6 +72,17 @@ parser/no_directive outcomes. Direct grammar classification belongs to the
 freeze every ambiguous natural-language edge case as part of the cross-language
 contract.
 
+## Grammar fixtures
+
+For [`conformance/grammar/`](conformance/grammar/):
+
+These fixtures define portable decomposition and rendering behavior for the
+directive grammar. Directive keywords are matched case-insensitively only
+within the ASCII alphabet. Ports must not apply Unicode normalization to
+keywords, including NFC, NFD, NFKC, or NFKD, when deciding whether input is a
+directive. Unicode composition and decomposition in operands remains operand
+text and must not be rewritten by grammar parsing.
+
 ## Apply-directive fixtures
 
 For [`conformance/apply-directive/`](conformance/apply-directive/):
