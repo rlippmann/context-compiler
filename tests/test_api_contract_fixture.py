@@ -6,6 +6,7 @@ from _api_contract_harness import (
     assert_signature_matches,
     load_api_contract,
     resolve_probe_value,
+    validate_constructor_contract,
     validate_engine_member_probes,
     validate_engine_member_runtime,
     validate_export_kind,
@@ -45,7 +46,7 @@ def test_api_contract_fixture_matches_python_public_surface() -> None:
         validate_export_kind(name, exported, export_contract["kind"])
         if "value" in export_contract:
             assert exported == export_contract["value"], name
-        if "signature" in export_contract:
+        if "signature" in export_contract and export_contract["kind"] == "callable":
             assert_signature_matches(exported, export_contract["signature"], name)
         for probe in export_contract.get("shape_probes", []):
             args = [resolve_probe_value(value) for value in probe.get("args", [])]
@@ -54,6 +55,7 @@ def test_api_contract_fixture_matches_python_public_surface() -> None:
             }
             result = exported(*args, **kwargs)
             assert_shape(result, probe["return_shape"], contract)
+        validate_constructor_contract(exported, export_contract, contract, name)
 
     engine = context_compiler.Engine()
     engine_contract = contract["engine"]["public_members"]
@@ -125,6 +127,9 @@ def test_api_contract_fixture_has_unique_entries() -> None:
         assert kind in {"callable", "constant", "type_alias", "type", "class"}, export_name
         if kind == "callable":
             assert "signature" in export_contract, export_name
+        elif kind == "class":
+            if "signature" in export_contract:
+                assert "construction_probes" in export_contract, export_name
         else:
             assert "signature" not in export_contract, export_name
 

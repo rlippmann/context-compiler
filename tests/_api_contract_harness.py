@@ -208,6 +208,29 @@ def validate_export_kind(name: str, exported: object, expected_kind: str) -> Non
     raise AssertionError(f"Unsupported export kind {expected_kind!r} for {name}")
 
 
+def validate_constructor_contract(
+    exported: object,
+    export_contract: dict[str, Any],
+    contract: dict[str, Any],
+    label: str,
+) -> None:
+    if export_contract["kind"] != "class":
+        return
+
+    if "signature" not in export_contract:
+        return
+
+    assert_signature_matches(exported, export_contract["signature"], f"{label} constructor")
+    for probe in export_contract.get("construction_probes", []):
+        if "raises" in probe:
+            assert_probe_raises(exported, probe, contract)
+            continue
+        args = [resolve_probe_value(value) for value in probe.get("args", [])]
+        kwargs = {key: resolve_probe_value(value) for key, value in probe.get("kwargs", {}).items()}
+        result = exported(*args, **kwargs)
+        assert_shape(result, probe["return_shape"], contract)
+
+
 def _resolve_exception_type(name: str) -> type[BaseException]:
     builtins_obj = __builtins__
     namespace = builtins_obj if isinstance(builtins_obj, dict) else vars(builtins_obj)
@@ -392,7 +415,7 @@ def _validate_export_member_spec(
     if kind == "callable":
         if not has_signature:
             raise AssertionError(f"{label} callable exports require signature")
-    elif has_signature:
+    elif kind != "class" and has_signature:
         raise AssertionError(f"{label} non-callable exports must not declare signature")
 
     if kind == "constant":
