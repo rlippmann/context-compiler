@@ -1,0 +1,11 @@
+{
+  "id": "grammar_decompose_compatibility_keyword_rejected",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "ⓤⓢⓔ docker"
+  },
+  "expected": {
+    "directive": null
+  }
+}

@@ -204,6 +204,11 @@ Permitted lexical normalization is limited to:
    between tokens into a single canonical separator;
 4. matching directive keywords case-insensitively.
 
+Directive keyword matching is ASCII-only. Unicode normalization is not applied
+to directive keywords: NFC, NFD, NFKC, and NFKD compatibility or composition
+forms must not turn non-ASCII characters into valid directive keywords. ASCII
+case-insensitivity maps only `A`-`Z` to `a`-`z`.
+
 Additional limits:
 
 1. Keyword case-insensitivity applies only to directive keywords and fixed

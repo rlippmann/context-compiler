@@ -1,0 +1,11 @@
+{
+  "id": "grammar_decompose_decomposed_keyword_variant_rejected",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "üse docker"
+  },
+  "expected": {
+    "directive": null
+  }
+}

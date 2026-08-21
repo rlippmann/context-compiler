@@ -1,0 +1,17 @@
+{
+  "id": "grammar_decompose_decomposed_operand_preserved",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "use café"
+  },
+  "expected": {
+    "directive": {
+      "text": "use café",
+      "kind": "use_item",
+      "operands": {
+        "item": "café"
+      }
+    }
+  }
+}
