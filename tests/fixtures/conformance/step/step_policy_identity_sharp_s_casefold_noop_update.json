@@ -1,0 +1,26 @@
+{
+  "id": "step_policy_identity_sharp_s_casefold_noop_update",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "use ß"
+  ],
+  "input": "use ss",
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "changed": false
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "ss": "use"
+      },
+      "version": 2
+    }
+  }
+}

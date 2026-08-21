@@ -1,0 +1,17 @@
+{
+  "id": "grammar_decompose_casefold_operand_preserved",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "use ſtraße"
+  },
+  "expected": {
+    "directive": {
+      "text": "use ſtraße",
+      "kind": "use_item",
+      "operands": {
+        "item": "ſtraße"
+      }
+    }
+  }
+}

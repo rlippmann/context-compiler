@@ -570,6 +570,8 @@ Observable consequences:
   the same NFKC value do not create a distinct policy identity;
 - accent differences that remain after NFKC, such as `cafe` and `café`, remain
   distinct policy identities;
+- Unicode casefold mappings are applied, including `ſ` with `s`, `ß` with
+  `ss`, and Greek final sigma `ς` with `σ`;
 - equivalent apostrophe characters normalized by Section 10.1 do not create a
   distinct policy identity.
 
