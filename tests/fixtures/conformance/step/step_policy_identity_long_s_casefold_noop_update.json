@@ -1,0 +1,26 @@
+{
+  "id": "step_policy_identity_long_s_casefold_noop_update",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "use ſ"
+  ],
+  "input": "use s",
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "changed": false
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "s": "use"
+      },
+      "version": 2
+    }
+  }
+}
