@@ -76,6 +76,9 @@
       },
       "NoDirectiveDecision": {
         "kind": "class",
+        "signature": {
+          "params": []
+        },
         "construction_probes": [
           {
             "return_shape": {
@@ -83,11 +86,26 @@
               "type": "NoDirectiveDecision",
               "required_attributes": ["kind"]
             }
+          },
+          {
+            "args": ["unexpected"],
+            "raises": {"type": "TypeError"}
+          },
+          {
+            "kwargs": {"value": "unexpected"},
+            "raises": {"type": "TypeError"}
           }
         ]
       },
       "SemanticErrorDecision": {
         "kind": "class",
+        "signature": {
+          "params": [
+            {"name": "failure", "kind": "POSITIONAL_OR_KEYWORD", "has_default": false},
+            {"name": "directive", "kind": "POSITIONAL_OR_KEYWORD", "has_default": false},
+            {"name": "repairs", "kind": "POSITIONAL_OR_KEYWORD", "has_default": true}
+          ]
+        },
         "construction_probes": [
           {
             "kwargs": {
@@ -105,6 +123,29 @@
                 "message"
               ]
             }
+          },
+          {
+            "args": [
+              {"fixture": "item_prohibited_failure"},
+              {"fixture": "use_docker_directive"}
+            ],
+            "return_shape": {
+              "kind": "decision_variant",
+              "type": "SemanticErrorDecision",
+              "required_attributes": ["kind", "failure", "directive", "repairs", "message"]
+            }
+          },
+          {
+            "args": [],
+            "raises": {"type": "TypeError"}
+          },
+          {
+            "kwargs": {
+              "failure": {"fixture": "item_prohibited_failure"},
+              "directive": {"fixture": "use_docker_directive"},
+              "unexpected": true
+            },
+            "raises": {"type": "TypeError"}
           }
         ]
       },
@@ -113,6 +154,11 @@
       },
       "UpdateDecision": {
         "kind": "class",
+        "signature": {
+          "params": [
+            {"name": "changed", "kind": "POSITIONAL_OR_KEYWORD", "has_default": false}
+          ]
+        },
         "construction_probes": [
           {
             "kwargs": {"changed": true},
@@ -121,6 +167,22 @@
               "type": "UpdateDecision",
               "required_attributes": ["kind", "changed"]
             }
+          },
+          {
+            "args": [true],
+            "return_shape": {
+              "kind": "decision_variant",
+              "type": "UpdateDecision",
+              "required_attributes": ["kind", "changed"]
+            }
+          },
+          {
+            "args": [],
+            "raises": {"type": "TypeError"}
+          },
+          {
+            "kwargs": {"value": true},
+            "raises": {"type": "TypeError"}
           }
         ]
       },
@@ -137,7 +199,23 @@
         "value": "update"
       },
       "Engine": {
-        "kind": "class"
+        "kind": "class",
+        "signature": {
+          "params": []
+        },
+        "construction_probes": [
+          {
+            "return_shape": {"kind": "engine_instance"}
+          },
+          {
+            "args": ["unexpected"],
+            "raises": {"type": "TypeError"}
+          },
+          {
+            "kwargs": {"state": {}},
+            "raises": {"type": "TypeError"}
+          }
+        ]
       },
       "POLICY_PROHIBIT": {
         "kind": "constant",

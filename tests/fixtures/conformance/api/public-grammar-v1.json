@@ -21,6 +21,13 @@
       },
       "DirectiveMetadata": {
         "kind": "class",
+        "signature": {
+          "params": [
+            {"name": "kind", "kind": "POSITIONAL_OR_KEYWORD", "has_default": false},
+            {"name": "canonical_start", "kind": "POSITIONAL_OR_KEYWORD", "has_default": false},
+            {"name": "operand_names", "kind": "POSITIONAL_OR_KEYWORD", "has_default": false}
+          ]
+        },
         "construction_probes": [
           {
             "kwargs": {
@@ -38,11 +45,43 @@
                 "item"
               ]
             }
+          },
+          {
+            "args": [
+              "use_item",
+              "use",
+              ["item"]
+            ],
+            "return_shape": {
+              "kind": "directive_metadata",
+              "directive_kind": "use_item",
+              "canonical_start": "use",
+              "operand_names": ["item"]
+            }
+          },
+          {
+            "args": [],
+            "raises": {"type": "TypeError"}
+          },
+          {
+            "kwargs": {
+              "kind": "use_item",
+              "canonical_start": "use",
+              "operand_names": ["item"],
+              "unexpected": true
+            },
+            "raises": {"type": "TypeError"}
           }
         ]
       },
       "CanonicalDirective": {
         "kind": "class",
+        "signature": {
+          "params": [
+            {"name": "kind", "kind": "POSITIONAL_OR_KEYWORD", "has_default": false},
+            {"name": "operands", "kind": "POSITIONAL_OR_KEYWORD", "has_default": false}
+          ]
+        },
         "construction_probes": [
           {
             "kwargs": {
@@ -192,11 +231,57 @@
             "raises": {
               "type": "ValueError"
             }
+          },
+          {
+            "args": [],
+            "raises": {"type": "TypeError"}
+          },
+          {
+            "kwargs": {
+              "kind": "use_item",
+              "operands": {"item": "docker"},
+              "unexpected": true
+            },
+            "raises": {"type": "TypeError"}
           }
         ]
       },
       "InvalidDirectiveSyntax": {
-        "kind": "class"
+        "kind": "class",
+        "signature": {
+          "params": [
+            {"name": "failure", "kind": "POSITIONAL_OR_KEYWORD", "has_default": true},
+            {"name": "directive_kind", "kind": "POSITIONAL_OR_KEYWORD", "has_default": true},
+            {"name": "missing_operand", "kind": "POSITIONAL_OR_KEYWORD", "has_default": true}
+          ]
+        },
+        "construction_probes": [
+          {
+            "return_shape": {
+              "kind": "invalid_directive_syntax",
+              "failure": "malformed_directive",
+              "directive_kind": null,
+              "missing_operand": null
+            }
+          },
+          {
+            "args": [
+              "missing_required_operand",
+              "use_item",
+              "item"
+            ],
+            "return_shape": {
+              "kind": "invalid_directive_syntax",
+              "failure": "missing_required_operand",
+              "directive_kind": "use_item",
+              "missing_operand": "item"
+            }
+          },
+          {
+            "kwargs": {"unexpected": true},
+            "raises": {"type": "TypeError"}
+          }
+        ]
       },
       "get_directive_metadata": {
         "kind": "callable",

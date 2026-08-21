@@ -1,10 +1,10 @@
 from pathlib import Path
 
 from _api_contract_harness import (
-    assert_probe_raises,
     assert_shape,
     assert_signature_matches,
     load_api_contract,
+    validate_constructor_contract,
     validate_export_kind,
 )
 
@@ -45,12 +45,7 @@ def test_public_grammar_contract_matches_surface() -> None:
                 result = exported(*probe.get("args", []), **probe.get("kwargs", {}))
                 assert_shape(result, probe["return_shape"])
         if member["kind"] == "class":
-            for probe in member.get("construction_probes", []):
-                if "raises" in probe:
-                    assert_probe_raises(exported, probe)
-                    continue
-                result = exported(*probe.get("args", []), **probe.get("kwargs", {}))
-                assert_shape(result, probe["return_shape"])
+            validate_constructor_contract(exported, member, contract, name)
 
 
 def test_public_grammar_contract_exposes_directive_metadata_kind() -> None:
