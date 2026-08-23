@@ -517,6 +517,7 @@ def test_apply_directive_fixtures() -> None:
         assert _state_observation(engine) == expected["state"], fixture_id
 
 
+@pytest.mark.contract
 def test_grammar_fixtures() -> None:
     for path in _json_files(_GRAMMAR_FIXTURES_DIR):
         fixture = _load(path)
