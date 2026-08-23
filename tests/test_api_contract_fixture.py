@@ -11,6 +11,7 @@ from _api_contract_harness import (
     validate_engine_member_probes,
     validate_engine_member_runtime,
     validate_export_kind,
+    validate_immutable_definition,
 )
 
 import context_compiler
@@ -47,6 +48,7 @@ def test_api_contract_fixture_matches_python_public_surface() -> None:
     for name, export_contract in export_members.items():
         exported = getattr(context_compiler, name)
         validate_export_kind(name, exported, export_contract["kind"])
+        validate_immutable_definition(exported, export_contract, name)
         if "value" in export_contract:
             assert exported == export_contract["value"], name
         if "signature" in export_contract and export_contract["kind"] == "callable":

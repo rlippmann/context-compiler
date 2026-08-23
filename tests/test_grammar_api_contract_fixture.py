@@ -6,6 +6,7 @@ from _api_contract_harness import (
     load_api_contract,
     validate_constructor_contract,
     validate_export_kind,
+    validate_immutable_definition,
 )
 
 import context_compiler.grammar as grammar
@@ -39,6 +40,7 @@ def test_public_grammar_contract_matches_surface() -> None:
     for name, member in members.items():
         exported = getattr(grammar, name)
         validate_export_kind(name, exported, member["kind"])
+        validate_immutable_definition(exported, member, name)
         if member["kind"] == "callable":
             assert_signature_matches(exported, member["signature"], name)
             for probe in member.get("shape_probes", []):

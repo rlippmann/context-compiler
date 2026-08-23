@@ -14,13 +14,32 @@
     ],
     "members": {
       "DirectiveKind": {
-        "kind": "class"
+        "kind": "class",
+        "immutable_definition": true,
+        "member_values": {
+          "SET_PREMISE": "set_premise",
+          "CHANGE_PREMISE": "change_premise",
+          "USE_ITEM": "use_item",
+          "PROHIBIT_ITEM": "prohibit_item",
+          "REMOVE_POLICY": "remove_policy",
+          "REPLACE_USE": "replace_use",
+          "CLEAR_PREMISE": "clear_premise",
+          "RESET_POLICIES": "reset_policies",
+          "CLEAR_STATE": "clear_state"
+        }
       },
       "DirectiveSyntaxFailure": {
-        "kind": "class"
+        "kind": "class",
+        "immutable_definition": true,
+        "member_values": {
+          "COMPOUND_DIRECTIVE": "compound_directive",
+          "MISSING_REQUIRED_OPERAND": "missing_required_operand",
+          "MALFORMED_DIRECTIVE": "malformed_directive"
+        }
       },
       "DirectiveMetadata": {
         "kind": "class",
+        "public_fields": ["kind", "canonical_start", "operand_names"],
         "signature": {
           "params": [
             {"name": "kind", "kind": "POSITIONAL_OR_KEYWORD", "has_default": false},
@@ -76,6 +95,7 @@
       },
       "CanonicalDirective": {
         "kind": "class",
+        "public_fields": ["kind", "operands", "text"],
         "signature": {
           "params": [
             {"name": "kind", "kind": "POSITIONAL_OR_KEYWORD", "has_default": false},
@@ -248,6 +268,7 @@
       },
       "InvalidDirectiveSyntax": {
         "kind": "class",
+        "public_fields": ["failure", "directive_kind", "missing_operand"],
         "signature": {
           "params": [
             {"name": "failure", "kind": "POSITIONAL_OR_KEYWORD", "has_default": true},
