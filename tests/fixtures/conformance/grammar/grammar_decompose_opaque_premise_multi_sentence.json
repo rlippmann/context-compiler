@@ -1,0 +1,17 @@
+{
+  "id": "grammar_decompose_opaque_premise_multi_sentence",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "set premise The system uses legacy tooling. Migration is planned."
+  },
+  "expected": {
+    "directive": {
+      "text": "set premise The system uses legacy tooling. Migration is planned.",
+      "kind": "set_premise",
+      "operands": {
+        "value": "The system uses legacy tooling. Migration is planned."
+      }
+    }
+  }
+}

@@ -352,6 +352,18 @@ def _contains_multiple_canonical_directives(text: str) -> bool:
     return False
 
 
+def _contains_multiple_premise_directives(text: str) -> bool:
+    """Report premise compounds without inspecting opaque premise payload text."""
+    first_start = _match_canonical_directive_start(text, 0)
+    if first_start is None:
+        return False
+
+    for index, character in enumerate(text[first_start:], start=first_start):
+        if character == "\n" and _match_canonical_directive_start(text, index + 1) is not None:
+            return True
+    return False
+
+
 def _starts_with_directive_family(text: str) -> bool:
     for token, require_space_or_end in _DIRECTIVE_FAMILY_STARTS:
         if (
@@ -460,7 +472,12 @@ def _validate_operand_constraints(kind: DirectiveKind, operands: Mapping[str, st
 
 def _validate_rendered_canonical_shape(kind: DirectiveKind, operands: Mapping[str, str]) -> None:
     rendered = _serialize_canonical_directive(kind, MappingProxyType(dict(operands)))
-    if _contains_multiple_canonical_directives(rendered):
+    contains_compound = (
+        _contains_multiple_premise_directives(rendered)
+        if kind in {DirectiveKind.SET_PREMISE, DirectiveKind.CHANGE_PREMISE}
+        else _contains_multiple_canonical_directives(rendered)
+    )
+    if contains_compound:
         raise ValueError(f"Operands do not produce a canonical {kind.value} directive.")
 
 
@@ -479,7 +496,15 @@ def decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSynta
         return None
     if not _starts_with_directive_family(trimmed_text):
         return None
-    if _contains_multiple_canonical_directives(trimmed_text):
+    premise_directive = _match_directive_token(
+        trimmed_text, 0, _SET_PREMISE_START, require_space_or_end=True
+    ) or _match_directive_token(trimmed_text, 0, _CHANGE_PREMISE_START, require_space_or_end=True)
+    contains_compound = (
+        _contains_multiple_premise_directives(trimmed_text)
+        if premise_directive is not None
+        else _contains_multiple_canonical_directives(trimmed_text)
+    )
+    if contains_compound:
         return _invalid_directive_syntax(DirectiveSyntaxFailure.COMPOUND_DIRECTIVE)
 
     normalized = _normalized_for_matching(trimmed_text)

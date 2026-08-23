@@ -73,7 +73,7 @@ set premise concise replies
 - Base model: silently accepts / rewrites
 - Context Compiler: applies a repeatable state update
 
-### Single-directive grammar
+### Compound directive rejection
 
 ```text
 use docker and prohibit peanuts
@@ -458,7 +458,8 @@ User: reset policies
 User: clear state
 ```
 
-Grammar invariant: one input may contain at most one canonical directive.
+Grammar invariant: a single input never applies more than one canonical
+directive.
 Directive-shaped invalid input is outside the canonical language, and
 `error` is reserved for canonical directives that later fail semantic
 evaluation against authoritative state.
@@ -482,9 +483,14 @@ clear state
 
 Invalid:
 use docker and prohibit peanuts
-set premise vegetarian and use docker
 clear state then set premise new project
+
+Premise payload (opaque):
+set premise vegetarian and use docker
 ```
+
+Policy compounds such as `use docker and prohibit peanuts` remain invalid;
+premise `VALUE` is opaque and may contain directive-like words.
 
 Quote behavior follows the current grammar literally:
 
@@ -494,6 +500,8 @@ Passthrough:
 
 Invalid:
 use "docker and prohibit peanuts"
+
+Canonical directive:
 set premise "use docker and prohibit peanuts"
 ```
 

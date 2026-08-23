@@ -1,0 +1,17 @@
+{
+  "id": "grammar_decompose_opaque_premise_prohibit",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "set premise users may prohibit unsafe operations"
+  },
+  "expected": {
+    "directive": {
+      "text": "set premise users may prohibit unsafe operations",
+      "kind": "set_premise",
+      "operands": {
+        "value": "users may prohibit unsafe operations"
+      }
+    }
+  }
+}

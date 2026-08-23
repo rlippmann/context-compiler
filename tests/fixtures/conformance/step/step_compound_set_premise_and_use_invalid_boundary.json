@@ -9,10 +9,11 @@
   "input": "set premise vegetarian and use docker",
   "expected": {
     "decision": {
-      "kind": "no_directive"
+      "kind": "update",
+      "changed": true
     },
     "state": {
-      "premise": null,
+      "premise": "vegetarian and use docker",
       "policies": {},
       "version": 2
     }
