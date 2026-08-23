@@ -228,7 +228,30 @@ def validate_constructor_contract(
         args = [resolve_probe_value(value) for value in probe.get("args", [])]
         kwargs = {key: resolve_probe_value(value) for key, value in probe.get("kwargs", {}).items()}
         result = exported(*args, **kwargs)
+        for field in export_contract.get("public_fields", []):
+            assert hasattr(result, field), f"{label}.{field}"
         assert_shape(result, probe["return_shape"], contract)
+
+
+def validate_immutable_definition(
+    exported: object, export_contract: dict[str, Any], label: str
+) -> None:
+    if not export_contract.get("immutable_definition"):
+        return
+
+    member_values = export_contract["member_values"]
+    for member_name, expected_value in member_values.items():
+        member = getattr(exported, member_name)
+        assert member.value == expected_value, f"{label}.{member_name} value changed"
+        try:
+            setattr(exported, member_name, object())
+        except (AttributeError, TypeError):
+            pass
+        else:
+            raise AssertionError(f"{label}.{member_name} can be reassigned")
+        assert getattr(exported, member_name).value == expected_value, (
+            f"{label}.{member_name} value changed"
+        )
 
 
 def _resolve_exception_type(name: str) -> type[BaseException]:
@@ -400,7 +423,16 @@ def _validate_export_member_spec(
     _assert_type(member_spec, dict, label)
     _assert_closed_keys(
         member_spec,
-        {"kind", "value", "signature", "shape_probes", "construction_probes"},
+        {
+            "kind",
+            "value",
+            "signature",
+            "shape_probes",
+            "construction_probes",
+            "public_fields",
+            "immutable_definition",
+            "member_values",
+        },
         label,
     )
     _require_fields(member_spec, {"kind"}, label)
@@ -426,6 +458,23 @@ def _validate_export_member_spec(
 
     if has_signature:
         _validate_signature_spec(member_spec["signature"], f"{label}.signature")
+
+    if "public_fields" in member_spec:
+        _assert_unique_strings(member_spec["public_fields"], f"{label}.public_fields")
+        if kind != "class":
+            raise AssertionError(f"{label}.public_fields only applies to class exports")
+
+    immutable = member_spec.get("immutable_definition", False)
+    if not isinstance(immutable, bool):
+        raise AssertionError(f"{label}.immutable_definition must be boolean")
+    if immutable:
+        if kind != "class":
+            raise AssertionError(f"{label}.immutable_definition only applies to class exports")
+        member_values = member_spec.get("member_values")
+        _assert_type(member_values, dict, f"{label}.member_values")
+        _assert_string_keyed_dict(member_values, f"{label}.member_values")
+    elif "member_values" in member_spec:
+        raise AssertionError(f"{label}.member_values requires immutable_definition")
 
     probes = member_spec.get("shape_probes", [])
     _validate_shape_probes(probes, f"{label}.shape_probes")

@@ -72,7 +72,13 @@
         "kind": "type_alias"
       },
       "DecisionKind": {
-        "kind": "class"
+        "kind": "class",
+        "immutable_definition": true,
+        "member_values": {
+          "NO_DIRECTIVE": "no_directive",
+          "UPDATE": "update",
+          "ERROR": "error"
+        }
       },
       "NoDirectiveDecision": {
         "kind": "class",
@@ -150,7 +156,17 @@
         ]
       },
       "SemanticFailure": {
-        "kind": "class"
+        "kind": "class",
+        "immutable_definition": true,
+        "member_values": {
+          "PREMISE_ALREADY_SET": "premise_already_set",
+          "PREMISE_NOT_SET": "premise_not_set",
+          "ITEM_PROHIBITED": "item_prohibited",
+          "ITEM_ALREADY_IN_USE": "item_already_in_use",
+          "REPLACEMENT_SOURCE_PROHIBITED": "replacement_source_prohibited",
+          "REPLACEMENT_TARGET_PROHIBITED": "replacement_target_prohibited",
+          "REPLACEMENT_SOURCE_MISSING": "replacement_source_missing"
+        }
       },
       "UpdateDecision": {
         "kind": "class",
