@@ -673,6 +673,10 @@ def test_internal_contains_multiple_canonical_directives_reports_compound_detect
     assert grammar_module._contains_multiple_canonical_directives(text) is expected
 
 
+def test_internal_contains_multiple_premise_directives_ignores_non_directive_text() -> None:
+    assert grammar_module._contains_multiple_premise_directives("hello there") is False
+
+
 def test_parse_replace_use_rejects_blank_new_item() -> None:
     assert grammar_module._parse_replace_use("use \t instead of docker") is None
 
