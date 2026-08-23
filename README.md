@@ -3,6 +3,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/context-compiler)](https://pypi.org/project/context-compiler/)
 [![Python versions](https://img.shields.io/pypi/pyversions/context-compiler)](https://pypi.org/project/context-compiler/)
 [![License](https://img.shields.io/pypi/l/context-compiler)](https://pypi.org/project/context-compiler/)
+[![codecov](https://codecov.io/gh/rlippmann/context-compiler/branch/main/graph/badge.svg)](https://codecov.io/gh/rlippmann/context-compiler)
 
 Context Compiler is a deterministic conversational state authority for LLM applications.
 It handles canonical directive execution, semantic validation, terminal error
@@ -250,6 +251,10 @@ uv sync --dev
 uv run pytest
 ```
 
+CI enforces 100% coverage for the core `src/context_compiler` package. The
+coverage badge represents that authoritative core-package target, not the
+entire repository.
+
 ## Decision API
 
 Each user message produces one immutable `Decision` variant. Use concrete
@@ -495,13 +500,13 @@ premise `VALUE` is opaque and may contain directive-like words.
 Quote behavior follows the current grammar literally:
 
 ```text
-Passthrough:
+Passthrough (`no_directive`):
 "use docker and prohibit peanuts"
 
-Invalid:
+Invalid directive:
 use "docker and prohibit peanuts"
 
-Canonical directive:
+Canonical directive (`set premise`):
 set premise "use docker and prohibit peanuts"
 ```
 
