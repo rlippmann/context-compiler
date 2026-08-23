@@ -1,0 +1,17 @@
+{
+  "id": "grammar_decompose_opaque_premise_use",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "set premise we must use gaap"
+  },
+  "expected": {
+    "directive": {
+      "text": "set premise we must use gaap",
+      "kind": "set_premise",
+      "operands": {
+        "value": "we must use gaap"
+      }
+    }
+  }
+}

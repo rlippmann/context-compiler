@@ -1493,14 +1493,6 @@ def test_export_import_round_trip_preserves_distinct_normalized_policy_keys() ->
             {"premise": None, "policies": {}, "version": 2},
         ),
         (
-            "set premise vegetarian curry and prohibit peanuts",
-            {"premise": None, "policies": {}, "version": 2},
-        ),
-        (
-            "change premise to vegan curry or use docker",
-            {"premise": "baseline", "policies": {}, "version": 2},
-        ),
-        (
             "remove policy docker and use podman",
             {"premise": None, "policies": {"docker": "use"}, "version": 2},
         ),
@@ -1522,10 +1514,6 @@ def test_export_import_round_trip_preserves_distinct_normalized_policy_keys() ->
         ),
         (
             'use "docker and prohibit peanuts"',
-            {"premise": None, "policies": {}, "version": 2},
-        ),
-        (
-            'set premise "use docker and prohibit peanuts"',
             {"premise": None, "policies": {}, "version": 2},
         ),
         (

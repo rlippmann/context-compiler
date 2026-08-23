@@ -86,6 +86,31 @@ def test_directive_metadata_is_frozen_and_slotted() -> None:
     ("text", "expected_kind", "expected_operands"),
     [
         ("set premise concise replies", DirectiveKind.SET_PREMISE, {"value": "concise replies"}),
+        (
+            "set premise we must use gaap",
+            DirectiveKind.SET_PREMISE,
+            {"value": "we must use gaap"},
+        ),
+        (
+            "set premise users may prohibit unsafe operations",
+            DirectiveKind.SET_PREMISE,
+            {"value": "users may prohibit unsafe operations"},
+        ),
+        (
+            "set premise vegetarian and use docker",
+            DirectiveKind.SET_PREMISE,
+            {"value": "vegetarian and use docker"},
+        ),
+        (
+            "set premise The system uses legacy tooling. Migration is planned.",
+            DirectiveKind.SET_PREMISE,
+            {"value": "The system uses legacy tooling. Migration is planned."},
+        ),
+        (
+            "change premise to use docker for compatibility",
+            DirectiveKind.CHANGE_PREMISE,
+            {"value": "use docker for compatibility"},
+        ),
         ("change premise to formal tone", DirectiveKind.CHANGE_PREMISE, {"value": "formal tone"}),
         ("use docker", DirectiveKind.USE_ITEM, {"item": "docker"}),
         ("prohibit peanuts", DirectiveKind.PROHIBIT_ITEM, {"item": "peanuts"}),
@@ -380,11 +405,6 @@ def test_render_directive_outputs_exact_canonical_syntax(
             "canonical use_item directive",
         ),
         (
-            DirectiveKind.SET_PREMISE,
-            {"value": "use docker and prohibit peanuts"},
-            "canonical set_premise directive",
-        ),
-        (
             DirectiveKind.USE_ITEM,
             {"item": "docker instead of podman"},
             "canonical use_item directive",
@@ -543,11 +563,6 @@ def test_serialize_canonical_directive_rejects_unsupported_kind() -> None:
             DirectiveKind.USE_ITEM,
             {"item": "docker and prohibit peanuts"},
             "canonical use_item directive",
-        ),
-        (
-            DirectiveKind.SET_PREMISE,
-            {"value": "use docker and prohibit peanuts"},
-            "canonical set_premise directive",
         ),
         (
             DirectiveKind.USE_ITEM,
