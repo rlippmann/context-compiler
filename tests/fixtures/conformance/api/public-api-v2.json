@@ -90,16 +90,26 @@
             "return_shape": {
               "kind": "decision_variant",
               "type": "NoDirectiveDecision",
-              "required_attributes": ["kind"]
+              "required_attributes": [
+                "kind"
+              ]
             }
           },
           {
-            "args": ["unexpected"],
-            "raises": {"type": "TypeError"}
+            "args": [
+              "unexpected"
+            ],
+            "raises": {
+              "type": "TypeError"
+            }
           },
           {
-            "kwargs": {"value": "unexpected"},
-            "raises": {"type": "TypeError"}
+            "kwargs": {
+              "value": "unexpected"
+            },
+            "raises": {
+              "type": "TypeError"
+            }
           }
         ]
       },
@@ -107,16 +117,32 @@
         "kind": "class",
         "signature": {
           "params": [
-            {"name": "failure", "kind": "POSITIONAL_OR_KEYWORD", "has_default": false},
-            {"name": "directive", "kind": "POSITIONAL_OR_KEYWORD", "has_default": false},
-            {"name": "repairs", "kind": "POSITIONAL_OR_KEYWORD", "has_default": true}
+            {
+              "name": "failure",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            },
+            {
+              "name": "directive",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            },
+            {
+              "name": "repairs",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": true
+            }
           ]
         },
         "construction_probes": [
           {
             "kwargs": {
-              "failure": {"fixture": "item_prohibited_failure"},
-              "directive": {"fixture": "use_docker_directive"}
+              "failure": {
+                "fixture": "item_prohibited_failure"
+              },
+              "directive": {
+                "fixture": "use_docker_directive"
+              }
             },
             "return_shape": {
               "kind": "decision_variant",
@@ -132,26 +158,44 @@
           },
           {
             "args": [
-              {"fixture": "item_prohibited_failure"},
-              {"fixture": "use_docker_directive"}
+              {
+                "fixture": "item_prohibited_failure"
+              },
+              {
+                "fixture": "use_docker_directive"
+              }
             ],
             "return_shape": {
               "kind": "decision_variant",
               "type": "SemanticErrorDecision",
-              "required_attributes": ["kind", "failure", "directive", "repairs", "message"]
+              "required_attributes": [
+                "kind",
+                "failure",
+                "directive",
+                "repairs",
+                "message"
+              ]
             }
           },
           {
             "args": [],
-            "raises": {"type": "TypeError"}
+            "raises": {
+              "type": "TypeError"
+            }
           },
           {
             "kwargs": {
-              "failure": {"fixture": "item_prohibited_failure"},
-              "directive": {"fixture": "use_docker_directive"},
+              "failure": {
+                "fixture": "item_prohibited_failure"
+              },
+              "directive": {
+                "fixture": "use_docker_directive"
+              },
               "unexpected": true
             },
-            "raises": {"type": "TypeError"}
+            "raises": {
+              "type": "TypeError"
+            }
           }
         ]
       },
@@ -172,33 +216,53 @@
         "kind": "class",
         "signature": {
           "params": [
-            {"name": "changed", "kind": "POSITIONAL_OR_KEYWORD", "has_default": false}
+            {
+              "name": "changed",
+              "kind": "POSITIONAL_OR_KEYWORD",
+              "has_default": false
+            }
           ]
         },
         "construction_probes": [
           {
-            "kwargs": {"changed": true},
+            "kwargs": {
+              "changed": true
+            },
             "return_shape": {
               "kind": "decision_variant",
               "type": "UpdateDecision",
-              "required_attributes": ["kind", "changed"]
+              "required_attributes": [
+                "kind",
+                "changed"
+              ]
             }
           },
           {
-            "args": [true],
+            "args": [
+              true
+            ],
             "return_shape": {
               "kind": "decision_variant",
               "type": "UpdateDecision",
-              "required_attributes": ["kind", "changed"]
+              "required_attributes": [
+                "kind",
+                "changed"
+              ]
             }
           },
           {
             "args": [],
-            "raises": {"type": "TypeError"}
+            "raises": {
+              "type": "TypeError"
+            }
           },
           {
-            "kwargs": {"value": true},
-            "raises": {"type": "TypeError"}
+            "kwargs": {
+              "value": true
+            },
+            "raises": {
+              "type": "TypeError"
+            }
           }
         ]
       },
@@ -221,15 +285,25 @@
         },
         "construction_probes": [
           {
-            "return_shape": {"kind": "engine_instance"}
+            "return_shape": {
+              "kind": "engine_instance"
+            }
           },
           {
-            "args": ["unexpected"],
-            "raises": {"type": "TypeError"}
+            "args": [
+              "unexpected"
+            ],
+            "raises": {
+              "type": "TypeError"
+            }
           },
           {
-            "kwargs": {"state": {}},
-            "raises": {"type": "TypeError"}
+            "kwargs": {
+              "state": {}
+            },
+            "raises": {
+              "type": "TypeError"
+            }
           }
         ]
       },
@@ -274,25 +348,33 @@
           },
           "probes": [
             {
-              "args": ["use docker"],
+              "args": [
+                "use docker"
+              ],
               "raises": {
                 "type": "AttributeError"
               }
             },
             {
-              "args": [null],
+              "args": [
+                null
+              ],
               "raises": {
                 "type": "AttributeError"
               }
             },
             {
-              "args": [1],
+              "args": [
+                1
+              ],
               "raises": {
                 "type": "AttributeError"
               }
             },
             {
-              "args": [{}],
+              "args": [
+                {}
+              ],
               "raises": {
                 "type": "AttributeError"
               }
@@ -339,493 +421,7 @@
   },
   "namespaces": {
     "context_compiler.grammar": {
-      "exports": {
-        "names": [
-          "DirectiveKind",
-          "DirectiveSyntaxFailure",
-          "DirectiveMetadata",
-          "CanonicalDirective",
-          "InvalidDirectiveSyntax",
-          "get_directive_metadata",
-          "decompose_directive"
-        ],
-        "members": {
-          "DirectiveKind": {
-            "kind": "class",
-            "immutable_definition": true,
-            "member_values": {
-              "SET_PREMISE": "set_premise",
-              "CHANGE_PREMISE": "change_premise",
-              "USE_ITEM": "use_item",
-              "PROHIBIT_ITEM": "prohibit_item",
-              "REMOVE_POLICY": "remove_policy",
-              "REPLACE_USE": "replace_use",
-              "CLEAR_PREMISE": "clear_premise",
-              "RESET_POLICIES": "reset_policies",
-              "CLEAR_STATE": "clear_state"
-            }
-          },
-          "DirectiveSyntaxFailure": {
-            "kind": "class",
-            "immutable_definition": true,
-            "member_values": {
-              "COMPOUND_DIRECTIVE": "compound_directive",
-              "MISSING_REQUIRED_OPERAND": "missing_required_operand",
-              "MALFORMED_DIRECTIVE": "malformed_directive"
-            }
-          },
-          "DirectiveMetadata": {
-            "kind": "class",
-            "public_fields": [
-              "kind",
-              "canonical_start",
-              "operand_names"
-            ],
-            "signature": {
-              "params": [
-                {
-                  "name": "kind",
-                  "kind": "POSITIONAL_OR_KEYWORD",
-                  "has_default": false
-                },
-                {
-                  "name": "canonical_start",
-                  "kind": "POSITIONAL_OR_KEYWORD",
-                  "has_default": false
-                },
-                {
-                  "name": "operand_names",
-                  "kind": "POSITIONAL_OR_KEYWORD",
-                  "has_default": false
-                }
-              ]
-            },
-            "construction_probes": [
-              {
-                "kwargs": {
-                  "kind": "use_item",
-                  "canonical_start": "use",
-                  "operand_names": [
-                    "item"
-                  ]
-                },
-                "return_shape": {
-                  "kind": "directive_metadata",
-                  "directive_kind": "use_item",
-                  "canonical_start": "use",
-                  "operand_names": [
-                    "item"
-                  ]
-                }
-              },
-              {
-                "args": [
-                  "use_item",
-                  "use",
-                  [
-                    "item"
-                  ]
-                ],
-                "return_shape": {
-                  "kind": "directive_metadata",
-                  "directive_kind": "use_item",
-                  "canonical_start": "use",
-                  "operand_names": [
-                    "item"
-                  ]
-                }
-              },
-              {
-                "args": [],
-                "raises": {
-                  "type": "TypeError"
-                }
-              },
-              {
-                "kwargs": {
-                  "kind": "use_item",
-                  "canonical_start": "use",
-                  "operand_names": [
-                    "item"
-                  ],
-                  "unexpected": true
-                },
-                "raises": {
-                  "type": "TypeError"
-                }
-              }
-            ]
-          },
-          "CanonicalDirective": {
-            "kind": "class",
-            "public_fields": [
-              "kind",
-              "operands",
-              "text"
-            ],
-            "signature": {
-              "params": [
-                {
-                  "name": "kind",
-                  "kind": "POSITIONAL_OR_KEYWORD",
-                  "has_default": false
-                },
-                {
-                  "name": "operands",
-                  "kind": "POSITIONAL_OR_KEYWORD",
-                  "has_default": false
-                }
-              ]
-            },
-            "construction_probes": [
-              {
-                "kwargs": {
-                  "kind": "use_item",
-                  "operands": {
-                    "item": "docker"
-                  }
-                },
-                "return_shape": {
-                  "kind": "canonical_directive",
-                  "text": "use docker",
-                  "directive_kind": "use_item",
-                  "operands": {
-                    "item": "docker"
-                  }
-                }
-              },
-              {
-                "kwargs": {
-                  "kind": "clear_state",
-                  "operands": {}
-                },
-                "return_shape": {
-                  "kind": "canonical_directive",
-                  "text": "clear state",
-                  "directive_kind": "clear_state",
-                  "operands": {}
-                }
-              },
-              {
-                "kwargs": {
-                  "kind": "set_premise",
-                  "operands": {
-                    "value": "concise replies"
-                  }
-                },
-                "return_shape": {
-                  "kind": "canonical_directive",
-                  "text": "set premise concise replies",
-                  "directive_kind": "set_premise",
-                  "operands": {
-                    "value": "concise replies"
-                  }
-                }
-              },
-              {
-                "kwargs": {
-                  "kind": "replace_use",
-                  "operands": {
-                    "new_item": "podman",
-                    "old_item": "docker"
-                  }
-                },
-                "return_shape": {
-                  "kind": "canonical_directive",
-                  "text": "use podman instead of docker",
-                  "directive_kind": "replace_use",
-                  "operands": {
-                    "new_item": "podman",
-                    "old_item": "docker"
-                  }
-                }
-              },
-              {
-                "kwargs": {
-                  "kind": "not_a_directive_kind",
-                  "operands": {
-                    "item": "docker"
-                  }
-                },
-                "raises": {
-                  "type": "ValueError"
-                }
-              },
-              {
-                "kwargs": {
-                  "kind": "use_item",
-                  "operands": {}
-                },
-                "raises": {
-                  "type": "ValueError"
-                }
-              },
-              {
-                "kwargs": {
-                  "kind": "clear_state",
-                  "operands": {
-                    "item": "docker"
-                  }
-                },
-                "raises": {
-                  "type": "ValueError"
-                }
-              },
-              {
-                "kwargs": {
-                  "kind": "set_premise",
-                  "operands": {
-                    "value": 123
-                  }
-                },
-                "raises": {
-                  "type": "ValueError"
-                }
-              },
-              {
-                "kwargs": {
-                  "kind": "set_premise",
-                  "operands": {
-                    "value": "to concise replies"
-                  }
-                },
-                "raises": {
-                  "type": "ValueError"
-                }
-              },
-              {
-                "kwargs": {
-                  "kind": "replace_use",
-                  "operands": {
-                    "new_item": "podman instead of nerdctl",
-                    "old_item": "docker"
-                  }
-                },
-                "raises": {
-                  "type": "ValueError"
-                }
-              },
-              {
-                "kwargs": {
-                  "kind": "use_item",
-                  "operands": {
-                    "item": "instead of"
-                  }
-                },
-                "raises": {
-                  "type": "ValueError"
-                }
-              },
-              {
-                "kwargs": {
-                  "kind": "use_item",
-                  "operands": {
-                    "item": "docker prohibit peanuts"
-                  }
-                },
-                "raises": {
-                  "type": "ValueError"
-                }
-              },
-              {
-                "args": [],
-                "raises": {
-                  "type": "TypeError"
-                }
-              },
-              {
-                "kwargs": {
-                  "kind": "use_item",
-                  "operands": {
-                    "item": "docker"
-                  },
-                  "unexpected": true
-                },
-                "raises": {
-                  "type": "TypeError"
-                }
-              }
-            ]
-          },
-          "InvalidDirectiveSyntax": {
-            "kind": "class",
-            "public_fields": [
-              "failure",
-              "directive_kind",
-              "missing_operand"
-            ],
-            "signature": {
-              "params": [
-                {
-                  "name": "failure",
-                  "kind": "POSITIONAL_OR_KEYWORD",
-                  "has_default": true
-                },
-                {
-                  "name": "directive_kind",
-                  "kind": "POSITIONAL_OR_KEYWORD",
-                  "has_default": true
-                },
-                {
-                  "name": "missing_operand",
-                  "kind": "POSITIONAL_OR_KEYWORD",
-                  "has_default": true
-                }
-              ]
-            },
-            "construction_probes": [
-              {
-                "return_shape": {
-                  "kind": "invalid_directive_syntax",
-                  "failure": "malformed_directive",
-                  "directive_kind": null,
-                  "missing_operand": null
-                }
-              },
-              {
-                "args": [
-                  "missing_required_operand",
-                  "use_item",
-                  "item"
-                ],
-                "return_shape": {
-                  "kind": "invalid_directive_syntax",
-                  "failure": "missing_required_operand",
-                  "directive_kind": "use_item",
-                  "missing_operand": "item"
-                }
-              },
-              {
-                "kwargs": {
-                  "unexpected": true
-                },
-                "raises": {
-                  "type": "TypeError"
-                }
-              }
-            ]
-          },
-          "get_directive_metadata": {
-            "kind": "callable",
-            "signature": {
-              "params": []
-            },
-            "shape_probes": [
-              {
-                "return_shape": {
-                  "kind": "directive_metadata_collection",
-                  "items": [
-                    {
-                      "directive_kind": "set_premise",
-                      "canonical_start": "set premise",
-                      "operand_names": [
-                        "value"
-                      ]
-                    },
-                    {
-                      "directive_kind": "change_premise",
-                      "canonical_start": "change premise to",
-                      "operand_names": [
-                        "value"
-                      ]
-                    },
-                    {
-                      "directive_kind": "use_item",
-                      "canonical_start": "use",
-                      "operand_names": [
-                        "item"
-                      ]
-                    },
-                    {
-                      "directive_kind": "prohibit_item",
-                      "canonical_start": "prohibit",
-                      "operand_names": [
-                        "item"
-                      ]
-                    },
-                    {
-                      "directive_kind": "remove_policy",
-                      "canonical_start": "remove policy",
-                      "operand_names": [
-                        "item"
-                      ]
-                    },
-                    {
-                      "directive_kind": "replace_use",
-                      "canonical_start": "use",
-                      "operand_names": [
-                        "new_item",
-                        "old_item"
-                      ]
-                    },
-                    {
-                      "directive_kind": "clear_premise",
-                      "canonical_start": "clear premise",
-                      "operand_names": []
-                    },
-                    {
-                      "directive_kind": "reset_policies",
-                      "canonical_start": "reset policies",
-                      "operand_names": []
-                    },
-                    {
-                      "directive_kind": "clear_state",
-                      "canonical_start": "clear state",
-                      "operand_names": []
-                    }
-                  ]
-                }
-              }
-            ]
-          },
-          "decompose_directive": {
-            "kind": "callable",
-            "signature": {
-              "params": [
-                {
-                  "name": "text",
-                  "kind": "POSITIONAL_OR_KEYWORD",
-                  "has_default": false
-                }
-              ]
-            },
-            "shape_probes": [
-              {
-                "kwargs": {
-                  "text": "Use Docker"
-                },
-                "return_shape": {
-                  "kind": "canonical_directive",
-                  "text": "use Docker",
-                  "directive_kind": "use_item",
-                  "operands": {
-                    "item": "Docker"
-                  }
-                }
-              },
-              {
-                "kwargs": {
-                  "text": "please use docker"
-                },
-                "return_shape": {
-                  "type": "null"
-                }
-              },
-              {
-                "kwargs": {
-                  "text": "use docker and prohibit peanuts"
-                },
-                "return_shape": {
-                  "kind": "invalid_directive_syntax",
-                  "failure": "compound_directive",
-                  "directive_kind": null,
-                  "missing_operand": null
-                }
-              }
-            ]
-          }
-        }
-      }
+      "contract": "public-grammar-v1"
     }
   }
 }

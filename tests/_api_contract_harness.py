@@ -28,11 +28,24 @@ def load_api_contract(
     return contract
 
 
-def validate_declared_namespaces(contract: dict[str, Any]) -> None:
+def validate_declared_namespaces(
+    contract: dict[str, Any],
+    referenced_contracts: dict[str, dict[str, Any]] | None = None,
+) -> None:
     """Validate the explicitly declared public namespace surfaces at runtime."""
+    referenced_contracts = referenced_contracts or {}
     for namespace_name, namespace_contract in contract.get("namespaces", {}).items():
         namespace = importlib.import_module(namespace_name)
-        exports = namespace_contract["exports"]
+        if "contract" in namespace_contract:
+            reference = namespace_contract["contract"]
+            if reference not in referenced_contracts:
+                raise AssertionError(f"Unknown namespace contract reference {reference!r}")
+            referenced = referenced_contracts[reference]
+            assert referenced["id"] == reference, reference
+            assert referenced["module"] == namespace_name, namespace_name
+            exports = referenced["exports"]
+        else:
+            exports = namespace_contract["exports"]
         expected_names = exports["names"]
         assert getattr(namespace, "__all__", None) == expected_names, namespace_name
 
@@ -394,15 +407,20 @@ def _validate_namespaces_spec(namespaces: object, allowed_export_kinds: set[str]
         if not isinstance(namespace_name, str) or not namespace_name:
             raise AssertionError("contract.namespaces keys must be non-empty strings")
         _assert_type(namespace_contract, dict, f"contract.namespaces[{namespace_name!r}]")
-        _assert_closed_keys(
-            namespace_contract, {"exports"}, f"contract.namespaces[{namespace_name!r}]"
-        )
-        _require_fields(namespace_contract, {"exports"}, f"contract.namespaces[{namespace_name!r}]")
-        _validate_exports_spec(
-            namespace_contract["exports"],
-            allowed_export_kinds=allowed_export_kinds,
-            label=f"contract.namespaces[{namespace_name!r}].exports",
-        )
+        label = f"contract.namespaces[{namespace_name!r}]"
+        _assert_closed_keys(namespace_contract, {"contract", "exports"}, label)
+        has_contract = "contract" in namespace_contract
+        has_exports = "exports" in namespace_contract
+        if has_contract == has_exports:
+            raise AssertionError(f"{label} must declare exactly one of contract or exports")
+        if has_contract:
+            _assert_type(namespace_contract["contract"], str, f"{label}.contract")
+        else:
+            _validate_exports_spec(
+                namespace_contract["exports"],
+                allowed_export_kinds=allowed_export_kinds,
+                label=f"{label}.exports",
+            )
 
 
 def _validate_exports_spec(

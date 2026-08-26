@@ -33,10 +33,19 @@ def _load_contract() -> dict[str, object]:
     )
 
 
+def _load_namespace_contracts() -> dict[str, dict[str, object]]:
+    grammar_contract = load_api_contract(
+        _CONTRACT_PATH.with_name("public-grammar-v1.json"),
+        expected_module="context_compiler.grammar",
+        allowed_export_kinds={"callable", "class"},
+    )
+    return {grammar_contract["id"]: grammar_contract}
+
+
 def test_api_contract_fixture_matches_python_public_surface() -> None:
     contract = _load_contract()
 
-    validate_declared_namespaces(contract)
+    validate_declared_namespaces(contract, _load_namespace_contracts())
 
     assert contract["kind"] == "api-contract"
     exports = contract["exports"]
@@ -145,10 +154,8 @@ def test_api_contract_fixture_has_unique_entries() -> None:
     assert len(namespaces) == len(set(namespaces))
     for namespace_name, namespace_contract in namespaces.items():
         assert namespace_name
-        namespace_exports = namespace_contract["exports"]
-        namespace_names = namespace_exports["names"]
-        assert len(namespace_names) == len(set(namespace_names))
-        assert set(namespace_exports["members"]) == set(namespace_names)
+        assert set(namespace_contract) == {"contract"}
+        assert namespace_contract["contract"] in _load_namespace_contracts()
 
     engine_members = list(contract["engine"]["public_members"]["members"].keys())
     assert len(engine_members) == len(set(engine_members))
