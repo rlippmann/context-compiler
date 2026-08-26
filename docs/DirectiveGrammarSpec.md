@@ -447,7 +447,7 @@ contains more than one attempted directive clause. This includes inputs such
 as:
 
 - `use docker and prohibit peanuts`
-- `set premise vegetarian and use docker` is one premise directive; `VALUE` is
+- `set premise project deadline is Friday and use docker` is one premise directive; `VALUE` is
   opaque and may contain policy words or conjunctions.
 - `clear state then set premise new project`
 
@@ -731,8 +731,8 @@ source material for later conformance fixtures.
 
 | Input | Classification | Parsed operation | Semantic note |
 | --- | --- | --- | --- |
-| `set premise concise replies` | canonical directive | set premise | may apply or error depending on premise state |
-| `change premise to concise replies` | canonical directive | change premise | may apply or error depending on premise state |
+| `set premise project deadline is Friday` | canonical directive | set premise | may apply or error depending on premise state |
+| `change premise to project deadline is Thursday` | canonical directive | change premise | may apply or error depending on premise state |
 | `use docker` | canonical directive | use item | may apply, no-op, or error |
 | `use Docker` | canonical directive | use item | same policy identity as `use docker` |
 | `prohibit Docker` after `use docker` | canonical directive | prohibit item | same policy identity triggers contradiction |

@@ -1,4 +1,4 @@
-"""Demo 3: explicit premise change removes stale values deterministically."""
+"""Demo 3: explicit contextual-premise change removes stale values deterministically."""
 
 import re
 
@@ -61,8 +61,6 @@ def _plan_uses_value(output: str, value: str) -> bool:
         lowered = line.lower()
         if token not in lowered:
             continue
-        if token == "vegetarian" and "vegan" in lowered:
-            continue
         if _NEGATION_RE.search(lowered):
             continue
         return True
@@ -72,9 +70,9 @@ def _plan_uses_value(output: str, value: str) -> bool:
 def main() -> None:
     engine = Engine()
     user_inputs = [
-        "set premise vegetarian curry",
-        "change premise to vegan curry",
-        ("Give me a shopping list and 3-step plan. First line must be PREMISE:<value>."),
+        "set premise project deadline is Friday",
+        "change premise to project deadline is Thursday",
+        ("Give me a project plan and 3 steps. First line must be PREMISE:<value>."),
     ]
     print_user_inputs(user_inputs)
 
@@ -91,7 +89,7 @@ def main() -> None:
     baseline_messages = build_baseline_messages(
         [user_inputs[0], user_inputs[1], user_inputs[2]],
         baseline_system_prompt=(
-            "Be a helpful assistant. Use conversation history to infer the user's current premise."
+            "Be a helpful assistant. Use conversation history to infer the current project context."
         ),
     )
     print_messages("baseline", baseline_messages)
@@ -100,7 +98,7 @@ def main() -> None:
 
     _, reinjected_messages = build_reinjected_messages(
         [user_inputs[0], user_inputs[1], user_inputs[2]],
-        premise="vegan curry",
+        premise="project deadline is Thursday",
         use_policies=[],
         prohibit_policies=[],
     )
@@ -140,23 +138,23 @@ def main() -> None:
     reinjected_premise = extract_tag_value(reinjected_output, "PREMISE")
     mediated_premise = extract_tag_value(mediated_output, "PREMISE")
     compact_premise = extract_tag_value(compact_output, "PREMISE")
-    baseline_uses_vegan = _plan_uses_value(baseline_output, "vegan")
-    baseline_uses_vegetarian = _plan_uses_value(baseline_output, "vegetarian")
-    reinjected_uses_vegan = _plan_uses_value(reinjected_output, "vegan")
-    reinjected_uses_vegetarian = _plan_uses_value(reinjected_output, "vegetarian")
-    mediated_uses_vegan = _plan_uses_value(mediated_output, "vegan")
-    mediated_uses_vegetarian = _plan_uses_value(mediated_output, "vegetarian")
-    compact_uses_vegan = _plan_uses_value(compact_output, "vegan")
-    compact_uses_vegetarian = _plan_uses_value(compact_output, "vegetarian")
-    baseline_respects = not baseline_uses_vegetarian
-    reinjected_respects = not reinjected_uses_vegetarian
-    mediated_respects = not mediated_uses_vegetarian
-    compact_respects = compacted_prompt is None and not compact_uses_vegetarian
+    baseline_uses_friday = _plan_uses_value(baseline_output, "Friday")
+    baseline_uses_thursday = _plan_uses_value(baseline_output, "Thursday")
+    reinjected_uses_friday = _plan_uses_value(reinjected_output, "Friday")
+    reinjected_uses_thursday = _plan_uses_value(reinjected_output, "Thursday")
+    mediated_uses_friday = _plan_uses_value(mediated_output, "Friday")
+    mediated_uses_thursday = _plan_uses_value(mediated_output, "Thursday")
+    compact_uses_friday = _plan_uses_value(compact_output, "Friday")
+    compact_uses_thursday = _plan_uses_value(compact_output, "Thursday")
+    baseline_respects = not baseline_uses_friday
+    reinjected_respects = not reinjected_uses_friday
+    mediated_respects = not mediated_uses_friday
+    compact_respects = compacted_prompt is None and not compact_uses_friday
     print_host_check(
         "PLAN_VALUES",
         (
-            f"vegan={yes_no(baseline_uses_vegan)}, "
-            f"vegetarian={yes_no(baseline_uses_vegetarian)}, "
+            f"Friday={yes_no(baseline_uses_friday)}, "
+            f"Thursday={yes_no(baseline_uses_thursday)}, "
             f"premise_tag={baseline_premise or 'MISSING'}"
         ),
         context="baseline",
@@ -164,8 +162,8 @@ def main() -> None:
     print_host_check(
         "PLAN_VALUES",
         (
-            f"vegan={yes_no(reinjected_uses_vegan)}, "
-            f"vegetarian={yes_no(reinjected_uses_vegetarian)}, "
+            f"Friday={yes_no(reinjected_uses_friday)}, "
+            f"Thursday={yes_no(reinjected_uses_thursday)}, "
             f"premise_tag={reinjected_premise or 'MISSING'}"
         ),
         context="reinjected-state",
@@ -173,8 +171,8 @@ def main() -> None:
     print_host_check(
         "PLAN_VALUES",
         (
-            f"vegan={yes_no(mediated_uses_vegan)}, "
-            f"vegetarian={yes_no(mediated_uses_vegetarian)}, "
+            f"Friday={yes_no(mediated_uses_friday)}, "
+            f"Thursday={yes_no(mediated_uses_thursday)}, "
             f"premise_tag={mediated_premise or 'MISSING'}"
         ),
         context="compiler-mediated",
@@ -182,32 +180,32 @@ def main() -> None:
     print_host_check(
         "PLAN_VALUES",
         (
-            f"vegan={yes_no(compact_uses_vegan)}, "
-            f"vegetarian={yes_no(compact_uses_vegetarian)}, "
+            f"Friday={yes_no(compact_uses_friday)}, "
+            f"Thursday={yes_no(compact_uses_thursday)}, "
             f"premise_tag={compact_premise or 'MISSING'}"
         ),
         context="compiler-mediated + compact",
     )
     print_spec_report(
-        test_name="03_explicit_premise_change — stale value removed",
+        test_name="03_explicit_premise_change — stale context removed",
         baseline_pass=baseline_respects,
         reinjected_state_pass=reinjected_respects,
         compiler_pass=mediated_respects,
         compiler_compact_pass=compact_respects,
-        expected="explicit premise change should remove the stale vegetarian value",
+        expected="explicit premise change should remove the stale Friday context",
         actual=(
-            "baseline still used stale vegetarian value; "
-            "both compiler-mediated paths used vegan value"
-            if mediated_respects and compact_respects and baseline_uses_vegetarian
+            "baseline still used stale Friday context; "
+            "both compiler-mediated paths used Thursday context"
+            if mediated_respects and compact_respects and baseline_uses_friday
             else (
-                "all four paths used vegan value"
+                "all four paths used Thursday context"
                 if baseline_respects and mediated_respects and compact_respects
                 else (
-                    "at least one compiler-mediated path included stale vegetarian value"
+                    "at least one compiler-mediated path included stale Friday context"
                     if (not mediated_respects or not compact_respects)
                     else (
-                        "baseline already used vegan value; a compiler-mediated path "
-                        "still included stale vegetarian content"
+                        "baseline already used Thursday context; a compiler-mediated path "
+                        "still included stale Friday context"
                     )
                 )
             )

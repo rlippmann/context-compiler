@@ -24,13 +24,13 @@ from demos.common import (
 from demos.llm_client import Message, complete_messages
 
 DEMO_NAME = "07_prompt_engineering_comparison — prompt engineering + authoritative state"
-EXPECTED_PREMISE = "vegan curry"
+EXPECTED_PREMISE = "project deadline is Friday"
 FINAL_REQUEST = (
-    "Give me a dinner plan. First line must be PREMISE:<value>. "
-    "Use the current premise and then provide a short shopping list."
+    "Give me a project plan. First line must be PREMISE:<value>. "
+    "Use the current premise and then provide three next steps."
 )
 USER_INPUTS = [
-    "set premise vegan curry",
+    "set premise project deadline is Friday",
     "Side note: I am planning a train trip and need camera advice later.",
     "My coworkers mentioned chicken tikka and shrimp pasta in a brainstorm.",
     "We also discussed weather apps and museum tickets for the weekend.",
@@ -44,7 +44,7 @@ USER_INPUTS = [
 WEAK_SYSTEM_PROMPT = "Be a helpful assistant."
 STRONG_PROMPT_ENGINEERING_TEXT = (
     "You are a careful assistant.\n"
-    "Task: determine the user's current premise for this thread and answer the final request.\n"
+    "Task: determine the current project context for this thread and answer the final request.\n"
     "Rules:\n"
     "1) Prioritize explicit user directives over brainstorm noise and side notes.\n"
     "2) Keep the selected premise consistent across the response.\n"

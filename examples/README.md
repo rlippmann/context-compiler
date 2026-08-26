@@ -35,7 +35,7 @@ Shows core authority-layer state being used in later turns.
 
 ## 02_configuration_and_correction.py
 
-Demonstrates premise as authoritative context for future turns.  
+Demonstrates a factual premise as authoritative context for future turns.
 Shows `set premise ...` followed by `change premise to ...`.
 
 ## 03_ambiguity_with_error.py

@@ -187,11 +187,11 @@ Representative run: `PROVIDER=ollama MODEL='ollama/llama3.1:8b' uv run python de
 ```text
 05_prompt_drift — preserve premise across long transcript
 Final user request:
-Now give me a dinner plan. First line must be PREMISE:<value>. Keep the plan consistent with that premise.
+Now give me a project plan. First line must be PREMISE:<value>. Keep the plan consistent with that premise.
 
 Compiler-mediated output:
-PREMISE:vegetarian curry
-Here's a short dinner plan:
+PREMISE:project deadline is Friday
+Here's a short project plan:
 
 baseline: FAIL
 reinjected-state: PASS

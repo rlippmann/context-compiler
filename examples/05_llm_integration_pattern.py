@@ -47,7 +47,7 @@ def main() -> None:
     engine = Engine()
 
     handle_turn("hello there", engine)
-    handle_turn("set premise concise replies", engine)
+    handle_turn("set premise project deadline is Friday", engine)
     handle_turn("prohibit peanuts", engine)
     handle_turn("remove policy peanuts", engine)
     handle_turn("use peanuts", engine)

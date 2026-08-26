@@ -5,7 +5,7 @@ Most applications should start with a **single Context Compiler engine**.
 A single engine is not a single rule.  
 It maintains a complete saved state consisting of:
 
-- one premise (a single explicit conversational stance)
+- one premise (a single explicit contextual or factual state)
 - a set of per-item policy states (`use` or `prohibit`)
 
 Because policies are keyed and independent, a single engine can represent many constraints simultaneously.
@@ -23,7 +23,7 @@ A single engine can manage:
 Example:
 
 ```text
-User: set premise concise, practical answers
+User: set premise project deadline is Friday
 User: prohibit docker
 User: use uv
 User: use pytest

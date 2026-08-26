@@ -68,7 +68,7 @@ The architecture has three layers:
 ### Explicit directive
 
 ```text
-set premise concise replies
+set premise project deadline is Friday
 ```
 
 - Base model: silently accepts / rewrites
@@ -99,7 +99,7 @@ use podman instead of docker
 
 ```text
 clear state
-change premise to formal tone
+change premise to project deadline is Thursday
 ```
 
 - Without explicit transition checks: behavior depends on host/model handling
@@ -353,7 +353,7 @@ Common API entry points:
 The state model holds explicit user commitments that the host can treat as
 authoritative in future turns.
 
-- `premise` = authoritative context that changes how future answers should be interpreted
+- `premise` = authoritative factual or contextual state that changes how future answers should be interpreted
 - `use` = affirmative selection or preference
 - `prohibit` = explicit exclusion
 
@@ -375,7 +375,7 @@ restoration.
 
 ### When to use `premise`
 
-Use `premise` for **persistent context that changes how all answers should be interpreted**, especially when it:
+Use `premise` for **persistent background context or factual state that changes how answers should be interpreted**, especially when it:
 
 - applies across many turns
 - significantly changes what solutions are valid
@@ -387,7 +387,7 @@ Examples:
 - “Outdoor event; no seating available”
 - “GDPR data handling requirements apply”
 - “System is deployed across multiple regions”
-- “Limited time available”
+- “Project deadline is Friday”
 
 In these cases, the premise acts as an **authoritative context anchor** that the host supplies to the model on every turn.
 
@@ -395,6 +395,8 @@ Use policies instead when the constraint is explicit and enforceable:
 
 - “prohibit foods that may cause GI upset”
 - “use handheld foods”
+- “use concise replies”
+- “use a formal tone”
 - “prohibit storing personal data beyond immediate use”
 - “prohibit introducing new external dependencies”
 - “use single-step preparation methods”
@@ -431,11 +433,11 @@ the compiler.
 
 ## Directive Examples
 
-Set and change premise:
+Set and change premise for contextual state:
 
 ```text
-User: set premise concise replies
-User: change premise to concise bullet points
+User: set premise project deadline is Friday
+User: change premise to project deadline is Thursday
 ```
 
 Per-item policies:
@@ -443,6 +445,8 @@ Per-item policies:
 ```text
 User: use docker
 User: prohibit peanuts
+User: use concise replies
+User: use a formal tone
 ```
 
 Replacement:
@@ -490,8 +494,8 @@ Invalid:
 use docker and prohibit peanuts
 clear state then set premise new project
 
-Premise payload (opaque):
-set premise vegetarian and use docker
+Premise payload (opaque; this is a syntax example, not modeling guidance):
+set premise project deadline is Friday and use docker
 ```
 
 Policy compounds such as `use docker and prohibit peanuts` remain invalid;

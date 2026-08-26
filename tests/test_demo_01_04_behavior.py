@@ -286,10 +286,10 @@ def test_demo_03_reports_explicit_premise_change(
         "complete_messages",
         _sequenced_outputs(
             [
-                "PREMISE: vegetarian curry\nPlan:\n- vegetarian shopping list",
-                "PREMISE: vegan curry\nPlan:\n- vegan shopping list",
-                "PREMISE: vegan curry\nPlan:\n- vegan ingredients only",
-                "PREMISE: vegan curry\nPlan:\n- vegan ingredients only",
+                "PREMISE: project deadline is Friday\nPlan:\n- Friday project tasks",
+                "PREMISE: project deadline is Thursday\nPlan:\n- Thursday project tasks",
+                "PREMISE: project deadline is Thursday\nPlan:\n- Thursday project tasks",
+                "PREMISE: project deadline is Thursday\nPlan:\n- Thursday project tasks",
             ]
         ),
     )
@@ -319,8 +319,8 @@ def test_demo_03_compact_error_branch_reports_compact_fail(
     def fake_complete_messages(messages: object) -> str:
         calls.append(messages)
         if len(calls) == 1:
-            return "PREMISE: vegetarian curry\nPlan:\n- vegetarian ingredients"
-        return "PREMISE: vegan curry\nPlan:\n- vegan ingredients"
+            return "PREMISE: project deadline is Friday\nPlan:\n- Friday project tasks"
+        return "PREMISE: project deadline is Thursday\nPlan:\n- Thursday project tasks"
 
     monkeypatch.setattr(module, "complete_messages", fake_complete_messages)
     monkeypatch.setattr(

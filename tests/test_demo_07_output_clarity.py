@@ -19,7 +19,7 @@ def test_demo_07_prints_separate_assertion_outcome_when_paths_pass(
     # because weak path also passes.
     def fake_complete_messages(messages: list[dict[str, str]]) -> str:
         del messages
-        return "PREMISE:vegan curry\n- list item"
+        return "PREMISE:project deadline is Friday\n- project task"
 
     import demos.llm_client as llm_client
 
@@ -49,8 +49,8 @@ def test_demo_07_baseline_score_tracks_strong_baseline_not_weak_baseline(
         nonlocal calls
         calls += 1
         if calls == 1:
-            return "PREMISE:chicken curry\n- list item"
-        return "PREMISE:vegan curry\n- list item"
+            return "PREMISE:project deadline is Thursday\n- project task"
+        return "PREMISE:project deadline is Friday\n- project task"
 
     import demos.llm_client as llm_client
 
