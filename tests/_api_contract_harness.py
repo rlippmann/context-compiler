@@ -1,3 +1,4 @@
+import importlib
 import inspect
 import json
 from pathlib import Path
@@ -25,6 +26,37 @@ def load_api_contract(
         allowed_engine_member_kinds=allowed_engine_member_kinds,
     )
     return contract
+
+
+def validate_declared_namespaces(contract: dict[str, Any]) -> None:
+    """Validate the explicitly declared public namespace surfaces at runtime."""
+    for namespace_name, namespace_contract in contract.get("namespaces", {}).items():
+        namespace = importlib.import_module(namespace_name)
+        exports = namespace_contract["exports"]
+        expected_names = exports["names"]
+        assert getattr(namespace, "__all__", None) == expected_names, namespace_name
+
+        for name, export_contract in exports["members"].items():
+            exported = getattr(namespace, name)
+            validate_export_kind(name, exported, export_contract["kind"])
+            validate_immutable_definition(exported, export_contract, f"{namespace_name}.{name}")
+            if "value" in export_contract:
+                assert exported == export_contract["value"], f"{namespace_name}.{name}"
+            if "signature" in export_contract and export_contract["kind"] == "callable":
+                assert_signature_matches(
+                    exported, export_contract["signature"], f"{namespace_name}.{name}"
+                )
+            for probe in export_contract.get("shape_probes", []):
+                args = [resolve_probe_value(value) for value in probe.get("args", [])]
+                kwargs = {
+                    key: resolve_probe_value(value)
+                    for key, value in probe.get("kwargs", {}).items()
+                }
+                result = exported(*args, **kwargs)
+                assert_shape(result, probe["return_shape"], contract)
+            validate_constructor_contract(
+                exported, export_contract, contract, f"{namespace_name}.{name}"
+            )
 
 
 def json_type_matches(value: object, expected: str) -> bool:
@@ -303,7 +335,7 @@ def _validate_contract(
 ) -> None:
     _assert_type(contract, dict, "contract")
 
-    allowed_top_level = {"id", "kind", "module", "exports"}
+    allowed_top_level = {"id", "kind", "module", "exports", "namespaces"}
     if allowed_engine_member_kinds is not None:
         allowed_top_level |= {
             "target",
@@ -338,6 +370,9 @@ def _validate_contract(
         label="contract.exports",
     )
 
+    namespaces = contract.get("namespaces", {})
+    _validate_namespaces_spec(namespaces, allowed_export_kinds)
+
     if allowed_engine_member_kinds is None:
         if "target" in contract:
             _assert_type(contract["target"], str, "contract.target")
@@ -351,6 +386,23 @@ def _validate_contract(
         allowed_engine_member_kinds=allowed_engine_member_kinds,
         label="contract.engine",
     )
+
+
+def _validate_namespaces_spec(namespaces: object, allowed_export_kinds: set[str]) -> None:
+    _assert_type(namespaces, dict, "contract.namespaces")
+    for namespace_name, namespace_contract in namespaces.items():
+        if not isinstance(namespace_name, str) or not namespace_name:
+            raise AssertionError("contract.namespaces keys must be non-empty strings")
+        _assert_type(namespace_contract, dict, f"contract.namespaces[{namespace_name!r}]")
+        _assert_closed_keys(
+            namespace_contract, {"exports"}, f"contract.namespaces[{namespace_name!r}]"
+        )
+        _require_fields(namespace_contract, {"exports"}, f"contract.namespaces[{namespace_name!r}]")
+        _validate_exports_spec(
+            namespace_contract["exports"],
+            allowed_export_kinds=allowed_export_kinds,
+            label=f"contract.namespaces[{namespace_name!r}].exports",
+        )
 
 
 def _validate_exports_spec(

@@ -8,6 +8,7 @@ from _api_contract_harness import (
     load_api_contract,
     resolve_probe_value,
     validate_constructor_contract,
+    validate_declared_namespaces,
     validate_engine_member_probes,
     validate_engine_member_runtime,
     validate_export_kind,
@@ -34,6 +35,8 @@ def _load_contract() -> dict[str, object]:
 
 def test_api_contract_fixture_matches_python_public_surface() -> None:
     contract = _load_contract()
+
+    validate_declared_namespaces(contract)
 
     assert contract["kind"] == "api-contract"
     exports = contract["exports"]
@@ -137,6 +140,15 @@ def test_api_contract_fixture_has_unique_entries() -> None:
                 assert "construction_probes" in export_contract, export_name
         else:
             assert "signature" not in export_contract, export_name
+
+    namespaces = contract.get("namespaces", {})
+    assert len(namespaces) == len(set(namespaces))
+    for namespace_name, namespace_contract in namespaces.items():
+        assert namespace_name
+        namespace_exports = namespace_contract["exports"]
+        namespace_names = namespace_exports["names"]
+        assert len(namespace_names) == len(set(namespace_names))
+        assert set(namespace_exports["members"]) == set(namespace_names)
 
     engine_members = list(contract["engine"]["public_members"]["members"].keys())
     assert len(engine_members) == len(set(engine_members))
