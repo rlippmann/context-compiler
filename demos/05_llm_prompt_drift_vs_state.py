@@ -25,12 +25,12 @@ from demos.common import (
 from demos.llm_client import complete_messages
 
 _PLAN_HEADING_RE = re.compile(
-    r"^\s*(dinner plan|ingredients?|steps?|instructions?|directions?|menu|plan)\s*:\s*(.*)$",
+    r"^\s*(project plan|ingredients?|steps?|instructions?|directions?|menu|plan)\s*:\s*(.*)$",
     flags=re.IGNORECASE,
 )
 _LIST_ITEM_RE = re.compile(r"^\s*(?:[-*]|\d+[.)])\s+")
-_NON_VEG_RE = re.compile(
-    r"\b(chicken|beef|pork|bacon|ham|sausage|fish|salmon|tuna|shrimp|lamb|turkey)\b",
+_STALE_DEADLINE_RE = re.compile(
+    r"\bproject deadline is Thursday\b",
     flags=re.IGNORECASE,
 )
 _NEGATION_RE = re.compile(
@@ -38,16 +38,16 @@ _NEGATION_RE = re.compile(
     flags=re.IGNORECASE,
 )
 
-_ORIGINAL_DIRECTIVE = "set premise vegetarian curry"
-EXPECTED_PREMISE = "vegetarian curry"
+_ORIGINAL_DIRECTIVE = "set premise project deadline is Friday"
+EXPECTED_PREMISE = "project deadline is Friday"
 _FINAL_PROMPT = (
-    "Now give me a dinner plan. First line must be PREMISE:<value>. "
+    "Now give me a project plan. First line must be PREMISE:<value>. "
     "Keep the plan consistent with that premise."
 )
 _FORMAT_CONTRACT_SYSTEM_PROMPT = (
     "Output contract:\n"
     "- First line must be exactly PREMISE:<value>.\n"
-    "- Then provide a short dinner plan consistent with that premise."
+    "- Then provide a short project plan consistent with that premise."
 )
 _DISTRACTOR_TOPICS = [
     "travel photography",
@@ -143,9 +143,9 @@ def _plan_lines(output: str) -> list[str]:
     return result
 
 
-def plan_includes_non_vegetarian_item(output: str) -> bool:
+def plan_includes_stale_deadline(output: str) -> bool:
     for line in _plan_lines(output):
-        if _NON_VEG_RE.search(line) is None:
+        if _STALE_DEADLINE_RE.search(line) is None:
             continue
         if _NEGATION_RE.search(line):
             continue
@@ -294,20 +294,20 @@ def _run_demo(turns: int = _DEFAULT_TURNS) -> None:
     reinjected_matches = premise_matches_expected(reinjected_output)
     mediated_matches = premise_matches_expected(mediated_output)
     compact_matches = compacted_prompt is None and premise_matches_expected(compact_output)
-    baseline_non_veg = plan_includes_non_vegetarian_item(baseline_output)
-    reinjected_non_veg = plan_includes_non_vegetarian_item(reinjected_output)
-    mediated_non_veg = plan_includes_non_vegetarian_item(mediated_output)
-    compact_non_veg = plan_includes_non_vegetarian_item(compact_output)
-    baseline_respects = baseline_matches and not baseline_non_veg
-    reinjected_respects = reinjected_matches and not reinjected_non_veg
-    mediated_respects = mediated_matches and not mediated_non_veg
-    compact_respects = compact_matches and not compact_non_veg
+    baseline_stale_deadline = plan_includes_stale_deadline(baseline_output)
+    reinjected_stale_deadline = plan_includes_stale_deadline(reinjected_output)
+    mediated_stale_deadline = plan_includes_stale_deadline(mediated_output)
+    compact_stale_deadline = plan_includes_stale_deadline(compact_output)
+    baseline_respects = baseline_matches and not baseline_stale_deadline
+    reinjected_respects = reinjected_matches and not reinjected_stale_deadline
+    mediated_respects = mediated_matches and not mediated_stale_deadline
+    compact_respects = compact_matches and not compact_stale_deadline
     print_host_check(
         "PREMISE_AND_PLAN",
         (
             f"premise_tag={baseline_premise or 'MISSING'}, "
             f"premise_matches_expected={yes_no(baseline_matches)}, "
-            f"plan_includes_non_vegetarian={yes_no(baseline_non_veg)}"
+            f"plan_includes_stale_deadline={yes_no(baseline_stale_deadline)}"
         ),
         context="baseline",
     )
@@ -316,7 +316,7 @@ def _run_demo(turns: int = _DEFAULT_TURNS) -> None:
         (
             f"premise_tag={reinjected_premise or 'MISSING'}, "
             f"premise_matches_expected={yes_no(reinjected_matches)}, "
-            f"plan_includes_non_vegetarian={yes_no(reinjected_non_veg)}"
+            f"plan_includes_stale_deadline={yes_no(reinjected_stale_deadline)}"
         ),
         context="reinjected-state",
     )
@@ -325,7 +325,7 @@ def _run_demo(turns: int = _DEFAULT_TURNS) -> None:
         (
             f"premise_tag={mediated_premise or 'MISSING'}, "
             f"premise_matches_expected={yes_no(mediated_matches)}, "
-            f"plan_includes_non_vegetarian={yes_no(mediated_non_veg)}"
+            f"plan_includes_stale_deadline={yes_no(mediated_stale_deadline)}"
         ),
         context="compiler-mediated",
     )
@@ -334,7 +334,7 @@ def _run_demo(turns: int = _DEFAULT_TURNS) -> None:
         (
             f"premise_tag={compact_premise or 'MISSING'}, "
             f"premise_matches_expected={yes_no(compact_matches)}, "
-            f"plan_includes_non_vegetarian={yes_no(compact_non_veg)}"
+            f"plan_includes_stale_deadline={yes_no(compact_stale_deadline)}"
         ),
         context="compiler-mediated + compact",
     )

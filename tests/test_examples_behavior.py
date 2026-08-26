@@ -101,9 +101,9 @@ def test_example_05_dispatches_no_directive_update_and_error_correctly(
     monkeypatch.setattr(module, "fake_llm", capture_fake_llm)
 
     module.handle_turn("hello there", engine)  # no_directive
-    module.handle_turn("set premise concise replies", engine)  # update
+    module.handle_turn("set premise project deadline is Friday", engine)  # update
     calls_before_error = len(llm_calls)
-    module.handle_turn("set premise verbose replies", engine)  # error
+    module.handle_turn("set premise project deadline is Thursday", engine)  # error
 
     assert decision_kinds == [
         "no_directive",
@@ -114,7 +114,7 @@ def test_example_05_dispatches_no_directive_update_and_error_correctly(
     assert llm_calls[0][0] is None
     assert llm_calls[0][1] == "hello there"
     assert llm_calls[1][0] is not None
-    assert llm_calls[1][1] == "set premise concise replies"
+    assert llm_calls[1][1] == "set premise project deadline is Friday"
 
 
 def test_example_06_sequences_steps_and_restores_state_json(
@@ -161,8 +161,8 @@ def test_example_06_sequences_steps_and_restores_state_json(
     assert "JSON restore keeps authority state:" in output
     assert step_calls == [
         "prohibit peanuts",
-        "set premise vegetarian curry",
-        "change premise to vegan curry",
+        "set premise project deadline is Friday",
+        "change premise to project deadline is Thursday",
     ]
     assert state_exports == 1
     assert state_imports == 1

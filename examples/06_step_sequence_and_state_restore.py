@@ -9,8 +9,8 @@ def main() -> None:
     engine = Engine()
     turns = [
         "prohibit peanuts",
-        "set premise vegetarian curry",
-        "change premise to vegan curry",
+        "set premise project deadline is Friday",
+        "change premise to project deadline is Thursday",
     ]
 
     print("Sequence directives through engine.step():")

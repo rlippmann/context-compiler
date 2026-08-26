@@ -7,7 +7,7 @@ from context_compiler import (
 from demos.common import compact_user_turns, is_verbose, print_info_report, state_observations
 
 DEMO_NAME = "06_context_compaction — superseded directives eliminated"
-FINAL_PREMISE = "chickpea curry"
+FINAL_PREMISE = "project deadline is Friday"
 SCALING_TURNS = (5, 20, 50)
 
 
@@ -17,7 +17,7 @@ def _build_baseline_prompt(transcript_turns: list[str]) -> str:
         "You are a helpful assistant.\n"
         "Use the full transcript context below:\n"
         f"{transcript_lines}\n"
-        "Respond using the latest user preference."
+        "Respond using the latest project context."
     )
 
 
@@ -33,11 +33,11 @@ def _build_compiled_prompt(compiled_premise: str) -> str:
 def _build_turns(turn_count: int) -> list[str]:
     if turn_count < 2:
         raise ValueError("turn_count must be at least 2")
-    variants = ["vegan", "tofu", "lentil", "vegetarian"]
-    turns = ["set premise vegetarian curry"]
+    variants = ["Tuesday", "Wednesday", "Thursday", "Monday"]
+    turns = ["set premise project deadline is Monday"]
     for index in range(turn_count - 2):
         variant = variants[index % len(variants)]
-        turns.append(f"change premise to {variant} curry")
+        turns.append(f"change premise to project deadline is {variant}")
     turns.append(f"change premise to {FINAL_PREMISE}")
     return turns
 

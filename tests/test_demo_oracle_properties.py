@@ -104,69 +104,71 @@ def test_demo02_safe_alternative_detected(line: str) -> None:
 @given(
     line=st.sampled_from(
         [
-            "Use a vegan or vegetarian curry paste.",
-            "Use vegan/vegetarian stock cubes.",
-            "A vegan and vegetarian option works.",
+            "Use Thursday for the review.",
+            "Thursday is the review date.",
+            "The review is scheduled for Thursday.",
         ]
     )
 )
-def test_demo03_stale_value_checker_ignores_lines_with_current_and_stale_terms(line: str) -> None:
+def test_demo03_stale_context_checker_ignores_current_context(line: str) -> None:
     output = f"Shopping list:\n- tofu\n- spinach\n{line}"
-    assert not DEMO03._plan_uses_value(output, "vegetarian")
+    assert not DEMO03._plan_uses_value(output, "Friday")
 
 
 @given(
     line=st.sampled_from(
         [
-            "Use vegetarian stock.",
-            "Vegetarian curry paste is fine.",
-            "This plan is vegetarian.",
+            "Use Friday for the review.",
+            "Friday is the review date.",
+            "This plan is due Friday.",
         ]
     )
 )
-def test_demo03_stale_value_checker_flags_unnegated_stale_term(line: str) -> None:
+def test_demo03_stale_context_checker_flags_unnegated_stale_context(line: str) -> None:
     output = f"Plan:\n- tofu\n{line}"
-    assert DEMO03._plan_uses_value(output, "vegetarian")
+    assert DEMO03._plan_uses_value(output, "Friday")
 
 
 @given(
     line=st.sampled_from(
         [
-            "without vegetarian stock",
-            "avoid vegetarian items",
-            "no vegetarian ingredients",
-            "exclude vegetarian products",
+            "without Friday work",
+            "avoid Friday scheduling",
+            "no tasks due Friday",
+            "exclude Friday from the plan",
         ]
     )
 )
-def test_demo03_stale_value_checker_ignores_negated_stale_term(line: str) -> None:
+def test_demo03_stale_context_checker_ignores_negated_stale_context(line: str) -> None:
     output = f"Plan:\n- tofu\n{line}"
-    assert not DEMO03._plan_uses_value(output, "vegetarian")
+    assert not DEMO03._plan_uses_value(output, "Friday")
 
 
 @given(
     line=st.sampled_from(
         [
-            "excluding vegetarian products",
-            "excludes vegetarian products",
-            "avoids vegetarian products",
-            "vegetarian-free option only",
+            "excluding Friday work",
+            "excludes Friday scheduling",
+            "avoids tasks due Friday",
+            "Friday-free schedule only",
         ]
     )
 )
-def test_demo03_stale_value_checker_ignores_inflected_negation(line: str) -> None:
+def test_demo03_stale_context_checker_ignores_inflected_negation(line: str) -> None:
     output = f"Plan:\n- tofu\n{line}"
-    assert not DEMO03._plan_uses_value(output, "vegetarian")
+    assert not DEMO03._plan_uses_value(output, "Friday")
 
 
 @given(
-    tag=st.sampled_from(["vegetarian curry", "Vegetarian Curry", " VEGETARIAN CURRY "]),
+    tag=st.sampled_from(
+        ["project deadline is Friday", "Project Deadline Is Friday", " PROJECT DEADLINE IS FRIDAY "]
+    ),
     punct=st.sampled_from(["", ".", "!", "?", "?!"]),
 )
 def test_demo05_premise_match_accepts_case_whitespace_and_trailing_punctuation(
     tag: str, punct: str
 ) -> None:
-    output = f"PREMISE: {tag}{punct}\nDinner Plan:\n- tofu"
+    output = f"PREMISE: {tag}{punct}\nProject Plan:\n- tasks"
     assert DEMO05.premise_matches_expected(output)
 
 
@@ -175,58 +177,67 @@ def test_demo05_premise_match_accepts_case_whitespace_and_trailing_punctuation(
     punct=st.sampled_from(["", ".", "!", "?"]),
 )
 def test_demo05_premise_match_accepts_wrapped_quotes(quote: str, punct: str) -> None:
-    output = f"PREMISE: {quote}vegetarian curry{quote}{punct}\nDinner Plan:\n- tofu"
+    output = f"PREMISE: {quote}project deadline is Friday{quote}{punct}\nProject Plan:\n- tasks"
     assert DEMO05.premise_matches_expected(output)
 
 
-@given(wrong=st.sampled_from(["vegan curry", "chicken curry", "curry", "vegetarian stew"]))
+@given(
+    wrong=st.sampled_from(
+        [
+            "project deadline is Thursday",
+            "project deadline is Monday",
+            "deadline",
+            "review is Friday",
+        ]
+    )
+)
 def test_demo05_premise_match_rejects_wrong_semantic_values(wrong: str) -> None:
-    output = f"PREMISE: {wrong}\nDinner Plan:\n- tofu"
+    output = f"PREMISE: {wrong}\nProject Plan:\n- tasks"
     assert not DEMO05.premise_matches_expected(output)
 
 
 @given(
     line=st.sampled_from(
         [
-            "Dinner plan: chicken curry",
-            "- beef stew",
-            "- shrimp fried rice",
+            "Project plan: project deadline is Thursday",
+            "- project deadline is Thursday",
+            "- the project deadline is Thursday",
         ]
     )
 )
-def test_demo05_non_veg_detection_flags_unnegated_non_veg(line: str) -> None:
-    output = f"PREMISE: vegetarian curry\n{line}"
-    assert DEMO05.plan_includes_non_vegetarian_item(output)
+def test_demo05_stale_deadline_detection_flags_unnegated_stale_deadline(line: str) -> None:
+    output = f"PREMISE: project deadline is Friday\n{line}"
+    assert DEMO05.plan_includes_stale_deadline(output)
 
 
 @given(
     line=st.sampled_from(
         [
-            "Dinner plan: without chicken",
-            "- avoid beef",
-            "- no shrimp",
-            "- exclude pork",
+            "Project plan: without Thursday work",
+            "- avoid Thursday scheduling",
+            "- no tasks due Thursday",
+            "- exclude Thursday from the plan",
         ]
     )
 )
-def test_demo05_non_veg_detection_ignores_negated_non_veg(line: str) -> None:
-    output = f"PREMISE: vegetarian curry\n{line}"
-    assert not DEMO05.plan_includes_non_vegetarian_item(output)
+def test_demo05_stale_deadline_detection_ignores_negated_stale_deadline(line: str) -> None:
+    output = f"PREMISE: project deadline is Friday\n{line}"
+    assert not DEMO05.plan_includes_stale_deadline(output)
 
 
 @given(
     line=st.sampled_from(
         [
-            "- excludes chicken",
-            "- excluding beef",
-            "- avoids pork",
-            "- chicken-free broth",
+            "- excludes Thursday work",
+            "- excluding Thursday scheduling",
+            "- avoids tasks due Thursday",
+            "- Thursday-free schedule",
         ]
     )
 )
-def test_demo05_non_veg_detection_ignores_inflected_or_freeform_negation(line: str) -> None:
-    output = f"PREMISE: vegetarian curry\n{line}"
-    assert not DEMO05.plan_includes_non_vegetarian_item(output)
+def test_demo05_stale_deadline_detection_ignores_inflected_or_freeform_negation(line: str) -> None:
+    output = f"PREMISE: project deadline is Friday\n{line}"
+    assert not DEMO05.plan_includes_stale_deadline(output)
 
 
 @given(
@@ -277,12 +288,18 @@ def test_demo04_selected_tool_ignores_non_structured_free_text(line: str) -> Non
 
 
 @given(
-    value=st.sampled_from(["vegan curry", "VEGAN CURRY", " vegan   curry "]),
+    value=st.sampled_from(
+        [
+            "project deadline is Friday",
+            "PROJECT DEADLINE IS FRIDAY",
+            " project   deadline is friday ",
+        ]
+    ),
     punct=st.sampled_from(["", ".", "!", "?"]),
     quote=st.sampled_from(["", '"', "'", "“", "”"]),
 )
 def test_demo07_premise_match_accepts_case_whitespace_and_trailing_punctuation(
     value: str, punct: str, quote: str
 ) -> None:
-    output = f"PREMISE: {quote}{value}{quote}{punct}\n- list item"
+    output = f"PREMISE: {quote}{value}{quote}{punct}\n- project task"
     assert DEMO07.premise_matches_expected(output)

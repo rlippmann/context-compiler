@@ -22,7 +22,7 @@ pytestmark = pytest.mark.contract
             "02_configuration_and_correction.py",
             (
                 "state after explicit premise change:",
-                "- premise: vegan curry",
+                "- premise: project deadline is Thursday",
             ),
         ),
         (

@@ -19,7 +19,7 @@ def test_demo_05_applies_same_output_format_contract_to_all_four_paths(
 
     def fake_complete_messages(messages: list[dict[str, str]]) -> str:
         captured_messages.append(messages)
-        return "PREMISE:vegetarian curry\n- vegetables\n- coconut milk\n- simmer"
+        return "PREMISE:project deadline is Friday\n- Friday project tasks"
 
     import demos.llm_client as llm_client
 
@@ -43,7 +43,7 @@ def test_demo_05_compact_path_injects_premise_anchor_when_directive_is_compacted
 
     def fake_complete_messages(messages: list[dict[str, str]]) -> str:
         captured_messages.append(messages)
-        return "PREMISE:vegetarian curry\n- vegetables\n- coconut milk\n- simmer"
+        return "PREMISE:project deadline is Friday\n- Friday project tasks"
 
     import demos.llm_client as llm_client
 
@@ -56,7 +56,8 @@ def test_demo_05_compact_path_injects_premise_anchor_when_directive_is_compacted
     assert len(captured_messages) == 4
     compact_messages = captured_messages[3]
     assert any(
-        message["role"] == "user" and message["content"] == "Premise reminder: vegetarian curry"
+        message["role"] == "user"
+        and message["content"] == "Premise reminder: project deadline is Friday"
         for message in compact_messages
     )
 
@@ -68,16 +69,22 @@ def test_demo_05_premise_match_ignores_trailing_sentence_punctuation() -> None:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
-    assert module.premise_matches_expected("PREMISE: vegetarian curry.\nDinner Plan:\n- tofu")
-    assert module.premise_matches_expected("PREMISE: vegetarian curry!\nDinner Plan:\n- tofu")
-    assert not module.premise_matches_expected("PREMISE: vegan curry.\nDinner Plan:\n- tofu")
+    assert module.premise_matches_expected(
+        "PREMISE: project deadline is Friday.\nProject Plan:\n- tasks"
+    )
+    assert module.premise_matches_expected(
+        "PREMISE: project deadline is Friday!\nProject Plan:\n- tasks"
+    )
+    assert not module.premise_matches_expected(
+        "PREMISE: project deadline is Thursday.\nProject Plan:\n- tasks"
+    )
 
 
 def test_demo_05_baseline_and_compiler_paths_share_same_oracle(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def fake_complete_messages(_messages: list[dict[str, str]]) -> str:
-        return "PREMISE:vegetarian curry\n- vegetables\n- coconut milk\n- simmer"
+        return "PREMISE:project deadline is Friday\n- Friday project tasks"
 
     import demos.llm_client as llm_client
 
