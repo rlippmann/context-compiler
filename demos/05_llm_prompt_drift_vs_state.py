@@ -42,7 +42,7 @@ _DEADLINE_WEEKDAY_RE = re.compile(
     flags=re.IGNORECASE,
 )
 _NEGATION_RE = re.compile(
-    r"\b(no|without|avoid(?:s|ed|ing)?|exclud(?:e|es|ed|ing)|instead of|\w+-free)\b",
+    r"\b(not|no|without|avoid(?:s|ed|ing)?|exclud(?:e|es|ed|ing)|instead of|\w+-free)\b",
     flags=re.IGNORECASE,
 )
 
@@ -157,7 +157,8 @@ def plan_includes_stale_deadline(output: str) -> bool:
             weekday = next(value for value in match.groups() if value is not None)
             if weekday.lower() == "friday":
                 continue
-            if _NEGATION_RE.search(line):
+            assertion_context = re.split(r"[,;.!?:]", line[: match.start()])[-1]
+            if _NEGATION_RE.search(assertion_context):
                 continue
             return True
     return False
