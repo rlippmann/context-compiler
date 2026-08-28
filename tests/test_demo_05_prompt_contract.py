@@ -80,6 +80,50 @@ def test_demo_05_premise_match_ignores_trailing_sentence_punctuation() -> None:
     )
 
 
+def test_demo_05_deadline_oracle_accepts_friday_consistent_planning() -> None:
+    demo_path = REPO_ROOT / "demos" / "05_llm_prompt_drift_vs_state.py"
+    spec = importlib.util.spec_from_file_location("demo_05_for_deadline_oracle", demo_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    assert not module.plan_includes_stale_deadline(
+        "PREMISE: project deadline is Friday\nProject Plan:\n- Finish the final review by Friday."
+    )
+
+
+def test_demo_05_deadline_oracle_rejects_any_conflicting_deadline_weekday() -> None:
+    demo_path = REPO_ROOT / "demos" / "05_llm_prompt_drift_vs_state.py"
+    spec = importlib.util.spec_from_file_location("demo_05_for_deadline_conflicts", demo_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    assert module.plan_includes_stale_deadline(
+        "PREMISE: project deadline is Friday\nProject Plan:\n- The project deadline is Thursday."
+    )
+    assert module.plan_includes_stale_deadline(
+        "PREMISE: project deadline is Friday\n"
+        "Project Plan:\n"
+        "- Complete the final work by Wednesday."
+    )
+
+
+def test_demo_05_deadline_oracle_ignores_unrelated_weekday_mentions() -> None:
+    demo_path = REPO_ROOT / "demos" / "05_llm_prompt_drift_vs_state.py"
+    spec = importlib.util.spec_from_file_location("demo_05_for_benign_weekdays", demo_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    assert not module.plan_includes_stale_deadline(
+        "PREMISE: project deadline is Friday\n"
+        "Project Plan:\n"
+        "- Thursday is the kickoff meeting.\n"
+        "- The project deadline remains Friday."
+    )
+
+
 def test_demo_05_baseline_and_compiler_paths_share_same_oracle(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

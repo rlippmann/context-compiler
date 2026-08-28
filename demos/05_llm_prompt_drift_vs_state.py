@@ -29,8 +29,16 @@ _PLAN_HEADING_RE = re.compile(
     flags=re.IGNORECASE,
 )
 _LIST_ITEM_RE = re.compile(r"^\s*(?:[-*]|\d+[.)])\s+")
-_STALE_DEADLINE_RE = re.compile(
-    r"\bproject deadline is Thursday\b",
+_DEADLINE_WEEKDAY_RE = re.compile(
+    r"(?:"
+    r"\b(?:project\s+)?deadline\b(?:\s+(?:is\s+|falls?\s+|on\s+|for\s+)?|\s*[:=-]\s*)"
+    r"(?P<deadline_weekday>Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b"
+    r"|\b(?P<leading_weekday>Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b"
+    r"\s+(?:project\s+)?deadline\b"
+    r"|\b(?:finish|complete|submit|deliver|ship|launch)\b"
+    r"[^.!?;\n]{0,24}\b(?:by|on|for)\s+"
+    r"(?P<planning_weekday>Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\b"
+    r")",
     flags=re.IGNORECASE,
 )
 _NEGATION_RE = re.compile(
@@ -145,11 +153,13 @@ def _plan_lines(output: str) -> list[str]:
 
 def plan_includes_stale_deadline(output: str) -> bool:
     for line in _plan_lines(output):
-        if _STALE_DEADLINE_RE.search(line) is None:
-            continue
-        if _NEGATION_RE.search(line):
-            continue
-        return True
+        for match in _DEADLINE_WEEKDAY_RE.finditer(line):
+            weekday = next(value for value in match.groups() if value is not None)
+            if weekday.lower() == "friday":
+                continue
+            if _NEGATION_RE.search(line):
+                continue
+            return True
     return False
 
 
