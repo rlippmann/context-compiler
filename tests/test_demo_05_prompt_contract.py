@@ -124,6 +124,34 @@ def test_demo_05_deadline_oracle_ignores_unrelated_weekday_mentions() -> None:
     )
 
 
+def test_demo_05_deadline_oracle_does_not_hide_conflict_after_unrelated_negation() -> None:
+    demo_path = REPO_ROOT / "demos" / "05_llm_prompt_drift_vs_state.py"
+    spec = importlib.util.spec_from_file_location("demo_05_for_unrelated_negation", demo_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    assert module.plan_includes_stale_deadline(
+        "PREMISE: project deadline is Friday\n"
+        "Project Plan:\n"
+        "- Avoid scope creep; complete the final work by Wednesday."
+    )
+
+
+def test_demo_05_deadline_oracle_suppresses_negated_conflicting_deadline() -> None:
+    demo_path = REPO_ROOT / "demos" / "05_llm_prompt_drift_vs_state.py"
+    spec = importlib.util.spec_from_file_location("demo_05_for_negated_deadline", demo_path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    assert not module.plan_includes_stale_deadline(
+        "PREMISE: project deadline is Friday\n"
+        "Project Plan:\n"
+        "- Do not complete the final work by Wednesday."
+    )
+
+
 def test_demo_05_baseline_and_compiler_paths_share_same_oracle(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
