@@ -46,6 +46,8 @@ _NO_DIRECTIVE = NoDirectiveDecision()
 class Engine:
     """Own the authoritative state and apply one directive transition at a time."""
 
+    __slots__ = ("_state",)
+
     def __init__(self) -> None:
         self._state: _State
         self._replace_state(_initial_state())

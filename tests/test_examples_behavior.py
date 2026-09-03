@@ -125,32 +125,30 @@ def test_example_06_sequences_steps_and_restores_state_json(
     step_calls: list[str] = []
     state_exports = 0
     state_imports = 0
+    original_step = original_engine_class.step
+    original_export = original_engine_class.export_json
+    original_import = original_engine_class.import_json
 
     def engine_class_wrapper() -> object:
-        nonlocal state_exports, state_imports
-        engine = original_engine_class()
-        original_step = engine.step
-        original_export = engine.export_json
-        original_import = engine.import_json
+        return original_engine_class()
 
-        def step_wrapper(user_input: str) -> object:
-            step_calls.append(user_input)
-            return original_step(user_input)
+    def step_wrapper(engine: object, user_input: str) -> object:
+        step_calls.append(user_input)
+        return original_step(engine, user_input)  # type: ignore[arg-type]
 
-        def export_wrapper() -> str:
-            nonlocal state_exports
-            state_exports += 1
-            return original_export()
+    def export_wrapper(engine: object) -> str:
+        nonlocal state_exports
+        state_exports += 1
+        return original_export(engine)  # type: ignore[arg-type]
 
-        def import_wrapper(payload: str) -> None:
-            nonlocal state_imports
-            state_imports += 1
-            original_import(payload)
+    def import_wrapper(engine: object, payload: str) -> None:
+        nonlocal state_imports
+        state_imports += 1
+        original_import(engine, payload)  # type: ignore[arg-type]
 
-        engine.step = step_wrapper  # type: ignore[assignment]
-        engine.export_json = export_wrapper  # type: ignore[assignment]
-        engine.import_json = import_wrapper  # type: ignore[assignment]
-        return engine
+    monkeypatch.setattr(original_engine_class, "step", step_wrapper)
+    monkeypatch.setattr(original_engine_class, "export_json", export_wrapper)
+    monkeypatch.setattr(original_engine_class, "import_json", import_wrapper)
 
     monkeypatch.setattr(module, "Engine", engine_class_wrapper)
 
