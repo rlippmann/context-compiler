@@ -181,7 +181,7 @@ Design notes:
 Status:
 
 - Future infrastructure hardening.
-- Not planned for the 0.8.x series.
+- No current release target.
 
 ### 0.9 — Authority Surface Cleanup and Conformance Hardening
 
@@ -214,7 +214,7 @@ Candidate work for 0.10 includes:
 - possible partial policy matching as exploratory work; and
 - canonical export integrity and hashing.
 
-### Post-0.8 Direction
+### Post-0.9 Direction
 
 - 0.10 candidate direction: canonical export integrity and hashing
 - MCP adapter likely as a separate/later track after post-clean-break package
