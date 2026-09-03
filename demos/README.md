@@ -1,18 +1,14 @@
 # LLM Demos
 
-These scripts show common reliability limits in LLM app behavior.
+These scripts show common reliability limits in LLM app behavior by comparing
+normal prompting with application-managed authoritative state. They make two
+things visible: saved state continues to affect later turns, and deterministic
+state-transition rules are needed when instructions conflict.
 
-They compare normal prompting with an approach where the application tracks
-important instructions explicitly instead of relying only on the conversation
-history. The scripts are designed to produce consistent results so the
-behavior is easy to see.
-This demo set shows what users notice: saved authoritative state continues to
-affect later turns, and where your app needs deterministic state-transition
-rules.
-
-These demos are proof-of-concept and evaluation surfaces. They isolate
-authority semantics with dependency-light comparisons instead of requiring
-deeper framework integration layers.
+The demos are proof-of-concept evaluation surfaces. They isolate authority
+semantics without requiring a deeper framework integration layer. For runnable
+application-layer integrations, see
+[`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations).
 
 Scored demos now compare four paths:
 
@@ -20,9 +16,6 @@ Scored demos now compare four paths:
 - reinjected-state (application-managed state text injected into the prompt, used here as a simple prompt-only comparison baseline without compiler semantics)
 - compiler-mediated (full transcript + saved compiler state added to the prompt)
 - compiler+compact (compacted transcript + saved compiler state added to the prompt)
-
-Runnable application-layer enforcement-point integrations live in
-[`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations).
 
 ## Demo overview
 
@@ -171,11 +164,11 @@ Notes:
 - `PASS` means the demo-specific expected-behavior check for that path succeeded; `FAIL` means it did not.
 - `reinjected-state` can be enough for some persistence cases; in this demo set it is intentionally used as a prompt-only comparison baseline.
 - Scored checks focus on app-side authority rules (for example blocked mutation and terminal invalid replacement handling), not model prose quality. `reinjected-state` remains plain text injection only.
-- Interpretation:
 
-- Demos `01`-`05` and `07` mostly test persistence and policy-following behavior across turns.
-- Demo `08` tests rules for when state is allowed to change.
-- Demo `08` covers authority semantics prompt text does not implement by itself, such as replacement preconditions, blocked mutations, and terminal semantic errors before saving changes.
+### What the demos show
+
+- Demos `01`–`05` and `07` mostly test persistence and policy-following behavior across turns.
+- Demo `08` tests when state is allowed to change, including replacement preconditions, blocked mutations, and terminal semantic errors before saving changes.
 - Plain prompt reinjection can produce reasonable answers, but it does not run these authority checks by itself and is not the only or preferred production integration pattern.
 - Similar outcomes across models in `08` reflect app behavior limits, not model leaderboard ranking.
 
