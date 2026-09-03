@@ -9,6 +9,7 @@
 - [Architecture boundaries](architecture.md)
 - [Directive Grammar (exact command forms the engine accepts)](DirectiveGrammarSpec.md)
 - [Public API reference](api-reference.md)
+- [CLI and REPL guide](cli-repl.md)
 
 ## Evaluation & Evidence
 
