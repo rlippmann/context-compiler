@@ -240,13 +240,15 @@ def test_step_routes_canonical_directives_through_apply_directive(
     assert isinstance(parsed, CanonicalDirective)
 
     seen: list[CanonicalDirective] = []
-    original = engine.apply_directive
+    original = Engine.apply_directive
 
-    def recording_apply_directive(directive: CanonicalDirective) -> dict[str, str | None]:
+    def recording_apply_directive(
+        patched_engine: Engine, directive: CanonicalDirective
+    ) -> dict[str, str | None]:
         seen.append(directive)
-        return original(directive)
+        return original(patched_engine, directive)
 
-    monkeypatch.setattr(engine, "apply_directive", recording_apply_directive)
+    monkeypatch.setattr(Engine, "apply_directive", recording_apply_directive)
 
     decision = engine.step("use docker")
 
