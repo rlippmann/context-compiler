@@ -337,6 +337,14 @@ Policy-value constants:
 Use these when you want explicit string comparisons without hard-coding
 literals in host code.
 
+Public type alias:
+
+```python
+PolicyValue = Literal["use", "prohibit"]
+```
+
+`PolicyValue` describes the values returned by `engine.policies`.
+
 ## Result Object Summaries
 
 Public result and data object names exported at package root include:
