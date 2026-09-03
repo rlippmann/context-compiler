@@ -263,7 +263,7 @@ def run_repl(
     active_engine = Engine() if engine is None else engine
 
     if _is_interactive(in_stream, out_stream):
-        print("Context Compiler REPL (0.5). Type help for commands.", file=out_stream)
+        print(f"Context Compiler REPL ({__version__}). Type help for commands.", file=out_stream)
         print("Non-directive input is no_directive.", file=out_stream)
 
         while True:

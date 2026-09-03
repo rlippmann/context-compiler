@@ -480,7 +480,7 @@ def test_repl_interactive_help_commands() -> None:
         "Bare input behavior remains unchanged.",
         "error results are immediate messages and do not reserve later input.",
     ]
-    assert lines[0] == "Context Compiler REPL (0.5). Type help for commands."
+    assert lines[0] == f"Context Compiler REPL ({__version__}). Type help for commands."
     assert lines[1] == "Non-directive input is no_directive."
     expected_help_len = len(expected_help)
     assert lines[2 : 2 + expected_help_len] == expected_help
@@ -525,7 +525,7 @@ def test_repl_non_interactive_accepts_crlf_single_line_without_multi_command_err
 def test_repl_interactive_eof_returns_cleanly_after_startup_banner() -> None:
     lines = _run_interactive_lines("")
     assert lines == [
-        "Context Compiler REPL (0.5). Type help for commands.",
+        f"Context Compiler REPL ({__version__}). Type help for commands.",
         "Non-directive input is no_directive.",
     ]
 
@@ -548,6 +548,6 @@ def test_print_command_error_leading_blank_line() -> None:
 
 def test_repl_interactive_blank_line_is_ignored_without_output() -> None:
     lines = _run_interactive_lines("\nset premise concise\nquit\n")
-    assert lines[0] == "Context Compiler REPL (0.5). Type help for commands."
+    assert lines[0] == f"Context Compiler REPL ({__version__}). Type help for commands."
     assert lines[1] == "Non-directive input is no_directive."
     assert _contains_subsequence(lines, ["updated", "premise: concise", "policies: (none)"])
