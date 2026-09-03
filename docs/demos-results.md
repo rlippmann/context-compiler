@@ -8,14 +8,16 @@ what evidence supports that claim?
 For runnable application-layer enforcement-point integrations, see
 [`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations).
 
-## Current Verification Results (2026-06)
+## Published Verification Results (2026-06)
 
-Current release-facing verification covers the current 8-demo scored set:
+This published verification matrix records an 8-demo scored set from an
+earlier runner version. The current runner in this repository has 7 scored
+demos: `01`-`05`, `07`, and `08`.
 
-- scored demos: `01`-`05`, `07`, `08`, `09`
+- scored demos in the published matrix: `01`-`05`, `07`, `08`, `09`
 - informational demo: `06_context_compaction`
 
-### Current Results Matrix
+### Published Results Matrix
 
 | Provider Path | Model | Context | Baseline (P/F) | Reinjected-state (P/F) | Compiler (P/F) | Compiler+Compact (P/F) |
 | :-- | :-- | :-- | :--: | :--: | :--: | :--: |
@@ -27,7 +29,7 @@ Current release-facing verification covers the current 8-demo scored set:
 | `ollama` | `qwen2.5:7b-instruct` | `32768 (default)` | 4 / 4 | 6 / 2 | 8 / 0 | 8 / 0 |
 | `ollama` | `qwen2.5:14b-instruct` | `32768 (default)` | 4 / 4 | 5 / 3 | 8 / 0 | 8 / 0 |
 
-### Current Totals
+### Published Totals
 
 - Model runs: `7`
 - Scored demos per run: `8`
@@ -40,9 +42,9 @@ Current release-facing verification covers the current 8-demo scored set:
 
 ### Interpretation
 
-- Current verification shows `56 / 56` passes on both compiler paths across the hosted-provider and local Ollama rows.
-- Baseline and reinjected-state vary by model, but the compiler-mediated paths stay perfect across all listed current runs.
-- The current Ollama rows are current 8-demo reruns recorded at each model's discovered default context size.
+- The published verification shows `56 / 56` passes on both compiler paths across the hosted-provider and local Ollama rows.
+- Baseline and reinjected-state vary by model, but the compiler-mediated paths stay perfect across all listed runs.
+- The Ollama rows are 8-demo reruns recorded at each model's discovered default context size.
 - `PASS` means the demo-specific expected behavior succeeded for that path.
 - `baseline` reflects model behavior without added saved-state authority.
 - `reinjected-state` is a prompt-only baseline: plain application-managed state text added to the prompt, without authority semantics.
@@ -52,8 +54,8 @@ Current release-facing verification covers the current 8-demo scored set:
 
 - Main run command: `uv run python -m demos.run_demo all`
 - Provider selection uses `PROVIDER`, `MODEL`, and provider-specific endpoint or key configuration.
-- The current matrix combines standard hosted/frontier runs and current local Ollama runs on the same 8-demo scored set.
-- Ollama context values shown in the current matrix are discovered defaults reported by the runner, not a fixed context-size sweep.
+- The published matrix combines standard hosted/frontier runs and local Ollama runs on the same 8-demo scored set used by that runner version.
+- Ollama context values shown in the published matrix are discovered defaults reported by the runner, not a fixed context-size sweep.
 - `06_context_compaction` is informational and excluded from PASS/FAIL totals.
 
 ## Historical Results (0.6.15)
@@ -112,4 +114,4 @@ records the standard scored demo configuration.
 This is exploratory evidence, not benchmark authority. Reinjection can be
 enough in some persistence scenarios, while compiler-mediated paths still
 provide authority semantics such as replacement preconditions, blocked
-mutations, and pending confirmation handling.
+mutations, and terminal semantic errors.

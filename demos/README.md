@@ -161,7 +161,7 @@ This README describes the current demo suite in this repository.
 The published results page in [docs/demos-results.md](../docs/demos-results.md)
 includes:
 
-- a current 2026-06 verification matrix covering frontier-provider reruns and local Ollama runs
+- a published 2026-06 verification matrix from an earlier 8-scored-demo runner, covering frontier-provider reruns and local Ollama runs
 - the older historical 0.6.15 matrix for the earlier 6-demo scored set
 
 Notes:
@@ -218,7 +218,7 @@ Running against a local OpenAI-compatible endpoint avoids provider rate limits.
 
 - `Default (concise)`:
   - scenario name + description
-  - for evaluative demos (`01`–`05`, `07`, `08`, `09`):
+  - for evaluative demos (`01`–`05`, `07`, `08`):
     - `baseline: PASS|FAIL`
     - `reinjected-state: PASS|FAIL`
     - `compiler: PASS|FAIL`

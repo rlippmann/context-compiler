@@ -172,11 +172,12 @@ construction.
 
 ## Does it Work?
 
-Yes. The current demo suite in this repository contains 8 scored demos
-(`01`-`05`, `07`, `08`, `09`) plus 1 informational demo (`06`).
+Yes. The current demo suite in this repository contains 7 scored demos
+(`01`-`05`, `07`, `08`) plus 1 informational demo (`06`).
 
-The current published verification matrix combines 7 current model runs across
-hosted/frontier providers and local Ollama models. In those current runs,
+The published verification matrix records 7 model runs from an earlier
+8-scored-demo runner across hosted/frontier providers and local Ollama models.
+In those published runs,
 baseline passed **24 / 56**, reinjected-state passed **40 / 56**, and both
 compiler paths passed **56 / 56**.
 

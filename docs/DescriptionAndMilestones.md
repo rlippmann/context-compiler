@@ -126,7 +126,7 @@ Make engine behavior inspectable and externally controllable without guessing.
 0.8 documented the clean-break repository split and removed ambiguity about
 which package owns which behavior.
 
-Current ownership after 0.8:
+Historical 0.8 ownership (superseded for the 0.9 line):
 
 - `context-compiler` owns the Authority Layer:
   deterministic state transitions, canonical directive application, semantic
@@ -173,9 +173,7 @@ Current contract:
 Design notes:
 
 - Simple locking around `step()` is likely insufficient.
-- `preview()` is the primary complication because it performs a temporary mutate-and-restore sequence.
 - Any future thread-safety work should evaluate:
-  - atomic preview semantics
   - export/import consistency
   - concurrency testing
 - Thread-safety should be designed holistically rather than added through ad hoc locking.
@@ -185,29 +183,40 @@ Status:
 - Future infrastructure hardening.
 - Not planned for the 0.8.x series.
 
-### 0.9 Candidate Direction — Canonical Export Integrity / Hashing
+### 0.9 — Authority Surface Cleanup and Conformance Hardening
 
-This is future planning only. No 0.9 implementation is defined here.
+0.9 completed the clean-break authority-layer release. It:
 
-Candidate goals:
+- retired the public controller, preview, structural-diff, and continuation/
+  confirmation-era surfaces;
+- established direct `Engine.step(...)` and `Engine.apply_directive(...)`
+  execution boundaries;
+- established engine-owned premise and policy inspection through
+  `engine.premise` and `engine.policies`;
+- consolidated the immutable `Decision` variants, semantic error results, and
+  advisory canonical repairs;
+- established the shared public grammar module and its canonical directive
+  surface; and
+- hardened package-root, grammar, state-transport, and cross-language
+  conformance contracts.
 
-- canonical serialization
-- deterministic hashes of exported artifacts
-- Python/TypeScript verification
-- auditability
-- future signing compatibility
+The authority, acquisition, and application boundaries are explicit: core
+parses and executes canonical directives and owns authoritative state, while
+drafting and runtime integration remain outside the core authority layer.
 
-Explicitly out of scope:
+### 0.10 Candidate Direction — Authority Extensions and Export Integrity
 
-- signing
-- key management
-- trust infrastructure
-- security guarantees from hashes alone
-- hashes embedded inside semantic engine state
+Candidate work for 0.10 includes:
+
+- restricted policy operands;
+- read-only premise and policy behavior;
+- case-sensitive matching;
+- possible partial policy matching as exploratory work; and
+- canonical export integrity and hashing.
 
 ### Post-0.8 Direction
 
-- 0.9 candidate direction: canonical export integrity and hashing
+- 0.10 candidate direction: canonical export integrity and hashing
 - MCP adapter likely as a separate/later track after post-clean-break package
   boundaries are fully settled
 - Optional MCP-readiness helpers only if narrowly justified
