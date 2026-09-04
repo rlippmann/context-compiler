@@ -9,6 +9,10 @@ Context Compiler helps LLM applications keep explicit premise and policy rules
 stable across turns. It blocks invalid or conflicting changes and returns
 structured decisions.
 
+Use it when important context and policy rules should affect application
+behavior—not just the model’s next response. Those rules can shape what an
+application allows, routes, retrieves, builds, or executes.
+
 ## Quickstart
 
 This example shows premise and policy updates directly:
@@ -46,12 +50,6 @@ if isinstance(result, SemanticErrorDecision):
 # Replacement requires an active 'use' policy.
 ```
 
-## CLI and REPL
-
-The package includes an interactive REPL and a machine-readable JSON CLI. See
-the [CLI and REPL guide](docs/cli-repl.md) for commands, preload options, and
-JSON output behavior.
-
 ## Installation
 
 Requirements:
@@ -73,8 +71,7 @@ Packaging notes:
 
 ## API and behavior
 
-The public API is centered on `Engine`, Decision variants, and the
-grammar helpers in `context_compiler.grammar`.
+The main public API is `Engine` and its Decision results.
 
 - `Engine.step(...)` accepts raw input and may return `no_directive`, `update`,
   or `error`.
@@ -84,8 +81,7 @@ grammar helpers in `context_compiler.grammar`.
 - `engine.export_json()` and `engine.import_json(...)` transport compiler state
   only.
 See the [API reference](docs/api-reference.md) for fields, signatures, and
-repair behavior. See the [Directive Grammar Specification](docs/DirectiveGrammarSpec.md)
-for exact syntax and edge cases.
+repair behavior.
 
 ---
 
@@ -102,6 +98,39 @@ The engine stores explicit user commitments as saved state:
 State changes only through explicit supported directives. The engine does not
 infer meaning or rewrite input.
 
+### Directive commands
+
+Set or change the premise with:
+
+```text
+set premise project deadline is Friday
+change premise to project deadline is Thursday
+```
+
+Policy commands:
+
+```text
+use docker
+prohibit peanuts
+```
+
+To replace an existing `use` policy:
+
+```text
+use podman instead of docker
+```
+
+If `docker` is absent from saved state, the replacement fails and leaves state
+unchanged. It does not become plain `use podman`.
+
+To remove a policy or clear state:
+
+```text
+remove policy peanuts
+reset policies
+clear state
+```
+
 ---
 
 ### When to use `premise`
@@ -114,75 +143,15 @@ Use `premise` for **persistent background context or factual state that changes 
 
 Examples:
 
-- “Current medications: …”
-- “Outdoor event; no seating available”
-- “GDPR data handling requirements apply”
-- “System is deployed across multiple regions”
-- “Project deadline is Friday”
+- `set premise current medications: …`
+- `set premise outdoor event; no seating available`
+- `set premise GDPR data handling requirements apply`
+- `set premise system is deployed across multiple regions`
+- `set premise project deadline is Friday`
 
 The premise stays in effect until it is changed or cleared.
 
-Use policies instead when the constraint is explicit and enforceable:
-
-- “prohibit foods that may cause GI upset”
-- “use handheld foods”
-- “use concise replies”
-- “use a formal tone”
-- “prohibit storing personal data beyond immediate use”
-- “prohibit introducing new external dependencies”
-- “use single-step preparation methods”
-
-### Example domains
-
-What these rules mean depends on your application. Common patterns include:
-
-- safety-oriented constraints (for example, prohibited materials or tools)
-- authority/evidence constraints (for example, cite only approved sources)
-- software workflow constraints (for example, require `uv`, prohibit `npm`)
-- accessibility/environment constraints (for example, no audio-only outputs)
-
----
-
-## Directive Examples
-
-Set and change premise for contextual state:
-
-```text
-User: set premise project deadline is Friday
-User: change premise to project deadline is Thursday
-```
-
-Per-item policies:
-
-```text
-User: use docker
-User: prohibit peanuts
-User: use concise replies
-User: use a formal tone
-```
-
-Replacement:
-
-```text
-User: use podman instead of docker
-```
-
-If `docker` is absent from saved state, the replacement fails and leaves state
-unchanged. It does not become plain `use podman`.
-
-Removal and reset:
-
-```text
-User: remove policy peanuts
-User: reset policies
-User: clear state
-```
-
-Each input can contain at most one supported directive. For example, `use
-docker and prohibit peanuts` does not match the supported format.
-
-For exact syntax and edge cases, see
-[DirectiveGrammarSpec.md](docs/DirectiveGrammarSpec.md).
+Use policies instead when the constraint is explicit and enforceable.
 
 ---
 
@@ -191,6 +160,12 @@ For exact syntax and edge cases, see
 - [examples](examples/) — minimal usage patterns for the Context Compiler engine
 - [demos](demos/) — concrete scenarios showing how behavior differs with and without the compiler
 - [`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations) — runnable integrations using compiler state
+
+## CLI and REPL
+
+The package includes an interactive REPL and a machine-readable JSON CLI. See
+the [CLI and REPL guide](docs/cli-repl.md) for commands, preload options, and
+JSON output behavior.
 
 ---
 
@@ -210,8 +185,8 @@ Context Compiler defines what changes are allowed and reports conflicts instead
 of leaving the application to invent those rules.
 
 ```text
-User: use python_script
-User: prohibit python_script
+use python_script
+prohibit python_script
 ```
 
 Without these rules, conflicting instructions can be handled inconsistently or
@@ -235,17 +210,7 @@ Current and historical published results: [docs/demos-results.md](docs/demos-res
 
 ---
 
-## Advanced topics
-
-### Multiple engines
-
-- [Multiple engines](docs/multi-engine.md)
-
-For a full documentation map, see [docs/README.md](docs/README.md).
-
----
-
-## Design Notes
+## Documentation
 
 These docs cover the design and milestone details:
 
@@ -253,13 +218,10 @@ These docs cover the design and milestone details:
 - [Architecture boundaries](docs/architecture.md)
 - [Project overview](docs/DescriptionAndMilestones.md)
 - [Directive grammar specification](docs/DirectiveGrammarSpec.md)
+- [Multiple engines](docs/multi-engine.md)
+- [`tests/fixtures/`](tests/fixtures/) — Cross-language fixtures that help keep compiler behavior consistent across implementations.
 
----
-
-### Conformance Fixtures
-
-[`tests/fixtures/`](tests/fixtures/) defines the cross-language conformance tests.
-These fixtures help keep compiler behavior consistent across implementations.
+For a full documentation map, see [docs/README.md](docs/README.md).
 
 ## Development Process (OpenAI Devpost)
 
