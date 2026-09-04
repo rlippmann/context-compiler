@@ -11,33 +11,39 @@ structured decisions.
 
 ## Quickstart
 
-Create an engine, send user input to `engine.step(...)`, and use the returned
-Decision with the engine’s current state:
+This example shows premise and policy updates directly:
 
 ```python
-from context_compiler import (
-    Engine,
-    NoDirectiveDecision,
-    SemanticErrorDecision,
-    UpdateDecision,
-)
+from context_compiler import Engine, SemanticErrorDecision, UpdateDecision
 
 engine = Engine()
 
-user_input = "set premise current project uses uv"
-decision = engine.step(user_input)
+engine.step("set premise project deadline is Friday")
+print(engine.premise)
+# project deadline is Friday
 
-if isinstance(decision, SemanticErrorDecision):
-    show_to_user(decision.message)
-elif isinstance(decision, UpdateDecision):
-    messages = build_messages(
-        premise=engine.premise,
-        policies=engine.policies,
-        user_input=user_input,
-    )
-    render(call_llm(messages))
-elif isinstance(decision, NoDirectiveDecision):
-    render(call_llm(user_input))
+engine.step("change premise to project deadline is Thursday")
+print(engine.premise)
+# project deadline is Thursday
+
+engine.step("use docker")
+
+result = engine.step("use podman instead of docker")
+if isinstance(result, UpdateDecision):
+    print(result.changed)
+# True
+
+result = engine.step("use podman")
+if isinstance(result, UpdateDecision):
+    print(result.changed)
+# False
+
+result = engine.step("use npm instead of yarn")
+if isinstance(result, SemanticErrorDecision):
+    print(result.message)
+
+# "yarn" is not currently in use.
+# Replacement requires an active 'use' policy.
 ```
 
 ## CLI and REPL
