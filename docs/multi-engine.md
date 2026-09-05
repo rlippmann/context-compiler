@@ -52,34 +52,27 @@ Typical cases:
 - isolation between workflows  
 - independent persistence or reset behavior  
 
-## Composition Is an App Concern
+## Combining Engines
 
-The compiler does not coordinate multiple engines.
+Multiple engines keep their state and lifecycles separate. Core does not merge
+engine state directly.
 
-The app is responsible for:
+When a combined Context Compiler state is needed, application code should:
 
-- selecting which engine(s) apply  
-- combining state into model context  
-- managing lifecycle (reset and persistence) per engine  
+- provide directives it already has or constructs for replay;
+- create a target engine;
+- replay those directives into the target in the desired order;
+- let the target engine’s normal directive and error behavior handle conflicts.
 
-The compiler only maintains a single state instance per engine.
+The source engines remain unchanged, and the target engine becomes the combined
+state instance for that use.
+
+Core does not currently define union, intersection, merge, precedence, or other
+richer cross-engine composition behavior. These APIs were intentionally deferred
+until concrete integrations demonstrate what behavior and interface are needed.
 
 ## Guideline
 
 Start with one engine.
 
 Introduce multiple engines only when you need **independent lifecycle or isolation**, not because a single engine is insufficient.
-
-## Combining Policies from Multiple Sources
-
-If you need to combine constraints from separate sources, do it explicitly in
-host code: replay directives through `step(...)` into a target engine.
-
-Pattern:
-
-1. Select ordered source directives
-2. Replay each directive via `engine.step(...)`
-3. Handle any returned `error` decisions explicitly
-
-This keeps conflict handling in normal engine behavior and avoids adding merge
-rules to core state APIs.
