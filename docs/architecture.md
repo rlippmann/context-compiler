@@ -52,3 +52,18 @@ Policies are independent flat assertions. They do not include built-in:
 This keeps state simple, portable, and easy to replay, while supporting
 consistent behavior across language implementations. Relationship-heavy rules
 can still live in drafting or application code instead of the core policy model.
+
+## Architectural Rationale: Compose Instead of Expanding Core
+
+Context Compiler intentionally does not own higher-level concerns such as policy
+precedence, rule ordering, policy dependencies or composition, orchestration,
+authorization and security policy, or domain-specific rule systems. Those
+concerns may still be necessary, but they belong in systems designed for them.
+
+Context Compiler can supply saved premise and policy state to those systems as
+an input. Context Compiler answers, “What explicit state is currently active?”
+Another policy, rules, orchestration, or security component can answer, “Given
+that state, what should happen?”
+
+This keeps the core small and avoids reinventing mature policy, rules,
+orchestration, or authorization systems.
