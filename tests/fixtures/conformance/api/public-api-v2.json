@@ -37,6 +37,7 @@
     "_NO_DIRECTIVE"
   ],
   "forbidden_engine_members": [
+    "apply_transcript",
     "export_checkpoint",
     "export_checkpoint_json",
     "has_pending_clarification",
