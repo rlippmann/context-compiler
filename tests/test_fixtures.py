@@ -9,6 +9,7 @@ import context_compiler.grammar as grammar_module
 from context_compiler import (
     DECISION_ERROR,
     Engine,
+    SemanticErrorDecision,
 )
 from context_compiler.grammar import (
     CanonicalDirective,
@@ -371,6 +372,17 @@ def _validate_workflow_fixture(fixture: dict[str, object], fixture_id: object) -
             )
             assert isinstance(operation["text"], str), fixture_id
             assert isinstance(operation["label"], str), fixture_id
+        elif fn == "apply_repair":
+            _assert_allowed_keys(
+                operation,
+                {"fn", "decision_ref", "repair_index", "label"},
+                fixture_id,
+                f"operations[{index}]",
+            )
+            assert isinstance(operation["decision_ref"], str), fixture_id
+            assert isinstance(operation["repair_index"], int), fixture_id
+            assert operation["repair_index"] >= 0, fixture_id
+            assert isinstance(operation["label"], str), fixture_id
         elif fn == "export_json":
             _assert_allowed_keys(operation, {"fn", "label"}, fixture_id, f"operations[{index}]")
             assert isinstance(operation["label"], str), fixture_id
@@ -671,20 +683,31 @@ def test_workflow_fixtures() -> None:
         )
 
         observations: dict[str, object] = {}
+        decisions: dict[str, SemanticErrorDecision] = {}
         for operation in fixture["operations"]:
             fn = operation["fn"]
 
             if fn == "step":
-                observations[operation["label"]] = decision_observation(
-                    engine.step(operation["input"])
-                )
+                decision = engine.step(operation["input"])
+                observations[operation["label"]] = decision_observation(decision)
+                if isinstance(decision, SemanticErrorDecision):
+                    decisions[operation["label"]] = decision
                 continue
 
             if fn == "apply_directive":
                 directive = decompose_directive(operation["text"])
                 assert isinstance(directive, CanonicalDirective), fixture_id
+                decision = engine.apply_directive(directive)
+                observations[operation["label"]] = decision_observation(decision)
+                if isinstance(decision, SemanticErrorDecision):
+                    decisions[operation["label"]] = decision
+                continue
+
+            if fn == "apply_repair":
+                decision = decisions[operation["decision_ref"]]
+                repair = decision.repairs[operation["repair_index"]]
                 observations[operation["label"]] = decision_observation(
-                    engine.apply_directive(directive)
+                    engine.apply_directive(repair)
                 )
                 continue
 
