@@ -2,13 +2,19 @@
 
 ## The Problem with Implicit State
 
-Modern LLM applications often manage conversational state implicitly: the model reads the transcript, infers active constraints, and generates a response. This works well for short conversations and simple tasks.
+Many LLM applications manage conversational state implicitly: the model reads
+the transcript, infers active constraints, and generates a response. This can
+work well for short conversations and simple tasks.
 
-It breaks down reliably in longer conversations, correction flows, and multi-turn constraint management. Constraints drift. Corrections get partially applied or treated as additive rather than authoritative replacements. Contradictions accumulate instead of resolving. The model interprets intent rather than enforcing it.
+That approach can become unreliable in longer conversations, correction flows,
+and multi-turn constraint management. Constraints can drift, corrections can be
+partially applied, and contradictions can accumulate instead of resolving.
 
 Transcript-only context forces the model to infer which prior statements are still active, which were corrections, and which should override earlier instructions. Context Compiler replaces that implicit reconstruction step with explicit stored rules.
 
-This is not a capability gap that better models will eventually close. It is a structural property of delegating state authority to a probabilistic system. A more capable model drifts more gracefully, but it still drifts.
+Better models may reduce these failures, but they do not by themselves give an
+application an explicit, inspectable state store or define how updates and
+conflicts should be applied.
 
 ## Explicit State Management
 
@@ -31,7 +37,10 @@ Context Compiler applies explicit state management to the modern LLM context, wi
 
 If a host adds acquisition-layer drafting, that belongs outside the core authority package. Core stays deterministic; host-owned drafting stays non-authoritative.
 
-This is not a workaround for LLM limitations. It is an appropriate allocation of responsibilities based on what each component is actually suited for.
+Applications can use the saved premise and policy state for prompt
+construction, tool gating, routing, retrieval, configuration, or execution.
+This is an allocation of responsibilities based on what each component is
+suited for.
 
 ## Why Determinism Matters
 
