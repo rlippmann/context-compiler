@@ -70,6 +70,16 @@ def test_canonical_directive_is_frozen_and_slotted() -> None:
         directive.kind = DirectiveKind.PROHIBIT_ITEM  # type: ignore[misc]
 
 
+def test_canonical_directive_copies_constructor_operands() -> None:
+    operands = {"item": "docker"}
+    directive = CanonicalDirective(kind=DirectiveKind.USE_ITEM, operands=operands)
+
+    operands["item"] = "podman"
+
+    assert dict(directive.operands) == {"item": "docker"}
+    assert directive.text == "use docker"
+
+
 def test_directive_metadata_is_frozen_and_slotted() -> None:
     metadata = DirectiveMetadata(
         kind=DirectiveKind.USE_ITEM,
