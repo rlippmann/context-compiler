@@ -1,0 +1,83 @@
+{
+  "id": "workflow_mixed_conflict_remove_retry",
+  "kind": "workflow",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "operations": [
+    {
+      "fn": "step",
+      "input": "use docker",
+      "label": "use_step"
+    },
+    {
+      "fn": "apply_directive",
+      "text": "prohibit docker",
+      "label": "conflict_apply"
+    },
+    {
+      "fn": "step",
+      "input": "remove policy docker",
+      "label": "remove_step"
+    },
+    {
+      "fn": "apply_directive",
+      "text": "use docker",
+      "label": "retry_apply"
+    }
+  ],
+  "expected": {
+    "observations": {
+      "use_step": {
+        "kind": "update",
+        "changed": true
+      },
+      "conflict_apply": {
+        "kind": "error",
+        "failure": "item_already_in_use",
+        "directive": {
+          "kind": "prohibit_item",
+          "text": "prohibit docker",
+          "operands": {
+            "item": "docker"
+          }
+        },
+        "repairs": [
+          {
+            "kind": "remove_policy",
+            "text": "remove policy docker",
+            "operands": {
+              "item": "docker"
+            }
+          },
+          {
+            "kind": "prohibit_item",
+            "text": "prohibit docker",
+            "operands": {
+              "item": "docker"
+            }
+          }
+        ],
+        "message": "\"docker\" is currently in use.\nRemove or replace it before prohibiting it."
+      },
+      "remove_step": {
+        "kind": "update",
+        "changed": true
+      },
+      "retry_apply": {
+        "kind": "update",
+        "changed": true
+      }
+    },
+    "equal": [],
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker": "use"
+      },
+      "version": 2
+    }
+  }
+}

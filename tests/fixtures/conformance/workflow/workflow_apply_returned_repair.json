@@ -1,0 +1,85 @@
+{
+  "id": "workflow_apply_returned_repair",
+  "kind": "workflow",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "operations": [
+    {
+      "fn": "step",
+      "input": "prohibit docker",
+      "label": "prohibit_step"
+    },
+    {
+      "fn": "step",
+      "input": "use docker",
+      "label": "conflict"
+    },
+    {
+      "fn": "apply_repair",
+      "decision_ref": "conflict",
+      "repair_index": 0,
+      "label": "remove_repair"
+    },
+    {
+      "fn": "apply_repair",
+      "decision_ref": "conflict",
+      "repair_index": 1,
+      "label": "use_repair"
+    }
+  ],
+  "expected": {
+    "observations": {
+      "prohibit_step": {
+        "kind": "update",
+        "changed": true
+      },
+      "conflict": {
+        "kind": "error",
+        "failure": "item_prohibited",
+        "directive": {
+          "kind": "use_item",
+          "text": "use docker",
+          "operands": {
+            "item": "docker"
+          }
+        },
+        "repairs": [
+          {
+            "kind": "remove_policy",
+            "text": "remove policy docker",
+            "operands": {
+              "item": "docker"
+            }
+          },
+          {
+            "kind": "use_item",
+            "text": "use docker",
+            "operands": {
+              "item": "docker"
+            }
+          }
+        ],
+        "message": "\"docker\" is currently prohibited.\nRemove or replace it before using it."
+      },
+      "remove_repair": {
+        "kind": "update",
+        "changed": true
+      },
+      "use_repair": {
+        "kind": "update",
+        "changed": true
+      }
+    },
+    "equal": [],
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker": "use"
+      },
+      "version": 2
+    }
+  }
+}

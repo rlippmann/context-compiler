@@ -172,6 +172,7 @@ call, such as:
 * repeated `export_json()` / `import_json(...)` fixed-point stability
 * `step(...)` / `apply_directive(...)` equivalence for canonical directives
 * absence of reserved follow-up state after semantic errors
+* explicit application of a repair returned by a semantic error
 
 Each fixture records only portable observations:
 
@@ -183,6 +184,7 @@ The current runner supports:
 
 * `step`
 * `apply_directive`
+* `apply_repair`
 * `export_json`
 * `import_json`
 
