@@ -1,6 +1,6 @@
 {
-  "id": "controller_replace_error_import_then_yes_no_no_reserved_state",
-  "kind": "controller",
+  "id": "workflow_replace_error_import_then_yes_no_no_continuation_state",
+  "kind": "workflow",
   "initial_state": {
     "premise": null,
     "policies": {},

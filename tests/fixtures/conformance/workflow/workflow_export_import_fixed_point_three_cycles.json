@@ -1,6 +1,6 @@
 {
-  "id": "controller_export_import_fixed_point_three_cycles",
-  "kind": "controller",
+  "id": "workflow_export_import_fixed_point_three_cycles",
+  "kind": "workflow",
   "initial_state": {
     "premise": "Use concise output",
     "policies": {

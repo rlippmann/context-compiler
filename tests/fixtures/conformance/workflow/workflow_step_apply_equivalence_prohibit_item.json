@@ -1,11 +1,9 @@
 {
-  "id": "controller_step_apply_equivalence_remove_policy",
-  "kind": "controller",
+  "id": "workflow_step_apply_equivalence_prohibit_item",
+  "kind": "workflow",
   "initial_state": {
     "premise": null,
-    "policies": {
-      "docker": "use"
-    },
+    "policies": {},
     "version": 2
   },
   "operations": [
@@ -15,7 +13,7 @@
     },
     {
       "fn": "step",
-      "input": "remove policy docker",
+      "input": "prohibit peanuts",
       "label": "step_decision"
     },
     {
@@ -28,7 +26,7 @@
     },
     {
       "fn": "apply_directive",
-      "text": "remove policy docker",
+      "text": "prohibit peanuts",
       "label": "apply_decision"
     },
     {
@@ -59,7 +57,9 @@
     ],
     "state": {
       "premise": null,
-      "policies": {},
+      "policies": {
+        "peanuts": "prohibit"
+      },
       "version": 2
     }
   }

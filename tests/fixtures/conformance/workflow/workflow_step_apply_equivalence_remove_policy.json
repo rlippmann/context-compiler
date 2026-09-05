@@ -1,6 +1,6 @@
 {
-  "id": "controller_step_apply_equivalence_replace_use",
-  "kind": "controller",
+  "id": "workflow_step_apply_equivalence_remove_policy",
+  "kind": "workflow",
   "initial_state": {
     "premise": null,
     "policies": {
@@ -15,7 +15,7 @@
     },
     {
       "fn": "step",
-      "input": "use kubectl instead of docker",
+      "input": "remove policy docker",
       "label": "step_decision"
     },
     {
@@ -28,7 +28,7 @@
     },
     {
       "fn": "apply_directive",
-      "text": "use kubectl instead of docker",
+      "text": "remove policy docker",
       "label": "apply_decision"
     },
     {
@@ -59,9 +59,7 @@
     ],
     "state": {
       "premise": null,
-      "policies": {
-        "kubectl": "use"
-      },
+      "policies": {},
       "version": 2
     }
   }
