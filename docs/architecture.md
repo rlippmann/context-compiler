@@ -1,123 +1,54 @@
 # Architecture Boundaries
 
-Context Compiler is best understood as a deterministic conversational state
-authority inside a larger host application stack.
+Context Compiler has three parts: a core engine that owns saved compiler state,
+drafting code that prepares candidate directives, and application code that
+uses that state at runtime.
 
-## Authority Layer
+## Core
 
-Responsibilities:
+The core engine stores the premise and policies, applies supported directives,
+and exports or imports that state.
 
-- apply deterministic state transitions
-- enforce deterministic error gates for core-owned state semantics
-- export/import authoritative state
+Repository: [`context-compiler`](https://github.com/rlippmann/context-compiler)
 
-Examples:
+The core engine is the only part that changes saved compiler state. Raw input
+enters through `engine.step(...)`; parsed `CanonicalDirective` values enter
+through `engine.apply_directive(...)`.
 
-- Context Compiler core engine
-- authoritative state import/export behavior
+## Drafting and normalization
 
-Repository:
+Drafting code recognizes possible state updates, handles alternate phrasing,
+and prepares candidate directives when needed. It can also abstain when intent
+is uncertain.
 
-- `context-compiler`
+Repository: [`context-compiler-directive-drafter`](https://github.com/rlippmann/context-compiler-directive-drafter)
 
-Boundary:
+Drafting remains outside the core and submits candidate directives through the
+engine rather than changing compiler state directly.
 
-- only core applies directives
-- only core mutates authoritative state
-- core defines the canonical directive language and deterministic execution
-  model
-- core does not own human-facing normalization, malformed-input recovery, or
-  intent inference as a general responsibility
-- core does not convert failed canonical operations into different directives
-- core separates three layers:
-  - syntax classification
-  - semantic evaluation
-- semantic errors are terminal results for the current input
-- semantic errors leave authoritative state unchanged and expose advisory
-  canonical repairs for explicit host selection
-- a missing source item in `use <new> instead of <old>` is a semantic
-  replacement error and does not degrade into another directive
+## Application
 
-## Acquisition Layer
+Application code decides how saved compiler state affects runtime behavior. It
+can use that state for prompt construction, tool gating, routing, retrieval,
+schemas or configuration, and execution.
 
-Responsibilities:
-
-- recognize possible user state updates before core compilation
-- normalize candidate inputs conservatively
-- recover from malformed or non-canonical human input when appropriate
-- interpret alternate phrasing outside the core authority contract
-- narrow or rewrite user intent into canonical directives when justified by
-  acquisition-layer context
-- abstain when intent is uncertain
-- draft candidate directives without becoming a second authority
-
-Examples:
-
-- host-side input shaping before `engine.step(...)`
-- any non-authoritative preprocessing that emits canonical directives for core
-
-Repository:
-
-- `context-compiler-directive-drafter`
-
-Boundary:
-
-- drafting is non-authoritative
-- drafting must not bypass the engine's canonical execution boundaries:
-  `engine.step(...)` for raw input or `engine.apply_directive(...)` for
-  `CanonicalDirective` values
-- drafting must not mutate compiler-owned authoritative state
-
-## Application Layer
-
-Responsibilities:
-
-- decide how compiler state affects runtime behavior
-- render prompts and acknowledgements
-- select schemas, gate tools, route workflows, and apply runtime controls
-
-Examples:
-
-- runnable integrations owned outside core (for example
-  `context-compiler-example-integrations` for OpenWebUI, LiteLLM, Ollama, or
-  proxy/runtime/provider examples)
-- host-controlled prompt construction from saved state
-
-Repository:
-
-- `context-compiler-example-integrations` or host applications
+Repository: [`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations)
+or a host application.
 
 ## Architectural Rationale: Flat Policy Independence
 
-Policies are intentionally modeled as independent flat assertions.
+Policies are independent flat assertions. They do not include built-in:
 
-The model intentionally does not include:
+- ordering;
+- grouping;
+- precedence;
+- inheritance;
+- synonym or antonym relationships;
+- dependencies;
+- hierarchy;
+- domain ontology;
+- interaction semantics.
 
-- ordering
-- grouping
-- precedence
-- inheritance
-- synonym relationships
-- antonym relationships
-- dependencies
-- hierarchy
-- ontology-style reasoning
-- interaction semantics
-
-This is a deliberate architectural boundary, not an omitted convenience
-feature.
-
-Policy independence is a major contributor to:
-
-- determinism
-- portability
-- replay consistency
-- cross-language conformance
-
-Because policies are independent flat assertions, directive semantics stay
-simple, exported state stays portable, and replay remains exact without hidden
-relational logic.
-
-Relationship-heavy semantics may still be useful, but they generally belong in
-drafting, orchestration, or domain-specific layers rather than in
-the core authority model.
+This keeps state simple, portable, and easy to replay, while supporting
+consistent behavior across language implementations. Relationship-heavy rules
+can still live in drafting or application code instead of the core policy model.
