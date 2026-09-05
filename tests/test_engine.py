@@ -261,6 +261,15 @@ def test_initial_state_and_engine_properties() -> None:
     _assert_observations(engine, premise=None, policies={})
 
 
+def test_engine_state_properties_are_read_only() -> None:
+    engine = Engine()
+
+    with pytest.raises(AttributeError):
+        engine.premise = "unexpected"  # type: ignore[misc]
+    with pytest.raises(AttributeError):
+        engine.policies = {}  # type: ignore[misc]
+
+
 def test_policies_property_returns_mapping_snapshot() -> None:
     engine = Engine()
     assert isinstance(engine.policies, Mapping)
