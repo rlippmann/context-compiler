@@ -395,10 +395,14 @@
           }
         },
         "policies": {
-          "kind": "property"
+          "kind": "property",
+          "readable": true,
+          "writable": false
         },
         "premise": {
-          "kind": "property"
+          "kind": "property",
+          "readable": true,
+          "writable": false
         },
         "step": {
           "kind": "method",

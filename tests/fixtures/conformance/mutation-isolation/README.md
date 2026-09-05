@@ -22,7 +22,8 @@ are immutable. The contract requires:
 For the grammar-object fixtures, exposed `CanonicalDirective.operands` and the
 covered `DirectiveMetadata` fields must preserve mutation isolation: a caller
 mutation either is rejected or does not change the exposed value observed after
-the mutation.
+the mutation. Constructed directives also capture their operand values
+independently from the caller-owned mapping used to construct them.
 
 ## Fixture shape
 
@@ -49,6 +50,7 @@ Examples:
 * `engine.policies`
 * `engine.premise`
 * `canonical_directive.operands`
+* `canonical_directive.constructor_operands`
 * `directive_metadata`
 For the current corpus, `operation` uses a closed per-function field set.
 Unknown operation fields are invalid.
