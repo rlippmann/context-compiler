@@ -1,38 +1,15 @@
 # API Reference
 
-Public API reference for `context_compiler`.
+This page documents the public Python API exported by `context_compiler`.
+For exact directive syntax and core behavior, see the
+[Directive Grammar Specification](DirectiveGrammarSpec.md). For system
+responsibilities and boundaries, see [architecture.md](architecture.md).
 
-This page documents the exported package surface and typical usage patterns. It
-does not redefine behavioral semantics.
+## Engine
 
-Authoritative behavior documents:
+### Engine()
 
-- [Directive Grammar Specification](DirectiveGrammarSpec.md)
-- [Architecture boundaries](architecture.md)
-- [Project README](../README.md)
-
-For behavioral semantics, use the authoritative documents above. This page
-documents the supported public package surface without redefining directive
-behavior.
-
-Core boundary:
-
-- core consumes canonical directives
-- canonical directive validation remains in core
-- semantic validation and authoritative state transitions remain in core
-- semantic errors are terminal Decision results for the current input; hosts
-  recover only by explicitly selecting and submitting advisory repairs
-- human-facing normalization, malformed-input recovery, and intent drafting are
-  outside the core contract
-- core does not convert failed canonical operations into different directives
-
-## Engine Lifecycle
-
-### `Engine()`
-
-Create a new engine instance.
-
-Typical use:
+Create an engine with empty premise and policy state.
 
 ```python
 from context_compiler import Engine
@@ -40,89 +17,241 @@ from context_compiler import Engine
 engine = Engine()
 ```
 
-### `engine.step(user_input)`
+### engine.step(user_input: str) -> Decision
 
-Parse one user turn and return a deterministic `Decision`.
+Accept raw user input and return one of:
 
-Typical use:
+- [`NoDirectiveDecision`](#nodirectivedecision) when the input does not match a supported directive;
+- [`UpdateDecision`](#updatedecision) when a supported directive is accepted;
+- [`SemanticErrorDecision`](#semanticerrordecision) when a supported directive conflicts with current state.
 
 ```python
-decision = engine.step("set premise current project uses uv")
+result = engine.step("use docker")
 ```
 
-Behavior for directive handling and error is
-defined by the [Directive Grammar Specification](DirectiveGrammarSpec.md).
+### engine.apply_directive(directive: CanonicalDirective) -> UpdateDecision | SemanticErrorDecision
 
-`engine.step(...)` is the text-input boundary. It parses one user turn with
-`decompose_directive(...)`, returns `no_directive` when the input is not a
-canonical directive, and otherwise delegates the accepted canonical directive
-to `engine.apply_directive(...)`.
+Apply a parsed [`CanonicalDirective`](#canonicaldirective), not raw text.
 
-Important grammar contract:
+```python
+from context_compiler.grammar import CanonicalDirective, decompose_directive
 
-- one input may contain at most one canonical directive
-- directive-shaped invalid input is outside the canonical language
-- `error` is reserved for canonical directives that fail semantic evaluation
-- quote characters do not create protected literal regions inside recognized
-  directive payloads
+directive = decompose_directive("use docker")
+assert isinstance(directive, CanonicalDirective)
+result = engine.apply_directive(directive)
+```
 
-### `context_compiler.grammar`
+### engine.premise: str | None
 
-Canonical grammar helpers are available from the `context_compiler.grammar`
-submodule.
+Return the current premise.
 
-Public grammar surface:
+### engine.policies: Mapping[str, PolicyValue]
 
-- `DirectiveKind`
-- `DirectiveSyntaxFailure`
-- `DirectiveMetadata`
-- `CanonicalDirective`
-- `InvalidDirectiveSyntax`
-- `get_directive_metadata()`
-- `decompose_directive(text)`
+Return a defensive copy of the current policy mapping. Changes to the returned
+mapping do not change the engine. Values use [`PolicyValue`](#policyvalue).
 
-Use this surface for exact canonical directive decomposition and
-classification via `decompose_directive(...)` only.
+### engine.export_json() -> str
 
-Boundary notes:
+Return the current premise and policies as canonical JSON text.
 
-- `get_directive_metadata()` returns immutable directive metadata derived from
-  the internal grammar specs
-- each `DirectiveMetadata` exposes only `kind`, `canonical_start`, and
-  `operand_names`
-- directive metadata is descriptive only; it does not parse text or recognize
-  malformed input
-- use `decompose_directive(text)` to determine whether text is a complete
-  canonical directive
-- `decompose_directive(...)` returns `CanonicalDirective` for accepted
-  canonical directives
-- `decompose_directive(...)` returns `InvalidDirectiveSyntax` for
-  directive-shaped input that is not valid canonical syntax
-- `decompose_directive(...)` returns `None` when no directive is present
-- `CanonicalDirective.kind` uses `DirectiveKind`
-- `InvalidDirectiveSyntax.failure` uses `DirectiveSyntaxFailure`
-- `InvalidDirectiveSyntax.directive_kind`, when present, uses `DirectiveKind`
-- `InvalidDirectiveSyntax.missing_operand`, when present, names the missing
-  grammar operand without introducing user-facing message text
-- `CanonicalDirective.text` is the canonical serialized directive text derived
-  from `kind` and `operands`
-- operands are grammar-level text, not normalized semantic values
-- `engine.step(...)` remains the authority for error, state
-  transitions, and mutation behavior
-- `engine.step(...)` is not a general natural-language repair surface; host
-  code should send canonical directives when it wants deterministic mutation
-- failed replacement requests are not reinterpreted by core into different
-  directives
-- `use <new> instead of <old>` with an absent `<old>` is a semantic `error`;
-  core does not degrade it into plain `use <new>`
+### engine.import_json(payload: str) -> None
 
-`CanonicalDirective.operands` preserves the grammar-recognized operand text.
-Core does not lowercase operands, collapse internal operand whitespace, or
-convert operand text into engine/domain identifiers at the grammar layer.
-`CanonicalDirective.text` is the canonical serialized directive output for that
-semantic directive.
+Accept exported JSON text and replace the engine’s current state. Invalid or
+unsupported state payloads raise `ValueError`.
 
-Typical metadata use:
+```python
+saved = engine.export_json()
+restored = Engine()
+restored.import_json(saved)
+```
+
+## Decisions
+
+### Decision
+
+The type alias for the three results returned by `Engine.step(...)`:
+
+```python
+Decision = NoDirectiveDecision | UpdateDecision | SemanticErrorDecision
+```
+
+`Engine.apply_directive(...)` returns only `UpdateDecision | SemanticErrorDecision`;
+it never returns `NoDirectiveDecision`.
+
+### DecisionKind
+
+The stable discriminator for a [`Decision`](#decision):
+
+| Member | Value |
+| --- | --- |
+| `NO_DIRECTIVE` | `"no_directive"` |
+| `UPDATE` | `"update"` |
+| `ERROR` | `"error"` |
+
+### NoDirectiveDecision
+
+An empty result for input that does not match a supported directive.
+Its kind is `DecisionKind.NO_DIRECTIVE`.
+
+### UpdateDecision
+
+An accepted directive result.
+
+#### UpdateDecision.changed: bool
+
+Whether engine state changed.
+
+An accepted idempotent directive still returns [`UpdateDecision`](#updatedecision) with
+`changed=False`.
+
+### SemanticErrorDecision
+
+A rejected directive result with:
+
+#### SemanticErrorDecision.failure: SemanticFailure
+
+The machine-readable failure category.
+
+#### SemanticErrorDecision.directive: CanonicalDirective
+
+The rejected directive.
+
+#### SemanticErrorDecision.repairs: tuple[CanonicalDirective, ...]
+
+Ordered advisory repairs.
+
+#### SemanticErrorDecision.message: str
+
+Human-readable presentation text.
+
+Repairs are never applied automatically. A caller may explicitly submit a
+selected repair through `engine.apply_directive(...)`. An empty tuple means no
+repair was proposed. Use `failure` for program logic rather than parsing
+`message`.
+
+### SemanticFailure
+
+The failure categories used by [`SemanticErrorDecision`](#semanticerrordecision):
+
+| Member | Value |
+| --- | --- |
+| `PREMISE_ALREADY_SET` | `"premise_already_set"` |
+| `PREMISE_NOT_SET` | `"premise_not_set"` |
+| `ITEM_PROHIBITED` | `"item_prohibited"` |
+| `ITEM_ALREADY_IN_USE` | `"item_already_in_use"` |
+| `REPLACEMENT_SOURCE_PROHIBITED` | `"replacement_source_prohibited"` |
+| `REPLACEMENT_TARGET_PROHIBITED` | `"replacement_target_prohibited"` |
+| `REPLACEMENT_SOURCE_MISSING` | `"replacement_source_missing"` |
+
+The repair mapping is:
+
+| Failure | Ordered advisory repairs |
+| --- | --- |
+| `PREMISE_ALREADY_SET` | `change premise to <requested value>` |
+| `PREMISE_NOT_SET` | `set premise <requested value>` |
+| `ITEM_PROHIBITED` | `remove policy <item>`; `use <item>` |
+| `ITEM_ALREADY_IN_USE` | `remove policy <item>`; `prohibit <item>` |
+| `REPLACEMENT_TARGET_PROHIBITED` | `remove policy <target>`; retry the original replacement |
+| `REPLACEMENT_SOURCE_PROHIBITED` | no repair |
+| `REPLACEMENT_SOURCE_MISSING` | no repair |
+
+## Grammar
+
+The public grammar API is available from `context_compiler.grammar`.
+
+### DirectiveKind
+
+The supported directive families:
+
+- `SET_PREMISE`
+- `CHANGE_PREMISE`
+- `USE_ITEM`
+- `PROHIBIT_ITEM`
+- `REMOVE_POLICY`
+- `REPLACE_USE`
+- `CLEAR_PREMISE`
+- `RESET_POLICIES`
+- `CLEAR_STATE`
+
+### DirectiveSyntaxFailure
+
+The directive-shaped syntax failure categories:
+
+- `COMPOUND_DIRECTIVE`
+- `MISSING_REQUIRED_OPERAND`
+- `MALFORMED_DIRECTIVE`
+
+### DirectiveMetadata
+
+Describes one directive family with these public fields:
+
+#### DirectiveMetadata.kind: DirectiveKind
+
+The directive family.
+
+#### DirectiveMetadata.canonical_start: str
+
+The directive’s canonical starting text.
+
+#### DirectiveMetadata.operand_names: tuple[str, ...]
+
+The names of its operands.
+
+### CanonicalDirective
+
+Represents one parsed directive.
+
+#### CanonicalDirective.kind: DirectiveKind
+
+The directive family.
+
+#### CanonicalDirective.operands: Mapping[str, str]
+
+The named operand text.
+
+#### CanonicalDirective.text: str
+
+The serialized directive text.
+
+The recognized operand text is preserved. `text` is derived from `kind` and
+`operands`.
+
+### InvalidDirectiveSyntax
+
+Describes directive-shaped input that does not match supported syntax:
+
+#### InvalidDirectiveSyntax.failure: DirectiveSyntaxFailure
+
+The syntax failure category.
+
+#### InvalidDirectiveSyntax.directive_kind: DirectiveKind | None
+
+The directive family, when identified.
+
+#### InvalidDirectiveSyntax.missing_operand: str | None
+
+The missing operand name, when identified.
+
+### decompose_directive(text: str) -> CanonicalDirective | InvalidDirectiveSyntax | None
+
+Accept a string and return one of:
+
+- [`CanonicalDirective`](#canonicaldirective) for supported syntax;
+- [`InvalidDirectiveSyntax`](#invaliddirectivesyntax) for directive-shaped input with invalid syntax;
+- `None` when no directive is present.
+
+```python
+from context_compiler.grammar import CanonicalDirective, decompose_directive
+
+result = decompose_directive("use docker")
+assert isinstance(result, CanonicalDirective)
+print(result.text)  # use docker
+```
+
+### get_directive_metadata() -> tuple[DirectiveMetadata, ...]
+
+Return a tuple of [`DirectiveMetadata`](#directivemetadata) values for the
+supported directive families.
 
 ```python
 from context_compiler.grammar import get_directive_metadata
@@ -131,232 +260,27 @@ for metadata in get_directive_metadata():
     print(metadata.kind, metadata.canonical_start, metadata.operand_names)
 ```
 
-### `engine.apply_directive(directive)`
-
-Apply one already-canonical `CanonicalDirective` to authoritative state.
-
-Typical use:
-
-```python
-from context_compiler import Engine
-from context_compiler.grammar import CanonicalDirective, decompose_directive
-
-engine = Engine()
-directive = decompose_directive("use docker")
-assert isinstance(directive, CanonicalDirective)
-
-decision = engine.apply_directive(directive)
-```
-
-Boundary notes:
-
-- `apply_directive(...)` does not parse free-form user text
-- callers should pass only `CanonicalDirective` values produced or validated by
-  the grammar boundary
-- semantic validation and authoritative mutation rules are the same whether the
-  canonical directive arrives through `step(...)` or `apply_directive(...)`
-- `error` remains reserved for canonical directives that fail semantic
-  evaluation
-
-### `engine.premise`
-
-Read the current authoritative premise value from a live engine.
-
-### `engine.policies`
-
-Read the current authoritative policy mapping from a live engine.
-
-This property returns a caller-owned copy so callers cannot mutate live engine
-state through the returned mapping.
-
-## Decision API
-
-Decisions are ephemeral immutable evaluation results. They are not persisted
-and do not provide mapping or serialization behavior.
-
-```python
-Decision = NoDirectiveDecision | UpdateDecision | SemanticErrorDecision
-
-class NoDirectiveDecision:
-    kind = DecisionKind.NO_DIRECTIVE
-
-class UpdateDecision:
-    kind = DecisionKind.UPDATE
-    changed: bool
-
-class SemanticErrorDecision:
-    kind = DecisionKind.ERROR
-    failure: SemanticFailure
-    directive: CanonicalDirective
-    repairs: tuple[CanonicalDirective, ...]
-    message: str  # derived property
-```
-
-Use concrete variants with `isinstance` or pattern matching. `Decision.kind`
-remains the stable discriminator for generic consumers and cross-language
-implementations.
-
-`UpdateDecision.changed` reports whether authoritative state actually changed.
-Accepted idempotent directives still return `update`, with `changed=False`.
-
-`SemanticErrorDecision` fields have distinct roles:
-
-- `failure` is the machine-readable semantic failure classification;
-- `directive` is the canonical directive rejected by semantic evaluation;
-- `repairs` is an ordered tuple of advisory canonical directives;
-- `message` is derived human-readable text for presentation.
-
-Callers must use `failure` for control flow rather than parsing `message`.
-Repairs are never applied automatically. A host explicitly chooses whether to
-submit a repair through `engine.apply_directive(...)`. An empty tuple means no
-deterministic repair was proposed.
-
-The normative repair mapping is:
-
-| Failure | Ordered advisory repairs |
-| --- | --- |
-| `PREMISE_ALREADY_SET` | `change premise to <requested value>` |
-| `PREMISE_NOT_SET` | `set premise <requested value>` |
-| `ITEM_PROHIBITED` | `remove policy <item>`; `use <item>` |
-| `ITEM_ALREADY_IN_USE` | `remove policy <item>`; `prohibit <item>` |
-| `REPLACEMENT_TARGET_PROHIBITED` | `remove policy <target>`; retry the original replacement directive |
-| `REPLACEMENT_SOURCE_PROHIBITED` | no repair (`()`) |
-| `REPLACEMENT_SOURCE_MISSING` | no repair (`()`) |
-
-Repairs are canonical directives, remain ordered, and are advisory only. Hosts
-must explicitly select any repair they want to submit; the engine never applies
-repairs automatically. `message` is presentation data, not a control-flow
-interface.
-
-Return types differ at the two engine boundaries:
-
-- `engine.step(user_input)` returns `NoDirectiveDecision | UpdateDecision |
-  SemanticErrorDecision`;
-- `engine.apply_directive(directive)` returns `UpdateDecision |
-  SemanticErrorDecision` and can never return `NoDirectiveDecision`.
-
-`step(...)` is the raw input boundary: it parses user input, may return
-`no_directive` when parsing produces no usable canonical directive, and performs
-semantic evaluation only after a `CanonicalDirective` has parsed successfully.
-`apply_directive(...)` is the canonical execution boundary and accepts only a
-`CanonicalDirective`; it does not parse raw text and returns only `UpdateDecision`
-or `SemanticErrorDecision`. Grammar failures are not semantic errors.
-
-Typical use:
-
-```python
-from context_compiler import (
-    Engine,
-    NoDirectiveDecision,
-    SemanticErrorDecision,
-    UpdateDecision,
-)
-
-decision = engine.step(user_input)
-
-if isinstance(decision, SemanticErrorDecision):
-    show_to_user(decision.message)
-    if decision.repairs:
-        offer_repairs(decision.repairs)
-elif isinstance(decision, UpdateDecision):
-    apply_runtime_rules(changed=decision.changed)
-elif isinstance(decision, NoDirectiveDecision):
-    handle_as_ordinary_input(user_input)
-```
-
-## State Access
-
-Use `engine.premise` and `engine.policies` for live engine-owned reads.
-Use `engine.export_json()` and `engine.import_json()` for persistence and
-restoration.
-
-Typical use:
-
-```python
-blocked_tools = sorted(
-    item for item, value in engine.policies.items() if value == "prohibit"
-)
-```
-
-See the README’s [State Model](../README.md#state-model) section for conceptual
-guidance on premise vs policy usage.
-
-## State Import/Export
-
-### `engine.export_json()`
-
-Export authoritative state as canonical JSON text.
-
-### `engine.import_json(payload)`
-
-Validate and restore authoritative state from exported JSON text.
-
-Use these APIs for authoritative-state transport or persistence only.
-
-Conceptual boundary:
-
-- `export_json()` / `import_json()` are the current persistence contract
-- Decision objects are not part of persisted state; persistence transports
-  authoritative premise and policy state only
-- imported policy keys are normalized during `import_json(...)`
-- if a policy key normalizes to `""`, the payload is invalid and is rejected
-- if two imported policy keys normalize to the same canonical key, the payload
-  is invalid and is rejected atomically
-- if an imported premise sanitizes to `""`, the payload is invalid and is
-  rejected atomically
-
-## Retired Controller And Audit APIs
-
-The public controller and audit surface was retired for the 0.9 line.
-
-Retired APIs include:
-
-- package-root `step(...)`
-- `context_compiler.audit`
-- `preview(...)`
-- `state_diff(...)`
-- result-envelope and accessor helpers tied to those APIs
-
-Current host integrations should call `engine.step(...)` directly, read live
-state through `engine.premise` and `engine.policies`, and persist state
-through `engine.export_json()` / `engine.import_json()`.
-
-## Public Constants
+## Constants and types
 
 Decision-kind constants:
 
-- `DECISION_NO_DIRECTIVE`
-- `DECISION_UPDATE`
-- `DECISION_ERROR`
+- `DECISION_NO_DIRECTIVE = "no_directive"`
+- `DECISION_UPDATE = "update"`
+- `DECISION_ERROR = "error"`
 
 Policy-value constants:
 
-- `POLICY_USE`
-- `POLICY_PROHIBIT`
+- `POLICY_USE = "use"`
+- `POLICY_PROHIBIT = "prohibit"`
 
-Use these when you want explicit string comparisons without hard-coding
-literals in host code.
+### PolicyValue
 
-Public type alias:
+The type alias `Literal["use", "prohibit"]`.
 
-```python
-PolicyValue = Literal["use", "prohibit"]
-```
+## Migration note
 
-`PolicyValue` describes the values returned by `engine.policies`.
-
-## Result Object Summaries
-
-Public result and data object names exported at package root include:
-
-- `Decision`
-- `DecisionKind`
-- `NoDirectiveDecision`
-- `UpdateDecision`
-- `SemanticErrorDecision`
-- `SemanticFailure`
-- `Engine`
-
-These names are part of the public package surface. For the exact portable API
-export contract used by tests and ports, see
-[tests/fixtures/conformance/api/public-api-v2.json](../tests/fixtures/conformance/api/public-api-v2.json).
+The controller, preview, audit, checkpoint, and package-root `step(...)`
+surfaces were retired in 0.9. Use `Engine` and its public properties and
+persistence methods instead. The
+[public API conformance fixture](../tests/fixtures/conformance/api/public-api-v2.json)
+records the supported package-root surface.
