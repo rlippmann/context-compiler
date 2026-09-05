@@ -70,7 +70,7 @@ def _assert_error(
                 value="concise replies",
             ),
             None,
-            {"kind": DECISION_UPDATE, "message": None},
+            {"kind": DECISION_UPDATE, "changed": True},
             (("concise replies"), {}),
         ),
         (
@@ -79,19 +79,19 @@ def _assert_error(
                 value="concise replies",
             ),
             {"premise": "verbose replies", "policies": {}, "version": 2},
-            {"kind": DECISION_UPDATE, "message": None},
+            {"kind": DECISION_UPDATE, "changed": True},
             (("concise replies"), {}),
         ),
         (
             _canonical_directive(DirectiveKind.USE_ITEM, item="docker"),
             None,
-            {"kind": DECISION_UPDATE, "message": None},
+            {"kind": DECISION_UPDATE, "changed": True},
             (None, {"docker": "use"}),
         ),
         (
             _canonical_directive(DirectiveKind.PROHIBIT_ITEM, item="peanuts"),
             None,
-            {"kind": DECISION_UPDATE, "message": None},
+            {"kind": DECISION_UPDATE, "changed": True},
             (None, {"peanuts": "prohibit"}),
         ),
         (
@@ -100,7 +100,7 @@ def _assert_error(
                 item="docker",
             ),
             {"premise": None, "policies": {"docker": "use"}, "version": 2},
-            {"kind": DECISION_UPDATE, "message": None},
+            {"kind": DECISION_UPDATE, "changed": True},
             (None, {}),
         ),
         (
@@ -110,25 +110,25 @@ def _assert_error(
                 old_item="docker",
             ),
             {"premise": None, "policies": {"docker": "use"}, "version": 2},
-            {"kind": DECISION_UPDATE, "message": None},
+            {"kind": DECISION_UPDATE, "changed": True},
             (None, {"podman": "use"}),
         ),
         (
             _canonical_directive(DirectiveKind.CLEAR_PREMISE),
             {"premise": "concise replies", "policies": {"docker": "use"}, "version": 2},
-            {"kind": DECISION_UPDATE, "message": None},
+            {"kind": DECISION_UPDATE, "changed": True},
             (None, {"docker": "use"}),
         ),
         (
             _canonical_directive(DirectiveKind.RESET_POLICIES),
             {"premise": "concise replies", "policies": {"docker": "use"}, "version": 2},
-            {"kind": DECISION_UPDATE, "message": None},
+            {"kind": DECISION_UPDATE, "changed": True},
             ("concise replies", {}),
         ),
         (
             _canonical_directive(DirectiveKind.CLEAR_STATE),
             {"premise": "concise replies", "policies": {"docker": "use"}, "version": 2},
-            {"kind": DECISION_UPDATE, "message": None},
+            {"kind": DECISION_UPDATE, "changed": True},
             (None, {}),
         ),
     ],
@@ -136,7 +136,7 @@ def _assert_error(
 def test_apply_directive_accepts_all_canonical_directive_kinds(
     directive: CanonicalDirective,
     initial_state: dict[str, object] | None,
-    expected_decision: dict[str, str | None],
+    expected_decision: dict[str, object],
     expected_state: tuple[str | None, dict[str, str]],
 ) -> None:
     engine = Engine()
@@ -160,6 +160,13 @@ def test_apply_directive_accepts_all_canonical_directive_kinds(
             {"premise": "existing premise", "policies": {}, "version": 2},
             {
                 "kind": DECISION_ERROR,
+                "failure": SemanticFailure.PREMISE_ALREADY_SET,
+                "directive": _canonical_directive(
+                    DirectiveKind.SET_PREMISE, value="concise replies"
+                ),
+                "repairs": (
+                    _canonical_directive(DirectiveKind.CHANGE_PREMISE, value="concise replies"),
+                ),
                 "message": "Premise already set.\nUse 'change premise to <value>' to modify it.",
             },
             ("existing premise", {}),
@@ -172,6 +179,13 @@ def test_apply_directive_accepts_all_canonical_directive_kinds(
             None,
             {
                 "kind": DECISION_ERROR,
+                "failure": SemanticFailure.PREMISE_NOT_SET,
+                "directive": _canonical_directive(
+                    DirectiveKind.CHANGE_PREMISE, value="concise replies"
+                ),
+                "repairs": (
+                    _canonical_directive(DirectiveKind.SET_PREMISE, value="concise replies"),
+                ),
                 "message": "No premise is set.\nUse 'set premise <value>' to define one.",
             },
             (None, {}),
@@ -181,6 +195,12 @@ def test_apply_directive_accepts_all_canonical_directive_kinds(
             {"premise": None, "policies": {"docker": "prohibit"}, "version": 2},
             {
                 "kind": DECISION_ERROR,
+                "failure": SemanticFailure.ITEM_PROHIBITED,
+                "directive": _canonical_directive(DirectiveKind.USE_ITEM, item="docker"),
+                "repairs": (
+                    _canonical_directive(DirectiveKind.REMOVE_POLICY, item="docker"),
+                    _canonical_directive(DirectiveKind.USE_ITEM, item="docker"),
+                ),
                 "message": (
                     '"docker" is currently prohibited.\nRemove or replace it before using it.'
                 ),
@@ -192,6 +212,12 @@ def test_apply_directive_accepts_all_canonical_directive_kinds(
             {"premise": None, "policies": {"docker": "use"}, "version": 2},
             {
                 "kind": DECISION_ERROR,
+                "failure": SemanticFailure.ITEM_ALREADY_IN_USE,
+                "directive": _canonical_directive(DirectiveKind.PROHIBIT_ITEM, item="docker"),
+                "repairs": (
+                    _canonical_directive(DirectiveKind.REMOVE_POLICY, item="docker"),
+                    _canonical_directive(DirectiveKind.PROHIBIT_ITEM, item="docker"),
+                ),
                 "message": (
                     '"docker" is currently in use.\nRemove or replace it before prohibiting it.'
                 ),
@@ -207,6 +233,16 @@ def test_apply_directive_accepts_all_canonical_directive_kinds(
             {"premise": None, "policies": {"docker": "prohibit"}, "version": 2},
             {
                 "kind": DECISION_ERROR,
+                "failure": SemanticFailure.REPLACEMENT_TARGET_PROHIBITED,
+                "directive": _canonical_directive(
+                    DirectiveKind.REPLACE_USE, new_item="docker", old_item="kubectl"
+                ),
+                "repairs": (
+                    _canonical_directive(DirectiveKind.REMOVE_POLICY, item="docker"),
+                    _canonical_directive(
+                        DirectiveKind.REPLACE_USE, new_item="docker", old_item="kubectl"
+                    ),
+                ),
                 "message": (
                     '"docker" is currently prohibited.\n'
                     "Submit explicit directive(s) to remove it or use a different item."
@@ -219,7 +255,7 @@ def test_apply_directive_accepts_all_canonical_directive_kinds(
 def test_apply_directive_preserves_state_for_semantic_errors(
     directive: CanonicalDirective,
     initial_state: dict[str, object] | None,
-    expected_decision: dict[str, str | None],
+    expected_decision: dict[str, object],
     expected_state: tuple[str | None, dict[str, str]],
 ) -> None:
     engine = Engine()
@@ -640,6 +676,9 @@ def test_set_premise_lifecycle_rules() -> None:
         d2,
         {
             "kind": DECISION_ERROR,
+            "failure": SemanticFailure.PREMISE_ALREADY_SET,
+            "directive": _canonical_directive(DirectiveKind.SET_PREMISE, value="new"),
+            "repairs": (_canonical_directive(DirectiveKind.CHANGE_PREMISE, value="new"),),
             "message": ("Premise already set.\nUse 'change premise to <value>' to modify it."),
         },
     )
@@ -687,6 +726,9 @@ def test_change_premise_requires_existing_premise() -> None:
         d1,
         {
             "kind": "error",
+            "failure": SemanticFailure.PREMISE_NOT_SET,
+            "directive": _canonical_directive(DirectiveKind.CHANGE_PREMISE, value="concise"),
+            "repairs": (_canonical_directive(DirectiveKind.SET_PREMISE, value="concise"),),
             "message": "No premise is set.\nUse 'set premise <value>' to define one.",
         },
     )
@@ -964,6 +1006,11 @@ def test_replace_use_missing_source_returns_error_without_mutation() -> None:
         d1,
         {
             "kind": "error",
+            "failure": SemanticFailure.REPLACEMENT_SOURCE_MISSING,
+            "directive": _canonical_directive(
+                DirectiveKind.REPLACE_USE, new_item="kubectl", old_item="docker"
+            ),
+            "repairs": (),
             "message": (
                 "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
             ),
@@ -980,6 +1027,11 @@ def test_replace_use_missing_source_yes_followup_is_no_directive() -> None:
         first,
         {
             "kind": "error",
+            "failure": SemanticFailure.REPLACEMENT_SOURCE_MISSING,
+            "directive": _canonical_directive(
+                DirectiveKind.REPLACE_USE, new_item="kubectl", old_item="docker"
+            ),
+            "repairs": (),
             "message": (
                 "\"docker\" is not currently in use.\nReplacement requires an active 'use' policy."
             ),
@@ -1013,6 +1065,16 @@ def test_replace_use_missing_source_still_reports_target_prohibit_when_new_item_
         decision,
         {
             "kind": "error",
+            "failure": SemanticFailure.REPLACEMENT_TARGET_PROHIBITED,
+            "directive": _canonical_directive(
+                DirectiveKind.REPLACE_USE, new_item="kubectl", old_item="docker"
+            ),
+            "repairs": (
+                _canonical_directive(DirectiveKind.REMOVE_POLICY, item="kubectl"),
+                _canonical_directive(
+                    DirectiveKind.REPLACE_USE, new_item="kubectl", old_item="docker"
+                ),
+            ),
             "message": (
                 '"kubectl" is currently prohibited.\n'
                 "Submit explicit directive(s) to remove it or use a different item."
