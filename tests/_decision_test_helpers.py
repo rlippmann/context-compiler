@@ -12,7 +12,7 @@ from context_compiler.grammar import CanonicalDirective
 
 
 def assert_decision(decision: Decision, expected: Mapping[str, object]) -> None:
-    """Compare a domain decision with a legacy-shaped fixture expectation."""
+    """Compare a decision with the public fields supplied by the expectation."""
 
     assert decision.kind == expected["kind"]
     if decision.kind == DECISION_UPDATE:
@@ -21,7 +21,14 @@ def assert_decision(decision: Decision, expected: Mapping[str, object]) -> None:
             assert decision.changed is expected["changed"]
     elif decision.kind == DECISION_ERROR:
         assert isinstance(decision, SemanticErrorDecision)
-        assert decision.message == expected["message"]
+        if "failure" in expected:
+            assert decision.failure is expected["failure"]
+        if "directive" in expected:
+            assert decision.directive == expected["directive"]
+        if "repairs" in expected:
+            assert decision.repairs == expected["repairs"]
+        if "message" in expected:
+            assert decision.message == expected["message"]
     else:
         assert decision.kind == DECISION_NO_DIRECTIVE
 
