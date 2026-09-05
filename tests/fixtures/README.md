@@ -159,15 +159,15 @@ existing conformance runner in
 Portable fixture data remains language-neutral. Other ports may add execution
 support in later synchronized changes.
 
-## Controller fixtures
+## Workflow fixtures
 
-For [`conformance/controller/`](conformance/controller/):
+For [`conformance/workflow/`](conformance/workflow/):
 
-Portable deterministic workflow fixtures spanning multiple public API calls on a
+Portable workflow fixtures spanning multiple public API calls on a
 single engine instance.
 
-These fixtures cover representative controller-level invariants that require
-more than one public call, such as:
+These fixtures cover multi-call behavior that requires more than one public
+call, such as:
 
 * repeated `export_json()` / `import_json(...)` fixed-point stability
 * `step(...)` / `apply_directive(...)` equivalence for canonical directives

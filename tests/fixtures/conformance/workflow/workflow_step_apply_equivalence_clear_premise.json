@@ -1,9 +1,11 @@
 {
-  "id": "controller_step_apply_equivalence_change_premise",
-  "kind": "controller",
+  "id": "workflow_step_apply_equivalence_clear_premise",
+  "kind": "workflow",
   "initial_state": {
-    "premise": "verbose replies",
-    "policies": {},
+    "premise": "baseline",
+    "policies": {
+      "docker": "use"
+    },
     "version": 2
   },
   "operations": [
@@ -13,7 +15,7 @@
     },
     {
       "fn": "step",
-      "input": "change premise to concise replies",
+      "input": "clear premise",
       "label": "step_decision"
     },
     {
@@ -26,7 +28,7 @@
     },
     {
       "fn": "apply_directive",
-      "text": "change premise to concise replies",
+      "text": "clear premise",
       "label": "apply_decision"
     },
     {
@@ -56,8 +58,10 @@
       ]
     ],
     "state": {
-      "premise": "concise replies",
-      "policies": {},
+      "premise": null,
+      "policies": {
+        "docker": "use"
+      },
       "version": 2
     }
   }

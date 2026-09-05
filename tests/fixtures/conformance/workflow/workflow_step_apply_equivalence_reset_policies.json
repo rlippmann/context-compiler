@@ -1,9 +1,11 @@
 {
-  "id": "controller_step_apply_equivalence_prohibit_item",
-  "kind": "controller",
+  "id": "workflow_step_apply_equivalence_reset_policies",
+  "kind": "workflow",
   "initial_state": {
-    "premise": null,
-    "policies": {},
+    "premise": "baseline",
+    "policies": {
+      "docker": "use"
+    },
     "version": 2
   },
   "operations": [
@@ -13,7 +15,7 @@
     },
     {
       "fn": "step",
-      "input": "prohibit peanuts",
+      "input": "reset policies",
       "label": "step_decision"
     },
     {
@@ -26,7 +28,7 @@
     },
     {
       "fn": "apply_directive",
-      "text": "prohibit peanuts",
+      "text": "reset policies",
       "label": "apply_decision"
     },
     {
@@ -56,10 +58,8 @@
       ]
     ],
     "state": {
-      "premise": null,
-      "policies": {
-        "peanuts": "prohibit"
-      },
+      "premise": "baseline",
+      "policies": {},
       "version": 2
     }
   }

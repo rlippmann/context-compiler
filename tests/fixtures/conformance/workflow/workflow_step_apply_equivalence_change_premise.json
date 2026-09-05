@@ -1,11 +1,9 @@
 {
-  "id": "controller_step_apply_equivalence_reset_policies",
-  "kind": "controller",
+  "id": "workflow_step_apply_equivalence_change_premise",
+  "kind": "workflow",
   "initial_state": {
-    "premise": "baseline",
-    "policies": {
-      "docker": "use"
-    },
+    "premise": "verbose replies",
+    "policies": {},
     "version": 2
   },
   "operations": [
@@ -15,7 +13,7 @@
     },
     {
       "fn": "step",
-      "input": "reset policies",
+      "input": "change premise to concise replies",
       "label": "step_decision"
     },
     {
@@ -28,7 +26,7 @@
     },
     {
       "fn": "apply_directive",
-      "text": "reset policies",
+      "text": "change premise to concise replies",
       "label": "apply_decision"
     },
     {
@@ -58,7 +56,7 @@
       ]
     ],
     "state": {
-      "premise": "baseline",
+      "premise": "concise replies",
       "policies": {},
       "version": 2
     }

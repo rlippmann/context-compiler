@@ -26,9 +26,7 @@ _MUTATION_ISOLATION_FIXTURES_DIR = (
 _APPLY_DIRECTIVE_FIXTURES_DIR = (
     Path(__file__).resolve().parent / "fixtures" / "conformance" / "apply-directive"
 )
-_CONTROLLER_FIXTURES_DIR = (
-    Path(__file__).resolve().parent / "fixtures" / "conformance" / "controller"
-)
+_WORKFLOW_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "conformance" / "workflow"
 
 
 def _json_files(dir_path: Path) -> list[Path]:
@@ -325,14 +323,14 @@ def _validate_grammar_fixture(fixture: dict[str, object], fixture_id: object) ->
             _assert_allowed_keys(expected, {"text", "directive_kind"}, fixture_id, "expected")
 
 
-def _validate_controller_fixture(fixture: dict[str, object], fixture_id: object) -> None:
+def _validate_workflow_fixture(fixture: dict[str, object], fixture_id: object) -> None:
     _assert_allowed_keys(
         fixture,
         {"id", "kind", "initial_state", "operations", "expected"},
         fixture_id,
         "fixture",
     )
-    assert fixture["kind"] == "controller", fixture_id
+    assert fixture["kind"] == "workflow", fixture_id
     assert isinstance(fixture["initial_state"], dict), fixture_id
 
     operations = fixture["operations"]
@@ -549,18 +547,27 @@ def test_grammar_fixtures() -> None:
                 assert directive.text == expected_directive["text"], fixture_id
                 assert directive.kind.value == expected_directive["kind"], fixture_id
                 assert dict(directive.operands) == expected_directive["operands"], fixture_id
-                assert directive.text == grammar_module._render_directive(
-                    directive.kind,
-                    **dict(directive.operands),
+                assert (
+                    directive.text
+                    == CanonicalDirective(
+                        kind=directive.kind,
+                        operands=directive.operands,
+                    ).text
                 ), fixture_id
         else:
             error = expected.get("error")
             if error is not None:
                 with pytest.raises(Exception, match=error["message_contains"]) as exc_info:
-                    grammar_module._render_directive(action["kind"], **action["operands"])
+                    CanonicalDirective(
+                        kind=action["kind"],
+                        operands=action["operands"],
+                    )
                 assert type(exc_info.value).__name__ == error["type"], fixture_id
             else:
-                rendered = grammar_module._render_directive(action["kind"], **action["operands"])
+                rendered = CanonicalDirective(
+                    kind=action["kind"],
+                    operands=action["operands"],
+                ).text
                 assert rendered == expected["text"], fixture_id
                 directive = decompose_directive(rendered)
                 assert isinstance(directive, CanonicalDirective), fixture_id
@@ -627,13 +634,13 @@ def test_mutation_isolation_fixtures() -> None:
             assert observed == observation["value"], fixture_id
 
 
-def test_controller_fixtures() -> None:
-    for path in _json_files(_CONTROLLER_FIXTURES_DIR):
+def test_workflow_fixtures() -> None:
+    for path in _json_files(_WORKFLOW_FIXTURES_DIR):
         fixture = _load(path)
         fixture_id = fixture["id"]
 
         _assert_fixture_path_matches_id(path, fixture_id)
-        _validate_controller_fixture(fixture, fixture_id)
+        _validate_workflow_fixture(fixture, fixture_id)
 
         engine = Engine()
         engine.import_json(
