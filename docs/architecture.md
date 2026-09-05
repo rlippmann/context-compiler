@@ -58,7 +58,9 @@ can still live in drafting or application code instead of the core policy model.
 Context Compiler intentionally does not own higher-level concerns such as policy
 precedence, rule ordering, policy dependencies or composition, orchestration,
 authorization and security policy, or domain-specific rule systems. Those
-concerns may still be necessary, but they belong in systems designed for them.
+concerns may still be necessary, but Context Compiler does not define them
+today. Where they belong, and what interface they require, should be driven by
+concrete integrations.
 
 Context Compiler can supply saved premise and policy state to those systems as
 an input. Context Compiler answers, “What explicit state is currently active?”
@@ -66,4 +68,9 @@ Another policy, rules, orchestration, or security component can answer, “Given
 that state, what should happen?”
 
 This keeps the core small and avoids reinventing mature policy, rules,
-orchestration, or authorization systems.
+orchestration, or authorization systems. Core currently does not define union,
+intersection, merge, precedence, cross-engine conflict resolution, or policy
+dependency and hierarchy rules. This is intentional: richer composition was
+deferred until a real integration demonstrates the interface it needs, and
+does not imply that those operations will be added to core. See
+[Single Engine vs Multiple Engines](multi-engine.md) for the supported pattern.
