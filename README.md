@@ -9,9 +9,12 @@ Context Compiler helps LLM applications keep explicit premise and policy rules
 stable across turns. It blocks invalid or conflicting changes and returns
 structured decisions.
 
-Use it when important context and policy rules should affect application
-behavior—not just the model’s next response. Those rules can shape what an
-application allows, routes, retrieves, builds, or executes.
+Use it when saved context and policy rules need to shape what an application
+does, not just what the model sees or says.
+
+The [`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations)
+show this approach working in applications, and the [demo results](docs/demos-results.md)
+show consistent behavior across models and prompt conditions.
 
 ## Quickstart
 
@@ -95,9 +98,6 @@ The engine stores explicit user commitments as saved state:
 | `use` | An affirmative per-item policy |
 | `prohibit` | An excluding per-item policy |
 
-State changes only through explicit supported directives. The engine does not
-infer meaning or rewrite input.
-
 ### Directive commands
 
 Set or change the premise with:
@@ -153,13 +153,20 @@ The premise stays in effect until it is changed or cleared.
 
 Use policies instead when the constraint is explicit and enforceable.
 
----
+```text
+use concise replies
+use a formal tone
+prohibit introducing new external dependencies
+```
 
-## Examples
+## Examples and demos
 
 - [examples](examples/) — minimal usage patterns for the Context Compiler engine
 - [demos](demos/) — concrete scenarios showing how behavior differs with and without the compiler
 - [`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations) — runnable integrations using compiler state
+- [demo results](docs/demos-results.md) — evidence that the compiler works in practice
+
+---
 
 ## CLI and REPL
 
@@ -169,50 +176,7 @@ JSON output behavior.
 
 ---
 
-## FAQ
-
-**Isn't this just prompt reinjection?**
-No. Prompt construction is one downstream use of saved state.
-Context Compiler decides when state changes are allowed, when an error is
-required, and which conflicts to report. For runnable application examples, see
-[`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations).
-
-**Why not just use a plain dict?**
-A plain dict can hold state for prompt construction, schema selection, tool
-gating, and other application behavior.
-
-Context Compiler defines what changes are allowed and reports conflicts instead
-of leaving the application to invent those rules.
-
-```text
-use python_script
-prohibit python_script
-```
-
-Without these rules, conflicting instructions can be handled inconsistently or
-silently overwrite state.
-
----
-
-## Demos and evidence
-
-The current demo suite in this repository contains 7 scored demos
-(`01`-`05`, `07`, `08`) plus 1 informational demo (`06`).
-
-The published verification matrix records 7 model runs from an earlier
-8-scored-demo runner across hosted/frontier providers and local Ollama models.
-In those published runs,
-baseline passed **24 / 56**, reinjected-state passed **40 / 56**, and both
-compiler paths passed **56 / 56**.
-
-→ [Current demo set and output modes](demos/README.md)
-Current and historical published results: [docs/demos-results.md](docs/demos-results.md)
-
----
-
 ## Documentation
-
-These docs cover the design and milestone details:
 
 - [Design philosophy](docs/DesignPhilosophy.md)
 - [Architecture boundaries](docs/architecture.md)
@@ -221,11 +185,7 @@ These docs cover the design and milestone details:
 - [Multiple engines](docs/multi-engine.md)
 - [`tests/fixtures/`](tests/fixtures/) — Cross-language fixtures that help keep compiler behavior consistent across implementations.
 
-For a full documentation map, see [docs/README.md](docs/README.md).
-
-## Development Process (OpenAI Devpost)
-
-Most of this project and related projects were implemented with Codex across many development sessions, including substantial implementation, refactoring, and cross-language porting work. ChatGPT was used separately for design discussion, review, and planning. Conformance harnesses and tests were used to verify behavioral consistency rather than treating model output as the correctness check.
+For the full map, see [docs/README.md](docs/README.md).
 
 ---
 
