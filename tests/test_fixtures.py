@@ -73,6 +73,7 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
         "engine.policies",
         "engine.premise",
         "canonical_directive.operands",
+        "canonical_directive.constructor_operands",
         "directive_metadata",
     }, fixture_id
     if operation["fn"] == "engine.step":
@@ -84,6 +85,16 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
         )
         assert isinstance(operation["kind"], str), fixture_id
         assert isinstance(operation["operands"], dict), fixture_id
+    elif operation["fn"] == "canonical_directive.constructor_operands":
+        _assert_allowed_keys(
+            operation,
+            {"fn", "kind", "operands", "source_handle", "result_handle"},
+            fixture_id,
+            "operation",
+        )
+        assert isinstance(operation["kind"], str), fixture_id
+        assert isinstance(operation["operands"], dict), fixture_id
+        assert isinstance(operation["source_handle"], str), fixture_id
     elif operation["fn"] == "directive_metadata":
         _assert_allowed_keys(
             operation,
@@ -101,6 +112,8 @@ def _validate_mutation_isolation_fixture(fixture: dict[str, object], fixture_id:
     handles = fixture["handles"]
     assert isinstance(handles, dict), fixture_id
     assert operation["result_handle"] in handles, fixture_id
+    if operation["fn"] == "canonical_directive.constructor_operands":
+        assert operation["source_handle"] in handles, fixture_id
     for handle_name, handle_meta in handles.items():
         assert isinstance(handle_name, str), fixture_id
         assert isinstance(handle_meta, dict), fixture_id
@@ -598,6 +611,13 @@ def test_mutation_isolation_fixtures() -> None:
         elif fn == "canonical_directive.operands":
             directive = CanonicalDirective(kind=operation["kind"], operands=operation["operands"])
             handles = {operation["result_handle"]: directive.operands}
+        elif fn == "canonical_directive.constructor_operands":
+            source_operands = operation["operands"]
+            directive = CanonicalDirective(kind=operation["kind"], operands=source_operands)
+            handles = {
+                operation["source_handle"]: source_operands,
+                operation["result_handle"]: directive,
+            }
         else:
             assert fn == "directive_metadata", fixture_id
             handles = {
@@ -612,7 +632,10 @@ def test_mutation_isolation_fixtures() -> None:
             target = handles[mutation["target_handle"]]
             path = mutation["path"]
             assert isinstance(path, list), fixture_id
-            if fn in {"engine.step", "canonical_directive.operands", "directive_metadata"}:
+            if fn in {"engine.step", "canonical_directive.operands", "directive_metadata"} or (
+                fn == "canonical_directive.constructor_operands"
+                and mutation["target_handle"] != operation["source_handle"]
+            ):
                 with pytest.raises((AssertionError, AttributeError, TypeError)):
                     _apply_handle_mutation(target, path, mutation["value"])
             else:

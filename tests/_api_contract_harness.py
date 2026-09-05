@@ -317,6 +317,15 @@ def validate_engine_member_runtime(
     kind = member_contract["kind"]
     if kind == "property":
         assert isinstance(inspect.getattr_static(engine_type, name), property), name
+        assert member_contract["readable"] is True, name
+        getattr(engine, name)
+        if member_contract["writable"] is False:
+            try:
+                setattr(engine, name, object())
+            except (AttributeError, TypeError):
+                pass
+            else:
+                raise AssertionError(f"{name} can be assigned")
         return
     if kind == "method":
         assert callable(getattr(engine, name)), name
@@ -562,7 +571,7 @@ def _validate_engine_member_spec(
     label: str,
 ) -> None:
     _assert_type(member_spec, dict, label)
-    _assert_closed_keys(member_spec, {"kind", "signature", "probes"}, label)
+    _assert_closed_keys(member_spec, {"kind", "signature", "probes", "readable", "writable"}, label)
     _require_fields(member_spec, {"kind"}, label)
 
     kind = member_spec["kind"]
@@ -571,6 +580,8 @@ def _validate_engine_member_spec(
 
     has_signature = "signature" in member_spec
     if kind == "method":
+        if "readable" in member_spec or "writable" in member_spec:
+            raise AssertionError(f"{label} method members must not declare property mutability")
         if not has_signature:
             raise AssertionError(f"{label} method members require signature")
         _validate_signature_spec(member_spec["signature"], f"{label}.signature")
@@ -581,6 +592,9 @@ def _validate_engine_member_spec(
         raise AssertionError(f"{label} property members must not declare signature")
     if "probes" in member_spec:
         raise AssertionError(f"{label} property members must not declare probes")
+    for field in ("readable", "writable"):
+        if field not in member_spec or not isinstance(member_spec[field], bool):
+            raise AssertionError(f"{label}.{field} must be boolean")
 
 
 def _validate_signature_spec(signature: object, label: str) -> None:
