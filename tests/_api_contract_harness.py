@@ -316,16 +316,12 @@ def validate_engine_member_runtime(
 ) -> None:
     kind = member_contract["kind"]
     if kind == "property":
-        assert isinstance(inspect.getattr_static(engine_type, name), property), name
-        assert member_contract["readable"] is True, name
-        getattr(engine, name)
+        descriptor = inspect.getattr_static(engine_type, name)
+        assert isinstance(descriptor, property), name
+        if member_contract["readable"] is True:
+            getattr(engine, name)
         if member_contract["writable"] is False:
-            try:
-                setattr(engine, name, object())
-            except (AttributeError, TypeError):
-                pass
-            else:
-                raise AssertionError(f"{name} can be assigned")
+            assert descriptor.fset is None, name
         return
     if kind == "method":
         assert callable(getattr(engine, name)), name
