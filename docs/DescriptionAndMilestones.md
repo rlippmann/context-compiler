@@ -220,7 +220,7 @@ Candidate work for 0.10 includes:
 - MCP adapter likely as a separate/later track after post-clean-break package
   boundaries are fully settled
 - Optional MCP-readiness helpers only if narrowly justified
-- Additional tooling built on auditability surfaces
+- Additional tooling built on current engine inspection and persistence APIs
 
 ### 1.0 Target
 
