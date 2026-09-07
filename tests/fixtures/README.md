@@ -13,6 +13,11 @@ surface, rather than as Python-only test inputs.
 * [`engine-regression/structured/`](engine-regression/structured/) — deterministic per-turn engine regression fixtures using authoritative state snapshots.
 `conformance/` and `engine-regression/structured/` both cover engine behavior at different layers.
 
+All fixture families under `tests/fixtures/conformance/` are contract-bearing.
+Their Python runner entry points must be selected by the `contract` marker or
+explicitly by contract CI. Adding a shared conformance family requires adding
+a runner selected by that marker.
+
 ## API contract fixtures
 
 [`conformance/api/public-api-v2.json`](conformance/api/public-api-v2.json) defines the current portable core root public API contract for Python and ports.
