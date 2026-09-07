@@ -97,13 +97,14 @@ _INSTEAD_OF_DELIMITER = " instead of "
 _ASCII_WHITESPACE = " \t\n\r\x0b\x0c"
 _HORIZONTAL_WHITESPACE = " \t"
 _KEYWORD_CHARS = frozenset("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ")
+_ASCII_CASEFOLD = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
 _SET_PREMISE_RE = re.compile(r"(?i)^set[ \t]+premise[ \t]+(?P<value>.+)$")
 _CHANGE_PREMISE_RE = re.compile(r"(?i)^change[ \t]+premise[ \t]+to[ \t]+(?P<value>.+)$")
 _USE_RE = re.compile(r"(?i)^use[ \t]+(?P<item>.+)$")
 _PROHIBIT_RE = re.compile(r"(?i)^prohibit[ \t]+(?P<item>.+)$")
 _REMOVE_POLICY_RE = re.compile(r"(?i)^remove[ \t]+policy[ \t]+(?P<item>.+)$")
 _REPLACE_RE = re.compile(
-    r"(?i)^use[ \t]+(?P<new_item>.*?)[ \t]+instead[ \t]+of[ \t]+(?P<old_item>.+)$"
+    r"(?ai)^use[ \t]+(?P<new_item>.*?)[ \t]+instead[ \t]+of[ \t]+(?P<old_item>.+)$"
 )
 
 
@@ -265,7 +266,7 @@ def _collapse_horizontal_whitespace(text: str) -> str:
 
 
 def _normalized_for_matching(text: str) -> str:
-    return _collapse_horizontal_whitespace(_trim_ascii_whitespace(text)).casefold()
+    return _collapse_horizontal_whitespace(_trim_ascii_whitespace(text)).translate(_ASCII_CASEFOLD)
 
 
 def _operand_has_content(value: str) -> bool:

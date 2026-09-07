@@ -1,0 +1,50 @@
+{
+  "id": "step_policy_identity_capital_sharp_s_casefold_message",
+  "kind": "step",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "prelude": [
+    "use ẞ"
+  ],
+  "input": "prohibit SS",
+  "expected": {
+    "decision": {
+      "kind": "error",
+      "failure": "item_already_in_use",
+      "directive": {
+        "kind": "prohibit_item",
+        "text": "prohibit SS",
+        "operands": {
+          "item": "SS"
+        }
+      },
+      "repairs": [
+        {
+          "kind": "remove_policy",
+          "text": "remove policy SS",
+          "operands": {
+            "item": "SS"
+          }
+        },
+        {
+          "kind": "prohibit_item",
+          "text": "prohibit SS",
+          "operands": {
+            "item": "SS"
+          }
+        }
+      ],
+      "message": "\"ss\" is currently in use.\nRemove or replace it before prohibiting it."
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "ss": "use"
+      },
+      "version": 2
+    }
+  }
+}
