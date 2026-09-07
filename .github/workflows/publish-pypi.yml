@@ -55,6 +55,17 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Verify release tag matches package version
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          package_version="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          release_version="${RELEASE_TAG#v}"
+          if [ "$release_version" != "$package_version" ]; then
+            echo "Release tag $RELEASE_TAG does not match package version $package_version"
+            exit 1
+          fi
+
       - name: Build sdist and wheel
         run: uv run --with build python -m build
 
@@ -62,6 +73,12 @@ jobs:
         run: |
           echo "Built distributions:"
           ls -lh dist
+
+      - name: Smoke test built distributions
+        run: |
+          package_version="$(python -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          ./scripts/smoke_package.sh "$(find dist -name '*.whl' -print -quit)" "$package_version"
+          ./scripts/smoke_package.sh "$(find dist -name '*.tar.gz' -print -quit)" "$package_version"
 
       - name: Upload dist artifacts
         uses: actions/upload-artifact@v7
