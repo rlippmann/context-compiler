@@ -27,12 +27,14 @@ Each fixture is a JSON object with:
 
 ### `action`
 
-The current portable action form is:
+The portable action forms are:
 
 * `{"fn":"apply_directive","text":"...canonical directive text..."}`
+  decomposes the text before applying the resulting directive.
+* `{"fn":"apply_directive","directive":{"kind":"...","operands":{...}}}`
+  constructs a public `CanonicalDirective` directly and passes it to
+  `engine.apply_directive(...)` without parsing text first.
 
-The Python source-of-truth runner validates that `text` decomposes to a
-canonical directive before calling `engine.apply_directive(...)`.
 Ports may construct the equivalent canonical directive object using their own
 public grammar surface.
 
