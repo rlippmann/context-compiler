@@ -39,11 +39,7 @@ Behavioral semantics remain covered by conformance and structured fixtures.
 
 Rejection probes in shared API, grammar, and state fixtures express only that
 the operation is rejected and any portable message text; they do not require
-language-specific exception class names. Shared fixtures under
-`tests/fixtures/conformance/` are contract-bearing and must be run by the
-contract-selected Python runners. Adding a new shared fixture family requires
-adding a runner selected by the `contract` marker or explicitly by contract
-CI.
+language-specific exception class names.
 
 ## Step fixtures
 
@@ -67,9 +63,11 @@ The `Decision` payload in this family uses one shared shape:
 
 Semantic errors always include the machine-readable `failure`, the rejected
 canonical `directive`, and an ordered list of advisory canonical `repairs`.
-`message` is derived human-readable text for presentation and is exposed only
-on semantic errors. All Decision variants are immutable, including their
-exposed nested directive and repair values.
+Hosts must use `failure`, `directive`, and `repairs` for program logic and must
+not parse `message`. For the current default English presentation, the exact
+semantic-error message text is normative and must match shared conformance.
+All Decision variants are immutable, including their exposed nested directive
+and repair values.
 
 The current runner enforces a closed fixture shape for this family.
 Unknown top-level and documented nested fields are rejected.
@@ -174,8 +172,8 @@ The Python source-of-truth repo executes this fixture family through the
 existing conformance runner in
 [`tests/test_fixtures.py`](../test_fixtures.py).
 
-Portable fixture data remains language-neutral. Other ports may add execution
-support in later synchronized changes.
+Ports consume this language-neutral fixture data through their own conformance
+runners.
 
 ## Workflow fixtures
 
@@ -208,7 +206,8 @@ The current runner supports:
 
 ## Source of truth
 
-Fixtures reflect current Python behavior and tests.
+These shared fixtures define the portable contract for the behavior they cover.
+Python is the source repository and runs them through its conformance tests.
 Property/fuzz invariants remain Python-local tests and are not part of the
 portable fixture contract.
 
