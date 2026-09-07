@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from _api_contract_harness import (
     assert_shape,
     assert_signature_matches,
@@ -10,6 +11,8 @@ from _api_contract_harness import (
 )
 
 import context_compiler.grammar as grammar
+
+pytestmark = pytest.mark.contract
 
 _CONTRACT_PATH = (
     Path(__file__).resolve().parent / "fixtures" / "conformance" / "api" / "public-grammar-v1.json"

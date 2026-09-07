@@ -16,6 +16,8 @@ from context_compiler.grammar import (
     decompose_directive,
 )
 
+pytestmark = pytest.mark.contract
+
 _STEP_FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "conformance" / "step"
 _STATE_JSON_FIXTURES_DIR = (
     Path(__file__).resolve().parent / "fixtures" / "conformance" / "state-json"
@@ -563,7 +565,6 @@ def test_apply_directive_fixtures() -> None:
         assert _state_observation(engine) == expected["state"], fixture_id
 
 
-@pytest.mark.contract
 def test_grammar_fixtures() -> None:
     for path in _json_files(_GRAMMAR_FIXTURES_DIR):
         fixture = _load(path)
