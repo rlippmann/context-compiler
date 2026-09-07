@@ -1,8 +1,8 @@
 {
-  "id": "grammar_render_replace_use",
+  "id": "grammar_construct_canonical_directive_replace_use",
   "kind": "grammar",
   "action": {
-    "fn": "render_directive",
+    "fn": "construct_canonical_directive",
     "kind": "replace_use",
     "operands": {
       "new_item": "podman",

@@ -83,8 +83,10 @@ rewriting.
 
 For [`conformance/grammar/`](conformance/grammar/):
 
-These fixtures define portable decomposition and rendering behavior for the
-directive grammar. Directive keywords are matched case-insensitively only
+These fixtures define portable decomposition and canonical construction behavior for the
+directive grammar. They cover public `decompose_directive(...)` behavior and
+construction of `CanonicalDirective` values with canonical `.text`. Directive
+keywords are matched case-insensitively only
 within the ASCII alphabet. Ports must not apply Unicode normalization to
 keywords, including NFC, NFD, NFKC, or NFKD, when deciding whether input is a
 directive. Unicode composition and decomposition in operands remains operand

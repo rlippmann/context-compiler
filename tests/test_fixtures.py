@@ -323,7 +323,7 @@ def _validate_grammar_fixture(fixture: dict[str, object], fixture_id: object) ->
     expected = fixture["expected"]
     assert isinstance(expected, dict), fixture_id
     fn = action["fn"]
-    assert fn in {"decompose_directive", "render_directive"}, fixture_id
+    assert fn in {"decompose_directive", "construct_canonical_directive"}, fixture_id
 
     if fn == "decompose_directive":
         _assert_allowed_keys(action, {"fn", "text"}, fixture_id, "action")
@@ -628,6 +628,7 @@ def test_mutation_isolation_fixtures() -> None:
     for path in _json_files(_MUTATION_ISOLATION_FIXTURES_DIR):
         fixture = _load(path)
         fixture_id = fixture["id"]
+        _assert_fixture_path_matches_id(path, fixture_id)
         _validate_mutation_isolation_fixture(fixture, fixture_id)
         operation = fixture["operation"]
         fn = operation["fn"]
