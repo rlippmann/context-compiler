@@ -13,7 +13,7 @@ Use it when saved context and policy rules need to shape what an application
 does, not just what the model sees or says.
 
 The [`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations)
-show this approach working in applications, and the [demo results](docs/demos-results.md)
+show this approach working in applications, and the [demo results](https://github.com/rlippmann/context-compiler/blob/main/docs/demos-results.md)
 show consistent behavior across models and prompt conditions.
 
 ## Quickstart
@@ -83,7 +83,7 @@ The main public API is `Engine` and its Decision results.
 - `engine.premise` and `engine.policies` expose live compiler state.
 - `engine.export_json()` and `engine.import_json(...)` transport compiler state
   only.
-See the [API reference](docs/api-reference.md) for fields, signatures, and
+See the [API reference](https://github.com/rlippmann/context-compiler/blob/main/docs/api-reference.md) for fields, signatures, and
 repair behavior.
 
 ---
@@ -161,31 +161,31 @@ prohibit introducing new external dependencies
 
 ## Examples and demos
 
-- [examples](examples/) — minimal usage patterns for the Context Compiler engine
-- [demos](demos/) — concrete scenarios showing how behavior differs with and without the compiler
+- [examples](https://github.com/rlippmann/context-compiler/tree/main/examples) — minimal usage patterns for the Context Compiler engine
+- [demos](https://github.com/rlippmann/context-compiler/tree/main/demos) — concrete scenarios showing how behavior differs with and without the compiler
 - [`context-compiler-example-integrations`](https://github.com/rlippmann/context-compiler-example-integrations) — runnable integrations using compiler state
-- [demo results](docs/demos-results.md) — evidence that the compiler works in practice
+- [demo results](https://github.com/rlippmann/context-compiler/blob/main/docs/demos-results.md) — evidence that the compiler works in practice
 
 ---
 
 ## CLI and REPL
 
 The package includes an interactive REPL and a machine-readable JSON CLI. See
-the [CLI and REPL guide](docs/cli-repl.md) for commands, preload options, and
+the [CLI and REPL guide](https://github.com/rlippmann/context-compiler/blob/main/docs/cli-repl.md) for commands, preload options, and
 JSON output behavior.
 
 ---
 
 ## Documentation
 
-- [Design philosophy](docs/DesignPhilosophy.md)
-- [Architecture boundaries](docs/architecture.md)
-- [Project overview](docs/DescriptionAndMilestones.md)
-- [Directive grammar specification](docs/DirectiveGrammarSpec.md)
-- [Multiple engines](docs/multi-engine.md)
-- [`tests/fixtures/`](tests/fixtures/) — Cross-language fixtures that help keep compiler behavior consistent across implementations.
+- [Design philosophy](https://github.com/rlippmann/context-compiler/blob/main/docs/DesignPhilosophy.md)
+- [Architecture boundaries](https://github.com/rlippmann/context-compiler/blob/main/docs/architecture.md)
+- [Project overview](https://github.com/rlippmann/context-compiler/blob/main/docs/DescriptionAndMilestones.md)
+- [Directive grammar specification](https://github.com/rlippmann/context-compiler/blob/main/docs/DirectiveGrammarSpec.md)
+- [Multiple engines](https://github.com/rlippmann/context-compiler/blob/main/docs/multi-engine.md)
+- [`tests/fixtures/`](https://github.com/rlippmann/context-compiler/tree/main/tests/fixtures) — Cross-language fixtures that help keep compiler behavior consistent across implementations.
 
-For the full map, see [docs/README.md](docs/README.md).
+For the full map, see [docs/README.md](https://github.com/rlippmann/context-compiler/blob/main/docs/README.md).
 
 ---
 
