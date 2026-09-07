@@ -283,9 +283,24 @@ def _validate_apply_directive_fixture(fixture: dict[str, object], fixture_id: ob
 
     action = fixture["action"]
     assert isinstance(action, dict), fixture_id
-    _assert_allowed_keys(action, {"fn", "text"}, fixture_id, "action")
+    _assert_allowed_keys(
+        action,
+        {"fn", "text"} if "text" in action else {"fn", "directive"},
+        fixture_id,
+        "action",
+    )
     assert action["fn"] == "apply_directive", fixture_id
-    assert isinstance(action["text"], str), fixture_id
+    has_text = "text" in action
+    has_directive = "directive" in action
+    assert has_text != has_directive, fixture_id
+    if has_text:
+        assert isinstance(action["text"], str), fixture_id
+    else:
+        directive = action["directive"]
+        assert isinstance(directive, dict), fixture_id
+        _assert_allowed_keys(directive, {"kind", "operands"}, fixture_id, "action.directive")
+        assert isinstance(directive["kind"], str), fixture_id
+        assert isinstance(directive["operands"], dict), fixture_id
 
     expected = fixture["expected"]
     assert isinstance(expected, dict), fixture_id
@@ -528,8 +543,16 @@ def test_apply_directive_fixtures() -> None:
         _apply_prelude(engine, fixture.get("prelude", []))
 
         action = fixture["action"]
-        directive = decompose_directive(action["text"])
-        assert isinstance(directive, CanonicalDirective), fixture_id
+        if "text" in action:
+            directive = decompose_directive(action["text"])
+            assert isinstance(directive, CanonicalDirective), fixture_id
+        else:
+            directive_spec = action["directive"]
+            assert isinstance(directive_spec, dict), fixture_id
+            directive = CanonicalDirective(
+                kind=directive_spec["kind"],
+                operands=directive_spec["operands"],
+            )
         decision = engine.apply_directive(directive)
 
         expected = fixture["expected"]
