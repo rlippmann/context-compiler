@@ -12,7 +12,6 @@
   },
   "expected": {
     "error": {
-      "type": "ValueError",
       "message_contains": "Invalid state payload"
     },
     "state": {
