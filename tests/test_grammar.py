@@ -473,6 +473,12 @@ def test_internal_contains_multiple_premise_directives_ignores_non_directive_tex
     assert grammar_module._contains_multiple_premise_directives("hello there") is False
 
 
+def test_multiple_premise_directives_are_rejected() -> None:
+    assert decompose_directive("set premise first\nset premise second") == InvalidDirectiveSyntax(
+        failure=DirectiveSyntaxFailure.COMPOUND_DIRECTIVE,
+    )
+
+
 def test_parse_replace_use_rejects_blank_new_item() -> None:
     assert grammar_module._parse_replace_use("use \t instead of docker") is None
 

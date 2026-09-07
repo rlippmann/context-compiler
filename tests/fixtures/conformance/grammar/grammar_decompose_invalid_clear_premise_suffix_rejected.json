@@ -1,0 +1,16 @@
+{
+  "id": "grammar_decompose_invalid_clear_premise_suffix_rejected",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "clear premise now"
+  },
+  "expected": {
+    "directive": {
+      "kind": "invalid_directive_syntax",
+      "failure": "malformed_directive",
+      "directive_kind": null,
+      "missing_operand": null
+    }
+  }
+}
