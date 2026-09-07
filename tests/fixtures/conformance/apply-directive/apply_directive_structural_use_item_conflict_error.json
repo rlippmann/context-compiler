@@ -1,0 +1,57 @@
+{
+  "id": "apply_directive_structural_use_item_conflict_error",
+  "kind": "apply_directive",
+  "initial_state": {
+    "premise": null,
+    "policies": {
+      "docker": "prohibit"
+    },
+    "version": 2
+  },
+  "action": {
+    "fn": "apply_directive",
+    "directive": {
+      "kind": "use_item",
+      "operands": {
+        "item": "docker"
+      }
+    }
+  },
+  "expected": {
+    "decision": {
+      "kind": "error",
+      "failure": "item_prohibited",
+      "directive": {
+        "kind": "use_item",
+        "text": "use docker",
+        "operands": {
+          "item": "docker"
+        }
+      },
+      "repairs": [
+        {
+          "kind": "remove_policy",
+          "text": "remove policy docker",
+          "operands": {
+            "item": "docker"
+          }
+        },
+        {
+          "kind": "use_item",
+          "text": "use docker",
+          "operands": {
+            "item": "docker"
+          }
+        }
+      ],
+      "message": "\"docker\" is currently prohibited.\nRemove or replace it before using it."
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker": "prohibit"
+      },
+      "version": 2
+    }
+  }
+}

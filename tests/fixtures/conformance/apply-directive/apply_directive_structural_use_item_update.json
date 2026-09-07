@@ -1,0 +1,31 @@
+{
+  "id": "apply_directive_structural_use_item_update",
+  "kind": "apply_directive",
+  "initial_state": {
+    "premise": null,
+    "policies": {},
+    "version": 2
+  },
+  "action": {
+    "fn": "apply_directive",
+    "directive": {
+      "kind": "use_item",
+      "operands": {
+        "item": "docker"
+      }
+    }
+  },
+  "expected": {
+    "decision": {
+      "kind": "update",
+      "changed": true
+    },
+    "state": {
+      "premise": null,
+      "policies": {
+        "docker": "use"
+      },
+      "version": 2
+    }
+  }
+}

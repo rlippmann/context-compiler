@@ -95,7 +95,10 @@ Each fixture runs:
 
 1. `initial_state`
 2. optional `prelude` through `engine.step(...)`
-3. one canonical directive through `engine.apply_directive(...)`
+3. one canonical directive through `engine.apply_directive(...)`. The action
+   may provide either `text`, which the runner decomposes, or a structural
+   `directive` with its public `kind` and `operands`, which the runner passes
+   through the public canonical-directive constructor.
 
 Then asserts:
 
