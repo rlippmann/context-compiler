@@ -99,11 +99,18 @@ An accepted idempotent directive remains an `update` with `changed=False`.
 
 `SemanticErrorDecision.failure` is the machine-readable semantic failure
 classification. Its `directive` is the canonical directive rejected by
-semantic evaluation. Its `message` is derived human-readable text, and its
-`repairs` is an ordered tuple of advisory canonical directives. Repairs are
-never applied automatically; hosts explicitly choose whether to submit one
-through `apply_directive(...)`. An empty tuple means no deterministic repair
-was proposed.
+semantic evaluation. Its `repairs` are an ordered tuple of advisory canonical
+directives. Repairs are never applied automatically; hosts explicitly choose
+whether to submit one through `apply_directive(...)`. An empty tuple means no
+deterministic repair was proposed.
+
+For the current default English presentation, `message` is a normative
+portable value: implementations must produce the exact message text required
+by the shared conformance fixtures for the same failure and operands. Hosts
+must use `failure`, `directive`, and `repairs` for program logic and must not
+parse `message`. If localization is added later, stable failure codes can
+remain the machine contract while locale-specific resources provide
+presentation text.
 
 The repair mapping is normative. When a listed repair is returned, repairs
 appear in the following order and use the operands from the failed canonical
@@ -122,8 +129,9 @@ directive:
 Every repair is a `CanonicalDirective`. Repairs are ordered and advisory only:
 the engine never applies them automatically, and a host must explicitly select
 and submit any repair through `apply_directive(...)`. A host may decline all
-repairs. The `message` field is presentation data; hosts must use `failure` and
-the structured directives for control flow rather than parse the message.
+repairs. For the current default-English contract, the `message` field is
+normative presentation data; hosts must use `failure` and the structured
+directives for control flow rather than parse the message.
 
 Semantics:
 
@@ -434,7 +442,7 @@ CLEAR_STATE    := "clear state"
 
 Malformed examples:
 
-- <code>clear premise </code>
+- `clear premise now`
 - `reset policies now`
 - `clear state then continue`
 
@@ -659,7 +667,7 @@ outside this category.
 Normalization below applies after successful parsing, during storage or lookup.
 It is not part of syntax repair.
 
-### 11.1 Policy identity
+### 10.1 Policy identity
 
 Policy-bearing directives derive a canonical policy identity for storage,
 lookup, and semantic comparison.
@@ -706,7 +714,7 @@ Acquisition-layer note:
 - examples include leading-article removal, rewriting `dont` to `don't`, and
   other broader human-input interpretation behaviors.
 
-### 11.2 Premise-value sanitation
+### 10.2 Premise-value sanitation
 
 Premise values are stored as semantically opaque strings with
 representation-level sanitation only:

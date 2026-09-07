@@ -15,7 +15,6 @@
   },
   "expected": {
     "error": {
-      "type": "ValueError",
       "message_contains": "Unsupported state version"
     },
     "state": {

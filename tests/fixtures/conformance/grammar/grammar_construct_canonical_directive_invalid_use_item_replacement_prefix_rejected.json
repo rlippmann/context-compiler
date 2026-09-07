@@ -10,7 +10,6 @@
   },
   "expected": {
     "error": {
-      "type": "ValueError",
       "message_contains": "canonical use_item directive"
     }
   }

@@ -80,7 +80,7 @@
           },
           {
             "args": [],
-            "raises": {"type": "TypeError"}
+            "rejects": true
           },
           {
             "kwargs": {
@@ -89,7 +89,7 @@
               "operand_names": ["item"],
               "unexpected": true
             },
-            "raises": {"type": "TypeError"}
+            "rejects": true
           }
         ]
       },
@@ -172,18 +172,14 @@
                 "item": "docker"
               }
             },
-            "raises": {
-              "type": "ValueError"
-            }
+            "rejects": true
           },
           {
             "kwargs": {
               "kind": "use_item",
               "operands": {}
             },
-            "raises": {
-              "type": "ValueError"
-            }
+            "rejects": true
           },
           {
             "kwargs": {
@@ -192,9 +188,7 @@
                 "item": "docker"
               }
             },
-            "raises": {
-              "type": "ValueError"
-            }
+            "rejects": true
           },
           {
             "kwargs": {
@@ -203,9 +197,7 @@
                 "value": 123
               }
             },
-            "raises": {
-              "type": "ValueError"
-            }
+            "rejects": true
           },
           {
             "kwargs": {
@@ -214,9 +206,7 @@
                 "value": "to concise replies"
               }
             },
-            "raises": {
-              "type": "ValueError"
-            }
+            "rejects": true
           },
           {
             "kwargs": {
@@ -226,9 +216,7 @@
                 "old_item": "docker"
               }
             },
-            "raises": {
-              "type": "ValueError"
-            }
+            "rejects": true
           },
           {
             "kwargs": {
@@ -237,9 +225,7 @@
                 "item": "instead of"
               }
             },
-            "raises": {
-              "type": "ValueError"
-            }
+            "rejects": true
           },
           {
             "kwargs": {
@@ -248,13 +234,11 @@
                 "item": "docker prohibit peanuts"
               }
             },
-            "raises": {
-              "type": "ValueError"
-            }
+            "rejects": true
           },
           {
             "args": [],
-            "raises": {"type": "TypeError"}
+            "rejects": true
           },
           {
             "kwargs": {
@@ -262,7 +246,7 @@
               "operands": {"item": "docker"},
               "unexpected": true
             },
-            "raises": {"type": "TypeError"}
+            "rejects": true
           }
         ]
       },
@@ -300,7 +284,7 @@
           },
           {
             "kwargs": {"unexpected": true},
-            "raises": {"type": "TypeError"}
+            "rejects": true
           }
         ]
       },

@@ -99,7 +99,7 @@ def resolve_probe_value(value: object) -> object:
     raise AssertionError(f"Unknown probe fixture: {fixture!r}")
 
 
-def assert_probe_raises(
+def assert_probe_rejected(
     callback: Any,
     probe: dict[str, Any],
     contract: dict[str, Any] | None = None,
@@ -107,18 +107,12 @@ def assert_probe_raises(
     args = [resolve_probe_value(value) for value in probe.get("args", [])]
     kwargs = {key: resolve_probe_value(value) for key, value in probe.get("kwargs", {}).items()}
 
-    raises = probe["raises"]
-    expected_exception = _resolve_exception_type(raises["type"])
-
     try:
         callback(*args, **kwargs)
-    except Exception as exc:  # noqa: BLE001
-        assert isinstance(exc, expected_exception)
-        if "shape" in raises:
-            assert_shape(exc, raises["shape"], contract)
+    except Exception:  # noqa: BLE001
         return
 
-    raise AssertionError(f"Expected {raises['type']} to be raised")
+    raise AssertionError("Expected operation to be rejected")
 
 
 def assert_shape(
@@ -267,8 +261,8 @@ def validate_constructor_contract(
 
     assert_signature_matches(exported, export_contract["signature"], f"{label} constructor")
     for probe in export_contract.get("construction_probes", []):
-        if "raises" in probe:
-            assert_probe_raises(exported, probe, contract)
+        if "rejects" in probe:
+            assert_probe_rejected(exported, probe, contract)
             continue
         args = [resolve_probe_value(value) for value in probe.get("args", [])]
         kwargs = {key: resolve_probe_value(value) for key, value in probe.get("kwargs", {}).items()}
@@ -335,8 +329,8 @@ def validate_engine_member_probes(
 ) -> None:
     callback = getattr(engine, name)
     for probe in member_contract.get("probes", []):
-        if "raises" in probe:
-            assert_probe_raises(callback, probe, contract)
+        if "rejects" in probe:
+            assert_probe_rejected(callback, probe, contract)
             continue
         args = [resolve_probe_value(value) for value in probe.get("args", [])]
         kwargs = {key: resolve_probe_value(value) for key, value in probe.get("kwargs", {}).items()}
@@ -652,12 +646,12 @@ def _validate_shape_probe_spec(probe: object, label: str) -> None:
 
 def _validate_construction_probe_spec(probe: object, label: str) -> None:
     _assert_type(probe, dict, label)
-    _assert_closed_keys(probe, {"args", "kwargs", "return_shape", "raises"}, label)
+    _assert_closed_keys(probe, {"args", "kwargs", "return_shape", "rejects"}, label)
 
     has_return = "return_shape" in probe
-    has_raises = "raises" in probe
-    if has_return == has_raises:
-        raise AssertionError(f"{label} must declare exactly one of return_shape or raises")
+    has_rejects = "rejects" in probe
+    if has_return == has_rejects:
+        raise AssertionError(f"{label} must declare exactly one of return_shape or rejects")
 
     args = probe.get("args", [])
     kwargs = probe.get("kwargs", {})
@@ -673,7 +667,8 @@ def _validate_construction_probe_spec(probe: object, label: str) -> None:
         _validate_shape_spec(probe["return_shape"], f"{label}.return_shape")
         return
 
-    _validate_exception_shape_spec(probe["raises"], f"{label}.raises")
+    if probe["rejects"] is not True:
+        raise AssertionError(f"{label}.rejects must be true")
 
 
 def _validate_probe_value(value: object, label: str) -> None:

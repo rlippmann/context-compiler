@@ -37,6 +37,14 @@ Ports should check equivalent public exports, members, and signatures using lang
 
 Behavioral semantics remain covered by conformance and structured fixtures.
 
+Rejection probes in shared API, grammar, and state fixtures express only that
+the operation is rejected and any portable message text; they do not require
+language-specific exception class names. Shared fixtures under
+`tests/fixtures/conformance/` are contract-bearing and must be run by the
+contract-selected Python runners. Adding a new shared fixture family requires
+adding a runner selected by the `contract` marker or explicitly by contract
+CI.
+
 ## Step fixtures
 
 For [`conformance/step/`](conformance/step/):

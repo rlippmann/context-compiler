@@ -260,8 +260,7 @@ def _validate_state_json_fixture(fixture: dict[str, object], fixture_id: object)
         _assert_allowed_keys(expected, {"error", "state"}, fixture_id, "expected")
         error = expected["error"]
         assert isinstance(error, dict), fixture_id
-        _assert_allowed_keys(error, {"type", "message_contains"}, fixture_id, "expected.error")
-        assert isinstance(error["type"], str), fixture_id
+        _assert_allowed_keys(error, {"message_contains"}, fixture_id, "expected.error")
         assert isinstance(error["message_contains"], str), fixture_id
     elif fn == "export_json":
         _assert_allowed_keys(expected, {"payload", "state"}, fixture_id, "expected")
@@ -347,8 +346,7 @@ def _validate_grammar_fixture(fixture: dict[str, object], fixture_id: object) ->
             _assert_allowed_keys(expected, {"error"}, fixture_id, "expected")
             error = expected["error"]
             assert isinstance(error, dict), fixture_id
-            _assert_allowed_keys(error, {"type", "message_contains"}, fixture_id, "expected.error")
-            assert isinstance(error["type"], str), fixture_id
+            _assert_allowed_keys(error, {"message_contains"}, fixture_id, "expected.error")
             assert isinstance(error["message_contains"], str), fixture_id
         else:
             _assert_allowed_keys(expected, {"text", "directive_kind"}, fixture_id, "expected")
@@ -523,9 +521,8 @@ def test_state_json_fixtures() -> None:
             if error is None:
                 engine.import_json(payload)
             else:
-                with pytest.raises(Exception, match=error["message_contains"]) as exc_info:
+                with pytest.raises(Exception, match=error["message_contains"]):
                     engine.import_json(payload)
-                assert type(exc_info.value).__name__ == error["type"], fixture_id
 
         assert _state_observation(engine) == expected["state"], fixture_id
 
@@ -606,12 +603,11 @@ def test_grammar_fixtures() -> None:
         else:
             error = expected.get("error")
             if error is not None:
-                with pytest.raises(Exception, match=error["message_contains"]) as exc_info:
+                with pytest.raises(Exception, match=error["message_contains"]):
                     CanonicalDirective(
                         kind=action["kind"],
                         operands=action["operands"],
                     )
-                assert type(exc_info.value).__name__ == error["type"], fixture_id
             else:
                 rendered = CanonicalDirective(
                     kind=action["kind"],
