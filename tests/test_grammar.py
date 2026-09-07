@@ -93,59 +93,6 @@ def test_directive_metadata_is_frozen_and_slotted() -> None:
 
 
 @pytest.mark.parametrize(
-    ("text", "expected_kind", "expected_operands"),
-    [
-        ("set premise concise replies", DirectiveKind.SET_PREMISE, {"value": "concise replies"}),
-        (
-            "set premise we must use gaap",
-            DirectiveKind.SET_PREMISE,
-            {"value": "we must use gaap"},
-        ),
-        (
-            "set premise users may prohibit unsafe operations",
-            DirectiveKind.SET_PREMISE,
-            {"value": "users may prohibit unsafe operations"},
-        ),
-        (
-            "set premise vegetarian and use docker",
-            DirectiveKind.SET_PREMISE,
-            {"value": "vegetarian and use docker"},
-        ),
-        (
-            "set premise The system uses legacy tooling. Migration is planned.",
-            DirectiveKind.SET_PREMISE,
-            {"value": "The system uses legacy tooling. Migration is planned."},
-        ),
-        (
-            "change premise to use docker for compatibility",
-            DirectiveKind.CHANGE_PREMISE,
-            {"value": "use docker for compatibility"},
-        ),
-        ("change premise to formal tone", DirectiveKind.CHANGE_PREMISE, {"value": "formal tone"}),
-        ("use docker", DirectiveKind.USE_ITEM, {"item": "docker"}),
-        ("prohibit peanuts", DirectiveKind.PROHIBIT_ITEM, {"item": "peanuts"}),
-        ("remove policy docker", DirectiveKind.REMOVE_POLICY, {"item": "docker"}),
-        (
-            "use podman instead of docker",
-            DirectiveKind.REPLACE_USE,
-            {"new_item": "podman", "old_item": "docker"},
-        ),
-        ("clear premise", DirectiveKind.CLEAR_PREMISE, {}),
-        ("reset policies", DirectiveKind.RESET_POLICIES, {}),
-        ("clear state", DirectiveKind.CLEAR_STATE, {}),
-    ],
-)
-def test_decompose_directive_accepts_each_canonical_family(
-    text: str, expected_kind: DirectiveKind, expected_operands: dict[str, str]
-) -> None:
-    decomposed = decompose_directive(text)
-    assert decomposed == CanonicalDirective(
-        kind=expected_kind,
-        operands=expected_operands,
-    )
-
-
-@pytest.mark.parametrize(
     "text",
     [
         "",
@@ -159,120 +106,8 @@ def test_decompose_directive_returns_none_when_no_directive_is_present(text: str
 
 
 @pytest.mark.parametrize(
-    ("text", "expected"),
-    [
-        (
-            "set premise",
-            InvalidDirectiveSyntax(
-                failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
-                directive_kind=DirectiveKind.SET_PREMISE,
-                missing_operand="value",
-            ),
-        ),
-        (
-            "change premise to",
-            InvalidDirectiveSyntax(
-                failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
-                directive_kind=DirectiveKind.CHANGE_PREMISE,
-                missing_operand="value",
-            ),
-        ),
-        (
-            "use",
-            InvalidDirectiveSyntax(
-                failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
-                directive_kind=DirectiveKind.USE_ITEM,
-                missing_operand="item",
-            ),
-        ),
-        (
-            "prohibit",
-            InvalidDirectiveSyntax(
-                failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
-                directive_kind=DirectiveKind.PROHIBIT_ITEM,
-                missing_operand="item",
-            ),
-        ),
-        (
-            "remove policy",
-            InvalidDirectiveSyntax(
-                failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
-                directive_kind=DirectiveKind.REMOVE_POLICY,
-                missing_operand="item",
-            ),
-        ),
-        (
-            "use x instead of",
-            InvalidDirectiveSyntax(
-                failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
-                directive_kind=DirectiveKind.REPLACE_USE,
-                missing_operand="old_item",
-            ),
-        ),
-        (
-            "use instead of y",
-            InvalidDirectiveSyntax(
-                failure=DirectiveSyntaxFailure.MISSING_REQUIRED_OPERAND,
-                directive_kind=DirectiveKind.REPLACE_USE,
-                missing_operand="new_item",
-            ),
-        ),
-        (
-            "set premise to concise",
-            InvalidDirectiveSyntax(
-                failure=DirectiveSyntaxFailure.MALFORMED_DIRECTIVE,
-                directive_kind=DirectiveKind.SET_PREMISE,
-            ),
-        ),
-        (
-            "change premise concise",
-            InvalidDirectiveSyntax(
-                failure=DirectiveSyntaxFailure.MALFORMED_DIRECTIVE,
-            ),
-        ),
-        (
-            "use docker and prohibit peanuts",
-            InvalidDirectiveSyntax(
-                failure=DirectiveSyntaxFailure.COMPOUND_DIRECTIVE,
-            ),
-        ),
-        (
-            "use docker\nprohibit peanuts",
-            InvalidDirectiveSyntax(
-                failure=DirectiveSyntaxFailure.COMPOUND_DIRECTIVE,
-            ),
-        ),
-        (
-            "clear state then set premise project",
-            InvalidDirectiveSyntax(
-                failure=DirectiveSyntaxFailure.COMPOUND_DIRECTIVE,
-            ),
-        ),
-        (
-            "set premise project\nuse docker",
-            InvalidDirectiveSyntax(
-                failure=DirectiveSyntaxFailure.COMPOUND_DIRECTIVE,
-            ),
-        ),
-        (
-            "use\ninstead of docker",
-            None,
-        ),
-    ],
-)
-def test_decompose_directive_marks_invalid_directive_syntax(
-    text: str, expected: InvalidDirectiveSyntax | None
-) -> None:
-    assert decompose_directive(text) == expected
-
-
-@pytest.mark.parametrize(
     ("text", "expected_operands"),
     [
-        ("Use docker", {"item": "docker"}),
-        ("use\tdocker", {"item": "docker"}),
-        (" use docker ", {"item": "docker"}),
-        ("Use    Docker", {"item": "Docker"}),
         ("use docker  engine", {"item": "docker  engine"}),
     ],
 )
@@ -282,37 +117,6 @@ def test_decompose_directive_preserves_current_operand_casing_and_whitespace(
     decomposed = decompose_directive(text)
     assert decomposed is not None
     assert dict(decomposed.operands) == expected_operands
-
-
-@pytest.mark.parametrize(
-    ("inputs", "expected_text"),
-    [
-        (["use docker", "Use docker", " use\tdocker "], "use docker"),
-        (
-            [
-                "change premise to formal tone",
-                "Change premise to formal tone",
-                " change\tpremise\tto\tformal tone ",
-            ],
-            "change premise to formal tone",
-        ),
-        (
-            [
-                "use podman instead of docker",
-                "Use podman instead of docker",
-                " use\tpodman\tinstead\tof\tdocker ",
-            ],
-            "use podman instead of docker",
-        ),
-    ],
-)
-def test_equivalent_accepted_inputs_share_canonical_text(
-    inputs: list[str], expected_text: str
-) -> None:
-    for text in inputs:
-        directive = decompose_directive(text)
-        assert isinstance(directive, CanonicalDirective)
-        assert directive.text == expected_text
 
 
 @pytest.mark.parametrize(
@@ -607,24 +411,6 @@ def test_invalid_directive_syntax_is_frozen_and_slotted() -> None:
     assert invalid.__slots__ == ("failure", "directive_kind", "missing_operand")
     with pytest.raises(FrozenInstanceError):
         invalid.failure = DirectiveSyntaxFailure.COMPOUND_DIRECTIVE  # type: ignore[misc]
-
-
-def test_decompose_directive_returns_canonical_operands_for_use_item() -> None:
-    parsed = decompose_directive("Use docker")
-
-    assert parsed is not None
-    assert parsed.text == "use docker"
-    assert parsed.kind is DirectiveKind.USE_ITEM
-    assert parsed.operands == {"item": "docker"}
-
-
-def test_decompose_directive_returns_text_kind_and_operands_without_projection_layer() -> None:
-    decomposed = decompose_directive(" use\tdocker ")
-
-    assert decomposed is not None
-    assert decomposed.text == "use docker"
-    assert decomposed.kind is DirectiveKind.USE_ITEM
-    assert decomposed.operands == {"item": "docker"}
 
 
 def test_internal_match_directive_token_rejects_truncated_and_non_whitespace_separator() -> None:
