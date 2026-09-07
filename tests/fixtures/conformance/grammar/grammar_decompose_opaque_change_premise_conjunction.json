@@ -1,0 +1,17 @@
+{
+  "id": "grammar_decompose_opaque_change_premise_conjunction",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "change premise to vegetarian and use docker"
+  },
+  "expected": {
+    "directive": {
+      "text": "change premise to vegetarian and use docker",
+      "kind": "change_premise",
+      "operands": {
+        "value": "vegetarian and use docker"
+      }
+    }
+  }
+}

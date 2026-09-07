@@ -1,0 +1,17 @@
+{
+  "id": "grammar_decompose_unicode_casefold_structural_delimiter_not_replacement",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "use podman inſtead of docker"
+  },
+  "expected": {
+    "directive": {
+      "kind": "use_item",
+      "text": "use podman inſtead of docker",
+      "operands": {
+        "item": "podman inſtead of docker"
+      }
+    }
+  }
+}
