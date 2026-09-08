@@ -475,6 +475,24 @@ def test_multiple_premise_directives_are_rejected() -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "text",
+    [
+        "set premise concise replies and change premise to formal tone",
+        "change premise to deployment target is staging, then use cautious rollout",
+        "set premise users may prohibit unsafe operations",
+        "set premise cleanup requires remove policy docker",
+        "set premise clear premise before release",
+        "set premise reset policies after migration",
+        "set premise clear state before starting",
+    ],
+)
+def test_premise_directive_starters_are_rejected_as_compound(text: str) -> None:
+    assert decompose_directive(text) == InvalidDirectiveSyntax(
+        failure=DirectiveSyntaxFailure.COMPOUND_DIRECTIVE,
+    )
+
+
 def test_parse_replace_use_rejects_blank_new_item() -> None:
     assert grammar_module._parse_replace_use("use \t instead of docker") is None
 

@@ -33,6 +33,8 @@ CANONICAL_STARTS = [
     "clear state",
 ]
 
+PREMISE_STARTS = ["set premise", "change premise to"]
+
 SEPARATOR_CHARS = " \t\n\r,.;:!?-/()[]"
 LETTER_CHARS = string.ascii_lowercase
 
@@ -58,6 +60,21 @@ def _assert_compound_no_directive(user_input: str) -> None:
 )
 def test_compound_separator_robustness(separator: str, second: str) -> None:
     user_input = f"use docker{separator}{second}"
+    assert isinstance(decompose_directive(user_input), InvalidDirectiveSyntax)
+    _assert_compound_no_directive(user_input)
+
+
+@settings(max_examples=50)
+@given(
+    premise_start=st.sampled_from(PREMISE_STARTS),
+    separator=st.sampled_from([" ", " and ", ", then ", "\n"]),
+    second=st.sampled_from(CANONICAL_SECOND_DIRECTIVES),
+)
+def test_premise_payload_rejects_reserved_directive_starters(
+    premise_start: str, separator: str, second: str
+) -> None:
+    user_input = f"{premise_start} deployment target is staging{separator}{second}"
+
     assert isinstance(decompose_directive(user_input), InvalidDirectiveSyntax)
     _assert_compound_no_directive(user_input)
 
