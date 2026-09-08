@@ -27,8 +27,8 @@ from .grammar import CanonicalDirective, DirectiveKind, decompose_directive
 PolicyValue = Literal["use", "prohibit"]
 
 
-class _State(TypedDict):
-    """Versioned authoritative state."""
+class _WorkingMemory(TypedDict):
+    """Versioned internal working memory."""
 
     premise: str | None
     policies: dict[str, PolicyValue]
@@ -37,7 +37,7 @@ class _State(TypedDict):
 
 class _EvaluatedTransition(TypedDict):
     decision: UpdateDecision | SemanticErrorDecision
-    next_state: _State
+    next_state: _WorkingMemory
 
 
 _NO_DIRECTIVE = NoDirectiveDecision()
@@ -49,7 +49,7 @@ class Engine:
     __slots__ = ("_state",)
 
     def __init__(self) -> None:
-        self._state: _State
+        self._state: _WorkingMemory
         self._replace_state(_initial_state())
 
     @property
@@ -105,7 +105,7 @@ class Engine:
         return evaluated["decision"]
 
     def _evaluate_directive_transition(
-        self, state: _State, directive: CanonicalDirective
+        self, state: _WorkingMemory, directive: CanonicalDirective
     ) -> _EvaluatedTransition:
         error_decision = self._pre_mutation_error(directive, state=state)
         if error_decision is not None:
@@ -117,11 +117,11 @@ class Engine:
             "next_state": next_state,
         }
 
-    def _replace_state(self, state: _State) -> None:
+    def _replace_state(self, state: _WorkingMemory) -> None:
         self._state = state
 
     def _pre_mutation_error(
-        self, directive: CanonicalDirective, *, state: _State | None = None
+        self, directive: CanonicalDirective, *, state: _WorkingMemory | None = None
     ) -> SemanticErrorDecision | None:
         candidate_state = self._state if state is None else state
         # Single error path: all error outcomes are detected before any mutation.
@@ -203,7 +203,9 @@ class Engine:
 
         return None
 
-    def _apply_directive(self, directive: CanonicalDirective, *, state: _State) -> _State:
+    def _apply_directive(
+        self, directive: CanonicalDirective, *, state: _WorkingMemory
+    ) -> _WorkingMemory:
         next_state = deepcopy(state)
 
         if directive.kind is DirectiveKind.SET_PREMISE:
@@ -249,7 +251,9 @@ class Engine:
 
         return _initial_state()
 
-    def _apply_replacement_explicit(self, state: _State, new_item: str, old_item: str) -> None:
+    def _apply_replacement_explicit(
+        self, state: _WorkingMemory, new_item: str, old_item: str
+    ) -> None:
         new_key = _normalize_item(new_item)
         old_key = _normalize_item(old_item)
 
@@ -260,7 +264,7 @@ class Engine:
         state[STATE_POLICIES][new_key] = POLICY_USE
 
 
-def _initial_state() -> _State:
+def _initial_state() -> _WorkingMemory:
     return {
         STATE_PREMISE: None,
         STATE_POLICIES: {},
@@ -268,7 +272,7 @@ def _initial_state() -> _State:
     }
 
 
-def _load_state_json(payload: str) -> _State:
+def _load_state_json(payload: str) -> _WorkingMemory:
     try:
         raw = json.loads(payload)
     except json.JSONDecodeError as exc:
@@ -277,7 +281,7 @@ def _load_state_json(payload: str) -> _State:
     return _load_state_obj(raw)
 
 
-def _load_state_obj(raw: object) -> _State:
+def _load_state_obj(raw: object) -> _WorkingMemory:
     if not isinstance(raw, dict):
         raise ValueError("Invalid state payload.")
 
@@ -379,5 +383,5 @@ def _repair_set_premise(value: str) -> CanonicalDirective:
     )
 
 
-def _update_decision(previous_state: _State, next_state: _State) -> UpdateDecision:
+def _update_decision(previous_state: _WorkingMemory, next_state: _WorkingMemory) -> UpdateDecision:
     return UpdateDecision(changed=previous_state != next_state)
