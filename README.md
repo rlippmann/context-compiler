@@ -5,11 +5,11 @@
 [![License](https://img.shields.io/pypi/l/context-compiler)](https://pypi.org/project/context-compiler/)
 [![codecov](https://codecov.io/gh/rlippmann/context-compiler/branch/main/graph/badge.svg)](https://codecov.io/gh/rlippmann/context-compiler)
 
-Context Compiler keeps a host-side working memory of premise and policy rules,
-separate from the model's conversational context. The Engine applies
-directives to that working memory so applications can carry explicit state
-across model interactions without relying on the model to remember or infer
-it. It blocks invalid or conflicting changes and returns structured decisions.
+Context Compiler keeps host-side working memory consisting of a premise and
+policies, separate from the model's conversational context. The Engine applies
+directives to that working memory so applications can maintain explicit state
+across model interactions without relying on the model to remember or infer it.
+It blocks invalid or conflicting changes and returns structured decisions.
 
 Use it when saved context and policy rules need to shape what an application
 does, not just what the model sees or says.
@@ -92,7 +92,7 @@ repair behavior.
 
 ## State Model
 
-The engine stores explicit user commitments as saved state:
+Working memory contains explicit user commitments:
 
 | State | Meaning |
 | --- | --- |
