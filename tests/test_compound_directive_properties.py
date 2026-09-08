@@ -8,7 +8,11 @@ from context_compiler import (
     DECISION_NO_DIRECTIVE,
     Engine,
 )
-from context_compiler.grammar import InvalidDirectiveSyntax, decompose_directive
+from context_compiler.grammar import (
+    DirectiveSyntaxFailure,
+    InvalidDirectiveSyntax,
+    decompose_directive,
+)
 
 CANONICAL_SECOND_DIRECTIVES = [
     "set premise concise",
@@ -75,7 +79,9 @@ def test_premise_payload_rejects_reserved_directive_starters(
 ) -> None:
     user_input = f"{premise_start} deployment target is staging{separator}{second}"
 
-    assert isinstance(decompose_directive(user_input), InvalidDirectiveSyntax)
+    assert decompose_directive(user_input) == InvalidDirectiveSyntax(
+        failure=DirectiveSyntaxFailure.COMPOUND_DIRECTIVE,
+    )
     _assert_compound_no_directive(user_input)
 
 
