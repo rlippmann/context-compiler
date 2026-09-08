@@ -5,7 +5,7 @@
 [![License](https://img.shields.io/pypi/l/context-compiler)](https://pypi.org/project/context-compiler/)
 [![codecov](https://codecov.io/gh/rlippmann/context-compiler/branch/main/graph/badge.svg)](https://codecov.io/gh/rlippmann/context-compiler)
 
-Context Compiler keeps host-side working memory consisting of a premise and
+Context Compiler maintains host-side working memory consisting of a premise and
 policies, separate from the model's conversational context. The Engine applies
 directives to that working memory so applications can maintain explicit state
 across model interactions without relying on the model to remember or infer it.
@@ -122,8 +122,8 @@ To replace an existing `use` policy:
 use podman instead of docker
 ```
 
-If `docker` is absent from saved state, the replacement fails and leaves state
-unchanged. It does not become plain `use podman`.
+If `docker` is absent from working memory, the replacement fails and leaves
+working memory unchanged. It does not become plain `use podman`.
 
 To remove a policy or clear state:
 
