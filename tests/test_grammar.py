@@ -469,10 +469,6 @@ def test_internal_contains_multiple_canonical_directives_reports_compound_detect
     assert grammar_module._contains_multiple_canonical_directives(text) is expected
 
 
-def test_internal_contains_multiple_premise_directives_ignores_non_directive_text() -> None:
-    assert grammar_module._contains_multiple_premise_directives("hello there") is False
-
-
 def test_multiple_premise_directives_are_rejected() -> None:
     assert decompose_directive("set premise first\nset premise second") == InvalidDirectiveSyntax(
         failure=DirectiveSyntaxFailure.COMPOUND_DIRECTIVE,
