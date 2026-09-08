@@ -336,10 +336,7 @@ Rules:
 - is opaque for semantic interpretation: the grammar does not infer meaning
   from ordinary words or sentence content inside `VALUE`;
 - has no quote-aware or escape-aware subgrammar;
-- a canonical directive starter in compound position is not part of `VALUE` and
-  causes compound-attempt rejection under Section 7.5;
-- a separate canonical directive beginning on a new line is also rejected as a
-  compound attempt.
+- is subject to the compound-attempt rule in Section 7.5.
 
 Canonical meaning:
 
@@ -462,15 +459,17 @@ as:
 - `clear state then set premise new project`
 
 This rule is lexical and grammar-level. It is not a semantic conflict rule.
-
-Premise `VALUE` is payload rather than a policy identity, but directive
-starters remain reserved in compound position. This is lexical and grammar-
-level behavior, not natural-language interpretation. `ITEM` operands retain
-the compound-detection behavior described above.
+For any operand-bearing directive, a recognized directive starter at a token
+boundary within the operand makes the full input a compound attempt, even when
+ordinary whitespace is the only separator. This applies to premise `VALUE` and
+policy `ITEM` operands; no `and`, `then`, punctuation, or newline is required.
+It does not interpret natural-language meaning.
 
 Examples:
 
 - no_directive: `"use docker and prohibit peanuts"`
+- directive-shaped invalid: `set premise users use SSO`
+- directive-shaped invalid: `change premise to users prohibit password authentication`
 - directive-shaped invalid: `use "docker and prohibit peanuts"`
 - directive-shaped invalid: `set premise "use docker and prohibit peanuts"`
 
