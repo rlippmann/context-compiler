@@ -1,0 +1,16 @@
+{
+  "id": "grammar_decompose_change_premise_use_compound_rejected",
+  "kind": "grammar",
+  "action": {
+    "fn": "decompose_directive",
+    "text": "change premise to deployment target is staging, then use cautious rollout"
+  },
+  "expected": {
+    "directive": {
+      "kind": "invalid_directive_syntax",
+      "failure": "compound_directive",
+      "directive_kind": null,
+      "missing_operand": null
+    }
+  }
+}
