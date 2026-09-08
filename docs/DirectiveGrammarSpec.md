@@ -333,11 +333,13 @@ Rules:
 
 - must contain at least one non-whitespace character;
 - may contain spaces and punctuation;
-- is opaque payload: directive keywords, conjunctions, and multiple sentences
-  inside `VALUE` are not inspected as embedded directives;
+- is opaque for semantic interpretation: the grammar does not infer meaning
+  from ordinary words or sentence content inside `VALUE`;
 - has no quote-aware or escape-aware subgrammar;
-- a separate canonical directive beginning on a new line is still rejected as
-  a compound attempt under Section 7.5.
+- a canonical directive starter in compound position is not part of `VALUE` and
+  causes compound-attempt rejection under Section 7.5;
+- a separate canonical directive beginning on a new line is also rejected as a
+  compound attempt.
 
 Canonical meaning:
 
@@ -455,23 +457,22 @@ contains more than one attempted directive clause. This includes inputs such
 as:
 
 - `use docker and prohibit peanuts`
-- `set premise project deadline is Friday and use docker` is one premise directive; `VALUE` is
-  opaque and may contain policy words or conjunctions.
+- `set premise project deadline is Friday and use docker`
+- `set premise deployment target is staging, then use cautious rollout`
 - `clear state then set premise new project`
 
 This rule is lexical and grammar-level. It is not a semantic conflict rule.
 
-Premise `VALUE` is payload rather than a policy identity. The grammar does not
-inspect embedded directive words, conjunctions, or sentence boundaries inside
-it. A separate canonical directive beginning on a new line is still treated as
-a compound attempt. `ITEM` operands retain the compound-detection behavior
-described above.
+Premise `VALUE` is payload rather than a policy identity, but directive
+starters remain reserved in compound position. This is lexical and grammar-
+level behavior, not natural-language interpretation. `ITEM` operands retain
+the compound-detection behavior described above.
 
 Examples:
 
 - no_directive: `"use docker and prohibit peanuts"`
 - directive-shaped invalid: `use "docker and prohibit peanuts"`
-- canonical directive: `set premise "use docker and prohibit peanuts"`
+- directive-shaped invalid: `set premise "use docker and prohibit peanuts"`
 
 ## 8. Parsed Meaning and Semantic Boundary
 
@@ -773,7 +774,7 @@ source material for later conformance fixtures.
 | `use docker and prohibit peanuts` | directive-shaped invalid input | none | compound attempt |
 | `clear state then set premise project` | directive-shaped invalid input | none | compound attempt |
 | `use "docker and prohibit peanuts"` | directive-shaped invalid input | none | quotes do not protect embedded directive text |
-| `set premise "use docker and prohibit peanuts"` | canonical directive | set premise | premise `VALUE` is opaque payload, including quote characters |
+| `set premise "use docker and prohibit peanuts"` | directive-shaped invalid | none | quotes do not protect embedded directive text |
 
 ## 12. Invariants
 
