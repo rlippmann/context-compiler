@@ -46,28 +46,28 @@ _NO_DIRECTIVE = NoDirectiveDecision()
 class Engine:
     """Own the authoritative state and apply one directive transition at a time."""
 
-    __slots__ = ("_state",)
+    __slots__ = ("_working_memory",)
 
     def __init__(self) -> None:
-        self._state: _WorkingMemory
+        self._working_memory: _WorkingMemory
         self._replace_state(_initial_state())
 
     @property
     def premise(self) -> str | None:
         """Return the current premise from authoritative state."""
 
-        return self._state[STATE_PREMISE]
+        return self._working_memory[STATE_PREMISE]
 
     @property
     def policies(self) -> Mapping[str, PolicyValue]:
         """Return a defensive copy of the current policy mapping."""
 
-        return deepcopy(self._state[STATE_POLICIES])
+        return deepcopy(self._working_memory[STATE_POLICIES])
 
     def export_json(self) -> str:
         """Serialize the current authoritative state to canonical JSON text."""
 
-        return json.dumps(self._state, sort_keys=True, separators=(",", ":"))
+        return json.dumps(self._working_memory, sort_keys=True, separators=(",", ":"))
 
     def import_json(self, payload: str) -> None:
         """Replace authoritative state from previously exported JSON text.
@@ -100,7 +100,7 @@ class Engine:
     ) -> UpdateDecision | SemanticErrorDecision:
         """Evaluate and commit one canonical directive against authoritative state."""
 
-        evaluated = self._evaluate_directive_transition(self._state, directive)
+        evaluated = self._evaluate_directive_transition(self._working_memory, directive)
         self._replace_state(evaluated["next_state"])
         return evaluated["decision"]
 
@@ -118,12 +118,12 @@ class Engine:
         }
 
     def _replace_state(self, state: _WorkingMemory) -> None:
-        self._state = state
+        self._working_memory = state
 
     def _pre_mutation_error(
         self, directive: CanonicalDirective, *, state: _WorkingMemory | None = None
     ) -> SemanticErrorDecision | None:
-        candidate_state = self._state if state is None else state
+        candidate_state = self._working_memory if state is None else state
         # Single error path: all error outcomes are detected before any mutation.
         if (
             directive.kind is DirectiveKind.SET_PREMISE

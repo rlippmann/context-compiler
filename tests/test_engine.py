@@ -375,7 +375,7 @@ def test_import_json_rejects_policy_keys_that_normalize_to_empty(
 def test_replace_use_errors_when_old_policy_is_not_use_in_invalid_internal_state() -> None:
     engine = Engine()
     # Defensive-path coverage for impossible external state values.
-    engine._state["policies"]["docker"] = "invalid"  # type: ignore[assignment]  # noqa: SLF001
+    engine._working_memory["policies"]["docker"] = "invalid"  # type: ignore[assignment]  # noqa: SLF001
 
     decision = engine.step("use kubectl instead of docker")
 
